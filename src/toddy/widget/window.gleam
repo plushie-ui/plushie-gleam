@@ -1,0 +1,125 @@
+//// Window widget builder.
+
+import gleam/dict
+import gleam/list
+import gleam/option.{type Option, None}
+import toddy/node.{type Node, Node}
+import toddy/widget/build
+
+pub opaque type Window {
+  Window(
+    id: String,
+    children: List(Node),
+    title: Option(String),
+    width: Option(Float),
+    height: Option(Float),
+    maximized: Option(Bool),
+    fullscreen: Option(Bool),
+    visible: Option(Bool),
+    resizable: Option(Bool),
+    closeable: Option(Bool),
+    minimizable: Option(Bool),
+    decorations: Option(Bool),
+    transparent: Option(Bool),
+    exit_on_close_request: Option(Bool),
+  )
+}
+
+pub fn new(id: String) -> Window {
+  Window(
+    id:,
+    children: [],
+    title: None,
+    width: None,
+    height: None,
+    maximized: None,
+    fullscreen: None,
+    visible: None,
+    resizable: None,
+    closeable: None,
+    minimizable: None,
+    decorations: None,
+    transparent: None,
+    exit_on_close_request: None,
+  )
+}
+
+pub fn title(w: Window, t: String) -> Window {
+  Window(..w, title: option.Some(t))
+}
+
+pub fn size(w: Window, width: Float, height: Float) -> Window {
+  Window(..w, width: option.Some(width), height: option.Some(height))
+}
+
+pub fn width(w: Window, width: Float) -> Window {
+  Window(..w, width: option.Some(width))
+}
+
+pub fn height(w: Window, height: Float) -> Window {
+  Window(..w, height: option.Some(height))
+}
+
+pub fn maximized(w: Window, m: Bool) -> Window {
+  Window(..w, maximized: option.Some(m))
+}
+
+pub fn fullscreen(w: Window, f: Bool) -> Window {
+  Window(..w, fullscreen: option.Some(f))
+}
+
+pub fn visible(w: Window, v: Bool) -> Window {
+  Window(..w, visible: option.Some(v))
+}
+
+pub fn resizable(w: Window, r: Bool) -> Window {
+  Window(..w, resizable: option.Some(r))
+}
+
+pub fn closeable(w: Window, c: Bool) -> Window {
+  Window(..w, closeable: option.Some(c))
+}
+
+pub fn minimizable(w: Window, m: Bool) -> Window {
+  Window(..w, minimizable: option.Some(m))
+}
+
+pub fn decorations(w: Window, d: Bool) -> Window {
+  Window(..w, decorations: option.Some(d))
+}
+
+pub fn transparent(w: Window, t: Bool) -> Window {
+  Window(..w, transparent: option.Some(t))
+}
+
+pub fn exit_on_close_request(w: Window, e: Bool) -> Window {
+  Window(..w, exit_on_close_request: option.Some(e))
+}
+
+/// Add a child node.
+pub fn push(w: Window, child: Node) -> Window {
+  Window(..w, children: list.append(w.children, [child]))
+}
+
+/// Add multiple child nodes.
+pub fn extend(w: Window, children: List(Node)) -> Window {
+  Window(..w, children: list.append(w.children, children))
+}
+
+pub fn build(w: Window) -> Node {
+  let props =
+    dict.new()
+    |> build.put_optional_string("title", w.title)
+    |> build.put_optional_float("width", w.width)
+    |> build.put_optional_float("height", w.height)
+    |> build.put_optional_bool("maximized", w.maximized)
+    |> build.put_optional_bool("fullscreen", w.fullscreen)
+    |> build.put_optional_bool("visible", w.visible)
+    |> build.put_optional_bool("resizable", w.resizable)
+    |> build.put_optional_bool("closeable", w.closeable)
+    |> build.put_optional_bool("minimizable", w.minimizable)
+    |> build.put_optional_bool("decorations", w.decorations)
+    |> build.put_optional_bool("transparent", w.transparent)
+    |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
+  Node(id: w.id, kind: "window", props:, children: w.children)
+}
