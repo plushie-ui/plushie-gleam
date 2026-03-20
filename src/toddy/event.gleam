@@ -1,12 +1,26 @@
 //// Event types for the toddy wire protocol.
 ////
-//// Events are delivered to the app's `update` function. Pattern match
-//// on specific constructors and use `_ ->` for unhandled events.
+//// Events are delivered to the app's `update` function from the Rust
+//// binary via the bridge actor. Pattern match on specific constructors
+//// and use `_ ->` for unhandled events.
+////
+//// Widget events carry an `id` (the widget's local ID after scope
+//// splitting) and a `scope` (list of ancestor container IDs, nearest
+//// first). For example, a button "save" inside container "form" produces
+//// `WidgetClick(id: "save", scope: ["form"])`.
+////
+//// Fields typed as `Dynamic` carry wire-originated values whose shape
+//// varies by context. Use `gleam/dynamic/decode` to extract typed data.
+//// These appear in catch-all events, pane identifiers, async results,
+//// and effect responses.
 
 import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option}
 
-/// Keyboard modifier state.
+/// Keyboard modifier state. Fields match the Rust binary's modifier
+/// report. `logo` is the Super/Windows key; `command` is the macOS
+/// Command key. Both are sent by the binary -- on macOS they typically
+/// track together.
 pub type Modifiers {
   Modifiers(shift: Bool, ctrl: Bool, alt: Bool, logo: Bool, command: Bool)
 }
@@ -40,7 +54,12 @@ pub type ScrollUnit {
   Pixel
 }
 
-/// Widget scroll viewport data.
+/// Widget scroll viewport data. All measurements in logical pixels.
+///
+/// - `absolute_x/y`: current scroll offset from content origin
+/// - `relative_x/y`: fractional position (0.0 = start, 1.0 = end)
+/// - `bounds_width/height`: visible viewport dimensions
+/// - `content_width/height`: total scrollable content dimensions
 pub type ScrollData {
   ScrollData(
     absolute_x: Float,
@@ -54,7 +73,14 @@ pub type ScrollData {
   )
 }
 
-/// Platform effect result.
+/// Platform effect result from file dialogs, clipboard, notifications.
+///
+/// - `EffectOk(data)`: success; data shape depends on the effect kind
+///   (e.g., file dialogs return a map with `"path"` or `"paths"` keys)
+/// - `EffectCancelled`: user dismissed the dialog
+/// - `EffectError(reason)`: operation failed (timeout, permission, etc.)
+///
+/// Use `gleam/dynamic/decode` to extract typed values from the Dynamic.
 pub type EffectResult {
   EffectOk(Dynamic)
   EffectCancelled

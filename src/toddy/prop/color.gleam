@@ -133,8 +133,7 @@ fn float_clamp(n: Float, low: Float, high: Float) -> Float {
 }
 
 fn float_to_int(f: Float) -> Int {
-  // Truncate toward zero
-  float.truncate(f)
+  float.round(f)
 }
 
 /// Get the hex string representation.

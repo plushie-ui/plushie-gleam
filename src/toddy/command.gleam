@@ -131,6 +131,13 @@ pub fn batch(commands: List(Command(msg))) -> Command(msg) {
   Batch(commands:)
 }
 
+/// Wrap an already-resolved value and deliver it through update via
+/// the mapper function. Useful for lifting pure values into the
+/// command pipeline.
+pub fn done(value: Dynamic, mapper: fn(Dynamic) -> msg) -> Command(msg) {
+  Done(value:, mapper:)
+}
+
 pub fn async(work: fn() -> Dynamic, tag: String) -> Command(msg) {
   Async(work:, tag:)
 }

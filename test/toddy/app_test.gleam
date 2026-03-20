@@ -85,3 +85,53 @@ pub fn window_config_default_empty_test() {
   let config = app.get_window_config(my_app)(Model(0))
   should.equal(dict.size(config), 0)
 }
+
+// --- application() tests ---
+
+type Msg {
+  TodoEvent(event.Event)
+}
+
+fn msg_init() {
+  #(Model(count: 0), command.none())
+}
+
+fn msg_update(model: Model, msg: Msg) {
+  case msg {
+    TodoEvent(WidgetClick(id: "inc", ..)) -> #(
+      Model(count: model.count + 1),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn msg_view(_model: Model) {
+  node.new("root", "container")
+}
+
+pub fn application_stores_on_event_test() {
+  let my_app =
+    app.application(msg_init, msg_update, msg_view, fn(e) { TodoEvent(e) })
+  should.be_true(option.is_some(app.get_on_event(my_app)))
+}
+
+pub fn application_init_works_test() {
+  let my_app =
+    app.application(msg_init, msg_update, msg_view, fn(e) { TodoEvent(e) })
+  let #(model, _cmd) = app.get_init(my_app)()
+  should.equal(model.count, 0)
+}
+
+pub fn application_update_with_mapped_event_test() {
+  let my_app =
+    app.application(msg_init, msg_update, msg_view, fn(e) { TodoEvent(e) })
+  let on_event = case app.get_on_event(my_app) {
+    option.Some(f) -> f
+    option.None -> panic as "expected on_event"
+  }
+  let mapped = on_event(WidgetClick(id: "inc", scope: []))
+  let update = app.get_update(my_app)
+  let #(model, _cmd) = update(Model(count: 0), mapped)
+  should.equal(model.count, 1)
+}

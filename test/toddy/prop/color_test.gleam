@@ -51,8 +51,8 @@ pub fn from_rgb_clamps_test() {
 
 pub fn from_rgba_test() {
   let c = color.from_rgba(255, 0, 0, 0.5)
-  // alpha 0.5 * 255 = 127 = 0x7f
-  should.equal(color.to_hex(c), "#ff00007f")
+  // alpha 0.5 * 255 = 127.5, rounded to 128 = 0x80
+  should.equal(color.to_hex(c), "#ff000080")
 }
 
 pub fn named_constants_test() {
