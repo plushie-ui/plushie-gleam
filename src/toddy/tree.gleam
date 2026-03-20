@@ -1,0 +1,259 @@
+//// Tree operations: normalization, diffing, and search.
+////
+//// After `view(model)` produces a `Node` tree, `normalize` applies scoped
+//// IDs and resolves a11y references. After each update cycle, `diff`
+//// compares old and new normalized trees to produce `PatchOp` lists for
+//// the wire protocol.
+
+import gleam/dict.{type Dict}
+import gleam/list
+import gleam/option.{type Option}
+import gleam/set
+import gleam/string
+import toddy/node.{type Node, type PropValue, DictVal, Node, NullVal, StringVal}
+import toddy/patch.{
+  type PatchOp, DeleteNode, InsertChild, ReplaceNode, UpdateProps,
+}
+
+// --- Normalize ---------------------------------------------------------------
+
+/// Normalize a node tree by applying scoped IDs and resolving a11y
+/// references. Call this on the output of `view(model)` before diffing.
+pub fn normalize(node: Node) -> Node {
+  normalize_with_scope(node, "")
+}
+
+fn normalize_with_scope(node: Node, scope: String) -> Node {
+  let scoped_id = apply_scope(node.id, scope)
+
+  // Windows reset scope; empty IDs don't create scope boundaries.
+  let child_scope = case node.kind, node.id {
+    "window", _ -> ""
+    _, "" -> scope
+    _, _ -> scoped_id
+  }
+
+  let props = resolve_a11y_refs(node.props, scope)
+
+  let children =
+    list.map(node.children, fn(child) {
+      normalize_with_scope(child, child_scope)
+    })
+
+  Node(id: scoped_id, kind: node.kind, props:, children:)
+}
+
+fn apply_scope(id: String, scope: String) -> String {
+  case scope, id {
+    "", _ -> id
+    _, "" -> id
+    _, _ -> scope <> "/" <> id
+  }
+}
+
+fn resolve_a11y_refs(
+  props: Dict(String, PropValue),
+  scope: String,
+) -> Dict(String, PropValue) {
+  case dict.get(props, "a11y") {
+    Ok(DictVal(a11y_props)) -> {
+      let a11y_props = resolve_ref(a11y_props, "labelled_by", scope)
+      let a11y_props = resolve_ref(a11y_props, "described_by", scope)
+      let a11y_props = resolve_ref(a11y_props, "error_message", scope)
+      dict.insert(props, "a11y", DictVal(a11y_props))
+    }
+    _ -> props
+  }
+}
+
+fn resolve_ref(
+  props: Dict(String, PropValue),
+  key: String,
+  scope: String,
+) -> Dict(String, PropValue) {
+  case scope, dict.get(props, key) {
+    "", _ -> props
+    _, Ok(StringVal(ref_id)) ->
+      case ref_id {
+        "" -> props
+        _ ->
+          case string.contains(ref_id, "/") {
+            // Already a full scoped path -- leave it alone.
+            True -> props
+            False -> dict.insert(props, key, StringVal(scope <> "/" <> ref_id))
+          }
+      }
+    _, _ -> props
+  }
+}
+
+// --- Diff --------------------------------------------------------------------
+
+/// Compare two normalized trees and return a list of patch operations
+/// that transform `old` into `new`.
+pub fn diff(old: Node, new: Node) -> List(PatchOp) {
+  diff_node(old, new)
+}
+
+fn diff_node(old: Node, new: Node) -> List(PatchOp) {
+  // Different ID or kind -> full replacement.
+  case old.id != new.id || old.kind != new.kind {
+    True -> [ReplaceNode(path: new.id, node: new)]
+    False -> {
+      // Check for reordered children first -- if so, replace the whole node.
+      case children_reordered(old.children, new.children) {
+        True -> [ReplaceNode(path: new.id, node: new)]
+        False -> {
+          let prop_ops = diff_props(old.props, new.props, old.id)
+          let child_ops =
+            diff_children_ordered(old.children, new.children, old.id)
+          list.append(prop_ops, child_ops)
+        }
+      }
+    }
+  }
+}
+
+fn diff_props(
+  old_props: Dict(String, PropValue),
+  new_props: Dict(String, PropValue),
+  path: String,
+) -> List(PatchOp) {
+  case old_props == new_props {
+    True -> []
+    False -> {
+      // Changed or added keys.
+      let changed =
+        dict.fold(new_props, dict.new(), fn(acc, k, v) {
+          case dict.get(old_props, k) {
+            Ok(old_v) if old_v == v -> acc
+            _ -> dict.insert(acc, k, v)
+          }
+        })
+
+      // Removed keys -> NullVal.
+      let removed =
+        dict.fold(old_props, dict.new(), fn(acc, k, _v) {
+          case dict.has_key(new_props, k) {
+            True -> acc
+            False -> dict.insert(acc, k, NullVal)
+          }
+        })
+
+      let merged = dict.merge(changed, removed)
+
+      case dict.is_empty(merged) {
+        True -> []
+        False -> [UpdateProps(path:, props: merged)]
+      }
+    }
+  }
+}
+
+fn children_reordered(old: List(Node), new: List(Node)) -> Bool {
+  let old_ids = list.map(old, fn(c) { c.id })
+  let new_ids = list.map(new, fn(c) { c.id })
+  let old_set = set.from_list(old_ids)
+  let new_set = set.from_list(new_ids)
+  let common_old = list.filter(old_ids, fn(id) { set.contains(new_set, id) })
+  let common_new = list.filter(new_ids, fn(id) { set.contains(old_set, id) })
+  common_old != common_new
+}
+
+/// Diff children when no reorder has occurred. Produces removal, update,
+/// and insertion ops in the correct order.
+fn diff_children_ordered(
+  old_children: List(Node),
+  new_children: List(Node),
+  parent_path: String,
+) -> List(PatchOp) {
+  let old_by_id = build_id_map(old_children)
+  let new_id_set = set.from_list(list.map(new_children, fn(c) { c.id }))
+  let old_id_set = set.from_list(list.map(old_children, fn(c) { c.id }))
+
+  // Removals: old children not in new. Delete by node path (parent/child_id).
+  let removals =
+    old_children
+    |> list.filter(fn(child) { !set.contains(new_id_set, child.id) })
+    |> list.reverse()
+    |> list.map(fn(child) { DeleteNode(path: child.id) })
+
+  // Updates: children present in both old and new, recursed.
+  let updates =
+    new_children
+    |> list.filter(fn(child) { set.contains(old_id_set, child.id) })
+    |> list.flat_map(fn(new_child) {
+      case dict.get(old_by_id, new_child.id) {
+        Ok(old_child) -> diff_node(old_child, new_child)
+        Error(_) -> []
+      }
+    })
+
+  // Insertions: new children not in old.
+  let insertions =
+    new_children
+    |> list.index_map(fn(child, idx) { #(child, idx) })
+    |> list.filter(fn(pair) { !set.contains(old_id_set, pair.0.id) })
+    |> list.map(fn(pair) {
+      InsertChild(path: parent_path, index: pair.1, node: pair.0)
+    })
+
+  list.flatten([removals, updates, insertions])
+}
+
+fn build_id_map(children: List(Node)) -> Dict(String, Node) {
+  list.fold(children, dict.new(), fn(acc, child) {
+    dict.insert(acc, child.id, child)
+  })
+}
+
+// --- Search ------------------------------------------------------------------
+
+/// Find a node by its ID (depth-first). Returns the first match.
+pub fn find(tree: Node, id: String) -> Option(Node) {
+  case tree.id == id {
+    True -> option.Some(tree)
+    False -> find_in_children(tree.children, id)
+  }
+}
+
+fn find_in_children(children: List(Node), id: String) -> Option(Node) {
+  case children {
+    [] -> option.None
+    [child, ..rest] ->
+      case find(child, id) {
+        option.Some(found) -> option.Some(found)
+        option.None -> find_in_children(rest, id)
+      }
+  }
+}
+
+/// Check whether a node with the given ID exists anywhere in the tree.
+pub fn exists(tree: Node, id: String) -> Bool {
+  option.is_some(find(tree, id))
+}
+
+/// Collect all nodes matching a predicate (depth-first order).
+pub fn find_all(tree: Node, predicate: fn(Node) -> Bool) -> List(Node) {
+  do_find_all(tree, predicate, [])
+  |> list.reverse()
+}
+
+fn do_find_all(
+  node: Node,
+  predicate: fn(Node) -> Bool,
+  acc: List(Node),
+) -> List(Node) {
+  let acc = case predicate(node) {
+    True -> [node, ..acc]
+    False -> acc
+  }
+  list.fold(node.children, acc, fn(a, child) {
+    do_find_all(child, predicate, a)
+  })
+}
+
+/// Return all node IDs in depth-first order.
+pub fn ids(tree: Node) -> List(String) {
+  [tree.id, ..list.flat_map(tree.children, ids)]
+}
