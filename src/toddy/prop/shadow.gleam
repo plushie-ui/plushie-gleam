@@ -4,20 +4,22 @@
 //// `offset`, `offset_x`, `offset_y`, or `blur_radius` to configure.
 
 import gleam/dict
-import toddy/node.{type PropValue, DictVal, FloatVal, ListVal, StringVal}
+import toddy/node.{type PropValue, DictVal, FloatVal, ListVal}
+import toddy/prop/color.{type Color}
 
+/// A drop shadow with color, offset, and blur.
 pub type Shadow {
-  Shadow(color: String, offset_x: Float, offset_y: Float, blur_radius: Float)
+  Shadow(color: Color, offset_x: Float, offset_y: Float, blur_radius: Float)
 }
 
 /// Create a shadow with default values (black, no offset, no blur).
 pub fn new() -> Shadow {
-  Shadow(color: "#000000", offset_x: 0.0, offset_y: 0.0, blur_radius: 0.0)
+  Shadow(color: color.black, offset_x: 0.0, offset_y: 0.0, blur_radius: 0.0)
 }
 
-/// Set the shadow color (hex string).
-pub fn color(s: Shadow, hex: String) -> Shadow {
-  Shadow(..s, color: hex)
+/// Set the shadow color.
+pub fn color(s: Shadow, c: Color) -> Shadow {
+  Shadow(..s, color: c)
 }
 
 /// Set both offset components at once.
@@ -41,10 +43,13 @@ pub fn blur_radius(s: Shadow, r: Float) -> Shadow {
 }
 
 /// Encode a Shadow to its wire-format PropValue.
+///
+/// Offset is encoded as a two-element array `[x, y]` to match
+/// the Elixir SDK's wire format.
 pub fn to_prop_value(s: Shadow) -> PropValue {
   DictVal(
     dict.from_list([
-      #("color", StringVal(s.color)),
+      #("color", color.to_prop_value(s.color)),
       #("offset", ListVal([FloatVal(s.offset_x), FloatVal(s.offset_y)])),
       #("blur_radius", FloatVal(s.blur_radius)),
     ]),

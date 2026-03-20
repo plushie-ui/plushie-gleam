@@ -5,10 +5,12 @@
 
 import gleam/dict
 import gleam/option.{type Option, None, Some}
-import toddy/node.{type PropValue, DictVal, FloatVal, StringVal}
+import toddy/node.{type PropValue, DictVal, FloatVal}
+import toddy/prop/color.{type Color}
 
+/// A border with color, width, and corner radius.
 pub type Border {
-  Border(color: Option(String), width: Float, radius: Radius)
+  Border(color: Option(Color), width: Float, radius: Radius)
 }
 
 pub type Radius {
@@ -26,9 +28,9 @@ pub fn new() -> Border {
   Border(color: None, width: 0.0, radius: Uniform(0.0))
 }
 
-/// Set the border color (hex string).
-pub fn color(b: Border, hex: String) -> Border {
-  Border(..b, color: Some(hex))
+/// Set the border color.
+pub fn color(b: Border, c: Color) -> Border {
+  Border(..b, color: Some(c))
 }
 
 /// Set the border width.
@@ -71,7 +73,7 @@ pub fn to_prop_value(b: Border) -> PropValue {
 
   let props = case b.color {
     None -> base
-    Some(hex) -> [#("color", StringVal(hex)), ..base]
+    Some(c) -> [#("color", color.to_prop_value(c)), ..base]
   }
 
   DictVal(dict.from_list(props))

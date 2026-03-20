@@ -3,6 +3,7 @@ import gleam/option.{None, Some}
 import gleeunit/should
 import toddy/node.{DictVal, FloatVal, StringVal}
 import toddy/prop/border
+import toddy/prop/color
 
 pub fn new_has_defaults_test() {
   let b = border.new()
@@ -12,8 +13,8 @@ pub fn new_has_defaults_test() {
 }
 
 pub fn builder_sets_color_test() {
-  let b = border.new() |> border.color("#ff0000")
-  should.equal(b.color, Some("#ff0000"))
+  let b = border.new() |> border.color(color.red)
+  should.equal(b.color, Some(color.red))
 }
 
 pub fn builder_sets_width_test() {
@@ -46,13 +47,13 @@ pub fn to_prop_value_without_color_test() {
 pub fn to_prop_value_with_color_test() {
   let result =
     border.new()
-    |> border.color("#00ff00")
+    |> border.color(color.green)
     |> border.width(2.0)
     |> border.to_prop_value()
   let expected =
     DictVal(
       dict.from_list([
-        #("color", StringVal("#00ff00")),
+        #("color", StringVal("#008000")),
         #("width", FloatVal(2.0)),
         #("radius", FloatVal(0.0)),
       ]),
