@@ -15,6 +15,7 @@
 //// ])
 //// ```
 
+import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
@@ -23,7 +24,13 @@ import gleam/string
 
 /// Query result with pagination metadata.
 pub type QueryResult(a) {
-  QueryResult(entries: List(a), total: Int, page: Int, page_size: Int)
+  QueryResult(
+    entries: List(a),
+    total: Int,
+    page: Int,
+    page_size: Int,
+    groups: Dict(String, List(a)),
+  )
 }
 
 /// Sort direction.
@@ -46,6 +53,8 @@ pub type QueryOpt(a) {
   Page(Int)
   /// Items per page (default 25).
   PageSize(Int)
+  /// Group paginated results by a key extractor.
+  Group(fn(a) -> String)
 }
 
 /// Run a query pipeline on a list of records.
@@ -98,7 +107,19 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
   }
   let total = list.length(result)
   let result = paginate(result, page, page_size)
-  QueryResult(entries: result, total:, page:, page_size:)
+  let groups = case find_group(opts) {
+    Some(group_fn) ->
+      list.fold(result, dict.new(), fn(acc, item) {
+        let key = group_fn(item)
+        let existing = case dict.get(acc, key) {
+          Ok(items) -> items
+          Error(_) -> []
+        }
+        dict.insert(acc, key, list.append(existing, [item]))
+      })
+    None -> dict.new()
+  }
+  QueryResult(entries: result, total:, page:, page_size:, groups:)
 }
 
 fn paginate(items: List(a), page: Int, page_size: Int) -> List(a) {
@@ -172,4 +193,14 @@ fn find_page_size(opts: List(QueryOpt(a))) -> Int {
     }
   })
   |> result.unwrap(or: 25)
+}
+
+fn find_group(opts: List(QueryOpt(a))) -> Option(fn(a) -> String) {
+  list.find_map(opts, fn(opt) {
+    case opt {
+      Group(f) -> Ok(f)
+      _ -> Error(Nil)
+    }
+  })
+  |> option.from_result()
 }

@@ -5,8 +5,9 @@
 //// are executed before the next view render.
 
 import gleam/dict.{type Dict}
-import gleam/dynamic
-import gleam/erlang/process.{type Subject}
+import gleam/dynamic.{type Dynamic}
+import gleam/dynamic/decode as dyn_decode
+import gleam/erlang/process.{type Pid, type Subject}
 import gleam/int
 import gleam/io
 import gleam/list
@@ -124,6 +125,7 @@ type LoopState(model) {
     windows: Set(String),
     opts: RuntimeOpts,
     errors: Int,
+    async_tasks: Dict(String, Pid),
   )
 }
 
@@ -160,33 +162,11 @@ fn run(
     encode.encode_snapshot(initial_tree, opts.session, opts.format),
   )
 
-  // Execute init commands
-  let model = execute_commands(init_cmds, model, app, bridge, self, opts)
-
-  // Sync subscriptions
-  let active_subs =
-    sync_subscriptions(
-      app.get_subscribe(app)(model),
-      dict.new(),
-      bridge,
-      self,
-      opts,
-    )
-
-  // Sync initial windows (open all detected windows)
+  // Detect initial windows
   let initial_windows = detect_windows(initial_tree)
-  sync_windows(
-    initial_tree,
-    set.new(),
-    initial_windows,
-    None,
-    bridge,
-    app,
-    model,
-    opts,
-  )
 
-  // Enter message loop
+  // Build initial state (before init commands so execute_commands can
+  // thread the full LoopState, enabling async task PID tracking)
   let state =
     LoopState(
       app:,
@@ -195,11 +175,40 @@ fn run(
       self:,
       notifications:,
       tree: Some(initial_tree),
-      active_subs:,
+      active_subs: dict.new(),
       windows: initial_windows,
       opts:,
       errors: 0,
+      async_tasks: dict.new(),
     )
+
+  // Execute init commands (threads full state for PID tracking)
+  let state = execute_commands(init_cmds, state)
+
+  // Sync subscriptions
+  let state =
+    LoopState(
+      ..state,
+      active_subs: sync_subscriptions(
+        app.get_subscribe(app)(state.model),
+        state.active_subs,
+        bridge,
+        self,
+        opts,
+      ),
+    )
+
+  // Sync initial windows (open all detected windows)
+  sync_windows(
+    initial_tree,
+    set.new(),
+    initial_windows,
+    None,
+    bridge,
+    app,
+    state.model,
+    opts,
+  )
 
   message_loop(state)
 }
@@ -292,15 +301,9 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
   case ffi.try_call(fn() { update_fn(state.model, event) }) {
     Ok(#(new_model, commands)) -> {
       // Execute commands (before view, matching Elixir SDK)
-      let new_model =
-        execute_commands(
-          commands,
-          new_model,
-          state.app,
-          state.bridge,
-          state.self,
-          state.opts,
-        )
+      let state_after_cmds =
+        execute_commands(commands, LoopState(..state, model: new_model))
+      let new_model = state_after_cmds.model
 
       // Render view
       let view_fn = app.get_view(state.app)
@@ -375,6 +378,7 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
             active_subs: new_subs,
             windows: new_windows,
             errors: 0,
+            async_tasks: state_after_cmds.async_tasks,
           )
         }
         Error(reason) -> {
@@ -407,256 +411,261 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
 
 fn execute_commands(
   cmd: Command(Event),
-  model: model,
-  app: App(model, Event),
-  bridge: Subject(BridgeMessage),
-  self: Subject(RuntimeMessage),
-  opts: RuntimeOpts,
-) -> model {
+  state: LoopState(model),
+) -> LoopState(model) {
   case cmd {
-    command.None -> model
+    command.None -> state
 
     command.Batch(commands:) ->
-      list.fold(commands, model, fn(m, c) {
-        execute_commands(c, m, app, bridge, self, opts)
-      })
+      list.fold(commands, state, fn(s, c) { execute_commands(c, s) })
 
     command.Exit -> {
-      process.send(self, Shutdown)
-      model
+      process.send(state.self, Shutdown)
+      state
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      process.send_after(self, delay_ms, InternalEvent(msg))
-      model
+      process.send_after(state.self, delay_ms, InternalEvent(msg))
+      state
     }
 
     command.Done(value:, mapper:) -> {
       let event = mapper(value)
-      process.send(self, InternalEvent(event))
-      model
+      process.send(state.self, InternalEvent(event))
+      state
     }
 
     command.Focus(widget_id:) -> {
-      send_widget_op(bridge, "focus", [#("target", StringVal(widget_id))], opts)
-      model
+      send_widget_op(
+        state.bridge,
+        "focus",
+        [#("target", StringVal(widget_id))],
+        state.opts,
+      )
+      state
     }
 
     command.FocusNext -> {
-      send_widget_op(bridge, "focus_next", [], opts)
-      model
+      send_widget_op(state.bridge, "focus_next", [], state.opts)
+      state
     }
 
     command.FocusPrevious -> {
-      send_widget_op(bridge, "focus_previous", [], opts)
-      model
+      send_widget_op(state.bridge, "focus_previous", [], state.opts)
+      state
     }
 
     command.SelectAll(widget_id:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "select_all",
         [#("target", StringVal(widget_id))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MoveCursorToFront(widget_id:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "move_cursor_to_front",
         [#("target", StringVal(widget_id))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MoveCursorToEnd(widget_id:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "move_cursor_to_end",
         [#("target", StringVal(widget_id))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MoveCursorTo(widget_id:, position:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "move_cursor_to",
         [
           #("target", StringVal(widget_id)),
           #("position", IntVal(position)),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SelectRange(widget_id:, start:, end:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "select_range",
         [
           #("target", StringVal(widget_id)),
           #("start", IntVal(start)),
           #("end", IntVal(end)),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.ScrollTo(widget_id:, offset: _) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "scroll_to",
         [#("target", StringVal(widget_id))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SnapTo(widget_id:, x:, y:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "snap_to",
         [
           #("target", StringVal(widget_id)),
           #("x", FloatVal(x)),
           #("y", FloatVal(y)),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SnapToEnd(widget_id:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "snap_to_end",
         [#("target", StringVal(widget_id))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.ScrollBy(widget_id:, x:, y:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "scroll_by",
         [
           #("target", StringVal(widget_id)),
           #("x", FloatVal(x)),
           #("y", FloatVal(y)),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.CloseWindow(window_id:) -> {
-      send_window_op(bridge, "close", window_id, [], opts)
-      model
+      send_window_op(state.bridge, "close", window_id, [], state.opts)
+      state
     }
 
     command.ResizeWindow(window_id:, width:, height:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "resize",
         window_id,
         [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MoveWindow(window_id:, x:, y:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "move",
         window_id,
         [#("x", FloatVal(x)), #("y", FloatVal(y))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MaximizeWindow(window_id:, maximized:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "maximize",
         window_id,
         [#("maximized", BoolVal(maximized))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.MinimizeWindow(window_id:, minimized:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "minimize",
         window_id,
         [#("minimized", BoolVal(minimized))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SetWindowMode(window_id:, mode:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "set_mode",
         window_id,
         [#("mode", StringVal(mode))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.ToggleMaximize(window_id:) -> {
-      send_window_op(bridge, "toggle_maximize", window_id, [], opts)
-      model
+      send_window_op(state.bridge, "toggle_maximize", window_id, [], state.opts)
+      state
     }
 
     command.ToggleDecorations(window_id:) -> {
-      send_window_op(bridge, "toggle_decorations", window_id, [], opts)
-      model
+      send_window_op(
+        state.bridge,
+        "toggle_decorations",
+        window_id,
+        [],
+        state.opts,
+      )
+      state
     }
 
     command.GainFocus(window_id:) -> {
-      send_window_op(bridge, "gain_focus", window_id, [], opts)
-      model
+      send_window_op(state.bridge, "gain_focus", window_id, [], state.opts)
+      state
     }
 
     command.SetWindowLevel(window_id:, level:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "set_level",
         window_id,
         [#("level", StringVal(level))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.DragWindow(window_id:) -> {
-      send_window_op(bridge, "drag", window_id, [], opts)
-      model
+      send_window_op(state.bridge, "drag", window_id, [], state.opts)
+      state
     }
 
     command.DragResizeWindow(window_id:, direction:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "drag_resize",
         window_id,
         [#("direction", StringVal(direction))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.RequestUserAttention(window_id:, urgency:) -> {
@@ -664,67 +673,91 @@ fn execute_commands(
         option.Some(u) -> [#("urgency", StringVal(u))]
         option.None -> []
       }
-      send_window_op(bridge, "request_user_attention", window_id, payload, opts)
-      model
+      send_window_op(
+        state.bridge,
+        "request_user_attention",
+        window_id,
+        payload,
+        state.opts,
+      )
+      state
     }
 
     command.Screenshot(window_id:, tag:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "screenshot",
         window_id,
         [#("tag", StringVal(tag))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SetResizable(window_id:, resizable:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "set_resizable",
         window_id,
         [#("resizable", BoolVal(resizable))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SetMinSize(window_id:, width:, height:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "set_min_size",
         window_id,
         [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.SetMaxSize(window_id:, width:, height:) -> {
       send_window_op(
-        bridge,
+        state.bridge,
         "set_max_size",
         window_id,
         [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.EnableMousePassthrough(window_id:) -> {
-      send_window_op(bridge, "enable_mouse_passthrough", window_id, [], opts)
-      model
+      send_window_op(
+        state.bridge,
+        "enable_mouse_passthrough",
+        window_id,
+        [],
+        state.opts,
+      )
+      state
     }
 
     command.DisableMousePassthrough(window_id:) -> {
-      send_window_op(bridge, "disable_mouse_passthrough", window_id, [], opts)
-      model
+      send_window_op(
+        state.bridge,
+        "disable_mouse_passthrough",
+        window_id,
+        [],
+        state.opts,
+      )
+      state
     }
 
     command.ShowSystemMenu(window_id:) -> {
-      send_window_op(bridge, "show_system_menu", window_id, [], opts)
-      model
+      send_window_op(
+        state.bridge,
+        "show_system_menu",
+        window_id,
+        [],
+        state.opts,
+      )
+      state
     }
 
     command.SetResizeIncrements(window_id:, width:, height:) -> {
@@ -737,144 +770,216 @@ fn execute_commands(
         option.None, option.Some(h) -> [#("height", FloatVal(h))]
         option.None, option.None -> []
       }
-      send_window_op(bridge, "set_resize_increments", window_id, payload, opts)
-      model
+      send_window_op(
+        state.bridge,
+        "set_resize_increments",
+        window_id,
+        payload,
+        state.opts,
+      )
+      state
     }
 
     command.AllowAutomaticTabbing(enabled:) -> {
       send_widget_op(
-        bridge,
+        state.bridge,
         "allow_automatic_tabbing",
         [#("enabled", BoolVal(enabled))],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
-    command.SetIcon(window_id:, rgba_data: _, width: _, height: _) -> {
-      // Icon data requires binary encoding -- future work
-      let _ = window_id
-      model
+    command.SetIcon(window_id:, rgba_data:, width:, height:) -> {
+      send_window_op(
+        state.bridge,
+        "set_icon",
+        window_id,
+        [
+          #("data", StringVal(encode_base64(rgba_data))),
+          #("width", IntVal(width)),
+          #("height", IntVal(height)),
+        ],
+        state.opts,
+      )
+      state
     }
 
     command.GetWindowSize(window_id:, tag:) -> {
-      send_window_query(bridge, "get_size", window_id, tag, opts)
-      model
+      send_window_query(state.bridge, "get_size", window_id, tag, state.opts)
+      state
     }
 
     command.GetWindowPosition(window_id:, tag:) -> {
-      send_window_query(bridge, "get_position", window_id, tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "get_position",
+        window_id,
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.IsMaximized(window_id:, tag:) -> {
-      send_window_query(bridge, "is_maximized", window_id, tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "is_maximized",
+        window_id,
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.IsMinimized(window_id:, tag:) -> {
-      send_window_query(bridge, "is_minimized", window_id, tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "is_minimized",
+        window_id,
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.GetMode(window_id:, tag:) -> {
-      send_window_query(bridge, "get_mode", window_id, tag, opts)
-      model
+      send_window_query(state.bridge, "get_mode", window_id, tag, state.opts)
+      state
     }
 
     command.GetScaleFactor(window_id:, tag:) -> {
-      send_window_query(bridge, "get_scale_factor", window_id, tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "get_scale_factor",
+        window_id,
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.RawWindowId(window_id:, tag:) -> {
-      send_window_query(bridge, "raw_id", window_id, tag, opts)
-      model
+      send_window_query(state.bridge, "raw_id", window_id, tag, state.opts)
+      state
     }
 
     command.MonitorSize(window_id:, tag:) -> {
-      send_window_query(bridge, "monitor_size", window_id, tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "monitor_size",
+        window_id,
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.GetSystemTheme(tag:) -> {
-      send_window_query(bridge, "get_system_theme", "_system", tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "get_system_theme",
+        "_system",
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.GetSystemInfo(tag:) -> {
-      send_window_query(bridge, "get_system_info", "_system", tag, opts)
-      model
+      send_window_query(
+        state.bridge,
+        "get_system_info",
+        "_system",
+        tag,
+        state.opts,
+      )
+      state
     }
 
     command.Announce(text:) -> {
-      send_widget_op(bridge, "announce", [#("text", StringVal(text))], opts)
-      model
+      send_widget_op(
+        state.bridge,
+        "announce",
+        [#("text", StringVal(text))],
+        state.opts,
+      )
+      state
     }
 
     command.AdvanceFrame(timestamp:) -> {
       send_encoded(
-        bridge,
-        encode.encode_advance_frame(timestamp, opts.session, opts.format),
+        state.bridge,
+        encode.encode_advance_frame(
+          timestamp,
+          state.opts.session,
+          state.opts.format,
+        ),
       )
-      model
+      state
     }
 
     command.Effect(id:, kind:, payload:) -> {
       send_encoded(
-        bridge,
-        encode.encode_effect(id, kind, payload, opts.session, opts.format),
+        state.bridge,
+        encode.encode_effect(
+          id,
+          kind,
+          payload,
+          state.opts.session,
+          state.opts.format,
+        ),
       )
-      model
+      state
     }
 
     command.ExtensionCommand(node_id:, op:, payload:) -> {
       send_encoded(
-        bridge,
+        state.bridge,
         encode.encode_extension_command(
           node_id,
           op,
           payload,
-          opts.session,
-          opts.format,
+          state.opts.session,
+          state.opts.format,
         ),
       )
-      model
+      state
     }
 
     command.ExtensionCommands(commands:) -> {
       list.each(commands, fn(cmd_tuple) {
         let #(node_id, op, payload) = cmd_tuple
         send_encoded(
-          bridge,
+          state.bridge,
           encode.encode_extension_command(
             node_id,
             op,
             payload,
-            opts.session,
-            opts.format,
+            state.opts.session,
+            state.opts.format,
           ),
         )
       })
-      model
+      state
     }
 
     command.CreateImage(handle:, data:) -> {
       send_image_op(
-        bridge,
+        state.bridge,
         "create",
         [
           #("handle", StringVal(handle)),
           #("data", StringVal(encode_base64(data))),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.CreateImageRgba(handle:, width:, height:, pixels:) -> {
       send_image_op(
-        bridge,
+        state.bridge,
         "create_rgba",
         [
           #("handle", StringVal(handle)),
@@ -882,27 +987,27 @@ fn execute_commands(
           #("height", IntVal(height)),
           #("pixels", StringVal(encode_base64(pixels))),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.UpdateImage(handle:, data:) -> {
       send_image_op(
-        bridge,
+        state.bridge,
         "update",
         [
           #("handle", StringVal(handle)),
           #("data", StringVal(encode_base64(data))),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.UpdateImageRgba(handle:, width:, height:, pixels:) -> {
       send_image_op(
-        bridge,
+        state.bridge,
         "update_rgba",
         [
           #("handle", StringVal(handle)),
@@ -910,67 +1015,177 @@ fn execute_commands(
           #("height", IntVal(height)),
           #("pixels", StringVal(encode_base64(pixels))),
         ],
-        opts,
+        state.opts,
       )
-      model
+      state
     }
 
     command.DeleteImage(handle:) -> {
-      send_image_op(bridge, "delete", [#("handle", StringVal(handle))], opts)
-      model
+      send_image_op(
+        state.bridge,
+        "delete",
+        [#("handle", StringVal(handle))],
+        state.opts,
+      )
+      state
     }
 
     command.ListImages(tag:) -> {
-      send_image_op(bridge, "list", [#("tag", StringVal(tag))], opts)
-      model
+      send_image_op(
+        state.bridge,
+        "list",
+        [#("tag", StringVal(tag))],
+        state.opts,
+      )
+      state
     }
 
     command.ClearImages -> {
-      send_image_op(bridge, "clear", [], opts)
-      model
+      send_image_op(state.bridge, "clear", [], state.opts)
+      state
     }
 
     command.TreeHashQuery(tag:) -> {
-      send_widget_op(bridge, "tree_hash", [#("tag", StringVal(tag))], opts)
-      model
+      send_widget_op(
+        state.bridge,
+        "tree_hash",
+        [#("tag", StringVal(tag))],
+        state.opts,
+      )
+      state
     }
 
     command.FindFocused(tag:) -> {
-      send_widget_op(bridge, "find_focused", [#("tag", StringVal(tag))], opts)
-      model
+      send_widget_op(
+        state.bridge,
+        "find_focused",
+        [#("tag", StringVal(tag))],
+        state.opts,
+      )
+      state
     }
 
-    command.LoadFont(data: _) -> {
-      // Font loading requires binary encoding -- future work
-      model
+    command.LoadFont(data:) -> {
+      send_widget_op(
+        state.bridge,
+        "load_font",
+        [#("data", StringVal(encode_base64(data)))],
+        state.opts,
+      )
+      state
     }
 
-    command.PaneSplit(pane_grid_id: _, pane_id: _, axis: _, new_pane_id: _) -> {
-      // Pane operations use Dynamic pane IDs -- future work
-      model
+    command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) -> {
+      send_widget_op(
+        state.bridge,
+        "pane_split",
+        [
+          #("pane_grid_id", StringVal(pane_grid_id)),
+          #("pane_id", dynamic_to_prop_value(pane_id)),
+          #("axis", StringVal(axis)),
+          #("new_pane_id", dynamic_to_prop_value(new_pane_id)),
+        ],
+        state.opts,
+      )
+      state
     }
 
-    command.PaneClose(pane_grid_id: _, pane_id: _) -> model
-
-    command.PaneSwap(pane_grid_id: _, pane_a: _, pane_b: _) -> model
-
-    command.PaneMaximize(pane_grid_id: _, pane_id: _) -> model
-
-    command.PaneRestore(pane_grid_id: _) -> model
-
-    command.Async(work: _, tag: _) -> {
-      // Async task spawning -- future work
-      model
+    command.PaneClose(pane_grid_id:, pane_id:) -> {
+      send_widget_op(
+        state.bridge,
+        "pane_close",
+        [
+          #("pane_grid_id", StringVal(pane_grid_id)),
+          #("pane_id", dynamic_to_prop_value(pane_id)),
+        ],
+        state.opts,
+      )
+      state
     }
 
-    command.Stream(work: _, tag: _) -> {
-      // Stream task spawning -- future work
-      model
+    command.PaneSwap(pane_grid_id:, pane_a:, pane_b:) -> {
+      send_widget_op(
+        state.bridge,
+        "pane_swap",
+        [
+          #("pane_grid_id", StringVal(pane_grid_id)),
+          #("pane_a", dynamic_to_prop_value(pane_a)),
+          #("pane_b", dynamic_to_prop_value(pane_b)),
+        ],
+        state.opts,
+      )
+      state
     }
 
-    command.Cancel(tag: _) -> {
-      // Task cancellation -- future work
-      model
+    command.PaneMaximize(pane_grid_id:, pane_id:) -> {
+      send_widget_op(
+        state.bridge,
+        "pane_maximize",
+        [
+          #("pane_grid_id", StringVal(pane_grid_id)),
+          #("pane_id", dynamic_to_prop_value(pane_id)),
+        ],
+        state.opts,
+      )
+      state
+    }
+
+    command.PaneRestore(pane_grid_id:) -> {
+      send_widget_op(
+        state.bridge,
+        "pane_restore",
+        [#("pane_grid_id", StringVal(pane_grid_id))],
+        state.opts,
+      )
+      state
+    }
+
+    command.Async(work:, tag:) -> {
+      let runtime_self = state.self
+      let pid =
+        process.spawn(fn() {
+          let result = case ffi.try_call(work) {
+            Ok(value) -> Ok(value)
+            Error(reason) -> Error(reason)
+          }
+          process.send(
+            runtime_self,
+            InternalEvent(event.AsyncResult(tag:, result:)),
+          )
+        })
+      LoopState(..state, async_tasks: dict.insert(state.async_tasks, tag, pid))
+    }
+
+    command.Stream(work:, tag:) -> {
+      let runtime_self = state.self
+      let emit = fn(value) {
+        process.send(
+          runtime_self,
+          InternalEvent(event.StreamValue(tag:, value:)),
+        )
+      }
+      let pid =
+        process.spawn(fn() {
+          let result = case ffi.try_call(fn() { work(emit) }) {
+            Ok(value) -> Ok(value)
+            Error(reason) -> Error(reason)
+          }
+          process.send(
+            runtime_self,
+            InternalEvent(event.AsyncResult(tag:, result:)),
+          )
+        })
+      LoopState(..state, async_tasks: dict.insert(state.async_tasks, tag, pid))
+    }
+
+    command.Cancel(tag:) -> {
+      case dict.get(state.async_tasks, tag) {
+        Ok(pid) -> {
+          process.kill(pid)
+          LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+        }
+        Error(_) -> state
+      }
     }
   }
 }
@@ -1068,6 +1283,23 @@ fn send_image_op(
 
 @external(erlang, "base64", "encode")
 fn encode_base64(data: BitArray) -> String
+
+/// Convert a Dynamic value to a PropValue for wire encoding.
+/// Tries string, then int, then float; falls back to classifying the type.
+fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
+  case dyn_decode.run(d, dyn_decode.string) {
+    Ok(s) -> StringVal(s)
+    Error(_) ->
+      case dyn_decode.run(d, dyn_decode.int) {
+        Ok(n) -> IntVal(n)
+        Error(_) ->
+          case dyn_decode.run(d, dyn_decode.float) {
+            Ok(f) -> FloatVal(f)
+            Error(_) -> StringVal(dynamic.classify(d))
+          }
+      }
+  }
+}
 
 // -- Subscription management -------------------------------------------------
 

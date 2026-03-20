@@ -3,7 +3,6 @@
 //// Use with `subscription.on_animation_frame` to drive updates.
 //// Create an animation with `new`, start it, then `advance` each frame.
 
-import gleam/float
 import gleam/int
 import gleam/option.{type Option, None, Some}
 
@@ -118,18 +117,17 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
         }
       }
     Spring -> {
-      // Damped spring approximation
-      let w = 6.283185
-      // 2*pi
-      let d = 0.7
-      // damping ratio
-      let envelope = float.power(2.71828, of: float.negate(d *. t *. 8.0))
-      case envelope {
-        Ok(env) -> {
-          let oscillation = sin(w *. t *. 2.0)
-          1.0 -. env *. oscillation
-        }
-        Error(_) -> t
+      case t == 0.0 {
+        True -> 0.0
+        False ->
+          case t == 1.0 {
+            True -> 1.0
+            False -> {
+              let c4 = 2.0 *. 3.14159265358979 /. 3.0
+              let pow_val = pow(2.0, -10.0 *. t)
+              pow_val *. sin({ t *. 10.0 -. 0.75 } *. c4) +. 1.0
+            }
+          }
       }
     }
   }
@@ -137,3 +135,6 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
 
 @external(erlang, "math", "sin")
 fn sin(x: Float) -> Float
+
+@external(erlang, "math", "pow")
+fn pow(base: Float, exp: Float) -> Float

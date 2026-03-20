@@ -9,12 +9,32 @@ import toddy/node.{
   type Node, type PropValue, DictVal, FloatVal, ListVal, Node, StringVal,
 }
 
+/// Stroke line cap style.
+pub type StrokeCap {
+  ButtCap
+  RoundCap
+  SquareCap
+}
+
+/// Stroke line join style.
+pub type StrokeJoin {
+  MiterJoin
+  RoundJoin
+  BevelJoin
+}
+
 /// Shape options for styling.
 pub type ShapeOpt {
   Fill(String)
   Stroke(color: String, width: Float)
+  StrokeColor(String)
+  StrokeWidth(Float)
+  StrokeCap(StrokeCap)
+  StrokeJoin(StrokeJoin)
+  StrokeDash(pattern: List(Float), offset: Float)
   Opacity(Float)
   FillRule(String)
+  GradientFill(PropValue)
 }
 
 /// Path commands for constructing freeform shapes.
@@ -31,8 +51,21 @@ pub type PathCommand {
   )
   QuadraticTo(cpx: Float, cpy: Float, x: Float, y: Float)
   Arc(x: Float, y: Float, radius: Float, start_angle: Float, end_angle: Float)
+  ArcTo(x1: Float, y1: Float, x2: Float, y2: Float, radius: Float)
+  Ellipse(
+    cx: Float,
+    cy: Float,
+    rx: Float,
+    ry: Float,
+    rotation: Float,
+    start_angle: Float,
+    end_angle: Float,
+  )
+  RoundedRect(x: Float, y: Float, width: Float, height: Float, radius: Float)
   Close
 }
+
+// -- Basic shapes -------------------------------------------------------------
 
 /// Create a rectangle shape.
 pub fn rect(
@@ -97,6 +130,114 @@ pub fn path(commands: List(PathCommand), opts: List(ShapeOpt)) -> Node {
   ])
 }
 
+// -- Transform commands -------------------------------------------------------
+
+/// Push (save) the current transform state onto the stack.
+pub fn push_transform() -> Node {
+  make_shape("push_transform", [])
+}
+
+/// Pop (restore) the previously saved transform state from the stack.
+pub fn pop_transform() -> Node {
+  make_shape("pop_transform", [])
+}
+
+/// Translate the canvas coordinate system.
+pub fn translate(x: Float, y: Float) -> Node {
+  make_shape("translate", [#("x", FloatVal(x)), #("y", FloatVal(y))])
+}
+
+/// Rotate the canvas coordinate system (angle in radians).
+pub fn rotate(angle: Float) -> Node {
+  make_shape("rotate", [#("angle", FloatVal(angle))])
+}
+
+/// Scale the canvas coordinate system.
+pub fn scale(x: Float, y: Float) -> Node {
+  make_shape("scale", [#("x", FloatVal(x)), #("y", FloatVal(y))])
+}
+
+// -- Clipping commands --------------------------------------------------------
+
+/// Push a clipping rectangle. All shapes until the matching pop_clip
+/// are clipped to this region. Clip regions nest via intersection.
+pub fn push_clip(x: Float, y: Float, width: Float, height: Float) -> Node {
+  make_shape("push_clip", [
+    #("x", FloatVal(x)),
+    #("y", FloatVal(y)),
+    #("width", FloatVal(width)),
+    #("height", FloatVal(height)),
+  ])
+}
+
+/// Pop the most recent clipping rectangle.
+pub fn pop_clip() -> Node {
+  make_shape("pop_clip", [])
+}
+
+// -- Image / SVG on canvas ----------------------------------------------------
+
+/// Draw a raster image on the canvas at the given position and size.
+pub fn draw_image(
+  handle: String,
+  x: Float,
+  y: Float,
+  width: Float,
+  height: Float,
+  opts: List(ShapeOpt),
+) -> Node {
+  make_shape("image", [
+    #("handle", StringVal(handle)),
+    #("x", FloatVal(x)),
+    #("y", FloatVal(y)),
+    #("width", FloatVal(width)),
+    #("height", FloatVal(height)),
+    ..shape_opts_to_props(opts)
+  ])
+}
+
+/// Draw an SVG on the canvas at the given position and size.
+pub fn draw_svg(
+  source: String,
+  x: Float,
+  y: Float,
+  width: Float,
+  height: Float,
+) -> Node {
+  make_shape("svg", [
+    #("source", StringVal(source)),
+    #("x", FloatVal(x)),
+    #("y", FloatVal(y)),
+    #("width", FloatVal(width)),
+    #("height", FloatVal(height)),
+  ])
+}
+
+// -- Gradient builder ---------------------------------------------------------
+
+/// Create a linear gradient fill value usable with GradientFill.
+/// Stops are (offset, color) tuples where offset is 0.0 to 1.0.
+pub fn linear_gradient(angle: Float, stops: List(#(Float, String))) -> PropValue {
+  let stop_values =
+    list.map(stops, fn(stop) {
+      DictVal(
+        dict.from_list([
+          #("offset", FloatVal(stop.0)),
+          #("color", StringVal(stop.1)),
+        ]),
+      )
+    })
+  DictVal(
+    dict.from_list([
+      #("type", StringVal("linear")),
+      #("angle", FloatVal(angle)),
+      #("stops", ListVal(stop_values)),
+    ]),
+  )
+}
+
+// -- Path command encoding ----------------------------------------------------
+
 fn path_command_to_prop_value(cmd: PathCommand) -> PropValue {
   case cmd {
     MoveTo(x:, y:) ->
@@ -148,9 +289,46 @@ fn path_command_to_prop_value(cmd: PathCommand) -> PropValue {
           #("end_angle", FloatVal(end_angle)),
         ]),
       )
+    ArcTo(x1:, y1:, x2:, y2:, radius:) ->
+      DictVal(
+        dict.from_list([
+          #("cmd", StringVal("arc_to")),
+          #("x1", FloatVal(x1)),
+          #("y1", FloatVal(y1)),
+          #("x2", FloatVal(x2)),
+          #("y2", FloatVal(y2)),
+          #("radius", FloatVal(radius)),
+        ]),
+      )
+    Ellipse(cx:, cy:, rx:, ry:, rotation:, start_angle:, end_angle:) ->
+      DictVal(
+        dict.from_list([
+          #("cmd", StringVal("ellipse")),
+          #("cx", FloatVal(cx)),
+          #("cy", FloatVal(cy)),
+          #("rx", FloatVal(rx)),
+          #("ry", FloatVal(ry)),
+          #("rotation", FloatVal(rotation)),
+          #("start_angle", FloatVal(start_angle)),
+          #("end_angle", FloatVal(end_angle)),
+        ]),
+      )
+    RoundedRect(x:, y:, width:, height:, radius:) ->
+      DictVal(
+        dict.from_list([
+          #("cmd", StringVal("rounded_rect")),
+          #("x", FloatVal(x)),
+          #("y", FloatVal(y)),
+          #("width", FloatVal(width)),
+          #("height", FloatVal(height)),
+          #("radius", FloatVal(radius)),
+        ]),
+      )
     Close -> DictVal(dict.from_list([#("cmd", StringVal("close"))]))
   }
 }
+
+// -- Shape option encoding ----------------------------------------------------
 
 fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
   list.flat_map(opts, fn(opt) {
@@ -160,10 +338,35 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
         #("stroke_color", StringVal(color)),
         #("stroke_width", FloatVal(width)),
       ]
+      StrokeColor(color) -> [#("stroke_color", StringVal(color))]
+      StrokeWidth(w) -> [#("stroke_width", FloatVal(w))]
+      StrokeCap(cap) -> [#("stroke_cap", StringVal(cap_to_string(cap)))]
+      StrokeJoin(join) -> [#("stroke_join", StringVal(join_to_string(join)))]
+      StrokeDash(pattern:, offset:) -> [
+        #("stroke_dash", ListVal(list.map(pattern, FloatVal))),
+        #("stroke_dash_offset", FloatVal(offset)),
+      ]
       Opacity(o) -> [#("opacity", FloatVal(o))]
       FillRule(r) -> [#("fill_rule", StringVal(r))]
+      GradientFill(grad) -> [#("fill", grad)]
     }
   })
+}
+
+fn cap_to_string(cap: StrokeCap) -> String {
+  case cap {
+    ButtCap -> "butt"
+    RoundCap -> "round"
+    SquareCap -> "square"
+  }
+}
+
+fn join_to_string(join: StrokeJoin) -> String {
+  case join {
+    MiterJoin -> "miter"
+    RoundJoin -> "round"
+    BevelJoin -> "bevel"
+  }
 }
 
 fn make_shape(shape_type: String, props: List(#(String, PropValue))) -> Node {

@@ -1,5 +1,6 @@
+import gleam/dict
 import gleeunit/should
-import toddy/data.{Asc, Desc, Filter, Page, PageSize, Search, Sort}
+import toddy/data.{Asc, Desc, Filter, Group, Page, PageSize, Search, Sort}
 
 type Person {
   Person(name: String, age: Int, city: String)
@@ -107,6 +108,51 @@ pub fn query_empty_list_test() {
   let result = data.query([], [Filter(fn(_: Person) { True })])
   should.equal(result.total, 0)
   should.equal(result.entries, [])
+}
+
+pub fn query_no_group_returns_empty_dict_test() {
+  let result = data.query(sample_people(), [])
+  should.equal(result.groups, dict.new())
+}
+
+pub fn query_group_by_city_test() {
+  let result =
+    data.query(sample_people(), [
+      Group(fn(p: Person) { p.city }),
+    ])
+  // All 5 people, grouped by city
+  should.equal(result.total, 5)
+
+  let london = dict.get(result.groups, "London")
+  should.be_ok(london)
+  let assert Ok(london_people) = london
+  let london_names = list.map(london_people, fn(p: Person) { p.name })
+  should.equal(london_names, ["Alice", "Charlie"])
+
+  let paris = dict.get(result.groups, "Paris")
+  should.be_ok(paris)
+  let assert Ok(paris_people) = paris
+  let paris_names = list.map(paris_people, fn(p: Person) { p.name })
+  should.equal(paris_names, ["Bob", "Eve"])
+
+  let berlin = dict.get(result.groups, "Berlin")
+  should.be_ok(berlin)
+  let assert Ok(berlin_people) = berlin
+  should.equal(list.length(berlin_people), 1)
+}
+
+pub fn query_group_with_pagination_test() {
+  let result =
+    data.query(sample_people(), [
+      Group(fn(p: Person) { p.city }),
+      Page(1),
+      PageSize(3),
+    ])
+  // Only the first 3 entries are grouped (pagination happens before grouping)
+  should.equal(list.length(result.entries), 3)
+  // Groups are built from paginated entries only
+  let group_count = dict.size(result.groups)
+  should.be_true(group_count > 0)
 }
 
 import gleam/list
