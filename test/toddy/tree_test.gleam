@@ -2,7 +2,7 @@ import gleam/dict
 import gleam/option
 import gleeunit/should
 import toddy/node.{DictVal, NullVal, StringVal}
-import toddy/patch.{DeleteNode, InsertChild, ReplaceNode, UpdateProps}
+import toddy/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import toddy/tree
 
 // --- normalize ---------------------------------------------------------------
@@ -54,8 +54,6 @@ pub fn normalize_window_does_not_propagate_scope_test() {
 }
 
 pub fn normalize_empty_id_does_not_create_scope_boundary_test() {
-  // A container with empty ID should pass through the parent scope
-  // without adding a segment.
   let leaf = node.new("leaf", "text")
   let anon =
     node.new("", "container")
@@ -67,10 +65,7 @@ pub fn normalize_empty_id_does_not_create_scope_boundary_test() {
   let result = tree.normalize(root)
   let assert [anon_result] = result.children
   let assert [leaf_result] = anon_result.children
-  // The anonymous container keeps its empty ID.
   should.equal(anon_result.id, "")
-  // The leaf gets the grandparent scope since the anon container
-  // didn't create a boundary.
   should.equal(leaf_result.id, "root/leaf")
 }
 
@@ -94,7 +89,6 @@ pub fn normalize_a11y_labelled_by_gets_scope_prefix_test() {
 }
 
 pub fn normalize_a11y_already_scoped_ref_unchanged_test() {
-  // If the ref already contains "/" it's treated as a full path.
   let a11y_props = dict.from_list([#("labelled_by", StringVal("other/lbl"))])
   let child =
     node.new("input", "text_input")
@@ -144,7 +138,7 @@ pub fn diff_changed_prop_produces_update_props_test() {
   let ops = tree.diff(old, new)
   should.equal(ops, [
     UpdateProps(
-      path: "t",
+      path: [],
       props: dict.from_list([#("content", StringVal("new"))]),
     ),
   ])
@@ -159,7 +153,7 @@ pub fn diff_added_prop_produces_update_props_test() {
   let ops = tree.diff(old, new)
   should.equal(ops, [
     UpdateProps(
-      path: "t",
+      path: [],
       props: dict.from_list([#("bold", node.BoolVal(True))]),
     ),
   ])
@@ -173,7 +167,7 @@ pub fn diff_removed_prop_produces_null_val_test() {
 
   let ops = tree.diff(old, new)
   should.equal(ops, [
-    UpdateProps(path: "t", props: dict.from_list([#("bold", NullVal)])),
+    UpdateProps(path: [], props: dict.from_list([#("bold", NullVal)])),
   ])
 }
 
@@ -185,10 +179,10 @@ pub fn diff_added_child_produces_insert_child_test() {
     |> node.with_children([child])
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [InsertChild(path: "col", index: 0, node: child)])
+  should.equal(ops, [InsertChild(path: [], index: 0, node: child)])
 }
 
-pub fn diff_removed_child_produces_delete_node_test() {
+pub fn diff_removed_child_produces_remove_child_test() {
   let child = node.new("btn", "button")
   let old =
     node.new("col", "column")
@@ -196,7 +190,7 @@ pub fn diff_removed_child_produces_delete_node_test() {
   let new = node.new("col", "column")
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [DeleteNode(path: "btn")])
+  should.equal(ops, [RemoveChild(path: [], index: 0)])
 }
 
 pub fn diff_changed_child_prop_produces_nested_update_test() {
@@ -216,7 +210,7 @@ pub fn diff_changed_child_prop_produces_nested_update_test() {
   let ops = tree.diff(old, new)
   should.equal(ops, [
     UpdateProps(
-      path: "t",
+      path: [0],
       props: dict.from_list([#("content", StringVal("new"))]),
     ),
   ])
@@ -227,7 +221,7 @@ pub fn diff_different_root_id_produces_replace_node_test() {
   let new = node.new("b", "container")
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [ReplaceNode(path: "b", node: new)])
+  should.equal(ops, [ReplaceNode(path: [], node: new)])
 }
 
 pub fn diff_different_root_kind_produces_replace_node_test() {
@@ -235,7 +229,7 @@ pub fn diff_different_root_kind_produces_replace_node_test() {
   let new = node.new("x", "row")
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [ReplaceNode(path: "x", node: new)])
+  should.equal(ops, [ReplaceNode(path: [], node: new)])
 }
 
 pub fn diff_reordered_children_produces_replace_node_test() {
@@ -249,13 +243,13 @@ pub fn diff_reordered_children_produces_replace_node_test() {
     |> node.with_children([b, a])
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [ReplaceNode(path: "col", node: new)])
+  should.equal(ops, [ReplaceNode(path: [], node: new)])
 }
 
 pub fn diff_multiple_changes_test() {
   // old: col > [text("a", content="hello"), button("b")]
   // new: col > [text("a", content="world"), text("c")]
-  // Expected: delete "b", update "a" content, insert "c"
+  // Expected: remove "b" at index 1, update "a" content, insert "c" at index 1
   let old_a =
     node.new("a", "text")
     |> node.with_prop("content", StringVal("hello"))
@@ -275,12 +269,12 @@ pub fn diff_multiple_changes_test() {
   let ops = tree.diff(old, new)
   // Removals first (descending), then updates, then insertions.
   should.equal(ops, [
-    DeleteNode(path: "b"),
+    RemoveChild(path: [], index: 1),
     UpdateProps(
-      path: "a",
+      path: [0],
       props: dict.from_list([#("content", StringVal("world"))]),
     ),
-    InsertChild(path: "col", index: 1, node: new_c),
+    InsertChild(path: [], index: 1, node: new_c),
   ])
 }
 
@@ -291,6 +285,33 @@ pub fn diff_unchanged_props_no_ops_test() {
     |> node.with_prop("size", node.FloatVal(14.0))
 
   should.equal(tree.diff(n, n), [])
+}
+
+pub fn diff_deeply_nested_path_test() {
+  // root > mid > leaf (change leaf's prop)
+  let old_leaf =
+    node.new("leaf", "text")
+    |> node.with_prop("v", StringVal("old"))
+  let new_leaf =
+    node.new("leaf", "text")
+    |> node.with_prop("v", StringVal("new"))
+  let old =
+    node.new("root", "container")
+    |> node.with_children([
+      node.new("mid", "container")
+      |> node.with_children([old_leaf]),
+    ])
+  let new =
+    node.new("root", "container")
+    |> node.with_children([
+      node.new("mid", "container")
+      |> node.with_children([new_leaf]),
+    ])
+
+  let ops = tree.diff(old, new)
+  should.equal(ops, [
+    UpdateProps(path: [0, 0], props: dict.from_list([#("v", StringVal("new"))])),
+  ])
 }
 
 // --- search ------------------------------------------------------------------

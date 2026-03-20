@@ -18,7 +18,7 @@ import toddy/node.{
   NullVal, StringVal,
 }
 import toddy/patch.{
-  type PatchOp, DeleteNode, InsertChild, MoveNode, ReplaceNode, UpdateProps,
+  type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
 import toddy/prop/theme
 import toddy/protocol.{
@@ -108,13 +108,15 @@ pub fn serialize(
 // --- PatchOp conversion ------------------------------------------------------
 
 /// Convert a PatchOp to its wire PropValue representation.
+///
+/// Paths are encoded as arrays of integers on the wire.
 pub fn patch_op_to_prop_value(op: PatchOp) -> PropValue {
   case op {
     ReplaceNode(path:, node:) ->
       DictVal(
         dict.from_list([
           #("op", StringVal("replace_node")),
-          #("path", StringVal(path)),
+          #("path", path_to_prop_value(path)),
           #("node", node_to_prop_value(node)),
         ]),
       )
@@ -122,7 +124,7 @@ pub fn patch_op_to_prop_value(op: PatchOp) -> PropValue {
       DictVal(
         dict.from_list([
           #("op", StringVal("update_props")),
-          #("path", StringVal(path)),
+          #("path", path_to_prop_value(path)),
           #("props", DictVal(props)),
         ]),
       )
@@ -130,27 +132,25 @@ pub fn patch_op_to_prop_value(op: PatchOp) -> PropValue {
       DictVal(
         dict.from_list([
           #("op", StringVal("insert_child")),
-          #("path", StringVal(path)),
+          #("path", path_to_prop_value(path)),
           #("index", IntVal(index)),
           #("node", node_to_prop_value(node)),
         ]),
       )
-    DeleteNode(path:) ->
+    RemoveChild(path:, index:) ->
       DictVal(
         dict.from_list([
-          #("op", StringVal("delete_node")),
-          #("path", StringVal(path)),
-        ]),
-      )
-    MoveNode(path:, index:) ->
-      DictVal(
-        dict.from_list([
-          #("op", StringVal("move_node")),
-          #("path", StringVal(path)),
+          #("op", StringVal("remove_child")),
+          #("path", path_to_prop_value(path)),
           #("index", IntVal(index)),
         ]),
       )
   }
+}
+
+/// Encode a path (list of child indices) to a PropValue array.
+fn path_to_prop_value(path: List(Int)) -> PropValue {
+  ListVal(list.map(path, IntVal))
 }
 
 // --- Message builders --------------------------------------------------------
@@ -169,26 +169,34 @@ fn message(
 }
 
 /// Encode a settings message sent on startup.
+///
+/// Settings are wrapped in a `"settings"` key in the wire message,
+/// matching the Rust binary's expected format:
+/// `{"type": "settings", "session": "", "settings": {...}}`
 pub fn encode_settings(
   settings: Settings,
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
-  let fields = [
+  let settings_fields = [
     #("protocol_version", IntVal(protocol.protocol_version)),
     #("antialiasing", BoolVal(settings.antialiasing)),
     #("default_text_size", FloatVal(settings.default_text_size)),
     #("vsync", BoolVal(settings.vsync)),
     #("scale_factor", FloatVal(settings.scale_factor)),
   ]
-  let fields = case settings.theme {
-    option.Some(t) -> [#("theme", theme.to_prop_value(t)), ..fields]
-    option.None -> fields
+  let settings_fields = case settings.theme {
+    option.Some(t) -> [#("theme", theme.to_prop_value(t)), ..settings_fields]
+    option.None -> settings_fields
   }
-  let fields = case settings.fonts {
-    [] -> fields
-    fonts -> [#("fonts", ListVal(list.map(fonts, StringVal))), ..fields]
+  let settings_fields = case settings.fonts {
+    [] -> settings_fields
+    fonts -> [
+      #("fonts", ListVal(list.map(fonts, StringVal))),
+      ..settings_fields
+    ]
   }
+  let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]
   serialize(message("settings", session, fields), format)
 }
 

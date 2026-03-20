@@ -12,13 +12,19 @@ import gleam/set
 import gleam/string
 import toddy/node.{type Node, type PropValue, DictVal, Node, NullVal, StringVal}
 import toddy/patch.{
-  type PatchOp, DeleteNode, InsertChild, ReplaceNode, UpdateProps,
+  type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
 
 // --- Normalize ---------------------------------------------------------------
 
 /// Normalize a node tree by applying scoped IDs and resolving a11y
 /// references. Call this on the output of `view(model)` before diffing.
+///
+/// Scoping rules:
+/// - Named (non-empty-ID) non-window nodes create scope boundaries.
+///   Their children's IDs become `parent_id/child_id`.
+/// - Window nodes reset scope -- children start with no scope prefix.
+/// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
   normalize_with_scope(node, "")
 }
@@ -91,22 +97,34 @@ fn resolve_ref(
 
 /// Compare two normalized trees and return a list of patch operations
 /// that transform `old` into `new`.
+///
+/// Paths are lists of integer child indices from the root. For example,
+/// `[0, 2]` means "root's first child, then that node's third child".
+///
+/// The algorithm uses O(n) set comparison for reorder detection rather
+/// than O(n^2) LCS. When children are reordered, the entire node is
+/// replaced rather than computing minimal moves -- a deliberate
+/// simplicity-over-optimality tradeoff matching the reference implementation.
 pub fn diff(old: Node, new: Node) -> List(PatchOp) {
-  diff_node(old, new)
+  // Different ID at root -> full replace
+  case old.id != new.id {
+    True -> [ReplaceNode(path: [], node: new)]
+    False -> diff_node(old, new, [])
+  }
 }
 
-fn diff_node(old: Node, new: Node) -> List(PatchOp) {
-  // Different ID or kind -> full replacement.
-  case old.id != new.id || old.kind != new.kind {
-    True -> [ReplaceNode(path: new.id, node: new)]
+fn diff_node(old: Node, new: Node, path: List(Int)) -> List(PatchOp) {
+  // Different type -> full replacement at this path.
+  case old.kind != new.kind {
+    True -> [ReplaceNode(path:, node: new)]
     False -> {
-      // Check for reordered children first -- if so, replace the whole node.
+      // Check for reordered children -- if so, replace the whole node.
       case children_reordered(old.children, new.children) {
-        True -> [ReplaceNode(path: new.id, node: new)]
+        True -> [ReplaceNode(path:, node: new)]
         False -> {
-          let prop_ops = diff_props(old.props, new.props, old.id)
+          let prop_ops = diff_props(old.props, new.props, path)
           let child_ops =
-            diff_children_ordered(old.children, new.children, old.id)
+            diff_children_ordered(old.children, new.children, path)
           list.append(prop_ops, child_ops)
         }
       }
@@ -117,7 +135,7 @@ fn diff_node(old: Node, new: Node) -> List(PatchOp) {
 fn diff_props(
   old_props: Dict(String, PropValue),
   new_props: Dict(String, PropValue),
-  path: String,
+  path: List(Int),
 ) -> List(PatchOp) {
   case old_props == new_props {
     True -> []
@@ -162,50 +180,85 @@ fn children_reordered(old: List(Node), new: List(Node)) -> Bool {
 
 /// Diff children when no reorder has occurred. Produces removal, update,
 /// and insertion ops in the correct order.
+///
+/// Operation ordering is load-bearing:
+/// 1. Removals in descending index order (avoids index shift)
+/// 2. Updates with adjusted indices (accounting for removals)
+/// 3. Insertions in ascending index order
 fn diff_children_ordered(
   old_children: List(Node),
   new_children: List(Node),
-  parent_path: String,
+  parent_path: List(Int),
 ) -> List(PatchOp) {
-  let old_by_id = build_id_map(old_children)
-  let new_id_set = set.from_list(list.map(new_children, fn(c) { c.id }))
-  let old_id_set = set.from_list(list.map(old_children, fn(c) { c.id }))
+  let old_indexed =
+    list.index_map(old_children, fn(child, idx) { #(child, idx) })
+  let old_by_id =
+    list.fold(old_indexed, dict.new(), fn(acc, pair) {
+      dict.insert(acc, { pair.0 }.id, pair)
+    })
+  let new_by_id =
+    list.fold(
+      list.index_map(new_children, fn(child, idx) { #(child, idx) }),
+      dict.new(),
+      fn(acc, pair) { dict.insert(acc, { pair.0 }.id, pair) },
+    )
 
-  // Removals: old children not in new. Delete by node path (parent/child_id).
-  let removals =
-    old_children
-    |> list.filter(fn(child) { !set.contains(new_id_set, child.id) })
-    |> list.reverse()
-    |> list.map(fn(child) { DeleteNode(path: child.id) })
+  // Find removed child indices (old children not in new)
+  let removed_indices =
+    old_indexed
+    |> list.filter(fn(pair) { !dict.has_key(new_by_id, { pair.0 }.id) })
+    |> list.map(fn(pair) { pair.1 })
 
-  // Updates: children present in both old and new, recursed.
-  let updates =
+  // Removals: descending index order
+  let remove_ops =
+    removed_indices
+    |> list.sort(fn(a, b) {
+      case a > b {
+        True -> order.Lt
+        False ->
+          case a == b {
+            True -> order.Eq
+            False -> order.Gt
+          }
+      }
+    })
+    |> list.map(fn(idx) { RemoveChild(path: parent_path, index: idx) })
+
+  // Walk new children for updates and inserts
+  let #(update_ops, insert_ops) =
     new_children
-    |> list.filter(fn(child) { set.contains(old_id_set, child.id) })
-    |> list.flat_map(fn(new_child) {
-      case dict.get(old_by_id, new_child.id) {
-        Ok(old_child) -> diff_node(old_child, new_child)
-        Error(_) -> []
+    |> list.index_map(fn(child, idx) { #(child, idx) })
+    |> list.fold(#([], []), fn(acc, pair) {
+      let #(updates, inserts) = acc
+      let #(child, new_idx) = pair
+      case dict.get(old_by_id, child.id) {
+        Ok(#(old_child, old_idx)) -> {
+          // Adjust index: subtract removals that were before this position
+          let adjusted_idx = index_after_removals(old_idx, removed_indices)
+          let child_path = list.append(parent_path, [adjusted_idx])
+          let ops = diff_node(old_child, child, child_path)
+          #(list.append(updates, ops), inserts)
+        }
+        Error(_) -> {
+          let insert =
+            InsertChild(path: parent_path, index: new_idx, node: child)
+          #(updates, list.append(inserts, [insert]))
+        }
       }
     })
 
-  // Insertions: new children not in old.
-  let insertions =
-    new_children
-    |> list.index_map(fn(child, idx) { #(child, idx) })
-    |> list.filter(fn(pair) { !set.contains(old_id_set, pair.0.id) })
-    |> list.map(fn(pair) {
-      InsertChild(path: parent_path, index: pair.1, node: pair.0)
-    })
-
-  list.flatten([removals, updates, insertions])
+  list.flatten([remove_ops, update_ops, insert_ops])
 }
 
-fn build_id_map(children: List(Node)) -> Dict(String, Node) {
-  list.fold(children, dict.new(), fn(acc, child) {
-    dict.insert(acc, child.id, child)
-  })
+/// Compute the adjusted index of an old child after removals.
+/// Counts how many removed indices were below the target index.
+fn index_after_removals(old_idx: Int, removed_indices: List(Int)) -> Int {
+  let count_below =
+    list.count(removed_indices, fn(removed_idx) { removed_idx < old_idx })
+  old_idx - count_below
 }
+
+import gleam/order
 
 // --- Search ------------------------------------------------------------------
 

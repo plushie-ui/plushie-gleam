@@ -135,9 +135,7 @@ pub fn serialize_json_produces_newline_terminated_string_test() {
     ])
   let assert Ok(bytes) = encode.serialize(msg, protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
-  // Must end with newline
   assert string.ends_with(s, "\n")
-  // Must be valid JSON (without the trailing newline)
   let trimmed = string.drop_end(s, 1)
   assert string.contains(trimmed, "\"type\"")
   assert string.contains(trimmed, "\"test\"")
@@ -158,17 +156,17 @@ pub fn serialize_msgpack_round_trips_test() {
 
 // --- encode_settings ---------------------------------------------------------
 
-pub fn encode_settings_json_has_required_fields_test() {
+pub fn encode_settings_json_wraps_in_settings_key_test() {
   let settings = app.default_settings()
   let assert Ok(bytes) = encode.encode_settings(settings, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"settings\"")
   assert string.contains(s, "\"session\":\"\"")
+  // Settings fields should be nested under "settings" key
+  assert string.contains(s, "\"settings\":{")
   assert string.contains(s, "\"protocol_version\":1")
   assert string.contains(s, "\"antialiasing\":true")
   assert string.contains(s, "\"default_text_size\":16.0")
-  assert string.contains(s, "\"vsync\":true")
-  assert string.contains(s, "\"scale_factor\":1.0")
 }
 
 pub fn encode_settings_without_theme_omits_theme_test() {
@@ -196,7 +194,7 @@ pub fn encode_settings_with_fonts_includes_fonts_test() {
   assert string.contains(s, "\"Inter\"")
 }
 
-pub fn encode_settings_msgpack_round_trip_test() {
+pub fn encode_settings_msgpack_has_nested_settings_test() {
   let settings = app.default_settings()
   let assert Ok(bytes) =
     encode.encode_settings(settings, "s1", protocol.Msgpack)
@@ -204,8 +202,10 @@ pub fn encode_settings_msgpack_round_trip_test() {
   let assert data.Map(m) = decoded
   should.equal(dict.get(m, data.String("type")), Ok(data.String("settings")))
   should.equal(dict.get(m, data.String("session")), Ok(data.String("s1")))
+  // Settings should be nested in a "settings" key
+  let assert Ok(data.Map(settings_map)) = dict.get(m, data.String("settings"))
   should.equal(
-    dict.get(m, data.String("protocol_version")),
+    dict.get(settings_map, data.String("protocol_version")),
     Ok(data.Integer(1)),
   )
 }
@@ -233,7 +233,6 @@ pub fn encode_snapshot_msgpack_round_trip_test() {
   let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
   let assert data.Map(m) = decoded
   should.equal(dict.get(m, data.String("type")), Ok(data.String("snapshot")))
-  // tree field should be a map
   let assert Ok(data.Map(_)) = dict.get(m, data.String("tree"))
 }
 
@@ -242,7 +241,7 @@ pub fn encode_snapshot_msgpack_round_trip_test() {
 pub fn encode_patch_update_props_test() {
   let ops = [
     patch.UpdateProps(
-      path: "form/email",
+      path: [0, 1],
       props: dict.from_list([#("value", StringVal("new"))]),
     ),
   ]
@@ -250,59 +249,52 @@ pub fn encode_patch_update_props_test() {
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"patch\"")
   assert string.contains(s, "\"update_props\"")
-  assert string.contains(s, "\"form/email\"")
+  // Path should be an array of integers
+  assert string.contains(s, "\"path\":[0,1]")
 }
 
 pub fn encode_patch_replace_node_test() {
   let replacement =
     Node(id: "new", kind: "text", props: dict.new(), children: [])
-  let ops = [patch.ReplaceNode(path: "col/old", node: replacement)]
+  let ops = [patch.ReplaceNode(path: [], node: replacement)]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"replace_node\"")
-  assert string.contains(s, "\"col/old\"")
+  assert string.contains(s, "\"path\":[]")
 }
 
 pub fn encode_patch_insert_child_test() {
   let child = Node(id: "added", kind: "button", props: dict.new(), children: [])
-  let ops = [patch.InsertChild(path: "row", index: 2, node: child)]
+  let ops = [patch.InsertChild(path: [0], index: 2, node: child)]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"insert_child\"")
-  assert string.contains(s, "\"row\"")
+  assert string.contains(s, "\"path\":[0]")
+  assert string.contains(s, "\"index\":2")
 }
 
-pub fn encode_patch_delete_node_test() {
-  let ops = [patch.DeleteNode(path: "col/gone")]
+pub fn encode_patch_remove_child_test() {
+  let ops = [patch.RemoveChild(path: [0], index: 3)]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
-  assert string.contains(s, "\"delete_node\"")
-  assert string.contains(s, "\"col/gone\"")
-}
-
-pub fn encode_patch_move_node_test() {
-  let ops = [patch.MoveNode(path: "row/item", index: 3)]
-  let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
-  let assert Ok(s) = bit_array.to_string(bytes)
-  assert string.contains(s, "\"move_node\"")
+  assert string.contains(s, "\"remove_child\"")
+  assert string.contains(s, "\"index\":3")
 }
 
 pub fn encode_patch_multiple_ops_test() {
   let ops = [
-    patch.DeleteNode(path: "a"),
-    patch.DeleteNode(path: "b"),
+    patch.RemoveChild(path: [0], index: 2),
+    patch.RemoveChild(path: [0], index: 1),
   ]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"ops\"")
-  // Both paths present
-  assert string.contains(s, "\"a\"")
-  assert string.contains(s, "\"b\"")
+  assert string.contains(s, "\"remove_child\"")
 }
 
 pub fn encode_patch_msgpack_round_trip_test() {
   let ops = [
-    patch.UpdateProps(path: "x", props: dict.from_list([#("v", IntVal(1))])),
+    patch.UpdateProps(path: [0], props: dict.from_list([#("v", IntVal(1))])),
   ]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Msgpack)
   let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
@@ -425,7 +417,6 @@ pub fn encode_advance_frame_msgpack_test() {
 // --- Session field -----------------------------------------------------------
 
 pub fn all_messages_include_session_test() {
-  // Verify a non-empty session propagates through
   let assert Ok(bytes) =
     encode.encode_advance_frame(0, "my-session", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
