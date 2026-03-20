@@ -173,6 +173,19 @@ fn run(
       opts,
     )
 
+  // Sync initial windows (open all detected windows)
+  let initial_windows = detect_windows(initial_tree)
+  sync_windows(
+    initial_tree,
+    set.new(),
+    initial_windows,
+    None,
+    bridge,
+    app,
+    model,
+    opts,
+  )
+
   // Enter message loop
   let state =
     LoopState(
@@ -183,7 +196,7 @@ fn run(
       notifications:,
       tree: Some(initial_tree),
       active_subs:,
-      windows: detect_windows(initial_tree),
+      windows: initial_windows,
       opts:,
       errors: 0,
     )
@@ -334,6 +347,26 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
             )
 
           let new_windows = detect_windows(new_tree)
+
+          // Sync window lifecycle (open/close/update ops)
+          sync_windows(
+            new_tree,
+            state.windows,
+            new_windows,
+            state.tree,
+            state.bridge,
+            state.app,
+            new_model,
+            state.opts,
+          )
+
+          // Dispatch AllWindowsClosed if appropriate
+          maybe_dispatch_all_windows_closed(
+            state.windows,
+            new_windows,
+            state.self,
+            state.opts.daemon,
+          )
 
           LoopState(
             ..state,
@@ -1134,7 +1167,7 @@ fn reschedule_timer(state: LoopState(model), tag: String) -> LoopState(model) {
   LoopState(..state, active_subs: new_subs)
 }
 
-// -- Window detection --------------------------------------------------------
+// -- Window detection and lifecycle ------------------------------------------
 
 /// Detect window nodes in the tree. Only checks:
 /// 1. If the root node itself is a window
@@ -1142,7 +1175,7 @@ fn reschedule_timer(state: LoopState(model), tag: String) -> LoopState(model) {
 ///
 /// Does NOT recurse deeper -- matches the Elixir SDK behavior where
 /// only top-level windows are tracked for lifecycle management.
-fn detect_windows(tree_node: Node) -> Set(String) {
+pub fn detect_windows(tree_node: Node) -> Set(String) {
   case tree_node.kind {
     "window" -> set.from_list([tree_node.id])
     _ ->
@@ -1150,5 +1183,114 @@ fn detect_windows(tree_node: Node) -> Set(String) {
       |> list.filter(fn(child) { child.kind == "window" })
       |> list.map(fn(child) { child.id })
       |> set.from_list()
+  }
+}
+
+/// Window prop keys tracked for lifecycle sync. When a window node
+/// has any of these props and they change, an update op is sent.
+const window_prop_keys = [
+  "title", "width", "height", "maximized", "fullscreen", "visible", "resizable",
+  "closeable", "minimizable", "decorations", "transparent", "blur", "level",
+  "exit_on_close_request",
+]
+
+/// Synchronize window lifecycle: open new windows, close removed ones,
+/// and send update ops for windows whose tracked props changed.
+///
+/// When all windows close and daemon mode is off, dispatches
+/// AllWindowsClosed through update so the app can handle it.
+fn sync_windows(
+  new_tree: Node,
+  old_windows: Set(String),
+  new_windows: Set(String),
+  old_tree: Option(Node),
+  bridge: Subject(BridgeMessage),
+  app: App(model, Event),
+  model: model,
+  opts: RuntimeOpts,
+) -> Nil {
+  // Open new windows
+  let opened = set.difference(new_windows, old_windows)
+  set.each(opened, fn(window_id) {
+    let base_config = app.get_window_config(app)(model)
+    let per_window = extract_window_props(new_tree, window_id)
+    let merged = dict.merge(base_config, per_window)
+    send_window_op(bridge, "open", window_id, dict.to_list(merged), opts)
+  })
+
+  // Close removed windows
+  let closed = set.difference(old_windows, new_windows)
+  set.each(closed, fn(window_id) {
+    send_window_op(bridge, "close", window_id, [], opts)
+  })
+
+  // Update surviving windows whose props changed
+  case old_tree {
+    Some(old) -> {
+      let surviving = set.intersection(old_windows, new_windows)
+      set.each(surviving, fn(window_id) {
+        let old_props = extract_window_props(old, window_id)
+        let new_props = extract_window_props(new_tree, window_id)
+        case old_props == new_props {
+          True -> Nil
+          False ->
+            send_window_op(
+              bridge,
+              "update",
+              window_id,
+              dict.to_list(new_props),
+              opts,
+            )
+        }
+      })
+    }
+    None -> Nil
+  }
+
+  Nil
+}
+
+/// Check if all windows just closed (non-daemon mode) and dispatch
+/// AllWindowsClosed if so.
+fn maybe_dispatch_all_windows_closed(
+  old_windows: Set(String),
+  new_windows: Set(String),
+  self: Subject(RuntimeMessage),
+  daemon: Bool,
+) -> Nil {
+  case daemon {
+    True -> Nil
+    False ->
+      case set.is_empty(old_windows), set.is_empty(new_windows) {
+        // old was non-empty, new is empty -> all closed
+        False, True -> process.send(self, InternalEvent(event.AllWindowsClosed))
+        _, _ -> Nil
+      }
+  }
+}
+
+/// Extract the tracked window props from a window node found in the tree.
+pub fn extract_window_props(
+  tree_node: Node,
+  window_id: String,
+) -> Dict(String, PropValue) {
+  case find_window_node(tree_node, window_id) {
+    Some(win) ->
+      dict.filter(win.props, fn(key, _val) {
+        list.contains(window_prop_keys, key)
+      })
+    None -> dict.new()
+  }
+}
+
+/// Find a window node at root level or as a direct child.
+pub fn find_window_node(tree_node: Node, window_id: String) -> Option(Node) {
+  case tree_node.kind, tree_node.id {
+    "window", id if id == window_id -> Some(tree_node)
+    _, _ ->
+      list.find(tree_node.children, fn(child) {
+        child.kind == "window" && child.id == window_id
+      })
+      |> option.from_result()
   }
 }

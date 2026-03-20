@@ -1,0 +1,55 @@
+//// Tooltip widget builder. First child is the target, second is tooltip content.
+
+import gleam/dict
+import gleam/list
+import gleam/option.{type Option, None}
+import toddy/node.{type Node, Node}
+import toddy/prop/position.{type Position}
+import toddy/widget/build
+
+pub opaque type Tooltip {
+  Tooltip(
+    id: String,
+    children: List(Node),
+    tip: String,
+    position: Option(Position),
+    gap: Option(Float),
+    style: Option(String),
+  )
+}
+
+pub fn new(id: String, tip: String) -> Tooltip {
+  Tooltip(id:, children: [], tip:, position: None, gap: None, style: None)
+}
+
+pub fn position(tt: Tooltip, p: Position) -> Tooltip {
+  Tooltip(..tt, position: option.Some(p))
+}
+
+pub fn gap(tt: Tooltip, g: Float) -> Tooltip {
+  Tooltip(..tt, gap: option.Some(g))
+}
+
+pub fn style(tt: Tooltip, s: String) -> Tooltip {
+  Tooltip(..tt, style: option.Some(s))
+}
+
+/// Add a child node.
+pub fn push(tt: Tooltip, child: Node) -> Tooltip {
+  Tooltip(..tt, children: list.append(tt.children, [child]))
+}
+
+/// Add multiple child nodes.
+pub fn extend(tt: Tooltip, children: List(Node)) -> Tooltip {
+  Tooltip(..tt, children: list.append(tt.children, children))
+}
+
+pub fn build(tt: Tooltip) -> Node {
+  let props =
+    dict.new()
+    |> build.put_string("tip", tt.tip)
+    |> build.put_optional("position", tt.position, position.to_prop_value)
+    |> build.put_optional_float("gap", tt.gap)
+    |> build.put_optional_string("style", tt.style)
+  Node(id: tt.id, kind: "tooltip", props:, children: tt.children)
+}
