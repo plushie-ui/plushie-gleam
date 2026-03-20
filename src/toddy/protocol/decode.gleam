@@ -1043,10 +1043,21 @@ fn decode_canvas_scroll(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
+  let x = get_float_or(data, "cursor_x", 0.0)
+  let y = get_float_or(data, "cursor_y", 0.0)
   let delta_x = get_float_or(data, "delta_x", 0.0)
   let delta_y = get_float_or(data, "delta_y", 0.0)
   let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasScroll(id: local, scope:, delta_x:, delta_y:)))
+  Ok(
+    EventMessage(event.CanvasScroll(
+      id: local,
+      scope:,
+      x:,
+      y:,
+      delta_x:,
+      delta_y:,
+    )),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1082,6 +1093,7 @@ fn decode_pane_dragged(
   }
   let action = get_string_or(data, "action", "")
   let region = get_optional_string(data, "region")
+  let edge = get_optional_string(data, "edge")
   let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.PaneDragged(
@@ -1091,6 +1103,7 @@ fn decode_pane_dragged(
       target:,
       action:,
       region:,
+      edge:,
     )),
   )
 }

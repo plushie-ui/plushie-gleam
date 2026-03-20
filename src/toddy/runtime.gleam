@@ -378,13 +378,17 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
           )
         }
         Error(reason) -> {
+          // View crashed -- revert to previous model and tree.
+          // Keeping new_model would leave state and tree out of sync
+          // since we can't render a valid tree from a model that crashes
+          // the view function.
           let err_count = state.errors + 1
           case err_count <= 10 {
             True ->
               io.println("toddy: view error: " <> dynamic.classify(reason))
             False -> Nil
           }
-          LoopState(..state, model: new_model, errors: err_count)
+          LoopState(..state, errors: err_count)
         }
       }
     }
@@ -979,7 +983,12 @@ fn send_encoded(
 ) -> Nil {
   case result {
     Ok(bytes) -> process.send(bridge, Send(data: bytes))
-    Error(_) -> Nil
+    Error(err) -> {
+      io.println(
+        "toddy: encode error: " <> protocol.encode_error_to_string(err),
+      )
+      Nil
+    }
   }
 }
 

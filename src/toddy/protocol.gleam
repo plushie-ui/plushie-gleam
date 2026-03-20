@@ -29,6 +29,13 @@ pub type DecodeError {
   ProtocolMismatch(expected: Int, got: Int)
 }
 
+/// Format an EncodeError as a human-readable string.
+pub fn encode_error_to_string(err: EncodeError) -> String {
+  case err {
+    SerializationFailed(msg) -> "serialization failed: " <> msg
+  }
+}
+
 /// Format a DecodeError as a human-readable string.
 pub fn decode_error_to_string(err: DecodeError) -> String {
   case err {

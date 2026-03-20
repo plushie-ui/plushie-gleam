@@ -208,7 +208,14 @@ pub type Event {
     button: String,
   )
   CanvasMove(id: String, scope: List(String), x: Float, y: Float)
-  CanvasScroll(id: String, scope: List(String), delta_x: Float, delta_y: Float)
+  CanvasScroll(
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+    delta_x: Float,
+    delta_y: Float,
+  )
 
   // --- Pane events ---
   PaneResized(id: String, scope: List(String), split: Dynamic, ratio: Float)
@@ -219,6 +226,7 @@ pub type Event {
     target: Dynamic,
     action: String,
     region: Option(String),
+    edge: Option(String),
   )
   PaneClicked(id: String, scope: List(String), pane: Dynamic)
   PaneFocusCycle(id: String, scope: List(String), pane: Dynamic)
