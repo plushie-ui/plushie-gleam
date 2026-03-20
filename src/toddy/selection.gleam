@@ -53,10 +53,18 @@ pub fn select(sel: Selection, id: String, extend: Bool) -> Selection {
   }
 }
 
-/// Toggle an item's selection state.
+/// Toggle an item's selection state. In Single mode, toggling off
+/// also clears the anchor (consistent with clearing selection).
 pub fn toggle(sel: Selection, id: String) -> Selection {
   case set.contains(sel.selected, id) {
-    True -> Selection(..sel, selected: set.delete(sel.selected, id))
+    True -> {
+      let new_selected = set.delete(sel.selected, id)
+      let new_anchor = case sel.mode {
+        Single -> None
+        _ -> sel.anchor
+      }
+      Selection(..sel, selected: new_selected, anchor: new_anchor)
+    }
     False ->
       Selection(..sel, selected: set.insert(sel.selected, id), anchor: Some(id))
   }

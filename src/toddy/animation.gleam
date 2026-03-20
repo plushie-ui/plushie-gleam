@@ -112,7 +112,10 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
     EaseInOutQuad ->
       case t <. 0.5 {
         True -> 2.0 *. t *. t
-        False -> { 4.0 -. 2.0 *. t } *. t -. 1.0
+        False -> {
+          let p = { -2.0 *. t } +. 2.0
+          1.0 -. { p *. p /. 2.0 }
+        }
       }
     Spring -> {
       // Damped spring approximation

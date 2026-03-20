@@ -1,5 +1,19 @@
 //// Data query pipeline for filtering, searching, sorting, and
 //// paginating in-memory record collections.
+////
+//// Apply a chain of query options to transform a list:
+////
+//// ```gleam
+//// data.query(users, [
+////   data.Filter(fn(u) { u.active }),
+////   data.Search(fields: [fn(u) { u.name }], query: "alice"),
+////   data.SortBy(direction: data.Asc, compare: fn(a, b) {
+////     string.compare(a.name, b.name)
+////   }),
+////   data.Page(1),
+////   data.PageSize(10),
+//// ])
+//// ```
 
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -7,7 +21,7 @@ import gleam/order
 import gleam/result
 import gleam/string
 
-/// Query result.
+/// Query result with pagination metadata.
 pub type QueryResult(a) {
   QueryResult(entries: List(a), total: Int, page: Int, page_size: Int)
 }
@@ -18,12 +32,19 @@ pub type SortDirection {
   Desc
 }
 
-/// Query options.
+/// Query options applied in order: filter -> search -> sort -> paginate.
 pub type QueryOpt(a) {
+  /// Keep only records matching the predicate.
   Filter(fn(a) -> Bool)
+  /// Case-insensitive substring search across extracted string fields.
   Search(fields: List(fn(a) -> String), query: String)
+  /// Sort by a string key extractor (lexicographic comparison).
   Sort(direction: SortDirection, key: fn(a) -> String)
+  /// Sort with a custom comparison function (for numeric or complex sorts).
+  SortBy(direction: SortDirection, compare: fn(a, a) -> order.Order)
+  /// Page number (1-based, default 1).
   Page(Int)
+  /// Items per page (default 25).
   PageSize(Int)
 }
 
@@ -32,6 +53,7 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
   let filter_fn = find_filter(opts)
   let search = find_search(opts)
   let sort = find_sort(opts)
+  let sort_by = find_sort_by(opts)
   let page = find_page(opts)
   let page_size = find_page_size(opts)
 
@@ -52,19 +74,27 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
     }
     None -> result
   }
-  let result = case sort {
-    Some(#(dir, key_fn)) -> {
+  // SortBy takes precedence over Sort (custom comparison vs string key)
+  let result = case sort_by {
+    Some(#(dir, cmp)) ->
       list.sort(result, fn(a, b) {
-        let ka = key_fn(a)
-        let kb = key_fn(b)
-        let cmp = string.compare(ka, kb)
         case dir {
-          Asc -> cmp
-          Desc -> order.negate(cmp)
+          Asc -> cmp(a, b)
+          Desc -> order.negate(cmp(a, b))
         }
       })
-    }
-    None -> result
+    None ->
+      case sort {
+        Some(#(dir, key_fn)) ->
+          list.sort(result, fn(a, b) {
+            let cmp = string.compare(key_fn(a), key_fn(b))
+            case dir {
+              Asc -> cmp
+              Desc -> order.negate(cmp)
+            }
+          })
+        None -> result
+      }
   }
   let total = list.length(result)
   let result = paginate(result, page, page_size)
@@ -106,6 +136,18 @@ fn find_sort(
   list.find_map(opts, fn(opt) {
     case opt {
       Sort(direction:, key:) -> Ok(#(direction, key))
+      _ -> Error(Nil)
+    }
+  })
+  |> option.from_result()
+}
+
+fn find_sort_by(
+  opts: List(QueryOpt(a)),
+) -> Option(#(SortDirection, fn(a, a) -> order.Order)) {
+  list.find_map(opts, fn(opt) {
+    case opt {
+      SortBy(direction:, compare:) -> Ok(#(direction, compare))
       _ -> Error(Nil)
     }
   })

@@ -1,14 +1,8 @@
-import gleam/option.{None}
 import gleeunit/should
 import toddy/undo.{type UndoCommand, UndoCommand}
 
 fn increment_cmd() -> UndoCommand(Int) {
-  UndoCommand(
-    apply: fn(n) { n + 1 },
-    undo: fn(n) { n - 1 },
-    label: "increment",
-    coalesce_key: None,
-  )
+  UndoCommand(apply: fn(n) { n + 1 }, undo: fn(n) { n - 1 }, label: "increment")
 }
 
 fn add_cmd(amount: Int) -> UndoCommand(Int) {
@@ -16,7 +10,6 @@ fn add_cmd(amount: Int) -> UndoCommand(Int) {
     apply: fn(n) { n + amount },
     undo: fn(n) { n - amount },
     label: "add " <> int.to_string(amount),
-    coalesce_key: None,
   )
 }
 

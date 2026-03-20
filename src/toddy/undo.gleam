@@ -1,11 +1,10 @@
 //// Undo/redo support for reversible operations.
 ////
 //// Each command has an `apply` function (model -> model) and an `undo`
-//// function (model -> model). Commands can be coalesced by key within
-//// a time window.
+//// function (model -> model). Apply a command to push it onto the undo
+//// stack; undo/redo move commands between stacks while updating the model.
 
 import gleam/list
-import gleam/option.{type Option}
 
 /// A reversible command.
 pub type UndoCommand(model) {
@@ -13,7 +12,6 @@ pub type UndoCommand(model) {
     apply: fn(model) -> model,
     undo: fn(model) -> model,
     label: String,
-    coalesce_key: Option(String),
   )
 }
 
