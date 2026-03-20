@@ -5,6 +5,8 @@
 //// for debugging). Protocol version is embedded in the settings message
 //// sent to the Rust binary on startup.
 
+import gleam/int
+
 pub const protocol_version = 1
 
 /// Wire serialization format.
@@ -25,4 +27,19 @@ pub type DecodeError {
   UnknownEventFamily(String)
   MalformedEvent(String)
   ProtocolMismatch(expected: Int, got: Int)
+}
+
+/// Format a DecodeError as a human-readable string.
+pub fn decode_error_to_string(err: DecodeError) -> String {
+  case err {
+    DeserializationFailed(msg) -> "deserialization failed: " <> msg
+    UnknownMessageType(t) -> "unknown message type: " <> t
+    UnknownEventFamily(f) -> "unknown event family: " <> f
+    MalformedEvent(msg) -> "malformed event: " <> msg
+    ProtocolMismatch(expected:, got:) ->
+      "protocol mismatch: expected "
+      <> int.to_string(expected)
+      <> " got "
+      <> int.to_string(got)
+  }
 }
