@@ -3,14 +3,45 @@
 //// Toddy implements the Elm architecture (init/update/view) with commands
 //// and subscriptions. It communicates with a Rust binary over stdin/stdout
 //// using MessagePack, driving native windows via iced.
+////
+//// ## Quick start
+////
+//// ```gleam
+//// import toddy
+//// import toddy/app
+//// import toddy/command
+//// import toddy/event.{type Event, WidgetClick}
+//// import toddy/ui
+//// import gleam/int
+////
+//// type Model { Model(count: Int) }
+////
+//// pub fn main() {
+////   let counter = app.simple(
+////     fn() { #(Model(0), command.none()) },
+////     fn(model, event) {
+////       case event {
+////         WidgetClick(id: "inc", ..) ->
+////           #(Model(model.count + 1), command.none())
+////         _ -> #(model, command.none())
+////       }
+////     },
+////     fn(model) {
+////       ui.window("main", [ui.title("Counter")], [
+////         ui.text_("count", "Count: " <> int.to_string(model.count)),
+////         ui.button_("inc", "+"),
+////       ])
+////     },
+////   )
+////   let assert Ok(_) = toddy.start(counter, toddy.default_start_opts())
+//// }
+//// ```
 
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
-import gleam/otp/actor
 import gleam/result
 import toddy/app.{type App}
 import toddy/binary
-import toddy/bridge
 import toddy/event.{type Event}
 import toddy/protocol
 import toddy/runtime
@@ -43,15 +74,16 @@ pub fn default_start_opts() -> StartOpts {
 pub type StartError {
   /// The toddy binary could not be found.
   BinaryNotFound(binary.BinaryError)
-  /// The bridge actor failed to start.
-  BridgeStartFailed(actor.StartError)
+  /// The runtime failed to start (bridge or init error).
+  RuntimeStartFailed(runtime.StartError)
 }
 
 /// Start a toddy application.
 ///
-/// Resolves the binary path, starts the bridge actor, and launches
-/// the runtime process. The bridge and runtime are linked to the
-/// calling process.
+/// Resolves the binary path and launches the runtime process,
+/// which internally starts the bridge actor and initializes the app.
+/// All Subjects are created inside the runtime process for correct
+/// message ownership.
 ///
 /// Returns the runtime's message subject, which can be used with
 /// `stop` to shut down the application.
@@ -65,26 +97,16 @@ pub fn start(
     None -> binary.find() |> result.map_error(BinaryNotFound)
   })
 
-  // Create notification subject for bridge -> runtime communication
-  let notification_subject = runtime.new_notification_subject()
-
-  // Start bridge actor
-  use bridge_subject <- result.try(
-    bridge.start(binary_path, opts.format, notification_subject, opts.session)
-    |> result.map_error(BridgeStartFailed),
-  )
-
-  // Start runtime
+  // Start runtime (which starts bridge internally)
   let runtime_opts =
     runtime.RuntimeOpts(
       format: opts.format,
       session: opts.session,
       daemon: opts.daemon,
     )
-  let rt =
-    runtime.start(app, bridge_subject, notification_subject, runtime_opts)
 
-  Ok(rt)
+  runtime.start(app, binary_path, runtime_opts)
+  |> result.map_error(RuntimeStartFailed)
 }
 
 /// Stop a running toddy application by sending Shutdown to the runtime.

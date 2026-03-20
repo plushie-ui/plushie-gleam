@@ -2,7 +2,7 @@
 ////
 //// Owns the app model, executes init/update/view, diffs trees,
 //// and sends patches to the bridge. Commands returned from update
-//// are executed after the view is rendered.
+//// are executed before the next view render.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic
@@ -12,7 +12,6 @@ import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
-import gleam/string
 import toddy/app.{type App}
 import toddy/bridge.{
   type BridgeMessage, type RuntimeNotification, InboundEvent, RendererExited,
@@ -56,31 +55,60 @@ pub fn default_opts() -> RuntimeOpts {
 
 /// Start the runtime as a linked process.
 ///
-/// Creates a Subject(RuntimeNotification) that the bridge should send to,
-/// then spawns the runtime process which selects from both that subject
-/// and its own RuntimeMessage subject.
+/// Spawns a child process that:
+/// 1. Creates its own Subjects (for correct message ownership)
+/// 2. Starts the bridge actor
+/// 3. Initializes the app (init -> view -> snapshot)
+/// 4. Enters the message loop
 ///
-/// Returns #(runtime_subject, notification_subject). Pass the notification
-/// subject to bridge.start so the bridge can forward decoded events.
+/// Returns `Ok(runtime_subject)` on success, or an error if bridge
+/// startup fails or times out (5 second deadline).
 pub fn start(
   app: App(model, Event),
-  bridge: Subject(BridgeMessage),
-  notifications: Subject(RuntimeNotification),
+  binary_path: String,
   opts: RuntimeOpts,
-) -> Subject(RuntimeMessage) {
-  let runtime_subject = process.new_subject()
+) -> Result(Subject(RuntimeMessage), StartError) {
+  // Channel for the spawned process to report back its Subject
+  let init_channel = process.new_subject()
 
-  process.spawn(fn() { run(app, bridge, runtime_subject, notifications, opts) })
+  process.spawn(fn() {
+    // Create Subjects inside this process so we own them and can
+    // receive messages delivered to them.
+    let runtime_subject = process.new_subject()
+    let notification_subject = process.new_subject()
 
-  runtime_subject
+    // Start bridge actor with our notification subject
+    case
+      bridge.start(binary_path, opts.format, notification_subject, opts.session)
+    {
+      Ok(bridge_subject) -> {
+        // Report success to parent
+        process.send(init_channel, Ok(runtime_subject))
+        // Run the app
+        run(app, bridge_subject, runtime_subject, notification_subject, opts)
+      }
+      Error(err) -> {
+        process.send(init_channel, Error(BridgeStartFailed(err)))
+      }
+    }
+  })
+
+  // Wait for the spawned process to report back (5s timeout)
+  case process.receive(init_channel, 5000) {
+    Ok(result) -> result
+    Error(Nil) -> Error(StartTimeout)
+  }
 }
 
-/// Create a notification subject for bridge -> runtime communication.
-/// Call this before starting the bridge, then pass the result to both
-/// bridge.start and runtime.start.
-pub fn new_notification_subject() -> Subject(RuntimeNotification) {
-  process.new_subject()
+/// Errors that can occur when starting the runtime.
+pub type StartError {
+  /// The bridge actor failed to start.
+  BridgeStartFailed(actor.StartError)
+  /// Startup timed out (bridge or init took too long).
+  StartTimeout
 }
+
+import gleam/otp/actor
 
 // -- Internal state ----------------------------------------------------------
 
@@ -100,7 +128,7 @@ type LoopState(model) {
 }
 
 type SubEntry {
-  TimerSub(timer: process.Timer, interval_ms: Int)
+  TimerSub(timer: process.Timer, interval_ms: Int, tag: String)
   RendererSub(kind: String)
 }
 
@@ -208,7 +236,7 @@ fn message_loop(state: LoopState(model)) -> Nil {
                 "toddy: renderer exited with status " <> int.to_string(status),
               )
           }
-          // Stop the loop
+          // Renderer is gone -- stop the loop
           Nil
         }
       }
@@ -250,7 +278,7 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
 
   case ffi.try_call(fn() { update_fn(state.model, event) }) {
     Ok(#(new_model, commands)) -> {
-      // Execute commands
+      // Execute commands (before view, matching Elixir SDK)
       let new_model =
         execute_commands(
           commands,
@@ -444,15 +472,13 @@ fn execute_commands(
       model
     }
 
-    command.ScrollTo(widget_id:, offset:) -> {
+    command.ScrollTo(widget_id:, offset: _) -> {
       send_widget_op(
         bridge,
         "scroll_to",
         [#("target", StringVal(widget_id))],
         opts,
       )
-      // offset is Dynamic -- skip encoding for now
-      let _ = offset
       model
     }
 
@@ -689,132 +715,58 @@ fn execute_commands(
     }
 
     command.SetIcon(window_id:, rgba_data: _, width: _, height: _) -> {
-      // Icon data requires binary encoding -- skip for now
+      // Icon data requires binary encoding -- future work
       let _ = window_id
       model
     }
 
     command.GetWindowSize(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_window_size",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "get_size", window_id, tag, opts)
       model
     }
 
     command.GetWindowPosition(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_window_position",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "get_position", window_id, tag, opts)
       model
     }
 
     command.IsMaximized(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "is_maximized",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "is_maximized", window_id, tag, opts)
       model
     }
 
     command.IsMinimized(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "is_minimized",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "is_minimized", window_id, tag, opts)
       model
     }
 
     command.GetMode(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_mode",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "get_mode", window_id, tag, opts)
       model
     }
 
     command.GetScaleFactor(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_scale_factor",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "get_scale_factor", window_id, tag, opts)
       model
     }
 
     command.RawWindowId(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "raw_window_id",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "raw_id", window_id, tag, opts)
       model
     }
 
     command.MonitorSize(window_id:, tag:) -> {
-      send_widget_op(
-        bridge,
-        "monitor_size",
-        [
-          #("window_id", StringVal(window_id)),
-          #("tag", StringVal(tag)),
-        ],
-        opts,
-      )
+      send_window_query(bridge, "monitor_size", window_id, tag, opts)
       model
     }
 
     command.GetSystemTheme(tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_system_theme",
-        [#("tag", StringVal(tag))],
-        opts,
-      )
+      send_window_query(bridge, "get_system_theme", "_system", tag, opts)
       model
     }
 
     command.GetSystemInfo(tag:) -> {
-      send_widget_op(
-        bridge,
-        "get_system_info",
-        [#("tag", StringVal(tag))],
-        opts,
-      )
+      send_window_query(bridge, "get_system_info", "_system", tag, opts)
       model
     }
 
@@ -952,12 +904,12 @@ fn execute_commands(
     }
 
     command.LoadFont(data: _) -> {
-      // Font loading requires binary encoding -- skip for now
+      // Font loading requires binary encoding -- future work
       model
     }
 
     command.PaneSplit(pane_grid_id: _, pane_id: _, axis: _, new_pane_id: _) -> {
-      // Pane operations use Dynamic -- skip for now
+      // Pane operations use Dynamic pane IDs -- future work
       model
     }
 
@@ -1034,6 +986,27 @@ fn send_window_op(
   )
 }
 
+/// Window queries are sent as window_op with an op name and tag.
+/// Results arrive as op_query_response events.
+fn send_window_query(
+  bridge: Subject(BridgeMessage),
+  op: String,
+  window_id: String,
+  tag: String,
+  opts: RuntimeOpts,
+) -> Nil {
+  send_encoded(
+    bridge,
+    encode.encode_window_op(
+      op,
+      window_id,
+      dict.from_list([#("tag", StringVal(tag))]),
+      opts.session,
+      opts.format,
+    ),
+  )
+}
+
 fn send_image_op(
   bridge: Subject(BridgeMessage),
   op: String,
@@ -1075,7 +1048,7 @@ fn sync_subscriptions(
       case dict.has_key(desired_by_key, key) {
         True -> acc
         False -> {
-          stop_subscription(entry, key, bridge, opts)
+          stop_subscription(entry, bridge, opts)
           dict.delete(acc, key)
         }
       }
@@ -1111,7 +1084,7 @@ fn start_subscription(
   case sub {
     subscription.Every(interval_ms:, tag:) -> {
       let timer = process.send_after(self, interval_ms, TimerFired(tag:))
-      TimerSub(timer:, interval_ms:)
+      TimerSub(timer:, interval_ms:, tag:)
     }
     _ -> {
       let kind = subscription.wire_kind(sub)
@@ -1127,7 +1100,6 @@ fn start_subscription(
 
 fn stop_subscription(
   entry: SubEntry,
-  key: String,
   bridge: Subject(BridgeMessage),
   opts: RuntimeOpts,
 ) -> Nil {
@@ -1137,7 +1109,6 @@ fn stop_subscription(
       Nil
     }
     RendererSub(kind:) -> {
-      let _ = key
       send_encoded(
         bridge,
         encode.encode_unsubscribe(kind, opts.session, opts.format),
@@ -1146,19 +1117,16 @@ fn stop_subscription(
   }
 }
 
+/// Reschedule a timer subscription after it fires.
+/// Matches by the tag stored in the SubEntry (not string matching).
 fn reschedule_timer(state: LoopState(model), tag: String) -> LoopState(model) {
   let new_subs =
     dict.fold(state.active_subs, state.active_subs, fn(acc, key, entry) {
       case entry {
-        TimerSub(interval_ms:, ..) -> {
-          case string.contains(key, ":" <> tag) {
-            True -> {
-              let new_timer =
-                process.send_after(state.self, interval_ms, TimerFired(tag:))
-              dict.insert(acc, key, TimerSub(timer: new_timer, interval_ms:))
-            }
-            False -> acc
-          }
+        TimerSub(interval_ms:, tag: entry_tag, ..) if entry_tag == tag -> {
+          let new_timer =
+            process.send_after(state.self, interval_ms, TimerFired(tag:))
+          dict.insert(acc, key, TimerSub(timer: new_timer, interval_ms:, tag:))
         }
         _ -> acc
       }
@@ -1168,12 +1136,19 @@ fn reschedule_timer(state: LoopState(model), tag: String) -> LoopState(model) {
 
 // -- Window detection --------------------------------------------------------
 
-fn detect_windows(tree: Node) -> Set(String) {
-  case tree.kind {
-    "window" -> set.from_list([tree.id])
+/// Detect window nodes in the tree. Only checks:
+/// 1. If the root node itself is a window
+/// 2. Direct children of the root that are windows
+///
+/// Does NOT recurse deeper -- matches the Elixir SDK behavior where
+/// only top-level windows are tracked for lifecycle management.
+fn detect_windows(tree_node: Node) -> Set(String) {
+  case tree_node.kind {
+    "window" -> set.from_list([tree_node.id])
     _ ->
-      list.fold(tree.children, set.new(), fn(acc, child) {
-        set.union(acc, detect_windows(child))
-      })
+      tree_node.children
+      |> list.filter(fn(child) { child.kind == "window" })
+      |> list.map(fn(child) { child.id })
+      |> set.from_list()
   }
 }

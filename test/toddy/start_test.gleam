@@ -42,7 +42,7 @@ pub fn start_error_binary_not_found_test() {
   let opts = toddy.default_start_opts()
   case toddy.start(my_app, opts) {
     Error(toddy.BinaryNotFound(_)) -> Nil
-    Error(toddy.BridgeStartFailed(_)) -> Nil
+    Error(toddy.RuntimeStartFailed(_)) -> Nil
     Ok(_) -> Nil
   }
 }

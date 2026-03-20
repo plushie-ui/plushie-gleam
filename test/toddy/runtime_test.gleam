@@ -27,8 +27,3 @@ pub fn custom_opts_test() {
   assert opts.session == "test-session"
   assert opts.daemon == True
 }
-
-pub fn notification_subject_creation_test() {
-  let _subject = runtime.new_notification_subject()
-  Nil
-}
