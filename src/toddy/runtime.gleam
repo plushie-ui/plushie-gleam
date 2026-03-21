@@ -48,6 +48,8 @@ pub type RuntimeMessage {
   EffectTimeout(request_id: String)
   /// Flush deferred coalescable events (zero-delay timer).
   CoalesceFlush
+  /// Delayed renderer restart attempt.
+  RestartRenderer
   /// Shutdown.
   Shutdown
 }
@@ -94,7 +96,14 @@ pub fn start(
         // Report success to parent
         process.send(init_channel, Ok(runtime_subject))
         // Run the app
-        run(app, bridge_subject, runtime_subject, notification_subject, opts)
+        run(
+          app,
+          bridge_subject,
+          runtime_subject,
+          notification_subject,
+          opts,
+          binary_path,
+        )
       }
       Error(err) -> {
         process.send(init_channel, Error(BridgeStartFailed(err)))
@@ -143,6 +152,11 @@ type LoopState(model) {
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
     coalesce_timer: Option(process.Timer),
+    // Bridge restart tracking
+    binary_path: String,
+    restart_count: Int,
+    max_restarts: Int,
+    restart_delay_base: Int,
   )
 }
 
@@ -159,6 +173,7 @@ fn run(
   self: Subject(RuntimeMessage),
   notifications: Subject(RuntimeNotification),
   opts: RuntimeOpts,
+  binary_path: String,
 ) -> Nil {
   // Initialize
   let #(model, init_cmds) = app.get_init(app)()
@@ -201,6 +216,10 @@ fn run(
       pending_effects: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
+      binary_path:,
+      restart_count: 0,
+      max_restarts: 5,
+      restart_delay_base: 100,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -246,6 +265,8 @@ fn message_loop(state: LoopState(model)) -> Nil {
 
   case msg {
     FromBridge(InboundEvent(EventMessage(ev))) -> {
+      // Reset restart count on successful communication
+      let state = LoopState(..state, restart_count: 0)
       case coalesce_key(ev) {
         Some(key) -> {
           // Defer this event -- latest value wins
@@ -272,6 +293,8 @@ fn message_loop(state: LoopState(model)) -> Nil {
     }
 
     FromBridge(InboundEvent(Hello(protocol: proto, ..))) -> {
+      // Reset restart count on successful handshake
+      let state = LoopState(..state, restart_count: 0)
       case proto == protocol.protocol_version {
         True -> Nil
         False ->
@@ -287,22 +310,48 @@ fn message_loop(state: LoopState(model)) -> Nil {
     }
 
     FromBridge(RendererExited(status:)) -> {
-      // Check for app-level handler
-      case app.get_on_renderer_exit(state.app) {
-        Some(handler) -> {
-          let new_model = handler(state.model, dynamic.int(status))
-          message_loop(LoopState(..state, model: new_model))
-        }
-        None -> {
-          case status {
-            0 -> Nil
-            _ ->
-              io.println(
-                "toddy: renderer exited with status " <> int.to_string(status),
-              )
-          }
-          // Renderer is gone -- stop the loop
+      // Call app handler if defined, otherwise keep current model
+      let model = case app.get_on_renderer_exit(state.app) {
+        Some(handler) -> handler(state.model, dynamic.int(status))
+        None -> state.model
+      }
+      let state = LoopState(..state, model: model)
+
+      case status {
+        0 -> {
+          // Clean exit (user closed window) -- stop the loop
+          io.println("toddy: renderer exited cleanly")
           Nil
+        }
+        _ -> {
+          // Crash -- attempt restart with exponential backoff
+          case state.restart_count < state.max_restarts {
+            True -> {
+              let delay =
+                calculate_backoff(state.restart_delay_base, state.restart_count)
+              io.println(
+                "toddy: renderer crashed (status "
+                <> int.to_string(status)
+                <> "), restarting in "
+                <> int.to_string(delay)
+                <> "ms (attempt "
+                <> int.to_string(state.restart_count + 1)
+                <> "/"
+                <> int.to_string(state.max_restarts)
+                <> ")",
+              )
+              process.send_after(state.self, delay, RestartRenderer)
+              message_loop(state)
+            }
+            False -> {
+              io.println(
+                "toddy: renderer crashed "
+                <> int.to_string(state.max_restarts)
+                <> " times, giving up",
+              )
+              Nil
+            }
+          }
         }
       }
     }
@@ -364,6 +413,127 @@ fn message_loop(state: LoopState(model)) -> Nil {
 
     CoalesceFlush -> {
       flush_coalesced(state) |> message_loop()
+    }
+
+    RestartRenderer -> {
+      let notification_subject = process.new_subject()
+      case
+        bridge.start(
+          state.binary_path,
+          state.opts.format,
+          notification_subject,
+          state.opts.session,
+        )
+      {
+        Ok(new_bridge) -> {
+          let new_count = state.restart_count + 1
+          io.println(
+            "toddy: renderer restarted (attempt "
+            <> int.to_string(new_count)
+            <> ")",
+          )
+
+          // Cancel coalesce timer and discard stale coalescable events
+          let state = case state.coalesce_timer {
+            Some(timer) -> {
+              process.cancel_timer(timer)
+              LoopState(
+                ..state,
+                coalesce_timer: None,
+                pending_coalesce: dict.new(),
+              )
+            }
+            None -> LoopState(..state, pending_coalesce: dict.new())
+          }
+
+          // Flush pending effects with error (old renderer is gone)
+          let state = flush_pending_effects_on_restart(state)
+
+          // Stop old subscription timers (sync_subscriptions won't
+          // see them since we pass dict.new() as current)
+          dict.each(state.active_subs, fn(_key, entry) {
+            case entry {
+              TimerSub(timer:, ..) -> {
+                process.cancel_timer(timer)
+                Nil
+              }
+              _ -> Nil
+            }
+          })
+
+          // Re-send settings
+          let settings = app.get_settings(state.app)()
+          send_encoded(
+            new_bridge,
+            encode.encode_settings(
+              settings,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+
+          // Re-render view and send fresh snapshot
+          let view_fn = app.get_view(state.app)
+          let tree = case ffi.try_call(fn() { view_fn(state.model) }) {
+            Ok(t) -> Some(tree.normalize(t))
+            Error(_) -> state.tree
+          }
+          case tree {
+            Some(t) ->
+              send_encoded(
+                new_bridge,
+                encode.encode_snapshot(t, state.opts.session, state.opts.format),
+              )
+            None -> Nil
+          }
+
+          // Re-sync subscriptions with new renderer
+          let new_subs =
+            sync_subscriptions(
+              app.get_subscribe(state.app)(state.model),
+              dict.new(),
+              new_bridge,
+              state.self,
+              state.opts,
+            )
+
+          // Re-open all windows
+          let windows = case tree {
+            Some(t) -> {
+              let new_windows = detect_windows(t)
+              sync_windows(
+                t,
+                set.new(),
+                new_windows,
+                None,
+                new_bridge,
+                state.app,
+                state.model,
+                state.opts,
+              )
+              new_windows
+            }
+            None -> state.windows
+          }
+
+          // Update state with new bridge and notification subject
+          let state =
+            LoopState(
+              ..state,
+              bridge: new_bridge,
+              notifications: notification_subject,
+              tree:,
+              active_subs: new_subs,
+              windows:,
+              restart_count: new_count,
+            )
+          message_loop(state)
+        }
+        Error(_) -> {
+          io.println("toddy: failed to restart renderer, giving up")
+          Nil
+        }
+      }
     }
 
     Shutdown -> {
@@ -447,6 +617,46 @@ fn maybe_cancel_effect_timeout(
       }
     _ -> state
   }
+}
+
+// -- Bridge restart helpers --------------------------------------------------
+
+const max_backoff_ms = 5000
+
+fn calculate_backoff(base: Int, attempt: Int) -> Int {
+  let delay = base * pow2(attempt)
+  case delay > max_backoff_ms {
+    True -> max_backoff_ms
+    False -> delay
+  }
+}
+
+fn pow2(n: Int) -> Int {
+  case n {
+    0 -> 1
+    _ -> 2 * pow2(n - 1)
+  }
+}
+
+/// Fail all pending effects with a "renderer_restarted" error and cancel
+/// their timeout timers. The old renderer can no longer respond.
+fn flush_pending_effects_on_restart(state: LoopState(model)) -> LoopState(model) {
+  // Cancel all effect timeout timers
+  dict.each(state.pending_effects, fn(_id, timer) {
+    process.cancel_timer(timer)
+    Nil
+  })
+  // Dispatch error events for each pending effect
+  let state =
+    dict.fold(state.pending_effects, state, fn(st, id, _timer) {
+      let timeout_event =
+        event.EffectResponse(
+          request_id: id,
+          result: event.EffectError(dynamic.string("renderer_restarted")),
+        )
+      handle_event(st, timeout_event)
+    })
+  LoopState(..state, pending_effects: dict.new())
 }
 
 // -- Event handling (the core update cycle) ----------------------------------
