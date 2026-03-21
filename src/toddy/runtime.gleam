@@ -13,6 +13,7 @@ import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
+import gleam/string
 import toddy/app.{type App}
 import toddy/bridge.{
   type BridgeMessage, type RuntimeNotification, InboundEvent, RendererExited,
@@ -49,6 +50,8 @@ pub type RuntimeMessage {
   EffectTimeout(request_id: String)
   /// Flush deferred coalescable events (zero-delay timer).
   CoalesceFlush
+  /// Monitored async task process exited.
+  ProcessDown(process.Down)
   /// Delayed renderer restart attempt.
   RestartRenderer
   /// Shutdown.
@@ -143,12 +146,14 @@ type LoopState(model) {
     windows: Set(String),
     opts: RuntimeOpts,
     errors: Int,
-    // tag -> (pid, nonce) for stale-result protection
-    async_tasks: Dict(String, #(Pid, Int)),
+    // tag -> (pid, nonce, monitor) for stale-result protection
+    async_tasks: Dict(String, #(Pid, Int, process.Monitor)),
     // Monotonically increasing counter for async nonces
     nonce_counter: Int,
     // request_id -> timeout timer for pending platform effects
     pending_effects: Dict(String, process.Timer),
+    // event key -> timer for SendAfter deduplication
+    pending_timers: Dict(String, process.Timer),
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -215,6 +220,7 @@ fn run(
       async_tasks: dict.new(),
       nonce_counter: 0,
       pending_effects: dict.new(),
+      pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
       binary_path:,
@@ -261,6 +267,7 @@ fn message_loop(state: LoopState(model)) -> Nil {
     process.new_selector()
     |> process.select(state.self)
     |> process.select_map(state.notifications, FromBridge)
+    |> process.select_monitors(ProcessDown)
 
   let msg = process.selector_receive_forever(selector)
 
@@ -288,26 +295,35 @@ fn message_loop(state: LoopState(model)) -> Nil {
           // Non-coalescable: flush pending first, then process
           let state = flush_coalesced(state)
           let state = maybe_cancel_effect_timeout(state, ev)
-          handle_event(state, ev) |> message_loop()
+          let new_state = handle_event(state, ev)
+          // Stop runtime on AllWindowsClosed in non-daemon mode
+          case ev, state.opts.daemon {
+            event.AllWindowsClosed, False -> Nil
+            _, _ -> message_loop(new_state)
+          }
         }
       }
     }
 
     FromBridge(InboundEvent(Hello(protocol: proto, ..))) -> {
-      // Reset restart count on successful handshake
-      let state = LoopState(..state, restart_count: 0)
       case proto == protocol.protocol_version {
-        True -> Nil
-        False ->
+        True -> {
+          // Reset restart count on successful handshake
+          let state = LoopState(..state, restart_count: 0)
+          message_loop(state)
+        }
+        False -> {
           io.println(
             "toddy: protocol version mismatch (expected "
             <> int.to_string(protocol.protocol_version)
             <> ", got "
             <> int.to_string(proto)
-            <> ")",
+            <> ") -- stopping runtime",
           )
+          // Stop the runtime loop on protocol mismatch
+          Nil
+        }
       }
-      message_loop(state)
     }
 
     FromBridge(RendererExited(status:)) -> {
@@ -358,7 +374,19 @@ fn message_loop(state: LoopState(model)) -> Nil {
     }
 
     InternalEvent(event) -> {
-      handle_event(state, event) |> message_loop()
+      // Remove delivered timer entry (SendAfter deduplication)
+      let timer_key = string.inspect(event)
+      let state =
+        LoopState(
+          ..state,
+          pending_timers: dict.delete(state.pending_timers, timer_key),
+        )
+      let new_state = handle_event(state, event)
+      // D-033: stop runtime on AllWindowsClosed in non-daemon mode
+      case event, state.opts.daemon {
+        event.AllWindowsClosed, False -> Nil
+        _, _ -> message_loop(new_state)
+      }
     }
 
     TimerFired(tag:) -> {
@@ -370,7 +398,8 @@ fn message_loop(state: LoopState(model)) -> Nil {
     AsyncComplete(tag:, nonce:, result:) -> {
       // Validate nonce matches current task -- discard stale results
       case dict.get(state.async_tasks, tag) {
-        Ok(#(_, current_nonce)) if current_nonce == nonce -> {
+        Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
+          process.demonitor_process(monitor)
           let new_state = handle_event(state, event.AsyncResult(tag:, result:))
           LoopState(
             ..new_state,
@@ -385,7 +414,7 @@ fn message_loop(state: LoopState(model)) -> Nil {
     StreamEmit(tag:, nonce:, value:) -> {
       // Validate nonce matches current stream -- discard stale emissions
       case dict.get(state.async_tasks, tag) {
-        Ok(#(_, current_nonce)) if current_nonce == nonce -> {
+        Ok(#(_, current_nonce, _)) if current_nonce == nonce -> {
           handle_event(state, event.StreamValue(tag:, value:))
           |> message_loop()
         }
@@ -415,6 +444,48 @@ fn message_loop(state: LoopState(model)) -> Nil {
     CoalesceFlush -> {
       flush_coalesced(state) |> message_loop()
     }
+
+    ProcessDown(process.ProcessDown(monitor: _, pid: down_pid, reason: reason)) -> {
+      // Find which async task this pid belongs to
+      let found =
+        dict.fold(state.async_tasks, None, fn(acc, tag, entry) {
+          case acc {
+            Some(_) -> acc
+            None -> {
+              let #(task_pid, _nonce, _monitor) = entry
+              case task_pid == down_pid {
+                True -> Some(tag)
+                False -> None
+              }
+            }
+          }
+        })
+      case found {
+        Some(tag) -> {
+          let state =
+            LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+          case reason {
+            process.Normal -> message_loop(state)
+            _ -> {
+              let crash_reason = case reason {
+                process.Killed -> dynamic.string("killed")
+                process.Abnormal(r) -> r
+                process.Normal -> dynamic.string("normal")
+              }
+              handle_event(
+                state,
+                event.AsyncResult(tag:, result: Error(crash_reason)),
+              )
+              |> message_loop()
+            }
+          }
+        }
+        None -> message_loop(state)
+      }
+    }
+
+    // PortDown is not expected but handle gracefully
+    ProcessDown(process.PortDown(..)) -> message_loop(state)
 
     RestartRenderer -> {
       // Send Shutdown to old bridge actor so it doesn't linger
@@ -459,6 +530,13 @@ fn message_loop(state: LoopState(model)) -> Nil {
             }
             None -> LoopState(..state, pending_coalesce: dict.new())
           }
+
+          // Cancel all pending send_after timers
+          dict.each(state.pending_timers, fn(_key, timer) {
+            process.cancel_timer(timer)
+            Nil
+          })
+          let state = LoopState(..state, pending_timers: dict.new())
 
           // Flush pending effects with error (old renderer is gone).
           // Commands from the app's error handlers go to new_bridge.
@@ -563,6 +641,11 @@ fn message_loop(state: LoopState(model)) -> Nil {
       })
       // Cancel all pending effect timeout timers
       dict.each(state.pending_effects, fn(_id, timer) {
+        process.cancel_timer(timer)
+        Nil
+      })
+      // Cancel all pending send_after timers
+      dict.each(state.pending_timers, fn(_key, timer) {
         process.cancel_timer(timer)
         Nil
       })
@@ -743,14 +826,6 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
             state.opts,
           )
 
-          // Dispatch AllWindowsClosed if appropriate
-          maybe_dispatch_all_windows_closed(
-            state.windows,
-            new_windows,
-            state.self,
-            state.opts.daemon,
-          )
-
           LoopState(
             ..state,
             model: new_model,
@@ -764,17 +839,17 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
           )
         }
         Error(reason) -> {
-          // View crashed -- revert to previous model and tree.
-          // Keeping new_model would leave state and tree out of sync
-          // since we can't render a valid tree from a model that crashes
-          // the view function.
-          let err_count = state.errors + 1
+          // View crashed -- preserve model and command-side state
+          // (async_tasks, nonce_counter, pending_effects) but keep old tree.
+          // This matches the Elixir SDK: model and commands persist through
+          // view crashes, only the tree stays at its previous value.
+          let err_count = state_after_cmds.errors + 1
           case err_count <= 10 {
             True ->
               io.println("toddy: view error: " <> dynamic.classify(reason))
             False -> Nil
           }
-          LoopState(..state, errors: err_count)
+          LoopState(..state_after_cmds, tree: state.tree, errors: err_count)
         }
       }
     }
@@ -807,8 +882,20 @@ fn execute_commands(
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      process.send_after(state.self, delay_ms, InternalEvent(msg))
-      state
+      let timer_key = string.inspect(msg)
+      // Cancel any existing timer for the same event key
+      let state = case dict.get(state.pending_timers, timer_key) {
+        Ok(old_timer) -> {
+          process.cancel_timer(old_timer)
+          state
+        }
+        Error(_) -> state
+      }
+      let timer = process.send_after(state.self, delay_ms, InternalEvent(msg))
+      LoopState(
+        ..state,
+        pending_timers: dict.insert(state.pending_timers, timer_key, timer),
+      )
     }
 
     command.Done(value:, mapper:) -> {
@@ -1536,6 +1623,8 @@ fn execute_commands(
     }
 
     command.Async(work:, tag:) -> {
+      // Kill existing task for same tag before starting a new one
+      let state = cancel_existing_task(state, tag)
       let nonce = state.nonce_counter + 1
       let runtime_self = state.self
       let pid =
@@ -1546,14 +1635,17 @@ fn execute_commands(
           }
           process.send(runtime_self, AsyncComplete(tag:, nonce:, result:))
         })
+      let monitor = process.monitor(pid)
       LoopState(
         ..state,
-        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce)),
+        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce, monitor)),
         nonce_counter: nonce,
       )
     }
 
     command.Stream(work:, tag:) -> {
+      // Kill existing task for same tag before starting a new one
+      let state = cancel_existing_task(state, tag)
       let nonce = state.nonce_counter + 1
       let runtime_self = state.self
       let emit = fn(value) {
@@ -1567,22 +1659,32 @@ fn execute_commands(
           }
           process.send(runtime_self, AsyncComplete(tag:, nonce:, result:))
         })
+      let monitor = process.monitor(pid)
       LoopState(
         ..state,
-        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce)),
+        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce, monitor)),
         nonce_counter: nonce,
       )
     }
 
     command.Cancel(tag:) -> {
-      case dict.get(state.async_tasks, tag) {
-        Ok(#(pid, _nonce)) -> {
-          process.kill(pid)
-          LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
-        }
-        Error(_) -> state
-      }
+      cancel_existing_task(state, tag)
     }
+  }
+}
+
+/// Kill an existing async task with the given tag and clean up its monitor.
+fn cancel_existing_task(
+  state: LoopState(model),
+  tag: String,
+) -> LoopState(model) {
+  case dict.get(state.async_tasks, tag) {
+    Ok(#(pid, _nonce, monitor)) -> {
+      process.demonitor_process(monitor)
+      process.kill(pid)
+      LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+    }
+    Error(_) -> state
   }
 }
 
@@ -1833,9 +1935,6 @@ const window_prop_keys = [
 
 /// Synchronize window lifecycle: open new windows, close removed ones,
 /// and send update ops for windows whose tracked props changed.
-///
-/// When all windows close and daemon mode is off, dispatches
-/// AllWindowsClosed through update so the app can handle it.
 fn sync_windows(
   new_tree: Node,
   old_windows: Set(String),
@@ -1885,25 +1984,6 @@ fn sync_windows(
   }
 
   Nil
-}
-
-/// Check if all windows just closed (non-daemon mode) and dispatch
-/// AllWindowsClosed if so.
-fn maybe_dispatch_all_windows_closed(
-  old_windows: Set(String),
-  new_windows: Set(String),
-  self: Subject(RuntimeMessage),
-  daemon: Bool,
-) -> Nil {
-  case daemon {
-    True -> Nil
-    False ->
-      case set.is_empty(old_windows), set.is_empty(new_windows) {
-        // old was non-empty, new is empty -> all closed
-        False, True -> process.send(self, InternalEvent(event.AllWindowsClosed))
-        _, _ -> Nil
-      }
-  }
 }
 
 /// Extract the tracked window props from a window node found in the tree.
