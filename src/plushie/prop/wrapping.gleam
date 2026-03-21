@@ -14,6 +14,7 @@ pub fn to_prop_value(w: Wrapping) -> PropValue {
   StringVal(to_string(w))
 }
 
+/// Convert a Wrapping to its wire-format string representation.
 pub fn to_string(w: Wrapping) -> String {
   case w {
     NoWrap -> "none"

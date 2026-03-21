@@ -55,6 +55,7 @@ pub opaque type MouseArea {
   )
 }
 
+/// Create a new mouse area builder.
 pub fn new(id: String) -> MouseArea {
   MouseArea(
     id:,
@@ -76,54 +77,67 @@ pub fn new(id: String) -> MouseArea {
   )
 }
 
+/// Set the mouse cursor.
 pub fn cursor(ma: MouseArea, c: Cursor) -> MouseArea {
   MouseArea(..ma, cursor: option.Some(c))
 }
 
+/// Set the press event tag.
 pub fn on_press(ma: MouseArea, tag: String) -> MouseArea {
   MouseArea(..ma, on_press: option.Some(tag))
 }
 
+/// Set the release event tag.
 pub fn on_release(ma: MouseArea, tag: String) -> MouseArea {
   MouseArea(..ma, on_release: option.Some(tag))
 }
 
+/// Enable the right-click press event.
 pub fn on_right_press(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_right_press: option.Some(enabled))
 }
 
+/// Enable the right-click release event.
 pub fn on_right_release(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_right_release: option.Some(enabled))
 }
 
+/// Enable the middle-click press event.
 pub fn on_middle_press(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_middle_press: option.Some(enabled))
 }
 
+/// Enable the middle-click release event.
 pub fn on_middle_release(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_middle_release: option.Some(enabled))
 }
 
+/// Enable the double-click event.
 pub fn on_double_click(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_double_click: option.Some(enabled))
 }
 
+/// Enable the mouse-enter event.
 pub fn on_enter(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_enter: option.Some(enabled))
 }
 
+/// Enable the mouse-exit event.
 pub fn on_exit(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_exit: option.Some(enabled))
 }
 
+/// Enable the move event.
 pub fn on_move(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_move: option.Some(enabled))
 }
 
+/// Enable the scroll event.
 pub fn on_scroll(ma: MouseArea, enabled: Bool) -> MouseArea {
   MouseArea(..ma, on_scroll: option.Some(enabled))
 }
 
+/// Set the event throttle rate in milliseconds.
 pub fn event_rate(ma: MouseArea, rate: Int) -> MouseArea {
   MouseArea(..ma, event_rate: option.Some(rate))
 }
@@ -138,6 +152,7 @@ pub fn extend(ma: MouseArea, children: List(Node)) -> MouseArea {
   MouseArea(..ma, children: list.append(ma.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(ma: MouseArea, a: A11y) -> MouseArea {
   MouseArea(..ma, a11y: option.Some(a))
 }
@@ -171,6 +186,7 @@ fn cursor_to_string(c: Cursor) -> String {
   }
 }
 
+/// Build the mouse area into a renderable Node.
 pub fn build(ma: MouseArea) -> Node {
   let props =
     dict.new()

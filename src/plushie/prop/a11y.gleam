@@ -230,6 +230,7 @@ pub fn to_prop_value(a: A11y) -> PropValue {
   DictVal(a.props)
 }
 
+/// Convert a Role to its wire-format string representation.
 pub fn role_to_string(r: Role) -> String {
   case r {
     Alert -> "alert"

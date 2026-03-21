@@ -36,6 +36,7 @@ pub opaque type ComboBox {
   )
 }
 
+/// Create a new combo box builder.
 pub fn new(id: String, options: List(String), value: String) -> ComboBox {
   ComboBox(
     id:,
@@ -61,30 +62,37 @@ pub fn new(id: String, options: List(String), value: String) -> ComboBox {
   )
 }
 
+/// Set the placeholder text.
 pub fn placeholder(cb: ComboBox, p: String) -> ComboBox {
   ComboBox(..cb, placeholder: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(cb: ComboBox, w: Length) -> ComboBox {
   ComboBox(..cb, width: option.Some(w))
 }
 
+/// Set the padding.
 pub fn padding(cb: ComboBox, p: Padding) -> ComboBox {
   ComboBox(..cb, padding: option.Some(p))
 }
 
+/// Set the size.
 pub fn size(cb: ComboBox, s: Float) -> ComboBox {
   ComboBox(..cb, size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(cb: ComboBox, f: Font) -> ComboBox {
   ComboBox(..cb, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(cb: ComboBox, h: Float) -> ComboBox {
   ComboBox(..cb, line_height: option.Some(h))
 }
 
+/// Set the dropdown menu height.
 pub fn menu_height(cb: ComboBox, h: Float) -> ComboBox {
   ComboBox(..cb, menu_height: option.Some(h))
 }
@@ -94,22 +102,27 @@ pub fn icon(cb: ComboBox, i: PropValue) -> ComboBox {
   ComboBox(..cb, icon: option.Some(i))
 }
 
+/// Enable the option-hovered event.
 pub fn on_option_hovered(cb: ComboBox, enabled: Bool) -> ComboBox {
   ComboBox(..cb, on_option_hovered: option.Some(enabled))
 }
 
+/// Enable the open event.
 pub fn on_open(cb: ComboBox, enabled: Bool) -> ComboBox {
   ComboBox(..cb, on_open: option.Some(enabled))
 }
 
+/// Enable the close event.
 pub fn on_close(cb: ComboBox, enabled: Bool) -> ComboBox {
   ComboBox(..cb, on_close: option.Some(enabled))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(cb: ComboBox, s: Shaping) -> ComboBox {
   ComboBox(..cb, shaping: option.Some(s))
 }
 
+/// Set the text ellipsis mode.
 pub fn ellipsis(cb: ComboBox, e: String) -> ComboBox {
   ComboBox(..cb, ellipsis: option.Some(e))
 }
@@ -120,18 +133,22 @@ pub fn menu_style(cb: ComboBox, ms: PropValue) -> ComboBox {
   ComboBox(..cb, menu_style: option.Some(ms))
 }
 
+/// Enable the submit event.
 pub fn on_submit(cb: ComboBox, enabled: Bool) -> ComboBox {
   ComboBox(..cb, on_submit: option.Some(enabled))
 }
 
+/// Set the style.
 pub fn style(cb: ComboBox, s: String) -> ComboBox {
   ComboBox(..cb, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(cb: ComboBox, a: A11y) -> ComboBox {
   ComboBox(..cb, a11y: option.Some(a))
 }
 
+/// Build the combo box into a renderable Node.
 pub fn build(cb: ComboBox) -> Node {
   let props =
     dict.new()

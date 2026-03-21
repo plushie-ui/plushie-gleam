@@ -12,6 +12,7 @@ pub opaque type Themer {
   Themer(id: String, children: List(Node), theme: Theme, a11y: Option(A11y))
 }
 
+/// Create a new themer builder.
 pub fn new(id: String, t: Theme) -> Themer {
   Themer(id:, children: [], theme: t, a11y: None)
 }
@@ -26,10 +27,12 @@ pub fn extend(th: Themer, children: List(Node)) -> Themer {
   Themer(..th, children: list.append(th.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(th: Themer, a: A11y) -> Themer {
   Themer(..th, a11y: option.Some(a))
 }
 
+/// Build the themer into a renderable Node.
 pub fn build(th: Themer) -> Node {
   let props =
     dict.new()

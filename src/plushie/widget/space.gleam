@@ -16,22 +16,27 @@ pub opaque type Space {
   )
 }
 
+/// Create a new space builder.
 pub fn new(id: String) -> Space {
   Space(id:, width: None, height: None, a11y: None)
 }
 
+/// Set the width.
 pub fn width(s: Space, w: Length) -> Space {
   Space(..s, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(s: Space, h: Length) -> Space {
   Space(..s, height: option.Some(h))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(s: Space, a: A11y) -> Space {
   Space(..s, a11y: option.Some(a))
 }
 
+/// Build the space into a renderable Node.
 pub fn build(s: Space) -> Node {
   let props =
     dict.new()

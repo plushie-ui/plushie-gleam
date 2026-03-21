@@ -18,30 +18,37 @@ pub opaque type Rule {
   )
 }
 
+/// Create a new rule builder.
 pub fn new(id: String) -> Rule {
   Rule(id:, height: None, width: None, direction: None, style: None, a11y: None)
 }
 
+/// Set the height.
 pub fn height(r: Rule, h: Float) -> Rule {
   Rule(..r, height: option.Some(h))
 }
 
+/// Set the width.
 pub fn width(r: Rule, w: Float) -> Rule {
   Rule(..r, width: option.Some(w))
 }
 
+/// Set the direction.
 pub fn direction(r: Rule, d: Direction) -> Rule {
   Rule(..r, direction: option.Some(d))
 }
 
+/// Set the style.
 pub fn style(r: Rule, s: String) -> Rule {
   Rule(..r, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(r: Rule, a: A11y) -> Rule {
   Rule(..r, a11y: option.Some(a))
 }
 
+/// Build the rule into a renderable Node.
 pub fn build(r: Rule) -> Node {
   let props =
     dict.new()

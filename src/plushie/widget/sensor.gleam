@@ -19,6 +19,7 @@ pub opaque type Sensor {
   )
 }
 
+/// Create a new sensor builder.
 pub fn new(id: String) -> Sensor {
   Sensor(
     id:,
@@ -31,18 +32,22 @@ pub fn new(id: String) -> Sensor {
   )
 }
 
+/// Set the delay in milliseconds.
 pub fn delay(s: Sensor, d: Int) -> Sensor {
   Sensor(..s, delay: option.Some(d))
 }
 
+/// Set the anticipation factor for resize detection.
 pub fn anticipate(s: Sensor, a: Float) -> Sensor {
   Sensor(..s, anticipate: option.Some(a))
 }
 
+/// Set the resize event tag.
 pub fn on_resize(s: Sensor, tag: String) -> Sensor {
   Sensor(..s, on_resize: option.Some(tag))
 }
 
+/// Set the event throttle rate in milliseconds.
 pub fn event_rate(s: Sensor, rate: Int) -> Sensor {
   Sensor(..s, event_rate: option.Some(rate))
 }
@@ -57,10 +62,12 @@ pub fn extend(s: Sensor, children: List(Node)) -> Sensor {
   Sensor(..s, children: list.append(s.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(s: Sensor, a: A11y) -> Sensor {
   Sensor(..s, a11y: option.Some(a))
 }
 
+/// Build the sensor into a renderable Node.
 pub fn build(s: Sensor) -> Node {
   let props =
     dict.new()

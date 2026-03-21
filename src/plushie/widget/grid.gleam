@@ -26,6 +26,7 @@ pub opaque type Grid {
   )
 }
 
+/// Create a new grid builder.
 pub fn new(id: String) -> Grid {
   Grid(
     id:,
@@ -43,38 +44,47 @@ pub fn new(id: String) -> Grid {
   )
 }
 
+/// Set the number of columns.
 pub fn columns(g: Grid, n: Int) -> Grid {
   Grid(..g, columns: option.Some(n))
 }
 
+/// Set the count on a column definition.
 pub fn column_count(g: Grid, n: Int) -> Grid {
   Grid(..g, column_count: option.Some(n))
 }
 
+/// Set the spacing between children.
 pub fn spacing(g: Grid, s: Int) -> Grid {
   Grid(..g, spacing: option.Some(s))
 }
 
+/// Set the padding.
 pub fn padding(g: Grid, p: Padding) -> Grid {
   Grid(..g, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(g: Grid, w: Length) -> Grid {
   Grid(..g, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(g: Grid, h: Length) -> Grid {
   Grid(..g, height: option.Some(h))
 }
 
+/// Set the width on a column definition.
 pub fn column_width(g: Grid, w: Length) -> Grid {
   Grid(..g, column_width: option.Some(w))
 }
 
+/// Set the height of each row.
 pub fn row_height(g: Grid, h: Length) -> Grid {
   Grid(..g, row_height: option.Some(h))
 }
 
+/// Enable fluid mode with the given max cell width.
 pub fn fluid(g: Grid, max_cell_width: Float) -> Grid {
   Grid(..g, fluid: option.Some(max_cell_width))
 }
@@ -89,10 +99,12 @@ pub fn extend(g: Grid, children: List(Node)) -> Grid {
   Grid(..g, children: list.append(g.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(g: Grid, a: A11y) -> Grid {
   Grid(..g, a11y: option.Some(a))
 }
 
+/// Build the grid into a renderable Node.
 pub fn build(g: Grid) -> Node {
   let props =
     dict.new()

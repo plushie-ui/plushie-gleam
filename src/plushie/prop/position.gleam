@@ -15,6 +15,7 @@ pub fn to_prop_value(p: Position) -> PropValue {
   StringVal(to_string(p))
 }
 
+/// Convert a Position to its wire-format string representation.
 pub fn to_string(p: Position) -> String {
   case p {
     Top -> "top"

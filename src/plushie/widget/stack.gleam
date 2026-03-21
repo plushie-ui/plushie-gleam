@@ -21,6 +21,7 @@ pub opaque type Stack {
   )
 }
 
+/// Create a new stack builder.
 pub fn new(id: String) -> Stack {
   Stack(
     id:,
@@ -33,18 +34,22 @@ pub fn new(id: String) -> Stack {
   )
 }
 
+/// Set the width.
 pub fn width(s: Stack, w: Length) -> Stack {
   Stack(..s, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(s: Stack, h: Length) -> Stack {
   Stack(..s, height: option.Some(h))
 }
 
+/// Set the padding.
 pub fn padding(s: Stack, p: Padding) -> Stack {
   Stack(..s, padding: option.Some(p))
 }
 
+/// Set whether overflowing content is clipped.
 pub fn clip(s: Stack, c: Bool) -> Stack {
   Stack(..s, clip: option.Some(c))
 }
@@ -59,10 +64,12 @@ pub fn extend(s: Stack, children: List(Node)) -> Stack {
   Stack(..s, children: list.append(s.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(s: Stack, a: A11y) -> Stack {
   Stack(..s, a11y: option.Some(a))
 }
 
+/// Build the stack into a renderable Node.
 pub fn build(s: Stack) -> Node {
   let props =
     dict.new()

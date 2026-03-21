@@ -24,6 +24,7 @@ pub opaque type KeyedColumn {
   )
 }
 
+/// Create a new keyed column builder.
 pub fn new(id: String) -> KeyedColumn {
   KeyedColumn(
     id:,
@@ -38,26 +39,32 @@ pub fn new(id: String) -> KeyedColumn {
   )
 }
 
+/// Set the spacing between children.
 pub fn spacing(kc: KeyedColumn, s: Int) -> KeyedColumn {
   KeyedColumn(..kc, spacing: option.Some(s))
 }
 
+/// Set the padding.
 pub fn padding(kc: KeyedColumn, p: Padding) -> KeyedColumn {
   KeyedColumn(..kc, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(kc: KeyedColumn, w: Length) -> KeyedColumn {
   KeyedColumn(..kc, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(kc: KeyedColumn, h: Length) -> KeyedColumn {
   KeyedColumn(..kc, height: option.Some(h))
 }
 
+/// Set the maximum width.
 pub fn max_width(kc: KeyedColumn, m: Float) -> KeyedColumn {
   KeyedColumn(..kc, max_width: option.Some(m))
 }
 
+/// Set the horizontal alignment.
 pub fn align_x(kc: KeyedColumn, a: Alignment) -> KeyedColumn {
   KeyedColumn(..kc, align_x: option.Some(a))
 }
@@ -72,10 +79,12 @@ pub fn extend(kc: KeyedColumn, children: List(Node)) -> KeyedColumn {
   KeyedColumn(..kc, children: list.append(kc.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(kc: KeyedColumn, a: A11y) -> KeyedColumn {
   KeyedColumn(..kc, a11y: option.Some(a))
 }
 
+/// Build the keyed column into a renderable Node.
 pub fn build(kc: KeyedColumn) -> Node {
   let props =
     dict.new()

@@ -18,14 +18,17 @@ pub opaque type Responsive {
   )
 }
 
+/// Create a new responsive builder.
 pub fn new(id: String) -> Responsive {
   Responsive(id:, children: [], width: None, height: None, a11y: None)
 }
 
+/// Set the width.
 pub fn width(r: Responsive, w: Length) -> Responsive {
   Responsive(..r, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(r: Responsive, h: Length) -> Responsive {
   Responsive(..r, height: option.Some(h))
 }
@@ -40,10 +43,12 @@ pub fn extend(r: Responsive, children: List(Node)) -> Responsive {
   Responsive(..r, children: list.append(r.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(r: Responsive, a: A11y) -> Responsive {
   Responsive(..r, a11y: option.Some(a))
 }
 
+/// Build the responsive into a renderable Node.
 pub fn build(r: Responsive) -> Node {
   let props =
     dict.new()

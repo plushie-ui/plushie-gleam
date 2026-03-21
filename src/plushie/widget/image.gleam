@@ -35,6 +35,7 @@ pub opaque type Image {
   )
 }
 
+/// Create a new image builder.
 pub fn new(id: String, source: String) -> Image {
   Image(
     id:,
@@ -56,58 +57,72 @@ pub fn new(id: String, source: String) -> Image {
   )
 }
 
+/// Set the width.
 pub fn width(img: Image, w: Length) -> Image {
   Image(..img, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(img: Image, h: Length) -> Image {
   Image(..img, height: option.Some(h))
 }
 
+/// Set how content is fitted within the widget bounds.
 pub fn content_fit(img: Image, cf: ContentFit) -> Image {
   Image(..img, content_fit: option.Some(cf))
 }
 
+/// Set the rotation angle in radians.
 pub fn rotation(img: Image, r: Float) -> Image {
   Image(..img, rotation: option.Some(r))
 }
 
+/// Set the opacity (0.0 to 1.0).
 pub fn opacity(img: Image, o: Float) -> Image {
   Image(..img, opacity: option.Some(o))
 }
 
+/// Set the border radius.
 pub fn border_radius(img: Image, r: Float) -> Image {
   Image(..img, border_radius: option.Some(r))
 }
 
+/// Set the image filter method.
 pub fn filter_method(img: Image, f: FilterMethod) -> Image {
   Image(..img, filter_method: option.Some(f))
 }
 
+/// Set whether the image expands to fill available space.
 pub fn expand(img: Image, e: Bool) -> Image {
   Image(..img, expand: option.Some(e))
 }
 
+/// Set the scale factor.
 pub fn scale(img: Image, s: Float) -> Image {
   Image(..img, scale: option.Some(s))
 }
 
+/// Set the crop rectangle.
 pub fn crop(img: Image, c: Crop) -> Image {
   Image(..img, crop: option.Some(c))
 }
 
+/// Set the alt text for accessibility.
 pub fn alt(img: Image, a: String) -> Image {
   Image(..img, alt: option.Some(a))
 }
 
+/// Set the description text for accessibility.
 pub fn description(img: Image, d: String) -> Image {
   Image(..img, description: option.Some(d))
 }
 
+/// Mark as decorative (ignored by screen readers).
 pub fn decorative(img: Image, d: Bool) -> Image {
   Image(..img, decorative: option.Some(d))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(img: Image, a: A11y) -> Image {
   Image(..img, a11y: option.Some(a))
 }
@@ -123,6 +138,7 @@ fn crop_to_prop_value(c: Crop) -> PropValue {
   )
 }
 
+/// Build the image into a renderable Node.
 pub fn build(img: Image) -> Node {
   let props =
     dict.new()

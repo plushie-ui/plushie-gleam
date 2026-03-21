@@ -33,6 +33,7 @@ pub opaque type Button {
   )
 }
 
+/// Create a new button builder with the given ID and label.
 pub fn new(id: String, label: String) -> Button {
   Button(
     id:,
@@ -47,34 +48,42 @@ pub fn new(id: String, label: String) -> Button {
   )
 }
 
+/// Set the button style preset.
 pub fn style(button: Button, s: ButtonStyle) -> Button {
   Button(..button, style: option.Some(s))
 }
 
+/// Set the button width.
 pub fn width(button: Button, w: Length) -> Button {
   Button(..button, width: option.Some(w))
 }
 
+/// Set the button height.
 pub fn height(button: Button, h: Length) -> Button {
   Button(..button, height: option.Some(h))
 }
 
+/// Set the button padding.
 pub fn padding(button: Button, p: Padding) -> Button {
   Button(..button, padding: option.Some(p))
 }
 
+/// Set whether child content that overflows is clipped.
 pub fn clip(button: Button, c: Bool) -> Button {
   Button(..button, clip: option.Some(c))
 }
 
+/// Set whether the button is disabled.
 pub fn disabled(button: Button, d: Bool) -> Button {
   Button(..button, disabled: option.Some(d))
 }
 
+/// Set accessibility properties for this button.
 pub fn a11y(button: Button, a: A11y) -> Button {
   Button(..button, a11y: option.Some(a))
 }
 
+/// Build the button into a renderable Node.
 pub fn build(button: Button) -> Node {
   let props =
     dict.new()

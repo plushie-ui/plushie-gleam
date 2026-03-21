@@ -31,6 +31,7 @@ pub opaque type Toggler {
   )
 }
 
+/// Create a new toggler builder.
 pub fn new(id: String, label: String, is_toggled: Bool) -> Toggler {
   Toggler(
     id:,
@@ -51,54 +52,67 @@ pub fn new(id: String, label: String, is_toggled: Bool) -> Toggler {
   )
 }
 
+/// Set the spacing between children.
 pub fn spacing(t: Toggler, s: Int) -> Toggler {
   Toggler(..t, spacing: option.Some(s))
 }
 
+/// Set the width.
 pub fn width(t: Toggler, w: Length) -> Toggler {
   Toggler(..t, width: option.Some(w))
 }
 
+/// Set the size.
 pub fn size(t: Toggler, s: Float) -> Toggler {
   Toggler(..t, size: option.Some(s))
 }
 
+/// Set the text size in pixels.
 pub fn text_size(t: Toggler, s: Float) -> Toggler {
   Toggler(..t, text_size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(t: Toggler, f: Font) -> Toggler {
   Toggler(..t, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(t: Toggler, h: Float) -> Toggler {
   Toggler(..t, line_height: option.Some(h))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(t: Toggler, s: Shaping) -> Toggler {
   Toggler(..t, shaping: option.Some(s))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(t: Toggler, w: Wrapping) -> Toggler {
   Toggler(..t, wrapping: option.Some(w))
 }
 
+/// Set the text alignment.
 pub fn text_alignment(t: Toggler, a: Alignment) -> Toggler {
   Toggler(..t, text_alignment: option.Some(a))
 }
 
+/// Set the style.
 pub fn style(t: Toggler, s: String) -> Toggler {
   Toggler(..t, style: option.Some(s))
 }
 
+/// Set whether the widget is disabled.
 pub fn disabled(t: Toggler, d: Bool) -> Toggler {
   Toggler(..t, disabled: option.Some(d))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(t: Toggler, a: A11y) -> Toggler {
   Toggler(..t, a11y: option.Some(a))
 }
 
+/// Build the toggler into a renderable Node.
 pub fn build(t: Toggler) -> Node {
   let props =
     dict.new()

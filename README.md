@@ -1,4 +1,4 @@
-# plushie
+# Plushie for Gleam
 
 Build native desktop apps in Gleam. **[Pre-1.0](#status)**
 

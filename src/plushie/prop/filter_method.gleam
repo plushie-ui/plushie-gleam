@@ -12,6 +12,7 @@ pub fn to_prop_value(f: FilterMethod) -> PropValue {
   StringVal(to_string(f))
 }
 
+/// Convert a FilterMethod to its wire-format string representation.
 pub fn to_string(f: FilterMethod) -> String {
   case f {
     Nearest -> "nearest"

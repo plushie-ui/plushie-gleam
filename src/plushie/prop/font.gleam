@@ -60,6 +60,7 @@ pub fn to_prop_value(font: Font) -> PropValue {
   }
 }
 
+/// Convert a FontWeight to its wire-format string representation.
 pub fn weight_to_string(w: FontWeight) -> String {
   case w {
     Thin -> "Thin"
@@ -74,6 +75,7 @@ pub fn weight_to_string(w: FontWeight) -> String {
   }
 }
 
+/// Convert a FontStyle to its wire-format string representation.
 pub fn style_to_string(s: FontStyle) -> String {
   case s {
     NormalStyle -> "Normal"
@@ -82,6 +84,7 @@ pub fn style_to_string(s: FontStyle) -> String {
   }
 }
 
+/// Convert a FontStretch to its wire-format string representation.
 pub fn stretch_to_string(s: FontStretch) -> String {
   case s {
     UltraCondensed -> "UltraCondensed"

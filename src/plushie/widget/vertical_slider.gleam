@@ -27,6 +27,7 @@ pub opaque type VerticalSlider {
   )
 }
 
+/// Create a new vertical slider builder.
 pub fn new(id: String, range: #(Float, Float), value: Float) -> VerticalSlider {
   VerticalSlider(
     id:,
@@ -46,42 +47,52 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> VerticalSlider {
   )
 }
 
+/// Set the step increment.
 pub fn step(vs: VerticalSlider, s: Float) -> VerticalSlider {
   VerticalSlider(..vs, step: option.Some(s))
 }
 
+/// Set the step increment when shift is held.
 pub fn shift_step(vs: VerticalSlider, s: Float) -> VerticalSlider {
   VerticalSlider(..vs, shift_step: option.Some(s))
 }
 
+/// Set the default value (double-click to reset).
 pub fn default_value(vs: VerticalSlider, v: Float) -> VerticalSlider {
   VerticalSlider(..vs, default_value: option.Some(v))
 }
 
+/// Set the width.
 pub fn width(vs: VerticalSlider, w: Length) -> VerticalSlider {
   VerticalSlider(..vs, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(vs: VerticalSlider, h: Float) -> VerticalSlider {
   VerticalSlider(..vs, height: option.Some(h))
 }
 
+/// Set the rail color.
 pub fn rail_color(vs: VerticalSlider, c: Color) -> VerticalSlider {
   VerticalSlider(..vs, rail_color: option.Some(c))
 }
 
+/// Set the rail width.
 pub fn rail_width(vs: VerticalSlider, w: Float) -> VerticalSlider {
   VerticalSlider(..vs, rail_width: option.Some(w))
 }
 
+/// Set the style.
 pub fn style(vs: VerticalSlider, s: String) -> VerticalSlider {
   VerticalSlider(..vs, style: option.Some(s))
 }
 
+/// Set the label text.
 pub fn label(vs: VerticalSlider, l: String) -> VerticalSlider {
   VerticalSlider(..vs, label: option.Some(l))
 }
 
+/// Set the event throttle rate in milliseconds.
 pub fn event_rate(vs: VerticalSlider, rate: Int) -> VerticalSlider {
   VerticalSlider(..vs, event_rate: option.Some(rate))
 }
@@ -90,10 +101,12 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(vs: VerticalSlider, a: A11y) -> VerticalSlider {
   VerticalSlider(..vs, a11y: option.Some(a))
 }
 
+/// Build the vertical slider into a renderable Node.
 pub fn build(vs: VerticalSlider) -> Node {
   let props =
     dict.new()

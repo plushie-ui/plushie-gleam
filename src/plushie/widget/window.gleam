@@ -38,6 +38,7 @@ pub opaque type Window {
   )
 }
 
+/// Create a new window builder.
 pub fn new(id: String) -> Window {
   Window(
     id:,
@@ -63,74 +64,92 @@ pub fn new(id: String) -> Window {
   )
 }
 
+/// Set the window title.
 pub fn title(w: Window, t: String) -> Window {
   Window(..w, title: option.Some(t))
 }
 
+/// Set both width and height at once.
 pub fn size(w: Window, width: Float, height: Float) -> Window {
   Window(..w, width: option.Some(width), height: option.Some(height))
 }
 
+/// Set the width.
 pub fn width(w: Window, width: Float) -> Window {
   Window(..w, width: option.Some(width))
 }
 
+/// Set the height.
 pub fn height(w: Window, height: Float) -> Window {
   Window(..w, height: option.Some(height))
 }
 
+/// Set the window position in screen coordinates.
 pub fn position(w: Window, x: Float, y: Float) -> Window {
   Window(..w, position: option.Some(#(x, y)))
 }
 
+/// Set the minimum window size.
 pub fn min_size(w: Window, width: Float, height: Float) -> Window {
   Window(..w, min_size: option.Some(#(width, height)))
 }
 
+/// Set the maximum window size.
 pub fn max_size(w: Window, width: Float, height: Float) -> Window {
   Window(..w, max_size: option.Some(#(width, height)))
 }
 
+/// Set whether the window is maximized.
 pub fn maximized(w: Window, m: Bool) -> Window {
   Window(..w, maximized: option.Some(m))
 }
 
+/// Set whether the window is fullscreen.
 pub fn fullscreen(w: Window, f: Bool) -> Window {
   Window(..w, fullscreen: option.Some(f))
 }
 
+/// Set whether the window is visible.
 pub fn visible(w: Window, v: Bool) -> Window {
   Window(..w, visible: option.Some(v))
 }
 
+/// Set whether the window is resizable.
 pub fn resizable(w: Window, r: Bool) -> Window {
   Window(..w, resizable: option.Some(r))
 }
 
+/// Set whether the window has a close button.
 pub fn closeable(w: Window, c: Bool) -> Window {
   Window(..w, closeable: option.Some(c))
 }
 
+/// Set whether the window can be minimized.
 pub fn minimizable(w: Window, m: Bool) -> Window {
   Window(..w, minimizable: option.Some(m))
 }
 
+/// Set whether window decorations are shown.
 pub fn decorations(w: Window, d: Bool) -> Window {
   Window(..w, decorations: option.Some(d))
 }
 
+/// Set whether the window background is transparent.
 pub fn transparent(w: Window, t: Bool) -> Window {
   Window(..w, transparent: option.Some(t))
 }
 
+/// Set whether background blur is enabled.
 pub fn blur(w: Window, b: Bool) -> Window {
   Window(..w, blur: option.Some(b))
 }
 
+/// Set the window stacking level.
 pub fn level(w: Window, l: WindowLevel) -> Window {
   Window(..w, level: option.Some(l))
 }
 
+/// Set whether to exit when close is requested.
 pub fn exit_on_close_request(w: Window, e: Bool) -> Window {
   Window(..w, exit_on_close_request: option.Some(e))
 }
@@ -145,6 +164,7 @@ pub fn extend(w: Window, children: List(Node)) -> Window {
   Window(..w, children: list.append(w.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(w: Window, a: A11y) -> Window {
   Window(..w, a11y: option.Some(a))
 }
@@ -161,6 +181,7 @@ fn level_to_string(l: WindowLevel) -> String {
   }
 }
 
+/// Build the window into a renderable Node.
 pub fn build(w: Window) -> Node {
   let props =
     dict.new()

@@ -21,6 +21,7 @@ pub opaque type ProgressBar {
   )
 }
 
+/// Create a new progress bar builder.
 pub fn new(id: String, range: #(Float, Float), value: Float) -> ProgressBar {
   ProgressBar(
     id:,
@@ -35,22 +36,27 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> ProgressBar {
   )
 }
 
+/// Set the width.
 pub fn width(pb: ProgressBar, w: Length) -> ProgressBar {
   ProgressBar(..pb, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(pb: ProgressBar, h: Float) -> ProgressBar {
   ProgressBar(..pb, height: option.Some(h))
 }
 
+/// Set the style.
 pub fn style(pb: ProgressBar, s: String) -> ProgressBar {
   ProgressBar(..pb, style: option.Some(s))
 }
 
+/// Set whether the progress bar is vertical.
 pub fn vertical(pb: ProgressBar, v: Bool) -> ProgressBar {
   ProgressBar(..pb, vertical: option.Some(v))
 }
 
+/// Set the label text.
 pub fn label(pb: ProgressBar, l: String) -> ProgressBar {
   ProgressBar(..pb, label: option.Some(l))
 }
@@ -59,10 +65,12 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(pb: ProgressBar, a: A11y) -> ProgressBar {
   ProgressBar(..pb, a11y: option.Some(a))
 }
 
+/// Build the progress bar into a renderable Node.
 pub fn build(pb: ProgressBar) -> Node {
   let props =
     dict.new()

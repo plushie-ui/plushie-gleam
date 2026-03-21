@@ -13,6 +13,7 @@ pub fn to_prop_value(d: Direction) -> PropValue {
   StringVal(to_string(d))
 }
 
+/// Convert a Direction to its wire-format string representation.
 pub fn to_string(d: Direction) -> String {
   case d {
     Horizontal -> "horizontal"

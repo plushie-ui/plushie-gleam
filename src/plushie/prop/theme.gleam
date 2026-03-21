@@ -56,6 +56,7 @@ pub fn to_prop_value(t: Theme) -> PropValue {
   }
 }
 
+/// Convert a Theme to its wire-format string representation.
 pub fn to_string(t: Theme) -> String {
   case t {
     Light -> "light"

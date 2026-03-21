@@ -28,6 +28,7 @@ pub opaque type Slider {
   )
 }
 
+/// Create a new slider builder.
 pub fn new(id: String, range: #(Float, Float), value: Float) -> Slider {
   Slider(
     id:,
@@ -48,46 +49,57 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> Slider {
   )
 }
 
+/// Set the step increment.
 pub fn step(slider: Slider, s: Float) -> Slider {
   Slider(..slider, step: option.Some(s))
 }
 
+/// Set the step increment when shift is held.
 pub fn shift_step(slider: Slider, s: Float) -> Slider {
   Slider(..slider, shift_step: option.Some(s))
 }
 
+/// Set the default value (double-click to reset).
 pub fn default_value(slider: Slider, v: Float) -> Slider {
   Slider(..slider, default_value: option.Some(v))
 }
 
+/// Set the width.
 pub fn width(slider: Slider, w: Length) -> Slider {
   Slider(..slider, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(slider: Slider, h: Float) -> Slider {
   Slider(..slider, height: option.Some(h))
 }
 
+/// Set whether the handle is circular.
 pub fn circular_handle(slider: Slider, enabled: Bool) -> Slider {
   Slider(..slider, circular_handle: option.Some(enabled))
 }
 
+/// Set the rail color.
 pub fn rail_color(slider: Slider, c: Color) -> Slider {
   Slider(..slider, rail_color: option.Some(c))
 }
 
+/// Set the rail width.
 pub fn rail_width(slider: Slider, w: Float) -> Slider {
   Slider(..slider, rail_width: option.Some(w))
 }
 
+/// Set the style.
 pub fn style(slider: Slider, s: String) -> Slider {
   Slider(..slider, style: option.Some(s))
 }
 
+/// Set the label text.
 pub fn label(slider: Slider, l: String) -> Slider {
   Slider(..slider, label: option.Some(l))
 }
 
+/// Set the event throttle rate in milliseconds.
 pub fn event_rate(slider: Slider, rate: Int) -> Slider {
   Slider(..slider, event_rate: option.Some(rate))
 }
@@ -96,10 +108,12 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(slider: Slider, a: A11y) -> Slider {
   Slider(..slider, a11y: option.Some(a))
 }
 
+/// Build the slider into a renderable Node.
 pub fn build(slider: Slider) -> Node {
   let props =
     dict.new()

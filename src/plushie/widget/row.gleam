@@ -27,6 +27,7 @@ pub opaque type Row {
   )
 }
 
+/// Create a new row builder.
 pub fn new(id: String) -> Row {
   Row(
     id:,
@@ -44,38 +45,47 @@ pub fn new(id: String) -> Row {
   )
 }
 
+/// Set the spacing between children.
 pub fn spacing(row: Row, s: Int) -> Row {
   Row(..row, spacing: option.Some(s))
 }
 
+/// Set the padding.
 pub fn padding(row: Row, p: Padding) -> Row {
   Row(..row, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(row: Row, w: Length) -> Row {
   Row(..row, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(row: Row, h: Length) -> Row {
   Row(..row, height: option.Some(h))
 }
 
+/// Set the maximum width.
 pub fn max_width(row: Row, m: Float) -> Row {
   Row(..row, max_width: option.Some(m))
 }
 
+/// Set the maximum height in pixels.
 pub fn max_height(row: Row, m: Float) -> Row {
   Row(..row, max_height: option.Some(m))
 }
 
+/// Set the vertical alignment.
 pub fn align_y(row: Row, a: Alignment) -> Row {
   Row(..row, align_y: option.Some(a))
 }
 
+/// Set whether overflowing content is clipped.
 pub fn clip(row: Row, c: Bool) -> Row {
   Row(..row, clip: option.Some(c))
 }
 
+/// Set whether children wrap when they overflow.
 pub fn wrap(row: Row, w: Bool) -> Row {
   Row(..row, wrap: option.Some(w))
 }
@@ -90,10 +100,12 @@ pub fn extend(row: Row, children: List(Node)) -> Row {
   Row(..row, children: list.append(row.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(row: Row, a: A11y) -> Row {
   Row(..row, a11y: option.Some(a))
 }
 
+/// Build the row into a renderable Node.
 pub fn build(row: Row) -> Node {
   let props =
     dict.new()

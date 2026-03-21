@@ -41,6 +41,7 @@ pub opaque type Checkbox {
   )
 }
 
+/// Create a new checkbox builder.
 pub fn new(id: String, label: String, is_toggled: Bool) -> Checkbox {
   Checkbox(
     id:,
@@ -61,50 +62,62 @@ pub fn new(id: String, label: String, is_toggled: Bool) -> Checkbox {
   )
 }
 
+/// Set the spacing between children.
 pub fn spacing(cb: Checkbox, s: Int) -> Checkbox {
   Checkbox(..cb, spacing: option.Some(s))
 }
 
+/// Set the width.
 pub fn width(cb: Checkbox, w: Length) -> Checkbox {
   Checkbox(..cb, width: option.Some(w))
 }
 
+/// Set the size.
 pub fn size(cb: Checkbox, s: Float) -> Checkbox {
   Checkbox(..cb, size: option.Some(s))
 }
 
+/// Set the text size in pixels.
 pub fn text_size(cb: Checkbox, s: Float) -> Checkbox {
   Checkbox(..cb, text_size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(cb: Checkbox, f: Font) -> Checkbox {
   Checkbox(..cb, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(cb: Checkbox, h: Float) -> Checkbox {
   Checkbox(..cb, line_height: option.Some(h))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(cb: Checkbox, s: Shaping) -> Checkbox {
   Checkbox(..cb, shaping: option.Some(s))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(cb: Checkbox, w: Wrapping) -> Checkbox {
   Checkbox(..cb, wrapping: option.Some(w))
 }
 
+/// Set the style.
 pub fn style(cb: Checkbox, s: String) -> Checkbox {
   Checkbox(..cb, style: option.Some(s))
 }
 
+/// Set a custom icon.
 pub fn icon(cb: Checkbox, i: CheckboxIcon) -> Checkbox {
   Checkbox(..cb, icon: option.Some(i))
 }
 
+/// Set whether the widget is disabled.
 pub fn disabled(cb: Checkbox, d: Bool) -> Checkbox {
   Checkbox(..cb, disabled: option.Some(d))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(cb: Checkbox, a: A11y) -> Checkbox {
   Checkbox(..cb, a11y: option.Some(a))
 }
@@ -120,6 +133,7 @@ fn icon_to_prop_value(i: CheckboxIcon) -> PropValue {
   DictVal(props)
 }
 
+/// Build the checkbox into a renderable Node.
 pub fn build(cb: Checkbox) -> Node {
   let props =
     dict.new()

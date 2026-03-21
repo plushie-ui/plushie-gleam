@@ -44,82 +44,124 @@ pub type SubscriptionKey {
 
 // --- Constructor functions ---------------------------------------------------
 
+/// Timer that fires every `interval_ms` milliseconds. Delivers a
+/// Timer event with the given tag to update.
 pub fn every(interval_ms: Int, tag: String) -> Subscription {
   Every(interval_ms:, tag:)
 }
 
+/// Subscribe to key press events. Delivers KeyPress events to update.
+/// The tag is for subscription management only.
 pub fn on_key_press(tag: String) -> Subscription {
   OnKeyPress(tag:, max_rate: None)
 }
 
+/// Subscribe to key release events. Delivers KeyRelease events to update.
+/// The tag is for subscription management only.
 pub fn on_key_release(tag: String) -> Subscription {
   OnKeyRelease(tag:, max_rate: None)
 }
 
+/// Subscribe to keyboard modifier state changes (shift, ctrl, alt, etc.).
+/// The tag is for subscription management only.
 pub fn on_modifiers_changed(tag: String) -> Subscription {
   OnModifiersChanged(tag:, max_rate: None)
 }
 
+/// Subscribe to window close request events. The tag is for
+/// subscription management only.
 pub fn on_window_close(tag: String) -> Subscription {
   OnWindowClose(tag:, max_rate: None)
 }
 
+/// Subscribe to all window events (resize, move, focus, etc.). If both
+/// this and a specific subscription (e.g. on_window_resize) are active,
+/// matching events are delivered twice. The tag is for subscription
+/// management only.
 pub fn on_window_event(tag: String) -> Subscription {
   OnWindowEvent(tag:, max_rate: None)
 }
 
+/// Subscribe to window open events. The tag is for subscription
+/// management only.
 pub fn on_window_open(tag: String) -> Subscription {
   OnWindowOpen(tag:, max_rate: None)
 }
 
+/// Subscribe to window resize events. The tag is for subscription
+/// management only.
 pub fn on_window_resize(tag: String) -> Subscription {
   OnWindowResize(tag:, max_rate: None)
 }
 
+/// Subscribe to window focus gained events. The tag is for subscription
+/// management only.
 pub fn on_window_focus(tag: String) -> Subscription {
   OnWindowFocus(tag:, max_rate: None)
 }
 
+/// Subscribe to window focus lost events. The tag is for subscription
+/// management only.
 pub fn on_window_unfocus(tag: String) -> Subscription {
   OnWindowUnfocus(tag:, max_rate: None)
 }
 
+/// Subscribe to window move events. The tag is for subscription
+/// management only.
 pub fn on_window_move(tag: String) -> Subscription {
   OnWindowMove(tag:, max_rate: None)
 }
 
+/// Subscribe to mouse movement events. Also delivers mouse entered
+/// and mouse left events. The tag is for subscription management only.
 pub fn on_mouse_move(tag: String) -> Subscription {
   OnMouseMove(tag:, max_rate: None)
 }
 
+/// Subscribe to mouse button press and release events. The tag is for
+/// subscription management only.
 pub fn on_mouse_button(tag: String) -> Subscription {
   OnMouseButton(tag:, max_rate: None)
 }
 
+/// Subscribe to mouse scroll (wheel) events. The tag is for
+/// subscription management only.
 pub fn on_mouse_scroll(tag: String) -> Subscription {
   OnMouseScroll(tag:, max_rate: None)
 }
 
+/// Subscribe to touch events (pressed, moved, lifted, lost). The tag
+/// is for subscription management only.
 pub fn on_touch(tag: String) -> Subscription {
   OnTouch(tag:, max_rate: None)
 }
 
+/// Subscribe to IME (Input Method Editor) events for international
+/// text input. The tag is for subscription management only.
 pub fn on_ime(tag: String) -> Subscription {
   OnIme(tag:, max_rate: None)
 }
 
+/// Subscribe to system theme changes (light/dark mode). The tag is
+/// for subscription management only.
 pub fn on_theme_change(tag: String) -> Subscription {
   OnThemeChange(tag:, max_rate: None)
 }
 
+/// Subscribe to animation frame events (vsync ticks). The tag is for
+/// subscription management only.
 pub fn on_animation_frame(tag: String) -> Subscription {
   OnAnimationFrame(tag:, max_rate: None)
 }
 
+/// Subscribe to file drop events. Also delivers file hovered and
+/// hover-left events. The tag is for subscription management only.
 pub fn on_file_drop(tag: String) -> Subscription {
   OnFileDrop(tag:, max_rate: None)
 }
 
+/// Subscribe to all renderer events (catch-all). The tag is for
+/// subscription management only.
 pub fn on_event(tag: String) -> Subscription {
   OnEvent(tag:, max_rate: None)
 }

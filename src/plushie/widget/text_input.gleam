@@ -29,6 +29,7 @@ pub opaque type TextInput {
   )
 }
 
+/// Create a new text input builder.
 pub fn new(id: String, value: String) -> TextInput {
   TextInput(
     id:,
@@ -48,54 +49,67 @@ pub fn new(id: String, value: String) -> TextInput {
   )
 }
 
+/// Set the placeholder text.
 pub fn placeholder(input: TextInput, p: String) -> TextInput {
   TextInput(..input, placeholder: option.Some(p))
 }
 
+/// Set the padding.
 pub fn padding(input: TextInput, p: Padding) -> TextInput {
   TextInput(..input, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(input: TextInput, w: Length) -> TextInput {
   TextInput(..input, width: option.Some(w))
 }
 
+/// Set the size.
 pub fn size(input: TextInput, s: Float) -> TextInput {
   TextInput(..input, size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(input: TextInput, f: Font) -> TextInput {
   TextInput(..input, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(input: TextInput, h: Float) -> TextInput {
   TextInput(..input, line_height: option.Some(h))
 }
 
+/// Set the horizontal alignment.
 pub fn align_x(input: TextInput, a: Alignment) -> TextInput {
   TextInput(..input, align_x: option.Some(a))
 }
 
+/// Enable the submit event.
 pub fn on_submit(input: TextInput, enabled: Bool) -> TextInput {
   TextInput(..input, on_submit: option.Some(enabled))
 }
 
+/// Enable the paste event.
 pub fn on_paste(input: TextInput, enabled: Bool) -> TextInput {
   TextInput(..input, on_paste: option.Some(enabled))
 }
 
+/// Set whether input is masked (password mode).
 pub fn secure(input: TextInput, s: Bool) -> TextInput {
   TextInput(..input, secure: option.Some(s))
 }
 
+/// Set the style.
 pub fn style(input: TextInput, s: String) -> TextInput {
   TextInput(..input, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(input: TextInput, a: A11y) -> TextInput {
   TextInput(..input, a11y: option.Some(a))
 }
 
+/// Build the text input into a renderable Node.
 pub fn build(input: TextInput) -> Node {
   let props =
     dict.new()

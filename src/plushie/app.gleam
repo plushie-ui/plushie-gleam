@@ -177,40 +177,57 @@ pub fn with_on_renderer_exit(
 
 // --- Accessor functions (for the runtime to call) ---
 
+/// Returns the app's init function, called once at startup with app_opts.
 pub fn get_init(app: App(model, msg)) -> fn(Dynamic) -> #(model, Command(msg)) {
   app.init
 }
 
+/// Returns the app's update function, called on every event with the
+/// current model and message.
 pub fn get_update(
   app: App(model, msg),
 ) -> fn(model, msg) -> #(model, Command(msg)) {
   app.update
 }
 
+/// Returns the app's view function, called after every update to produce
+/// the UI tree.
 pub fn get_view(app: App(model, msg)) -> fn(model) -> Node {
   app.view
 }
 
+/// Returns the app's subscribe function. The runtime calls this after
+/// every update and diffs the result to manage subscription lifecycle.
 pub fn get_subscribe(app: App(model, msg)) -> fn(model) -> List(Subscription) {
   app.subscribe
 }
 
+/// Returns the app's settings function, called once at startup to
+/// configure the renderer (theme, fonts, antialiasing, etc.).
 pub fn get_settings(app: App(model, msg)) -> fn() -> Settings {
   app.settings
 }
 
+/// Returns the app's window config function, called at startup and on
+/// renderer restart to provide default window properties.
 pub fn get_window_config(
   app: App(model, msg),
 ) -> fn(model) -> Dict(String, PropValue) {
   app.window_config
 }
 
+/// Returns the optional renderer exit handler. Called when the renderer
+/// process exits unexpectedly, allowing the app to adjust the model
+/// before the renderer restarts.
 pub fn get_on_renderer_exit(
   app: App(model, msg),
 ) -> Option(fn(model, Dynamic) -> model) {
   app.on_renderer_exit
 }
 
+/// Returns the optional event mapper. When set (via `application`),
+/// the runtime passes wire Events through this function to produce
+/// the app's custom msg type before calling update.
 pub fn get_on_event(app: App(model, msg)) -> Option(fn(Event) -> msg) {
   app.on_event
 }

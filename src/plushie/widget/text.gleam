@@ -41,6 +41,7 @@ pub opaque type Text {
   )
 }
 
+/// Create a new text builder.
 pub fn new(id: String, content: String) -> Text {
   Text(
     id:,
@@ -61,54 +62,67 @@ pub fn new(id: String, content: String) -> Text {
   )
 }
 
+/// Set the size.
 pub fn size(text: Text, s: Float) -> Text {
   Text(..text, size: option.Some(s))
 }
 
+/// Set the color.
 pub fn color(text: Text, c: Color) -> Text {
   Text(..text, color: option.Some(c))
 }
 
+/// Set the font.
 pub fn font(text: Text, f: Font) -> Text {
   Text(..text, font: option.Some(f))
 }
 
+/// Set the width.
 pub fn width(text: Text, w: Length) -> Text {
   Text(..text, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(text: Text, h: Length) -> Text {
   Text(..text, height: option.Some(h))
 }
 
+/// Set the line height.
 pub fn line_height(text: Text, h: Float) -> Text {
   Text(..text, line_height: option.Some(h))
 }
 
+/// Set the horizontal alignment.
 pub fn align_x(text: Text, a: Alignment) -> Text {
   Text(..text, align_x: option.Some(a))
 }
 
+/// Set the vertical alignment.
 pub fn align_y(text: Text, a: Alignment) -> Text {
   Text(..text, align_y: option.Some(a))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(text: Text, w: Wrapping) -> Text {
   Text(..text, wrapping: option.Some(w))
 }
 
+/// Set the text ellipsis mode.
 pub fn ellipsis(text: Text, e: String) -> Text {
   Text(..text, ellipsis: option.Some(e))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(text: Text, s: Shaping) -> Text {
   Text(..text, shaping: option.Some(s))
 }
 
+/// Set the style.
 pub fn style(text: Text, s: TextStyle) -> Text {
   Text(..text, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(text: Text, a: A11y) -> Text {
   Text(..text, a11y: option.Some(a))
 }
@@ -124,6 +138,7 @@ fn style_to_string(s: TextStyle) -> String {
   }
 }
 
+/// Build the text into a renderable Node.
 pub fn build(text: Text) -> Node {
   let props =
     dict.new()

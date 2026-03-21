@@ -30,6 +30,7 @@ pub opaque type Radio {
   )
 }
 
+/// Create a new radio builder.
 pub fn new(
   id: String,
   value: String,
@@ -55,50 +56,62 @@ pub fn new(
   )
 }
 
+/// Set the radio button group name.
 pub fn group(r: Radio, g: String) -> Radio {
   Radio(..r, group: option.Some(g))
 }
 
+/// Set the spacing between children.
 pub fn spacing(r: Radio, s: Int) -> Radio {
   Radio(..r, spacing: option.Some(s))
 }
 
+/// Set the width.
 pub fn width(r: Radio, w: Length) -> Radio {
   Radio(..r, width: option.Some(w))
 }
 
+/// Set the size.
 pub fn size(r: Radio, s: Float) -> Radio {
   Radio(..r, size: option.Some(s))
 }
 
+/// Set the text size in pixels.
 pub fn text_size(r: Radio, s: Float) -> Radio {
   Radio(..r, text_size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(r: Radio, f: Font) -> Radio {
   Radio(..r, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(r: Radio, h: Float) -> Radio {
   Radio(..r, line_height: option.Some(h))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(r: Radio, s: Shaping) -> Radio {
   Radio(..r, shaping: option.Some(s))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(r: Radio, w: Wrapping) -> Radio {
   Radio(..r, wrapping: option.Some(w))
 }
 
+/// Set the style.
 pub fn style(r: Radio, s: String) -> Radio {
   Radio(..r, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(r: Radio, a: A11y) -> Radio {
   Radio(..r, a11y: option.Some(a))
 }
 
+/// Build the radio into a renderable Node.
 pub fn build(r: Radio) -> Node {
   let props =
     dict.new()

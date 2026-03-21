@@ -26,6 +26,7 @@ pub opaque type Column {
   )
 }
 
+/// Create a new column builder.
 pub fn new(id: String) -> Column {
   Column(
     id:,
@@ -42,34 +43,42 @@ pub fn new(id: String) -> Column {
   )
 }
 
+/// Set the spacing between children.
 pub fn spacing(col: Column, s: Int) -> Column {
   Column(..col, spacing: option.Some(s))
 }
 
+/// Set the padding.
 pub fn padding(col: Column, p: Padding) -> Column {
   Column(..col, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(col: Column, w: Length) -> Column {
   Column(..col, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(col: Column, h: Length) -> Column {
   Column(..col, height: option.Some(h))
 }
 
+/// Set the maximum width.
 pub fn max_width(col: Column, m: Float) -> Column {
   Column(..col, max_width: option.Some(m))
 }
 
+/// Set the horizontal alignment.
 pub fn align_x(col: Column, a: Alignment) -> Column {
   Column(..col, align_x: option.Some(a))
 }
 
+/// Set whether overflowing content is clipped.
 pub fn clip(col: Column, c: Bool) -> Column {
   Column(..col, clip: option.Some(c))
 }
 
+/// Set whether children wrap when they overflow.
 pub fn wrap(col: Column, w: Bool) -> Column {
   Column(..col, wrap: option.Some(w))
 }
@@ -84,10 +93,12 @@ pub fn extend(col: Column, children: List(Node)) -> Column {
   Column(..col, children: list.append(col.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(col: Column, a: A11y) -> Column {
   Column(..col, a11y: option.Some(a))
 }
 
+/// Build the column into a renderable Node.
 pub fn build(col: Column) -> Node {
   let props =
     dict.new()

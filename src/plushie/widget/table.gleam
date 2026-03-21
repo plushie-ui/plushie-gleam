@@ -33,14 +33,17 @@ pub fn column(key: String, label: String) -> Column {
   Column(key:, label:, align: None, width: None, sortable: None)
 }
 
+/// Set the column text alignment.
 pub fn column_align(c: Column, align: String) -> Column {
   Column(..c, align: Some(align))
 }
 
+/// Set the column width.
 pub fn column_width(c: Column, w: Length) -> Column {
   Column(..c, width: Some(w))
 }
 
+/// Set whether the column is sortable.
 pub fn column_sortable(c: Column, s: Bool) -> Column {
   Column(..c, sortable: Some(s))
 }
@@ -112,6 +115,7 @@ pub opaque type Table {
   )
 }
 
+/// Create a new table builder.
 pub fn new(id: String) -> Table {
   Table(
     id:,
@@ -134,70 +138,87 @@ pub fn new(id: String) -> Table {
   )
 }
 
+/// Set the number of columns.
 pub fn columns(t: Table, cols: List(Column)) -> Table {
   Table(..t, columns: Some(cols))
 }
 
+/// Set the table rows.
 pub fn rows(t: Table, r: List(Dict(String, PropValue))) -> Table {
   Table(..t, rows: Some(r))
 }
 
+/// Set whether the header row is shown.
 pub fn header(t: Table, h: Bool) -> Table {
   Table(..t, header: Some(h))
 }
 
+/// Set whether row separators are shown.
 pub fn separator(t: Table, s: Bool) -> Table {
   Table(..t, separator: Some(s))
 }
 
+/// Set the width.
 pub fn width(t: Table, w: Length) -> Table {
   Table(..t, width: Some(w))
 }
 
+/// Set the height.
 pub fn height(t: Table, h: Length) -> Table {
   Table(..t, height: Some(h))
 }
 
+/// Set the padding.
 pub fn padding(t: Table, p: Padding) -> Table {
   Table(..t, padding: Some(p))
 }
 
+/// Set the column key to sort by.
 pub fn sort_by(t: Table, key: String) -> Table {
   Table(..t, sort_by: Some(key))
 }
 
+/// Set the sort order.
 pub fn sort_order(t: Table, order: SortOrder) -> Table {
   Table(..t, sort_order: Some(order))
 }
 
+/// Set the header text size.
 pub fn header_text_size(t: Table, s: Float) -> Table {
   Table(..t, header_text_size: Some(s))
 }
 
+/// Set the row text size.
 pub fn row_text_size(t: Table, s: Float) -> Table {
   Table(..t, row_text_size: Some(s))
 }
 
+/// Set the horizontal spacing between cells.
 pub fn cell_spacing(t: Table, s: Float) -> Table {
   Table(..t, cell_spacing: Some(s))
 }
 
+/// Set the vertical spacing between rows.
 pub fn row_spacing(t: Table, s: Float) -> Table {
   Table(..t, row_spacing: Some(s))
 }
 
+/// Set the separator line thickness.
 pub fn separator_thickness(t: Table, s: Float) -> Table {
   Table(..t, separator_thickness: Some(s))
 }
 
+/// Set the separator line color.
 pub fn separator_color(t: Table, c: Color) -> Table {
   Table(..t, separator_color: Some(c))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(t: Table, a: A11y) -> Table {
   Table(..t, a11y: Some(a))
 }
 
+/// Build the table into a renderable Node.
 pub fn build(t: Table) -> Node {
   let props =
     dict.new()

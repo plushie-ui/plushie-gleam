@@ -29,6 +29,7 @@ pub opaque type PaneGrid {
   )
 }
 
+/// Create a new pane grid builder.
 pub fn new(id: String) -> PaneGrid {
   PaneGrid(
     id:,
@@ -46,38 +47,47 @@ pub fn new(id: String) -> PaneGrid {
   )
 }
 
+/// Set the pane IDs.
 pub fn panes(pg: PaneGrid, p: List(String)) -> PaneGrid {
   PaneGrid(..pg, panes: option.Some(p))
 }
 
+/// Set the spacing between children.
 pub fn spacing(pg: PaneGrid, s: Int) -> PaneGrid {
   PaneGrid(..pg, spacing: option.Some(s))
 }
 
+/// Set the width.
 pub fn width(pg: PaneGrid, w: Length) -> PaneGrid {
   PaneGrid(..pg, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(pg: PaneGrid, h: Length) -> PaneGrid {
   PaneGrid(..pg, height: option.Some(h))
 }
 
+/// Set the minimum size.
 pub fn min_size(pg: PaneGrid, s: Float) -> PaneGrid {
   PaneGrid(..pg, min_size: option.Some(s))
 }
 
+/// Set the divider color.
 pub fn divider_color(pg: PaneGrid, c: String) -> PaneGrid {
   PaneGrid(..pg, divider_color: option.Some(c))
 }
 
+/// Set the divider width.
 pub fn divider_width(pg: PaneGrid, w: Float) -> PaneGrid {
   PaneGrid(..pg, divider_width: option.Some(w))
 }
 
+/// Set the resize handle leeway in pixels.
 pub fn leeway(pg: PaneGrid, l: Float) -> PaneGrid {
   PaneGrid(..pg, leeway: option.Some(l))
 }
 
+/// Set the event throttle rate in milliseconds.
 pub fn event_rate(pg: PaneGrid, rate: Int) -> PaneGrid {
   PaneGrid(..pg, event_rate: option.Some(rate))
 }
@@ -92,10 +102,12 @@ pub fn extend(pg: PaneGrid, children: List(Node)) -> PaneGrid {
   PaneGrid(..pg, children: list.append(pg.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(pg: PaneGrid, a: A11y) -> PaneGrid {
   PaneGrid(..pg, a11y: option.Some(a))
 }
 
+/// Build the pane grid into a renderable Node.
 pub fn build(pg: PaneGrid) -> Node {
   let props =
     dict.new()

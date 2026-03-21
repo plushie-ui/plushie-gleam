@@ -69,38 +69,47 @@ pub fn span(text: String) -> Span {
   )
 }
 
+/// Set the size on a span.
 pub fn span_size(s: Span, size: Float) -> Span {
   Span(..s, size: Some(size))
 }
 
+/// Set the font on a span.
 pub fn span_font(s: Span, f: Font) -> Span {
   Span(..s, font: Some(f))
 }
 
+/// Set the color on a span.
 pub fn span_color(s: Span, c: Color) -> Span {
   Span(..s, color: Some(c))
 }
 
+/// Set the line height on a span.
 pub fn span_line_height(s: Span, lh: Float) -> Span {
   Span(..s, line_height: Some(lh))
 }
 
+/// Set the link on a span.
 pub fn span_link(s: Span, url: String) -> Span {
   Span(..s, link: Some(url))
 }
 
+/// Set the underline on a span.
 pub fn span_underline(s: Span, u: Bool) -> Span {
   Span(..s, underline: Some(u))
 }
 
+/// Set the strikethrough on a span.
 pub fn span_strikethrough(s: Span, st: Bool) -> Span {
   Span(..s, strikethrough: Some(st))
 }
 
+/// Set the padding on a span.
 pub fn span_padding(s: Span, p: Padding) -> Span {
   Span(..s, padding: Some(p))
 }
 
+/// Set the highlight on a span.
 pub fn span_highlight(s: Span, h: SpanHighlight) -> Span {
   Span(..s, highlight: Some(h))
 }
@@ -200,6 +209,7 @@ pub opaque type RichText {
   )
 }
 
+/// Create a new rich text builder.
 pub fn new(id: String) -> RichText {
   RichText(
     id:,
@@ -216,46 +226,57 @@ pub fn new(id: String) -> RichText {
   )
 }
 
+/// Set the list of styled spans.
 pub fn spans(rt: RichText, s: List(Span)) -> RichText {
   RichText(..rt, spans: Some(s))
 }
 
+/// Set the width.
 pub fn width(rt: RichText, w: Length) -> RichText {
   RichText(..rt, width: Some(w))
 }
 
+/// Set the height.
 pub fn height(rt: RichText, h: Length) -> RichText {
   RichText(..rt, height: Some(h))
 }
 
+/// Set the size.
 pub fn size(rt: RichText, s: Float) -> RichText {
   RichText(..rt, size: Some(s))
 }
 
+/// Set the font.
 pub fn font(rt: RichText, f: Font) -> RichText {
   RichText(..rt, font: Some(f))
 }
 
+/// Set the color.
 pub fn color(rt: RichText, c: Color) -> RichText {
   RichText(..rt, color: Some(c))
 }
 
+/// Set the line height.
 pub fn line_height(rt: RichText, lh: Float) -> RichText {
   RichText(..rt, line_height: Some(lh))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(rt: RichText, w: Wrapping) -> RichText {
   RichText(..rt, wrapping: Some(w))
 }
 
+/// Set the text ellipsis mode.
 pub fn ellipsis(rt: RichText, e: String) -> RichText {
   RichText(..rt, ellipsis: Some(e))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(rt: RichText, a: A11y) -> RichText {
   RichText(..rt, a11y: Some(a))
 }
 
+/// Build the rich text into a renderable Node.
 pub fn build(rt: RichText) -> Node {
   let props =
     dict.new()

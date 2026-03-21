@@ -20,6 +20,7 @@ pub opaque type Pin {
   )
 }
 
+/// Create a new pin builder.
 pub fn new(id: String) -> Pin {
   Pin(
     id:,
@@ -32,18 +33,22 @@ pub fn new(id: String) -> Pin {
   )
 }
 
+/// Set the x position.
 pub fn x(p: Pin, val: Float) -> Pin {
   Pin(..p, x: option.Some(val))
 }
 
+/// Set the y position.
 pub fn y(p: Pin, val: Float) -> Pin {
   Pin(..p, y: option.Some(val))
 }
 
+/// Set the width.
 pub fn width(p: Pin, w: Length) -> Pin {
   Pin(..p, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(p: Pin, h: Length) -> Pin {
   Pin(..p, height: option.Some(h))
 }
@@ -58,10 +63,12 @@ pub fn extend(p: Pin, children: List(Node)) -> Pin {
   Pin(..p, children: list.append(p.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(p: Pin, a: A11y) -> Pin {
   Pin(..p, a11y: option.Some(a))
 }
 
+/// Build the pin into a renderable Node.
 pub fn build(p: Pin) -> Node {
   let props =
     dict.new()

@@ -15,6 +15,7 @@ pub fn to_prop_value(c: ContentFit) -> PropValue {
   StringVal(to_string(c))
 }
 
+/// Convert a ContentFit to its wire-format string representation.
 pub fn to_string(c: ContentFit) -> String {
   case c {
     Contain -> "contain"

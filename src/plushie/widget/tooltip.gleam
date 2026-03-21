@@ -24,6 +24,7 @@ pub opaque type Tooltip {
   )
 }
 
+/// Create a new tooltip builder.
 pub fn new(id: String, tip: String) -> Tooltip {
   Tooltip(
     id:,
@@ -39,26 +40,32 @@ pub fn new(id: String, tip: String) -> Tooltip {
   )
 }
 
+/// Set the position.
 pub fn position(tt: Tooltip, p: Position) -> Tooltip {
   Tooltip(..tt, position: option.Some(p))
 }
 
+/// Set the gap between elements.
 pub fn gap(tt: Tooltip, g: Float) -> Tooltip {
   Tooltip(..tt, gap: option.Some(g))
 }
 
+/// Set the padding.
 pub fn padding(tt: Tooltip, p: Padding) -> Tooltip {
   Tooltip(..tt, padding: option.Some(p))
 }
 
+/// Set whether the tooltip snaps to the viewport.
 pub fn snap_within_viewport(tt: Tooltip, enabled: Bool) -> Tooltip {
   Tooltip(..tt, snap_within_viewport: option.Some(enabled))
 }
 
+/// Set the delay in milliseconds.
 pub fn delay(tt: Tooltip, d: Int) -> Tooltip {
   Tooltip(..tt, delay: option.Some(d))
 }
 
+/// Set the style.
 pub fn style(tt: Tooltip, s: String) -> Tooltip {
   Tooltip(..tt, style: option.Some(s))
 }
@@ -73,10 +80,12 @@ pub fn extend(tt: Tooltip, children: List(Node)) -> Tooltip {
   Tooltip(..tt, children: list.append(tt.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(tt: Tooltip, a: A11y) -> Tooltip {
   Tooltip(..tt, a11y: option.Some(a))
 }
 
+/// Build the tooltip into a renderable Node.
 pub fn build(tt: Tooltip) -> Node {
   let props =
     dict.new()

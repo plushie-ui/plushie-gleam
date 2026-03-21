@@ -29,6 +29,7 @@ pub opaque type QrCode {
   )
 }
 
+/// Create a new qr code builder.
 pub fn new(id: String, data: String) -> QrCode {
   QrCode(
     id:,
@@ -44,34 +45,42 @@ pub fn new(id: String, data: String) -> QrCode {
   )
 }
 
+/// Set the QR code cell size in pixels.
 pub fn cell_size(qr: QrCode, s: Int) -> QrCode {
   QrCode(..qr, cell_size: option.Some(s))
 }
 
+/// Set the QR code cell color.
 pub fn cell_color(qr: QrCode, c: Color) -> QrCode {
   QrCode(..qr, cell_color: option.Some(c))
 }
 
+/// Set the background color.
 pub fn background_color(qr: QrCode, c: Color) -> QrCode {
   QrCode(..qr, background_color: option.Some(c))
 }
 
+/// Set the error correction level.
 pub fn error_correction(qr: QrCode, ec: ErrorCorrection) -> QrCode {
   QrCode(..qr, error_correction: option.Some(ec))
 }
 
+/// Set the alt text for accessibility.
 pub fn alt(qr: QrCode, a: String) -> QrCode {
   QrCode(..qr, alt: option.Some(a))
 }
 
+/// Set the description text for accessibility.
 pub fn description(qr: QrCode, d: String) -> QrCode {
   QrCode(..qr, description: option.Some(d))
 }
 
+/// Set the style.
 pub fn style(qr: QrCode, s: String) -> QrCode {
   QrCode(..qr, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(qr: QrCode, a: A11y) -> QrCode {
   QrCode(..qr, a11y: option.Some(a))
 }
@@ -85,6 +94,7 @@ fn error_correction_to_string(ec: ErrorCorrection) -> String {
   }
 }
 
+/// Build the qr code into a renderable Node.
 pub fn build(qr: QrCode) -> Node {
   let props =
     dict.new()

@@ -36,6 +36,7 @@ pub opaque type Overlay {
   )
 }
 
+/// Create a new overlay builder.
 pub fn new(id: String) -> Overlay {
   Overlay(
     id:,
@@ -51,30 +52,37 @@ pub fn new(id: String) -> Overlay {
   )
 }
 
+/// Set the position.
 pub fn position(o: Overlay, p: OverlayPosition) -> Overlay {
   Overlay(..o, position: option.Some(p))
 }
 
+/// Set the gap between elements.
 pub fn gap(o: Overlay, g: Float) -> Overlay {
   Overlay(..o, gap: option.Some(g))
 }
 
+/// Set the horizontal offset.
 pub fn offset_x(o: Overlay, x: Float) -> Overlay {
   Overlay(..o, offset_x: option.Some(x))
 }
 
+/// Set the vertical offset.
 pub fn offset_y(o: Overlay, y: Float) -> Overlay {
   Overlay(..o, offset_y: option.Some(y))
 }
 
+/// Set whether the overlay flips when near viewport edges.
 pub fn flip(o: Overlay, f: Bool) -> Overlay {
   Overlay(..o, flip: option.Some(f))
 }
 
+/// Set the alignment.
 pub fn align(o: Overlay, a: OverlayAlign) -> Overlay {
   Overlay(..o, align: option.Some(a))
 }
 
+/// Set the width.
 pub fn width(o: Overlay, w: Length) -> Overlay {
   Overlay(..o, width: option.Some(w))
 }
@@ -89,6 +97,7 @@ pub fn extend(o: Overlay, children: List(Node)) -> Overlay {
   Overlay(..o, children: list.append(o.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(o: Overlay, a: A11y) -> Overlay {
   Overlay(..o, a11y: option.Some(a))
 }
@@ -110,6 +119,7 @@ fn align_to_string(a: OverlayAlign) -> String {
   }
 }
 
+/// Build the overlay into a renderable Node.
 pub fn build(o: Overlay) -> Node {
   let props =
     dict.new()

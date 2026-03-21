@@ -16,6 +16,7 @@ pub fn to_prop_value(s: Shaping) -> PropValue {
   StringVal(to_string(s))
 }
 
+/// Convert a Shaping to its wire-format string representation.
 pub fn to_string(s: Shaping) -> String {
   case s {
     Auto -> "auto"

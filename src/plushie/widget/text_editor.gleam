@@ -36,6 +36,7 @@ pub opaque type TextEditor {
   )
 }
 
+/// Create a new text editor builder.
 pub fn new(id: String, content: String) -> TextEditor {
   TextEditor(
     id:,
@@ -61,58 +62,72 @@ pub fn new(id: String, content: String) -> TextEditor {
   )
 }
 
+/// Set the placeholder text.
 pub fn placeholder(te: TextEditor, p: String) -> TextEditor {
   TextEditor(..te, placeholder: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(te: TextEditor, w: Length) -> TextEditor {
   TextEditor(..te, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(te: TextEditor, h: Length) -> TextEditor {
   TextEditor(..te, height: option.Some(h))
 }
 
+/// Set the minimum height in pixels.
 pub fn min_height(te: TextEditor, h: Float) -> TextEditor {
   TextEditor(..te, min_height: option.Some(h))
 }
 
+/// Set the maximum height in pixels.
 pub fn max_height(te: TextEditor, h: Float) -> TextEditor {
   TextEditor(..te, max_height: option.Some(h))
 }
 
+/// Set the padding.
 pub fn padding(te: TextEditor, p: Padding) -> TextEditor {
   TextEditor(..te, padding: option.Some(p))
 }
 
+/// Set the font.
 pub fn font(te: TextEditor, f: Font) -> TextEditor {
   TextEditor(..te, font: option.Some(f))
 }
 
+/// Set the size.
 pub fn size(te: TextEditor, s: Float) -> TextEditor {
   TextEditor(..te, size: option.Some(s))
 }
 
+/// Set the line height.
 pub fn line_height(te: TextEditor, h: Float) -> TextEditor {
   TextEditor(..te, line_height: option.Some(h))
 }
 
+/// Set the text wrapping mode.
 pub fn wrapping(te: TextEditor, w: Wrapping) -> TextEditor {
   TextEditor(..te, wrapping: option.Some(w))
 }
 
+/// Set the IME purpose hint.
 pub fn ime_purpose(te: TextEditor, p: String) -> TextEditor {
   TextEditor(..te, ime_purpose: option.Some(p))
 }
 
+/// Set the syntax highlighting language.
 pub fn highlight_syntax(te: TextEditor, lang: String) -> TextEditor {
   TextEditor(..te, highlight_syntax: option.Some(lang))
 }
 
+/// Set the syntax highlighting theme.
 pub fn highlight_theme(te: TextEditor, theme: String) -> TextEditor {
   TextEditor(..te, highlight_theme: option.Some(theme))
 }
 
+/// Set the style.
 pub fn style(te: TextEditor, s: String) -> TextEditor {
   TextEditor(..te, style: option.Some(s))
 }
@@ -122,18 +137,22 @@ pub fn key_bindings(te: TextEditor, bindings: List(PropValue)) -> TextEditor {
   TextEditor(..te, key_bindings: option.Some(bindings))
 }
 
+/// Set the placeholder text color.
 pub fn placeholder_color(te: TextEditor, c: Color) -> TextEditor {
   TextEditor(..te, placeholder_color: option.Some(c))
 }
 
+/// Set the selection highlight color.
 pub fn selection_color(te: TextEditor, c: Color) -> TextEditor {
   TextEditor(..te, selection_color: option.Some(c))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(te: TextEditor, a: A11y) -> TextEditor {
   TextEditor(..te, a11y: option.Some(a))
 }
 
+/// Build the text editor into a renderable Node.
 pub fn build(te: TextEditor) -> Node {
   let props =
     dict.new()

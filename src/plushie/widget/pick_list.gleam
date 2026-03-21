@@ -34,6 +34,7 @@ pub opaque type PickList {
   )
 }
 
+/// Create a new pick list builder.
 pub fn new(
   id: String,
   options: List(String),
@@ -61,34 +62,42 @@ pub fn new(
   )
 }
 
+/// Set the placeholder text.
 pub fn placeholder(pl: PickList, p: String) -> PickList {
   PickList(..pl, placeholder: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(pl: PickList, w: Length) -> PickList {
   PickList(..pl, width: option.Some(w))
 }
 
+/// Set the padding.
 pub fn padding(pl: PickList, p: Padding) -> PickList {
   PickList(..pl, padding: option.Some(p))
 }
 
+/// Set the text size in pixels.
 pub fn text_size(pl: PickList, s: Float) -> PickList {
   PickList(..pl, text_size: option.Some(s))
 }
 
+/// Set the font.
 pub fn font(pl: PickList, f: Font) -> PickList {
   PickList(..pl, font: option.Some(f))
 }
 
+/// Set the line height.
 pub fn line_height(pl: PickList, h: Float) -> PickList {
   PickList(..pl, line_height: option.Some(h))
 }
 
+/// Set the dropdown menu height.
 pub fn menu_height(pl: PickList, h: Float) -> PickList {
   PickList(..pl, menu_height: option.Some(h))
 }
 
+/// Set the text shaping strategy.
 pub fn shaping(pl: PickList, s: Shaping) -> PickList {
   PickList(..pl, shaping: option.Some(s))
 }
@@ -98,6 +107,7 @@ pub fn handle(pl: PickList, h: PropValue) -> PickList {
   PickList(..pl, handle: option.Some(h))
 }
 
+/// Set the text ellipsis mode.
 pub fn ellipsis(pl: PickList, e: String) -> PickList {
   PickList(..pl, ellipsis: option.Some(e))
 }
@@ -107,22 +117,27 @@ pub fn menu_style(pl: PickList, ms: PropValue) -> PickList {
   PickList(..pl, menu_style: option.Some(ms))
 }
 
+/// Enable the open event.
 pub fn on_open(pl: PickList, enabled: Bool) -> PickList {
   PickList(..pl, on_open: option.Some(enabled))
 }
 
+/// Enable the close event.
 pub fn on_close(pl: PickList, enabled: Bool) -> PickList {
   PickList(..pl, on_close: option.Some(enabled))
 }
 
+/// Set the style.
 pub fn style(pl: PickList, s: String) -> PickList {
   PickList(..pl, style: option.Some(s))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(pl: PickList, a: A11y) -> PickList {
   PickList(..pl, a11y: option.Some(a))
 }
 
+/// Build the pick list into a renderable Node.
 pub fn build(pl: PickList) -> Node {
   let props =
     dict.new()

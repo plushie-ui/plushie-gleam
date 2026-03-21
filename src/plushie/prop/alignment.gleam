@@ -17,6 +17,7 @@ pub fn to_prop_value(a: Alignment) -> PropValue {
   StringVal(to_string(a))
 }
 
+/// Convert an Alignment to its wire-format string representation.
 pub fn to_string(a: Alignment) -> String {
   case a {
     Left -> "left"

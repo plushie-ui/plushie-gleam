@@ -42,6 +42,7 @@ pub opaque type Container {
   )
 }
 
+/// Create a new container builder.
 pub fn new(id: String) -> Container {
   Container(
     id:,
@@ -64,38 +65,47 @@ pub fn new(id: String) -> Container {
   )
 }
 
+/// Set the padding.
 pub fn padding(c: Container, p: Padding) -> Container {
   Container(..c, padding: option.Some(p))
 }
 
+/// Set the width.
 pub fn width(c: Container, w: Length) -> Container {
   Container(..c, width: option.Some(w))
 }
 
+/// Set the height.
 pub fn height(c: Container, h: Length) -> Container {
   Container(..c, height: option.Some(h))
 }
 
+/// Set the maximum width.
 pub fn max_width(c: Container, m: Float) -> Container {
   Container(..c, max_width: option.Some(m))
 }
 
+/// Set the maximum height in pixels.
 pub fn max_height(c: Container, m: Float) -> Container {
   Container(..c, max_height: option.Some(m))
 }
 
+/// Set whether content is centered.
 pub fn center(c: Container, enabled: Bool) -> Container {
   Container(..c, center: option.Some(enabled))
 }
 
+/// Set whether overflowing content is clipped.
 pub fn clip(c: Container, enabled: Bool) -> Container {
   Container(..c, clip: option.Some(enabled))
 }
 
+/// Set the horizontal alignment.
 pub fn align_x(c: Container, a: Alignment) -> Container {
   Container(..c, align_x: option.Some(a))
 }
 
+/// Set the vertical alignment.
 pub fn align_y(c: Container, a: Alignment) -> Container {
   Container(..c, align_y: option.Some(a))
 }
@@ -110,18 +120,22 @@ pub fn gradient_background(c: Container, g: Gradient) -> Container {
   Container(..c, background: option.Some(GradientBackground(g)))
 }
 
+/// Set the color.
 pub fn color(c: Container, col: Color) -> Container {
   Container(..c, color: option.Some(col))
 }
 
+/// Set the border.
 pub fn border(c: Container, b: Border) -> Container {
   Container(..c, border: option.Some(b))
 }
 
+/// Set the shadow.
 pub fn shadow(c: Container, s: Shadow) -> Container {
   Container(..c, shadow: option.Some(s))
 }
 
+/// Set the style.
 pub fn style(c: Container, s: String) -> Container {
   Container(..c, style: option.Some(s))
 }
@@ -136,6 +150,7 @@ pub fn extend(c: Container, children: List(Node)) -> Container {
   Container(..c, children: list.append(c.children, children))
 }
 
+/// Set accessibility properties for this widget.
 pub fn a11y(c: Container, a: A11y) -> Container {
   Container(..c, a11y: option.Some(a))
 }
@@ -147,6 +162,7 @@ fn background_to_prop_value(bg: Background) -> PropValue {
   }
 }
 
+/// Build the container into a renderable Node.
 pub fn build(c: Container) -> Node {
   let props =
     dict.new()

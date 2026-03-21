@@ -12,6 +12,7 @@ pub fn to_prop_value(a: Anchor) -> PropValue {
   StringVal(to_string(a))
 }
 
+/// Convert an Anchor to its wire-format string representation.
 pub fn to_string(a: Anchor) -> String {
   case a {
     AnchorStart -> "start"
