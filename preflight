@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Run all CI checks locally. Exits on first failure.
+#
+# Usage:
+#   ./preflight
+#
+# What it runs:
+#   1. gleam format --check
+#   2. gleam build (warnings are compile errors in Gleam)
+#   3. gleam test
+
+set -euo pipefail
+
+cyan='\033[0;36m'
+green='\033[0;32m'
+red='\033[0;31m'
+reset='\033[0m'
+
+run_step() {
+    echo -e "${cyan}==> ${reset}$1"
+    if eval "$1"; then
+        echo -e "${green}    PASS${reset}"
+    else
+        echo -e "${red}    FAIL${reset}"
+        exit 1
+    fi
+}
+
+run_step "gleam format --check"
+run_step "gleam build"
+run_step "gleam test"
+
+echo -e "\n${green}All checks passed.${reset}"
