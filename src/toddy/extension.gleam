@@ -80,7 +80,7 @@
 //// }
 //// ```
 
-import gleam/dict.{type Dict}
+import gleam/dict
 import gleam/list
 import toddy/command.{type Command}
 import toddy/node.{type Node, type PropValue, Node}

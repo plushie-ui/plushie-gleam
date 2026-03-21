@@ -203,6 +203,7 @@ pub fn draw_svg(
   y: Float,
   width: Float,
   height: Float,
+  opts: List(ShapeOpt),
 ) -> Node {
   make_shape("svg", [
     #("source", StringVal(source)),
@@ -210,6 +211,7 @@ pub fn draw_svg(
     #("y", FloatVal(y)),
     #("width", FloatVal(width)),
     #("height", FloatVal(height)),
+    ..shape_opts_to_props(opts)
   ])
 }
 
