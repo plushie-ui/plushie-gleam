@@ -416,6 +416,9 @@ fn message_loop(state: LoopState(model)) -> Nil {
     }
 
     RestartRenderer -> {
+      // Send Shutdown to old bridge actor so it doesn't linger
+      process.send(state.bridge, bridge.Shutdown)
+
       let notification_subject = process.new_subject()
       case
         bridge.start(
@@ -433,6 +436,16 @@ fn message_loop(state: LoopState(model)) -> Nil {
             <> ")",
           )
 
+          // Point state.bridge to new bridge BEFORE flushing effects,
+          // so any commands issued by the app's update handler during
+          // effect error dispatch go to the live bridge, not the dead one.
+          let state =
+            LoopState(
+              ..state,
+              bridge: new_bridge,
+              notifications: notification_subject,
+            )
+
           // Cancel coalesce timer and discard stale coalescable events
           let state = case state.coalesce_timer {
             Some(timer) -> {
@@ -446,7 +459,8 @@ fn message_loop(state: LoopState(model)) -> Nil {
             None -> LoopState(..state, pending_coalesce: dict.new())
           }
 
-          // Flush pending effects with error (old renderer is gone)
+          // Flush pending effects with error (old renderer is gone).
+          // Commands from the app's error handlers go to new_bridge.
           let state = flush_pending_effects_on_restart(state)
 
           // Stop old subscription timers (sync_subscriptions won't
@@ -516,12 +530,11 @@ fn message_loop(state: LoopState(model)) -> Nil {
             None -> state.windows
           }
 
-          // Update state with new bridge and notification subject
+          // Update remaining state fields (bridge and notifications
+          // were already updated before effect flushing above)
           let state =
             LoopState(
               ..state,
-              bridge: new_bridge,
-              notifications: notification_subject,
               tree:,
               active_subs: new_subs,
               windows:,
