@@ -16,12 +16,21 @@ pub opaque type Stack {
     width: Option(Length),
     height: Option(Length),
     padding: Option(Padding),
+    clip: Option(Bool),
     a11y: Option(A11y),
   )
 }
 
 pub fn new(id: String) -> Stack {
-  Stack(id:, children: [], width: None, height: None, padding: None, a11y: None)
+  Stack(
+    id:,
+    children: [],
+    width: None,
+    height: None,
+    padding: None,
+    clip: None,
+    a11y: None,
+  )
 }
 
 pub fn width(s: Stack, w: Length) -> Stack {
@@ -34,6 +43,10 @@ pub fn height(s: Stack, h: Length) -> Stack {
 
 pub fn padding(s: Stack, p: Padding) -> Stack {
   Stack(..s, padding: option.Some(p))
+}
+
+pub fn clip(s: Stack, c: Bool) -> Stack {
+  Stack(..s, clip: option.Some(c))
 }
 
 /// Add a child node.
@@ -56,6 +69,7 @@ pub fn build(s: Stack) -> Node {
     |> build.put_optional("width", s.width, length.to_prop_value)
     |> build.put_optional("height", s.height, length.to_prop_value)
     |> build.put_optional("padding", s.padding, padding.to_prop_value)
+    |> build.put_optional_bool("clip", s.clip)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "stack", props:, children: s.children)
 }

@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
 import toddy/prop/a11y.{type A11y}
+import toddy/prop/padding.{type Padding}
 import toddy/prop/position.{type Position}
 import toddy/widget/build
 
@@ -15,6 +16,9 @@ pub opaque type Tooltip {
     tip: String,
     position: Option(Position),
     gap: Option(Float),
+    padding: Option(Padding),
+    snap_within_viewport: Option(Bool),
+    delay: Option(Int),
     style: Option(String),
     a11y: Option(A11y),
   )
@@ -27,6 +31,9 @@ pub fn new(id: String, tip: String) -> Tooltip {
     tip:,
     position: None,
     gap: None,
+    padding: None,
+    snap_within_viewport: None,
+    delay: None,
     style: None,
     a11y: None,
   )
@@ -38,6 +45,18 @@ pub fn position(tt: Tooltip, p: Position) -> Tooltip {
 
 pub fn gap(tt: Tooltip, g: Float) -> Tooltip {
   Tooltip(..tt, gap: option.Some(g))
+}
+
+pub fn padding(tt: Tooltip, p: Padding) -> Tooltip {
+  Tooltip(..tt, padding: option.Some(p))
+}
+
+pub fn snap_within_viewport(tt: Tooltip, enabled: Bool) -> Tooltip {
+  Tooltip(..tt, snap_within_viewport: option.Some(enabled))
+}
+
+pub fn delay(tt: Tooltip, d: Int) -> Tooltip {
+  Tooltip(..tt, delay: option.Some(d))
 }
 
 pub fn style(tt: Tooltip, s: String) -> Tooltip {
@@ -64,6 +83,9 @@ pub fn build(tt: Tooltip) -> Node {
     |> build.put_string("tip", tt.tip)
     |> build.put_optional("position", tt.position, position.to_prop_value)
     |> build.put_optional_float("gap", tt.gap)
+    |> build.put_optional("padding", tt.padding, padding.to_prop_value)
+    |> build.put_optional_bool("snap_within_viewport", tt.snap_within_viewport)
+    |> build.put_optional_int("delay", tt.delay)
     |> build.put_optional_string("style", tt.style)
     |> build.put_optional("a11y", tt.a11y, a11y.to_prop_value)
   Node(id: tt.id, kind: "tooltip", props:, children: tt.children)

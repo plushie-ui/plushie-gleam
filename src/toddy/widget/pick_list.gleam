@@ -3,11 +3,12 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import toddy/node.{type Node, ListVal, Node, StringVal}
+import toddy/node.{type Node, type PropValue, ListVal, Node, StringVal}
 import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
+import toddy/prop/shaping.{type Shaping}
 import toddy/widget/build
 
 pub opaque type PickList {
@@ -20,6 +21,14 @@ pub opaque type PickList {
     padding: Option(Padding),
     text_size: Option(Float),
     font: Option(Font),
+    line_height: Option(Float),
+    menu_height: Option(Float),
+    shaping: Option(Shaping),
+    handle: Option(PropValue),
+    ellipsis: Option(String),
+    menu_style: Option(PropValue),
+    on_open: Option(Bool),
+    on_close: Option(Bool),
     style: Option(String),
     a11y: Option(A11y),
   )
@@ -39,6 +48,14 @@ pub fn new(
     padding: None,
     text_size: None,
     font: None,
+    line_height: None,
+    menu_height: None,
+    shaping: None,
+    handle: None,
+    ellipsis: None,
+    menu_style: None,
+    on_open: None,
+    on_close: None,
     style: None,
     a11y: None,
   )
@@ -64,6 +81,40 @@ pub fn font(pl: PickList, f: Font) -> PickList {
   PickList(..pl, font: option.Some(f))
 }
 
+pub fn line_height(pl: PickList, h: Float) -> PickList {
+  PickList(..pl, line_height: option.Some(h))
+}
+
+pub fn menu_height(pl: PickList, h: Float) -> PickList {
+  PickList(..pl, menu_height: option.Some(h))
+}
+
+pub fn shaping(pl: PickList, s: Shaping) -> PickList {
+  PickList(..pl, shaping: option.Some(s))
+}
+
+/// Set the dropdown handle style. Pass a DictVal with a "type" key.
+pub fn handle(pl: PickList, h: PropValue) -> PickList {
+  PickList(..pl, handle: option.Some(h))
+}
+
+pub fn ellipsis(pl: PickList, e: String) -> PickList {
+  PickList(..pl, ellipsis: option.Some(e))
+}
+
+/// Set dropdown menu style overrides. Pass a DictVal.
+pub fn menu_style(pl: PickList, ms: PropValue) -> PickList {
+  PickList(..pl, menu_style: option.Some(ms))
+}
+
+pub fn on_open(pl: PickList, enabled: Bool) -> PickList {
+  PickList(..pl, on_open: option.Some(enabled))
+}
+
+pub fn on_close(pl: PickList, enabled: Bool) -> PickList {
+  PickList(..pl, on_close: option.Some(enabled))
+}
+
 pub fn style(pl: PickList, s: String) -> PickList {
   PickList(..pl, style: option.Some(s))
 }
@@ -82,6 +133,14 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional("padding", pl.padding, padding.to_prop_value)
     |> build.put_optional_float("text_size", pl.text_size)
     |> build.put_optional("font", pl.font, font.to_prop_value)
+    |> build.put_optional_float("line_height", pl.line_height)
+    |> build.put_optional_float("menu_height", pl.menu_height)
+    |> build.put_optional("shaping", pl.shaping, shaping.to_prop_value)
+    |> build.put_optional("handle", pl.handle, fn(h) { h })
+    |> build.put_optional_string("ellipsis", pl.ellipsis)
+    |> build.put_optional("menu_style", pl.menu_style, fn(ms) { ms })
+    |> build.put_optional_bool("on_open", pl.on_open)
+    |> build.put_optional_bool("on_close", pl.on_close)
     |> build.put_optional_string("style", pl.style)
     |> build.put_optional("a11y", pl.a11y, a11y.to_prop_value)
   Node(id: pl.id, kind: "pick_list", props:, children: [])

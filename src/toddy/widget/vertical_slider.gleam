@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, FloatVal, ListVal, Node}
 import toddy/prop/a11y.{type A11y}
+import toddy/prop/color.{type Color}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -17,7 +18,11 @@ pub opaque type VerticalSlider {
     default_value: Option(Float),
     width: Option(Length),
     height: Option(Float),
+    rail_color: Option(Color),
+    rail_width: Option(Float),
     style: Option(String),
+    label: Option(String),
+    event_rate: Option(Int),
     a11y: Option(A11y),
   )
 }
@@ -32,7 +37,11 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> VerticalSlider {
     default_value: None,
     width: None,
     height: None,
+    rail_color: None,
+    rail_width: None,
     style: None,
+    label: None,
+    event_rate: None,
     a11y: None,
   )
 }
@@ -57,8 +66,24 @@ pub fn height(vs: VerticalSlider, h: Float) -> VerticalSlider {
   VerticalSlider(..vs, height: option.Some(h))
 }
 
+pub fn rail_color(vs: VerticalSlider, c: Color) -> VerticalSlider {
+  VerticalSlider(..vs, rail_color: option.Some(c))
+}
+
+pub fn rail_width(vs: VerticalSlider, w: Float) -> VerticalSlider {
+  VerticalSlider(..vs, rail_width: option.Some(w))
+}
+
 pub fn style(vs: VerticalSlider, s: String) -> VerticalSlider {
   VerticalSlider(..vs, style: option.Some(s))
+}
+
+pub fn label(vs: VerticalSlider, l: String) -> VerticalSlider {
+  VerticalSlider(..vs, label: option.Some(l))
+}
+
+pub fn event_rate(vs: VerticalSlider, rate: Int) -> VerticalSlider {
+  VerticalSlider(..vs, event_rate: option.Some(rate))
 }
 
 fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
@@ -79,7 +104,11 @@ pub fn build(vs: VerticalSlider) -> Node {
     |> build.put_optional_float("default", vs.default_value)
     |> build.put_optional("width", vs.width, length.to_prop_value)
     |> build.put_optional_float("height", vs.height)
+    |> build.put_optional("rail_color", vs.rail_color, color.to_prop_value)
+    |> build.put_optional_float("rail_width", vs.rail_width)
     |> build.put_optional_string("style", vs.style)
+    |> build.put_optional_string("label", vs.label)
+    |> build.put_optional_int("event_rate", vs.event_rate)
     |> build.put_optional("a11y", vs.a11y, a11y.to_prop_value)
   Node(id: vs.id, kind: "vertical_slider", props:, children: [])
 }

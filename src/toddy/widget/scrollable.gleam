@@ -5,6 +5,8 @@ import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
 import toddy/prop/a11y.{type A11y}
+import toddy/prop/anchor.{type Anchor}
+import toddy/prop/color.{type Color}
 import toddy/prop/direction.{type Direction}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -17,7 +19,14 @@ pub opaque type Scrollable {
     height: Option(Length),
     direction: Option(Direction),
     spacing: Option(Int),
+    scrollbar_width: Option(Float),
+    scrollbar_margin: Option(Float),
+    scroller_width: Option(Float),
+    anchor: Option(Anchor),
     on_scroll: Option(Bool),
+    auto_scroll: Option(Bool),
+    scrollbar_color: Option(Color),
+    scroller_color: Option(Color),
     a11y: Option(A11y),
   )
 }
@@ -30,7 +39,14 @@ pub fn new(id: String) -> Scrollable {
     height: None,
     direction: None,
     spacing: None,
+    scrollbar_width: None,
+    scrollbar_margin: None,
+    scroller_width: None,
+    anchor: None,
     on_scroll: None,
+    auto_scroll: None,
+    scrollbar_color: None,
+    scroller_color: None,
     a11y: None,
   )
 }
@@ -51,8 +67,36 @@ pub fn spacing(s: Scrollable, sp: Int) -> Scrollable {
   Scrollable(..s, spacing: option.Some(sp))
 }
 
+pub fn scrollbar_width(s: Scrollable, w: Float) -> Scrollable {
+  Scrollable(..s, scrollbar_width: option.Some(w))
+}
+
+pub fn scrollbar_margin(s: Scrollable, m: Float) -> Scrollable {
+  Scrollable(..s, scrollbar_margin: option.Some(m))
+}
+
+pub fn scroller_width(s: Scrollable, w: Float) -> Scrollable {
+  Scrollable(..s, scroller_width: option.Some(w))
+}
+
+pub fn anchor(s: Scrollable, a: Anchor) -> Scrollable {
+  Scrollable(..s, anchor: option.Some(a))
+}
+
 pub fn on_scroll(s: Scrollable, enabled: Bool) -> Scrollable {
   Scrollable(..s, on_scroll: option.Some(enabled))
+}
+
+pub fn auto_scroll(s: Scrollable, enabled: Bool) -> Scrollable {
+  Scrollable(..s, auto_scroll: option.Some(enabled))
+}
+
+pub fn scrollbar_color(s: Scrollable, c: Color) -> Scrollable {
+  Scrollable(..s, scrollbar_color: option.Some(c))
+}
+
+pub fn scroller_color(s: Scrollable, c: Color) -> Scrollable {
+  Scrollable(..s, scroller_color: option.Some(c))
 }
 
 /// Add a child node.
@@ -76,7 +120,22 @@ pub fn build(s: Scrollable) -> Node {
     |> build.put_optional("height", s.height, length.to_prop_value)
     |> build.put_optional("direction", s.direction, direction.to_prop_value)
     |> build.put_optional_int("spacing", s.spacing)
+    |> build.put_optional_float("scrollbar_width", s.scrollbar_width)
+    |> build.put_optional_float("scrollbar_margin", s.scrollbar_margin)
+    |> build.put_optional_float("scroller_width", s.scroller_width)
+    |> build.put_optional("anchor", s.anchor, anchor.to_prop_value)
     |> build.put_optional_bool("on_scroll", s.on_scroll)
+    |> build.put_optional_bool("auto_scroll", s.auto_scroll)
+    |> build.put_optional(
+      "scrollbar_color",
+      s.scrollbar_color,
+      color.to_prop_value,
+    )
+    |> build.put_optional(
+      "scroller_color",
+      s.scroller_color,
+      color.to_prop_value,
+    )
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "scrollable", props:, children: s.children)
 }

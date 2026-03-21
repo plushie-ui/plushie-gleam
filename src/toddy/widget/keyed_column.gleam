@@ -18,6 +18,7 @@ pub opaque type KeyedColumn {
     padding: Option(Padding),
     width: Option(Length),
     height: Option(Length),
+    max_width: Option(Float),
     align_x: Option(Alignment),
     a11y: Option(A11y),
   )
@@ -31,6 +32,7 @@ pub fn new(id: String) -> KeyedColumn {
     padding: None,
     width: None,
     height: None,
+    max_width: None,
     align_x: None,
     a11y: None,
   )
@@ -50,6 +52,10 @@ pub fn width(kc: KeyedColumn, w: Length) -> KeyedColumn {
 
 pub fn height(kc: KeyedColumn, h: Length) -> KeyedColumn {
   KeyedColumn(..kc, height: option.Some(h))
+}
+
+pub fn max_width(kc: KeyedColumn, m: Float) -> KeyedColumn {
+  KeyedColumn(..kc, max_width: option.Some(m))
 }
 
 pub fn align_x(kc: KeyedColumn, a: Alignment) -> KeyedColumn {
@@ -77,6 +83,7 @@ pub fn build(kc: KeyedColumn) -> Node {
     |> build.put_optional("padding", kc.padding, padding.to_prop_value)
     |> build.put_optional("width", kc.width, length.to_prop_value)
     |> build.put_optional("height", kc.height, length.to_prop_value)
+    |> build.put_optional_float("max_width", kc.max_width)
     |> build.put_optional("align_x", kc.align_x, alignment.to_prop_value)
     |> build.put_optional("a11y", kc.a11y, a11y.to_prop_value)
   Node(id: kc.id, kind: "keyed_column", props:, children: kc.children)

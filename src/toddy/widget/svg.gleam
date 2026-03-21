@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
 import toddy/prop/a11y.{type A11y}
+import toddy/prop/color.{type Color}
 import toddy/prop/content_fit.{type ContentFit}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -17,6 +18,10 @@ pub opaque type Svg {
     content_fit: Option(ContentFit),
     rotation: Option(Float),
     opacity: Option(Float),
+    color: Option(Color),
+    alt: Option(String),
+    description: Option(String),
+    decorative: Option(Bool),
     a11y: Option(A11y),
   )
 }
@@ -30,6 +35,10 @@ pub fn new(id: String, source: String) -> Svg {
     content_fit: None,
     rotation: None,
     opacity: None,
+    color: None,
+    alt: None,
+    description: None,
+    decorative: None,
     a11y: None,
   )
 }
@@ -54,6 +63,22 @@ pub fn opacity(s: Svg, o: Float) -> Svg {
   Svg(..s, opacity: option.Some(o))
 }
 
+pub fn color(s: Svg, c: Color) -> Svg {
+  Svg(..s, color: option.Some(c))
+}
+
+pub fn alt(s: Svg, a: String) -> Svg {
+  Svg(..s, alt: option.Some(a))
+}
+
+pub fn description(s: Svg, d: String) -> Svg {
+  Svg(..s, description: option.Some(d))
+}
+
+pub fn decorative(s: Svg, d: Bool) -> Svg {
+  Svg(..s, decorative: option.Some(d))
+}
+
 pub fn a11y(s: Svg, a: A11y) -> Svg {
   Svg(..s, a11y: option.Some(a))
 }
@@ -71,6 +96,10 @@ pub fn build(s: Svg) -> Node {
     )
     |> build.put_optional_float("rotation", s.rotation)
     |> build.put_optional_float("opacity", s.opacity)
+    |> build.put_optional("color", s.color, color.to_prop_value)
+    |> build.put_optional_string("alt", s.alt)
+    |> build.put_optional_string("description", s.description)
+    |> build.put_optional_bool("decorative", s.decorative)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "svg", props:, children: [])
 }

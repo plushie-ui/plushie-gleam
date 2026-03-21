@@ -7,7 +7,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import toddy/node.{type Node, Node}
+import toddy/node.{type Node, ListVal, Node, StringVal}
 import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -16,6 +16,7 @@ pub opaque type PaneGrid {
   PaneGrid(
     id: String,
     children: List(Node),
+    panes: Option(List(String)),
     spacing: Option(Int),
     width: Option(Length),
     height: Option(Length),
@@ -23,6 +24,7 @@ pub opaque type PaneGrid {
     divider_color: Option(String),
     divider_width: Option(Float),
     leeway: Option(Float),
+    event_rate: Option(Int),
     a11y: Option(A11y),
   )
 }
@@ -31,6 +33,7 @@ pub fn new(id: String) -> PaneGrid {
   PaneGrid(
     id:,
     children: [],
+    panes: None,
     spacing: None,
     width: None,
     height: None,
@@ -38,8 +41,13 @@ pub fn new(id: String) -> PaneGrid {
     divider_color: None,
     divider_width: None,
     leeway: None,
+    event_rate: None,
     a11y: None,
   )
+}
+
+pub fn panes(pg: PaneGrid, p: List(String)) -> PaneGrid {
+  PaneGrid(..pg, panes: option.Some(p))
 }
 
 pub fn spacing(pg: PaneGrid, s: Int) -> PaneGrid {
@@ -70,6 +78,10 @@ pub fn leeway(pg: PaneGrid, l: Float) -> PaneGrid {
   PaneGrid(..pg, leeway: option.Some(l))
 }
 
+pub fn event_rate(pg: PaneGrid, rate: Int) -> PaneGrid {
+  PaneGrid(..pg, event_rate: option.Some(rate))
+}
+
 /// Add a child pane node.
 pub fn push(pg: PaneGrid, child: Node) -> PaneGrid {
   PaneGrid(..pg, children: list.append(pg.children, [child]))
@@ -87,6 +99,9 @@ pub fn a11y(pg: PaneGrid, a: A11y) -> PaneGrid {
 pub fn build(pg: PaneGrid) -> Node {
   let props =
     dict.new()
+    |> build.put_optional("panes", pg.panes, fn(p) {
+      ListVal(list.map(p, StringVal))
+    })
     |> build.put_optional_int("spacing", pg.spacing)
     |> build.put_optional("width", pg.width, length.to_prop_value)
     |> build.put_optional("height", pg.height, length.to_prop_value)
@@ -94,6 +109,7 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional_string("divider_color", pg.divider_color)
     |> build.put_optional_float("divider_width", pg.divider_width)
     |> build.put_optional_float("leeway", pg.leeway)
+    |> build.put_optional_int("event_rate", pg.event_rate)
     |> build.put_optional("a11y", pg.a11y, a11y.to_prop_value)
   Node(id: pg.id, kind: "pane_grid", props:, children: pg.children)
 }

@@ -3,15 +3,22 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import toddy/node.{type Node, Node}
+import toddy/node.{type Node, type PropValue, Node}
 import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/border.{type Border}
 import toddy/prop/color.{type Color}
+import toddy/prop/gradient.{type Gradient}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
 import toddy/prop/shadow.{type Shadow}
 import toddy/widget/build
+
+/// Background can be a solid color or a gradient.
+pub type Background {
+  ColorBackground(Color)
+  GradientBackground(Gradient)
+}
 
 pub opaque type Container {
   Container(
@@ -26,7 +33,7 @@ pub opaque type Container {
     clip: Option(Bool),
     align_x: Option(Alignment),
     align_y: Option(Alignment),
-    background: Option(Color),
+    background: Option(Background),
     color: Option(Color),
     border: Option(Border),
     shadow: Option(Shadow),
@@ -93,8 +100,14 @@ pub fn align_y(c: Container, a: Alignment) -> Container {
   Container(..c, align_y: option.Some(a))
 }
 
+/// Set a solid color background.
 pub fn background(c: Container, col: Color) -> Container {
-  Container(..c, background: option.Some(col))
+  Container(..c, background: option.Some(ColorBackground(col)))
+}
+
+/// Set a gradient background.
+pub fn gradient_background(c: Container, g: Gradient) -> Container {
+  Container(..c, background: option.Some(GradientBackground(g)))
 }
 
 pub fn color(c: Container, col: Color) -> Container {
@@ -127,6 +140,13 @@ pub fn a11y(c: Container, a: A11y) -> Container {
   Container(..c, a11y: option.Some(a))
 }
 
+fn background_to_prop_value(bg: Background) -> PropValue {
+  case bg {
+    ColorBackground(col) -> color.to_prop_value(col)
+    GradientBackground(g) -> gradient.to_prop_value(g)
+  }
+}
+
 pub fn build(c: Container) -> Node {
   let props =
     dict.new()
@@ -139,7 +159,7 @@ pub fn build(c: Container) -> Node {
     |> build.put_optional_bool("clip", c.clip)
     |> build.put_optional("align_x", c.align_x, alignment.to_prop_value)
     |> build.put_optional("align_y", c.align_y, alignment.to_prop_value)
-    |> build.put_optional("background", c.background, color.to_prop_value)
+    |> build.put_optional("background", c.background, background_to_prop_value)
     |> build.put_optional("color", c.color, color.to_prop_value)
     |> build.put_optional("border", c.border, border.to_prop_value)
     |> build.put_optional("shadow", c.shadow, shadow.to_prop_value)

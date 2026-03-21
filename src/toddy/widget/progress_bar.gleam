@@ -15,6 +15,8 @@ pub opaque type ProgressBar {
     width: Option(Length),
     height: Option(Float),
     style: Option(String),
+    vertical: Option(Bool),
+    label: Option(String),
     a11y: Option(A11y),
   )
 }
@@ -27,6 +29,8 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> ProgressBar {
     width: None,
     height: None,
     style: None,
+    vertical: None,
+    label: None,
     a11y: None,
   )
 }
@@ -41,6 +45,14 @@ pub fn height(pb: ProgressBar, h: Float) -> ProgressBar {
 
 pub fn style(pb: ProgressBar, s: String) -> ProgressBar {
   ProgressBar(..pb, style: option.Some(s))
+}
+
+pub fn vertical(pb: ProgressBar, v: Bool) -> ProgressBar {
+  ProgressBar(..pb, vertical: option.Some(v))
+}
+
+pub fn label(pb: ProgressBar, l: String) -> ProgressBar {
+  ProgressBar(..pb, label: option.Some(l))
 }
 
 fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
@@ -59,6 +71,8 @@ pub fn build(pb: ProgressBar) -> Node {
     |> build.put_optional("width", pb.width, length.to_prop_value)
     |> build.put_optional_float("height", pb.height)
     |> build.put_optional_string("style", pb.style)
+    |> build.put_optional_bool("vertical", pb.vertical)
+    |> build.put_optional_string("label", pb.label)
     |> build.put_optional("a11y", pb.a11y, a11y.to_prop_value)
   Node(id: pb.id, kind: "progress_bar", props:, children: [])
 }

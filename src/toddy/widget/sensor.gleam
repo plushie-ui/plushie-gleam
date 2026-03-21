@@ -8,11 +8,43 @@ import toddy/prop/a11y.{type A11y}
 import toddy/widget/build
 
 pub opaque type Sensor {
-  Sensor(id: String, children: List(Node), a11y: Option(A11y))
+  Sensor(
+    id: String,
+    children: List(Node),
+    delay: Option(Int),
+    anticipate: Option(Float),
+    on_resize: Option(String),
+    event_rate: Option(Int),
+    a11y: Option(A11y),
+  )
 }
 
 pub fn new(id: String) -> Sensor {
-  Sensor(id:, children: [], a11y: None)
+  Sensor(
+    id:,
+    children: [],
+    delay: None,
+    anticipate: None,
+    on_resize: None,
+    event_rate: None,
+    a11y: None,
+  )
+}
+
+pub fn delay(s: Sensor, d: Int) -> Sensor {
+  Sensor(..s, delay: option.Some(d))
+}
+
+pub fn anticipate(s: Sensor, a: Float) -> Sensor {
+  Sensor(..s, anticipate: option.Some(a))
+}
+
+pub fn on_resize(s: Sensor, tag: String) -> Sensor {
+  Sensor(..s, on_resize: option.Some(tag))
+}
+
+pub fn event_rate(s: Sensor, rate: Int) -> Sensor {
+  Sensor(..s, event_rate: option.Some(rate))
 }
 
 /// Add a child node.
@@ -32,6 +64,10 @@ pub fn a11y(s: Sensor, a: A11y) -> Sensor {
 pub fn build(s: Sensor) -> Node {
   let props =
     dict.new()
+    |> build.put_optional_int("delay", s.delay)
+    |> build.put_optional_float("anticipate", s.anticipate)
+    |> build.put_optional_string("on_resize", s.on_resize)
+    |> build.put_optional_int("event_rate", s.event_rate)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "sensor", props:, children: s.children)
 }
