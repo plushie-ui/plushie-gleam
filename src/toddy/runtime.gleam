@@ -40,6 +40,12 @@ pub type RuntimeMessage {
   InternalEvent(Event)
   /// Subscription timer fired.
   TimerFired(tag: String)
+  /// Async task completed with nonce for freshness validation.
+  AsyncComplete(tag: String, nonce: Int, result: Result(Dynamic, Dynamic))
+  /// Stream emitted a value with nonce for freshness validation.
+  StreamEmit(tag: String, nonce: Int, value: Dynamic)
+  /// Effect request timed out.
+  EffectTimeout(request_id: String)
   /// Shutdown.
   Shutdown
 }
@@ -125,7 +131,12 @@ type LoopState(model) {
     windows: Set(String),
     opts: RuntimeOpts,
     errors: Int,
-    async_tasks: Dict(String, Pid),
+    // tag -> (pid, nonce) for stale-result protection
+    async_tasks: Dict(String, #(Pid, Int)),
+    // Monotonically increasing counter for async nonces
+    nonce_counter: Int,
+    // request_id -> timeout timer for pending platform effects
+    pending_effects: Dict(String, process.Timer),
   )
 }
 
@@ -180,6 +191,8 @@ fn run(
       opts:,
       errors: 0,
       async_tasks: dict.new(),
+      nonce_counter: 0,
+      pending_effects: dict.new(),
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -225,6 +238,21 @@ fn message_loop(state: LoopState(model)) -> Nil {
 
   case msg {
     FromBridge(InboundEvent(EventMessage(event))) -> {
+      // Cancel effect timeout if this is an EffectResponse
+      let state = case event {
+        event.EffectResponse(request_id:, ..) ->
+          case dict.get(state.pending_effects, request_id) {
+            Ok(timer) -> {
+              process.cancel_timer(timer)
+              LoopState(
+                ..state,
+                pending_effects: dict.delete(state.pending_effects, request_id),
+              )
+            }
+            Error(_) -> state
+          }
+        _ -> state
+      }
       handle_event(state, event) |> message_loop()
     }
 
@@ -274,6 +302,51 @@ fn message_loop(state: LoopState(model)) -> Nil {
       reschedule_timer(new_state, tag) |> message_loop()
     }
 
+    AsyncComplete(tag:, nonce:, result:) -> {
+      // Validate nonce matches current task -- discard stale results
+      case dict.get(state.async_tasks, tag) {
+        Ok(#(_, current_nonce)) if current_nonce == nonce -> {
+          let new_state = handle_event(state, event.AsyncResult(tag:, result:))
+          LoopState(
+            ..new_state,
+            async_tasks: dict.delete(new_state.async_tasks, tag),
+          )
+          |> message_loop()
+        }
+        _ -> message_loop(state)
+      }
+    }
+
+    StreamEmit(tag:, nonce:, value:) -> {
+      // Validate nonce matches current stream -- discard stale emissions
+      case dict.get(state.async_tasks, tag) {
+        Ok(#(_, current_nonce)) if current_nonce == nonce -> {
+          handle_event(state, event.StreamValue(tag:, value:))
+          |> message_loop()
+        }
+        _ -> message_loop(state)
+      }
+    }
+
+    EffectTimeout(request_id:) -> {
+      case dict.get(state.pending_effects, request_id) {
+        Ok(_) -> {
+          let timeout_event =
+            event.EffectResponse(
+              request_id:,
+              result: event.EffectError(dynamic.string("timeout")),
+            )
+          let new_state = handle_event(state, timeout_event)
+          LoopState(
+            ..new_state,
+            pending_effects: dict.delete(new_state.pending_effects, request_id),
+          )
+          |> message_loop()
+        }
+        Error(_) -> message_loop(state)
+      }
+    }
+
     Shutdown -> {
       // Cancel all subscription timers
       dict.each(state.active_subs, fn(_key, entry) {
@@ -284,6 +357,11 @@ fn message_loop(state: LoopState(model)) -> Nil {
           }
           _ -> Nil
         }
+      })
+      // Cancel all pending effect timeout timers
+      dict.each(state.pending_effects, fn(_id, timer) {
+        process.cancel_timer(timer)
+        Nil
       })
       Nil
     }
@@ -379,6 +457,8 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
             windows: new_windows,
             errors: 0,
             async_tasks: state_after_cmds.async_tasks,
+            nonce_counter: state_after_cmds.nonce_counter,
+            pending_effects: state_after_cmds.pending_effects,
           )
         }
         Error(reason) -> {
@@ -930,7 +1010,13 @@ fn execute_commands(
           state.opts.format,
         ),
       )
-      state
+      // Start a 30-second timeout timer for this effect
+      let timeout_timer =
+        process.send_after(state.self, 30_000, EffectTimeout(request_id: id))
+      LoopState(
+        ..state,
+        pending_effects: dict.insert(state.pending_effects, id, timeout_timer),
+      )
     }
 
     command.ExtensionCommand(node_id:, op:, payload:) -> {
@@ -1141,6 +1227,7 @@ fn execute_commands(
     }
 
     command.Async(work:, tag:) -> {
+      let nonce = state.nonce_counter + 1
       let runtime_self = state.self
       let pid =
         process.spawn(fn() {
@@ -1148,21 +1235,20 @@ fn execute_commands(
             Ok(value) -> Ok(value)
             Error(reason) -> Error(reason)
           }
-          process.send(
-            runtime_self,
-            InternalEvent(event.AsyncResult(tag:, result:)),
-          )
+          process.send(runtime_self, AsyncComplete(tag:, nonce:, result:))
         })
-      LoopState(..state, async_tasks: dict.insert(state.async_tasks, tag, pid))
+      LoopState(
+        ..state,
+        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce)),
+        nonce_counter: nonce,
+      )
     }
 
     command.Stream(work:, tag:) -> {
+      let nonce = state.nonce_counter + 1
       let runtime_self = state.self
       let emit = fn(value) {
-        process.send(
-          runtime_self,
-          InternalEvent(event.StreamValue(tag:, value:)),
-        )
+        process.send(runtime_self, StreamEmit(tag:, nonce:, value:))
       }
       let pid =
         process.spawn(fn() {
@@ -1170,17 +1256,18 @@ fn execute_commands(
             Ok(value) -> Ok(value)
             Error(reason) -> Error(reason)
           }
-          process.send(
-            runtime_self,
-            InternalEvent(event.AsyncResult(tag:, result:)),
-          )
+          process.send(runtime_self, AsyncComplete(tag:, nonce:, result:))
         })
-      LoopState(..state, async_tasks: dict.insert(state.async_tasks, tag, pid))
+      LoopState(
+        ..state,
+        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce)),
+        nonce_counter: nonce,
+      )
     }
 
     command.Cancel(tag:) -> {
       case dict.get(state.async_tasks, tag) {
-        Ok(pid) -> {
+        Ok(#(pid, _nonce)) -> {
           process.kill(pid)
           LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
         }
