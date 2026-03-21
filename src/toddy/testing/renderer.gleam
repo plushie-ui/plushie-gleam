@@ -13,7 +13,7 @@ import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/port.{type Port}
-import gleam/erlang/process.{type Subject}
+import gleam/erlang/process.{type Pid, type Subject}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -22,12 +22,10 @@ import gleam/result
 import gleam/string
 import toddy/app.{type App}
 import toddy/binary
-import toddy/command.{type Command}
 import toddy/event.{type Event}
 import toddy/ffi
-import toddy/node.{type Node, BoolVal, StringVal}
+import toddy/node.{type Node, StringVal}
 import toddy/protocol
-import toddy/protocol/decode as proto_decode
 import toddy/protocol/encode as proto_encode
 import toddy/renderer_env
 import toddy/testing/command_processor
@@ -107,13 +105,17 @@ pub opaque type RendererMessage {
   CallModel(reply: Subject(RendererReply))
   /// External call: reset session.
   CallReset(reply: Subject(RendererReply))
-  /// Port data received from the renderer.
+  /// Port data received from the renderer (msgpack binary).
   PortData(data: Dynamic)
   /// Port line data received (JSON mode).
   PortLineData(line_data: ffi.LineData)
   /// Port exited.
   PortExit(status: Dynamic)
 }
+
+/// Convenience alias for the renderer actor's Subject.
+pub type RendererSubject =
+  Subject(RendererMessage)
 
 /// Reply values from the renderer actor.
 pub type RendererReply {
@@ -131,7 +133,6 @@ pub type RendererReply {
 // ---------------------------------------------------------------------------
 
 /// Start a renderer actor with the given app and config.
-/// Returns the actor's Subject for sending messages.
 pub fn start(
   app: App(model, Event),
   config: RendererConfig,
@@ -144,10 +145,12 @@ pub fn start(
   |> result.map(fn(started) { started.data })
 }
 
-/// Stop a renderer actor.
+/// Stop a renderer actor by sending a normal exit to its process.
 pub fn stop(subject: Subject(RendererMessage)) -> Nil {
-  process.send_exit(process.subject_owner(subject))
-  Nil
+  case process.subject_owner(subject) {
+    Ok(pid) -> send_exit(pid)
+    Error(_) -> Nil
+  }
 }
 
 /// Find an element by selector string.
@@ -156,7 +159,7 @@ pub fn find(
   selector: String,
 ) -> Option(Element) {
   case
-    process.call(subject, fn(reply) { CallFind(selector:, reply:) }, 10_000)
+    process.call(subject, 10_000, fn(reply) { CallFind(selector:, reply:) })
   {
     ReplyElement(el) -> el
     _ -> None
@@ -220,9 +223,9 @@ pub fn slide(
   )
 }
 
-/// Get the current model.
+/// Get the current model (returned as Dynamic -- caller casts).
 pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
-  case process.call(subject, fn(reply) { CallModel(reply:) }, 10_000) {
+  case process.call(subject, 10_000, fn(reply) { CallModel(reply:) }) {
     ReplyModel(m) -> m
     _ -> dynamic.nil()
   }
@@ -230,32 +233,32 @@ pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
 
 /// Get the raw tree from the renderer.
 pub fn get_tree(subject: Subject(RendererMessage)) -> Option(Dynamic) {
-  case process.call(subject, fn(reply) { CallTree(reply:) }, 10_000) {
+  case process.call(subject, 10_000, fn(reply) { CallTree(reply:) }) {
     ReplyTree(t) -> t
     _ -> None
   }
 }
 
-/// Get a tree hash.
+/// Get a tree hash from the renderer.
 pub fn get_tree_hash(
   subject: Subject(RendererMessage),
   name: String,
 ) -> TreeHash {
   case
-    process.call(subject, fn(reply) { CallTreeHash(name:, reply:) }, 30_000)
+    process.call(subject, 30_000, fn(reply) { CallTreeHash(name:, reply:) })
   {
     ReplyTreeHash(th) -> th
     _ -> TreeHash(name:, hash: "")
   }
 }
 
-/// Capture a screenshot.
+/// Capture a screenshot from the renderer.
 pub fn get_screenshot(
   subject: Subject(RendererMessage),
   name: String,
 ) -> Screenshot {
   case
-    process.call(subject, fn(reply) { CallScreenshot(name:, reply:) }, 30_000)
+    process.call(subject, 30_000, fn(reply) { CallScreenshot(name:, reply:) })
   {
     ReplyScreenshot(s) -> s
     _ -> screenshot.empty(name)
@@ -264,7 +267,7 @@ pub fn get_screenshot(
 
 /// Reset the session to initial state.
 pub fn reset(subject: Subject(RendererMessage)) -> Nil {
-  case process.call(subject, fn(reply) { CallReset(reply:) }, 10_000) {
+  case process.call(subject, 10_000, fn(reply) { CallReset(reply:) }) {
     _ -> Nil
   }
 }
@@ -311,11 +314,9 @@ fn interact(
   payload: Dict(String, String),
 ) -> Nil {
   case
-    process.call(
-      subject,
-      fn(reply) { CallInteract(action:, selector:, payload:, reply:) },
-      10_000,
-    )
+    process.call(subject, 10_000, fn(reply) {
+      CallInteract(action:, selector:, payload:, reply:)
+    })
   {
     ReplyError(reason) -> panic as { "renderer error: " <> reason }
     _ -> Nil
@@ -350,7 +351,7 @@ fn init_renderer(
 
   let port = ffi.open_port_spawn(renderer_path, config.args, env, options)
 
-  // If windowed, send settings first (required by daemon init)
+  // If windowed, send settings before the initial snapshot
   case config.send_settings {
     True -> {
       let settings = { app.get_settings(app) }()
@@ -408,13 +409,13 @@ fn handle_message(
 ) -> actor.Next(RendererState(model), RendererMessage) {
   case msg {
     CallFind(selector:, reply:) -> handle_find(state, selector, reply)
-    CallTree(reply:) -> handle_tree(state, reply)
+    CallTree(reply:) -> handle_tree_call(state, reply)
     CallInteract(action:, selector:, payload:, reply:) ->
       handle_interact(state, action, selector, payload, reply)
     CallTreeHash(name:, reply:) -> handle_tree_hash(state, name, reply)
     CallScreenshot(name:, reply:) -> handle_screenshot(state, name, reply)
     CallModel(reply:) -> {
-      process.send(reply, ReplyModel(dynamic.unsafe_coerce(state.model)))
+      process.send(reply, ReplyModel(coerce(state.model)))
       actor.continue(state)
     }
     CallReset(reply:) -> handle_reset(state, reply)
@@ -452,7 +453,7 @@ fn handle_find(
   actor.continue(state)
 }
 
-fn handle_tree(
+fn handle_tree_call(
   state: RendererState(model),
   reply: Subject(RendererReply),
 ) -> actor.Next(RendererState(model), RendererMessage) {
@@ -579,12 +580,7 @@ fn handle_reset(
   let init_fn = app.get_init(state.app)
   let #(init_model, init_commands) = init_fn(dynamic.nil())
   let #(model, _events) =
-    command_processor.process_commands(
-      state.app,
-      init_model,
-      init_commands,
-      0,
-    )
+    command_processor.process_commands(state.app, init_model, init_commands, 0)
   let view_fn = app.get_view(state.app)
   let new_tree = view_fn(model) |> tree.normalize()
 
@@ -614,7 +610,7 @@ fn handle_port_data(
 ) -> actor.Next(RendererState(model), RendererMessage) {
   case dyn_decode.run(raw, dyn_decode.bit_array) {
     Ok(bytes) -> {
-      let new_state = dispatch_decoded(state, bytes)
+      let new_state = dispatch_wire(state, bytes)
       actor.continue(new_state)
     }
     Error(_) -> actor.continue(state)
@@ -627,12 +623,11 @@ fn handle_line_data(
 ) -> actor.Next(RendererState(model), RendererMessage) {
   case line_data {
     ffi.Eol(data:) -> {
-      let new_state = dispatch_decoded(state, data)
+      let new_state = dispatch_wire(state, data)
       actor.continue(new_state)
     }
     ffi.Noeol(_data) ->
-      // Partial line buffering is handled at the port driver level
-      // for {line, N} mode -- we just wait for the complete eol.
+      // Partial lines -- the {line, N} port driver buffers them
       actor.continue(state)
   }
 }
@@ -658,57 +653,55 @@ fn handle_port_exit(
 }
 
 // ---------------------------------------------------------------------------
-// Internal: decode and dispatch responses
+// Internal: wire deserialization and dispatch
 // ---------------------------------------------------------------------------
 
-fn dispatch_decoded(
+/// Deserialize wire bytes and dispatch based on message type.
+fn dispatch_wire(
   state: RendererState(model),
   bytes: BitArray,
 ) -> RendererState(model) {
-  case proto_decode.decode_message(bytes, state.format) {
-    Ok(msg) -> handle_decoded_message(state, msg, bytes)
+  case deserialize_wire(bytes, state.format) {
+    Ok(raw_map) -> dispatch_raw(state, raw_map)
     Error(_) -> state
   }
 }
 
-fn handle_decoded_message(
+/// Route a deserialized wire message by its "type" field.
+fn dispatch_raw(
   state: RendererState(model),
-  msg: proto_decode.InboundMessage,
-  raw_bytes: BitArray,
+  raw: Dynamic,
 ) -> RendererState(model) {
-  case msg {
-    proto_decode.Hello(..) ->
-      // Handshake -- nothing to do in test mode
-      state
-    proto_decode.EventMessage(event) ->
-      dispatch_event(state, event)
-  }
+  let msg_type = dyn_string_field(raw, "type", "")
+  let req_id = dyn_string_field(raw, "id", "")
 
-  // Also check if this is a response to a pending request by
-  // extracting type/id from the raw wire data.
-  |> check_pending_response(raw_bytes)
-}
+  case msg_type {
+    // Handshake -- nothing to do in test mode
+    "hello" -> state
 
-/// Try to extract query_response / interact_response / etc. from raw wire data.
-/// The decoder only returns Hello and EventMessage, but the renderer also
-/// sends query_response, interact_response, etc. We need to decode those
-/// from the raw wire data using Dynamic.
-fn check_pending_response(
-  state: RendererState(model),
-  raw_bytes: BitArray,
-) -> RendererState(model) {
-  case decode_response_fields(raw_bytes, state.format) {
-    Ok(#(msg_type, req_id, data)) ->
-      handle_response(state, msg_type, req_id, data)
-    Error(_) -> state
+    // Wire events (from production flow, not from interact)
+    "event" -> {
+      let family = dyn_string_field(raw, "family", "")
+      let id = dyn_string_field(raw, "id", "")
+      dispatch_wire_event(state, family, id, raw)
+    }
+
+    // Responses correlated to pending requests
+    "query_response" -> handle_response(state, req_id, raw, msg_type)
+    "interact_response" -> handle_response(state, req_id, raw, msg_type)
+    "tree_hash_response" -> handle_response(state, req_id, raw, msg_type)
+    "screenshot_response" -> handle_response(state, req_id, raw, msg_type)
+    "reset_response" -> handle_response(state, req_id, raw, msg_type)
+
+    _ -> state
   }
 }
 
 fn handle_response(
   state: RendererState(model),
-  msg_type: String,
   req_id: String,
-  data: Dynamic,
+  raw: Dynamic,
+  msg_type: String,
 ) -> RendererState(model) {
   case dict.get(state.pending, req_id) {
     Error(_) -> state
@@ -718,38 +711,33 @@ fn handle_response(
 
       case msg_type, entry.kind {
         "query_response", PendingFind -> {
-          let el = decode_find_response(data)
+          let el = decode_find_data(raw)
           process.send(entry.reply, ReplyElement(el))
           state
         }
         "query_response", PendingTree -> {
-          process.send(entry.reply, ReplyTree(Some(data)))
+          let data = dyn_field(raw, "data")
+          process.send(entry.reply, ReplyTree(option.from_result(data)))
           state
         }
         "interact_response", PendingInteract(_action) -> {
-          let state = dispatch_response_events(state, data)
+          let state = dispatch_interact_events(state, raw)
           process.send(entry.reply, ReplyOk)
           state
         }
         "tree_hash_response", PendingTreeHash(name) -> {
-          let hash = get_string_field(data, "hash", "")
+          let hash = dyn_string_field(raw, "hash", "")
           process.send(entry.reply, ReplyTreeHash(TreeHash(name:, hash:)))
           state
         }
         "screenshot_response", PendingScreenshot(name) -> {
-          let hash = get_string_field(data, "hash", "")
-          let width = get_int_field(data, "width", 0)
-          let height = get_int_field(data, "height", 0)
-          let pixels = get_binary_field(data, "rgba")
+          let hash = dyn_string_field(raw, "hash", "")
+          let width = dyn_int_field(raw, "width", 0)
+          let height = dyn_int_field(raw, "height", 0)
+          let pixels = dyn_binary_field(raw, "rgba")
           process.send(
             entry.reply,
-            ReplyScreenshot(Screenshot(
-              name:,
-              hash:,
-              width:,
-              height:,
-              pixels:,
-            )),
+            ReplyScreenshot(Screenshot(name:, hash:, width:, height:, pixels:)),
           )
           state
         }
@@ -757,10 +745,7 @@ fn handle_response(
           process.send(entry.reply, ReplyOk)
           state
         }
-        _, _ -> {
-          // Unknown response type for this pending entry -- ignore
-          state
-        }
+        _, _ -> state
       }
     }
   }
@@ -770,10 +755,38 @@ fn handle_response(
 // Internal: event dispatching (Elm loop)
 // ---------------------------------------------------------------------------
 
-fn dispatch_event(
+fn dispatch_wire_event(
   state: RendererState(model),
-  event: Event,
+  family: String,
+  id: String,
+  raw: Dynamic,
 ) -> RendererState(model) {
+  case family {
+    "" -> state
+    _ -> {
+      let event_dict = dyn_to_string_dict(raw)
+      case event_decoder.decode_test_event(family, id, event_dict) {
+        Ok(event) -> run_update(state, event)
+        Error(_) -> state
+      }
+    }
+  }
+}
+
+fn dispatch_interact_events(
+  state: RendererState(model),
+  raw: Dynamic,
+) -> RendererState(model) {
+  let events = dyn_list_field(raw, "events")
+  list.fold(events, state, fn(acc, event_data) {
+    let family = dyn_string_field(event_data, "family", "")
+    let id = dyn_string_field(event_data, "id", "")
+    dispatch_wire_event(acc, family, id, event_data)
+  })
+}
+
+/// Run the Elm loop: update -> process commands -> view -> snapshot.
+fn run_update(state: RendererState(model), event: Event) -> RendererState(model) {
   let update_fn = app.get_update(state.app)
   let #(new_model, commands) = update_fn(state.model, event)
   let #(model, _events) =
@@ -781,33 +794,11 @@ fn dispatch_event(
   let view_fn = app.get_view(state.app)
   let new_tree = view_fn(model) |> tree.normalize()
 
-  // Send updated snapshot
   let assert Ok(snapshot_data) =
     proto_encode.encode_snapshot(new_tree, "", state.format)
   ffi.port_command(state.port, snapshot_data)
 
   RendererState(..state, model:, tree: new_tree)
-}
-
-fn dispatch_response_events(
-  state: RendererState(model),
-  data: Dynamic,
-) -> RendererState(model) {
-  let events = get_events_list(data)
-  list.fold(events, state, fn(acc, event_data) {
-    let family = get_dyn_string_field(event_data, "family", "")
-    let id = get_dyn_string_field(event_data, "id", "")
-    case family {
-      "" -> acc
-      _ -> {
-        let event_dict = dynamic_to_string_dict(event_data)
-        case event_decoder.decode_test_event(family, id, event_dict) {
-          Ok(event) -> dispatch_event(acc, event)
-          Error(_) -> acc
-        }
-      }
-    }
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -841,22 +832,22 @@ fn encode_selector(
   }
 }
 
-fn resolve_local_id(node: Node, target_id: String) -> Option(String) {
-  let local = case string.split(node.id, "/") {
+fn resolve_local_id(nd: Node, target_id: String) -> Option(String) {
+  let local = case string.split(nd.id, "/") {
     [single] -> single
     parts ->
       case list.last(parts) {
         Ok(last) -> last
-        Error(_) -> node.id
+        Error(_) -> nd.id
       }
   }
 
   case local == target_id {
-    True -> Some(node.id)
+    True -> Some(nd.id)
     False ->
-      list.find_map(node.children, fn(child) {
+      list.find_map(nd.children, fn(child) {
         case resolve_local_id(child, target_id) {
-          Some(id) -> Ok(id)
+          Some(found) -> Ok(found)
           None -> Error(Nil)
         }
       })
@@ -868,9 +859,7 @@ fn resolve_local_id(node: Node, target_id: String) -> Option(String) {
 // Internal: helpers
 // ---------------------------------------------------------------------------
 
-fn next_id(
-  state: RendererState(model),
-) -> #(String, RendererState(model)) {
+fn next_id(state: RendererState(model)) -> #(String, RendererState(model)) {
   let id = "req_" <> int.to_string(state.next_id)
   #(id, RendererState(..state, next_id: state.next_id + 1))
 }
@@ -923,139 +912,40 @@ fn parse_key(key: String) -> Dict(String, String) {
     _ -> key
   }
 
-  let modifiers =
-    list.fold(mods, dict.new(), fn(acc, m) {
-      case m {
-        "ctrl" -> dict.insert(acc, "ctrl", "true")
-        "shift" -> dict.insert(acc, "shift", "true")
-        "alt" -> dict.insert(acc, "alt", "true")
-        "logo" -> dict.insert(acc, "logo", "true")
-        "command" -> dict.insert(acc, "command", "true")
-        _ -> acc
-      }
-    })
-
-  dict.insert(modifiers, "key", key_name)
-}
-
-// ---------------------------------------------------------------------------
-// Internal: Dynamic field extraction helpers
-// ---------------------------------------------------------------------------
-
-/// Decode response fields (type, id, and full data) from raw wire bytes.
-fn decode_response_fields(
-  bytes: BitArray,
-  format: protocol.Format,
-) -> Result(#(String, String, Dynamic), Nil) {
-  case format {
-    protocol.Json -> decode_response_json(bytes)
-    protocol.Msgpack -> decode_response_msgpack(bytes)
-  }
-}
-
-fn decode_response_json(
-  bytes: BitArray,
-) -> Result(#(String, String, Dynamic), Nil) {
-  case json_decode_dynamic(bytes) {
-    Ok(dyn) -> {
-      let msg_type = get_dyn_string_field(dyn, "type", "")
-      let req_id = get_dyn_string_field(dyn, "id", "")
-      case msg_type, req_id {
-        "", _ -> Error(Nil)
-        _, "" -> Error(Nil)
-        _, _ -> Ok(#(msg_type, req_id, dyn))
-      }
+  let base = dict.from_list([#("key", key_name)])
+  list.fold(mods, base, fn(acc, m) {
+    case m {
+      "ctrl" -> dict.insert(acc, "ctrl", "true")
+      "shift" -> dict.insert(acc, "shift", "true")
+      "alt" -> dict.insert(acc, "alt", "true")
+      "logo" -> dict.insert(acc, "logo", "true")
+      "command" -> dict.insert(acc, "command", "true")
+      _ -> acc
     }
-    Error(_) -> Error(Nil)
-  }
+  })
 }
 
-fn decode_response_msgpack(
-  bytes: BitArray,
-) -> Result(#(String, String, Dynamic), Nil) {
-  case msgpack_decode_dynamic(bytes) {
-    Ok(dyn) -> {
-      let msg_type = get_dyn_string_field(dyn, "type", "")
-      let req_id = get_dyn_string_field(dyn, "id", "")
-      case msg_type, req_id {
-        "", _ -> Error(Nil)
-        _, "" -> Error(Nil)
-        _, _ -> Ok(#(msg_type, req_id, dyn))
-      }
-    }
-    Error(_) -> Error(Nil)
-  }
-}
-
-fn decode_find_response(data: Dynamic) -> Option(Element) {
-  case get_dyn_field(data, "data") {
-    Ok(node_data) ->
-      case is_nil_or_empty(node_data) {
-        True -> None
-        False -> Some(element.from_node(dynamic_to_node(node_data)))
-      }
+fn decode_find_data(raw: Dynamic) -> Option(Element) {
+  case dyn_field(raw, "data") {
     Error(_) -> None
-  }
-}
-
-/// Convert a Dynamic value to a Node (best-effort extraction).
-fn dynamic_to_node(data: Dynamic) -> Node {
-  let id = get_dyn_string_field(data, "id", "")
-  let kind = get_dyn_string_field(data, "type", "")
-  node.new(id, kind)
-}
-
-/// Convert Dynamic to Dict(String, Dynamic) (best-effort).
-fn dynamic_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
-  case dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic)) {
-    Ok(d) -> d
-    Error(_) -> dict.new()
-  }
-}
-
-fn get_string_field(data: Dynamic, key: String, default: String) -> String {
-  get_dyn_string_field(data, key, default)
-}
-
-fn get_int_field(data: Dynamic, key: String, default: Int) -> Int {
-  case get_dyn_field(data, key) {
-    Ok(val) ->
-      case dyn_decode.run(val, dyn_decode.int) {
-        Ok(i) -> i
-        Error(_) -> default
+    Ok(data) ->
+      case is_nil_or_empty_map(data) {
+        True -> None
+        False -> {
+          let id = dyn_string_field(data, "id", "")
+          let kind = dyn_string_field(data, "type", "")
+          Some(element.from_node(node.new(id, kind)))
+        }
       }
-    Error(_) -> default
   }
 }
 
-fn get_binary_field(data: Dynamic, key: String) -> BitArray {
-  case get_dyn_field(data, key) {
-    Ok(val) ->
-      case dyn_decode.run(val, dyn_decode.bit_array) {
-        Ok(b) -> b
-        Error(_) -> <<>>
-      }
-    Error(_) -> <<>>
-  }
-}
+// ---------------------------------------------------------------------------
+// Internal: Dynamic field accessors
+// ---------------------------------------------------------------------------
 
-fn get_events_list(data: Dynamic) -> List(Dynamic) {
-  case get_dyn_field(data, "events") {
-    Ok(val) ->
-      case dyn_decode.run(val, dyn_decode.list(dyn_decode.dynamic)) {
-        Ok(events) -> events
-        Error(_) -> []
-      }
-    Error(_) -> []
-  }
-}
-
-fn get_dyn_string_field(
-  data: Dynamic,
-  key: String,
-  default: String,
-) -> String {
-  case get_dyn_field(data, key) {
+fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
+  case dyn_field(data, key) {
     Ok(val) ->
       case dyn_decode.run(val, dyn_decode.string) {
         Ok(s) -> s
@@ -1065,44 +955,85 @@ fn get_dyn_string_field(
   }
 }
 
-fn get_dyn_field(data: Dynamic, key: String) -> Result(Dynamic, Nil) {
+fn dyn_int_field(data: Dynamic, key: String, default: Int) -> Int {
+  case dyn_field(data, key) {
+    Ok(val) ->
+      case dyn_decode.run(val, dyn_decode.int) {
+        Ok(i) -> i
+        Error(_) -> default
+      }
+    Error(_) -> default
+  }
+}
+
+fn dyn_binary_field(data: Dynamic, key: String) -> BitArray {
+  case dyn_field(data, key) {
+    Ok(val) ->
+      case dyn_decode.run(val, dyn_decode.bit_array) {
+        Ok(b) -> b
+        Error(_) -> <<>>
+      }
+    Error(_) -> <<>>
+  }
+}
+
+fn dyn_list_field(data: Dynamic, key: String) -> List(Dynamic) {
+  case dyn_field(data, key) {
+    Ok(val) ->
+      case dyn_decode.run(val, dyn_decode.list(dyn_decode.dynamic)) {
+        Ok(items) -> items
+        Error(_) -> []
+      }
+    Error(_) -> []
+  }
+}
+
+fn dyn_field(data: Dynamic, key: String) -> Result(Dynamic, Nil) {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.dynamic)) {
     Ok(val) -> Ok(val)
     Error(_) -> Error(Nil)
   }
 }
 
-fn is_nil_or_empty(data: Dynamic) -> Bool {
-  case dyn_decode.run(data, dyn_decode.string) {
-    Ok("") -> True
-    Ok("null") -> True
-    _ ->
-      case
-        dyn_decode.run(
-          data,
-          dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic),
-        )
-      {
-        Ok(d) -> dict.is_empty(d)
-        Error(_) ->
-          // Check if it's an Erlang nil/undefined
-          case dyn_decode.run(data, dyn_decode.optional(dyn_decode.dynamic)) {
-            Ok(None) -> True
-            _ -> False
-          }
+fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
+  case
+    dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
+  {
+    Ok(d) -> d
+    Error(_) -> dict.new()
+  }
+}
+
+fn is_nil_or_empty_map(data: Dynamic) -> Bool {
+  case
+    dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
+  {
+    Ok(d) -> dict.is_empty(d)
+    Error(_) ->
+      case dyn_decode.run(data, dyn_decode.optional(dyn_decode.dynamic)) {
+        Ok(None) -> True
+        _ -> False
       }
   }
 }
 
-@external(erlang, "gleam_json_ffi", "decode")
-fn json_decode_dynamic(bytes: BitArray) -> Result(Dynamic, Dynamic)
+// ---------------------------------------------------------------------------
+// FFI
+// ---------------------------------------------------------------------------
 
-@external(erlang, "toddy_test_renderer_ffi", "msgpack_decode_dynamic")
-fn msgpack_decode_dynamic(bytes: BitArray) -> Result(Dynamic, Nil)
+/// Deserialize wire bytes to a Dynamic Erlang map.
+@external(erlang, "toddy_test_renderer_ffi", "deserialize_wire")
+fn deserialize_wire(
+  bytes: BitArray,
+  format: protocol.Format,
+) -> Result(Dynamic, Nil)
 
 @external(erlang, "toddy_test_renderer_ffi", "float_to_string")
 fn float_to_string(f: Float) -> String
 
-/// Kill a process (normal exit).
 @external(erlang, "toddy_test_renderer_ffi", "send_exit")
-fn process_send_exit(pid: process.Pid) -> Nil
+fn send_exit(pid: Pid) -> Nil
+
+/// Identity coercion -- types are erased at runtime.
+@external(erlang, "toddy_test_ffi", "identity")
+fn coerce(value: a) -> b
