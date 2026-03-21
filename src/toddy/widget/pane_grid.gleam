@@ -8,6 +8,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -22,6 +23,7 @@ pub opaque type PaneGrid {
     divider_color: Option(String),
     divider_width: Option(Float),
     leeway: Option(Float),
+    a11y: Option(A11y),
   )
 }
 
@@ -36,6 +38,7 @@ pub fn new(id: String) -> PaneGrid {
     divider_color: None,
     divider_width: None,
     leeway: None,
+    a11y: None,
   )
 }
 
@@ -77,6 +80,10 @@ pub fn extend(pg: PaneGrid, children: List(Node)) -> PaneGrid {
   PaneGrid(..pg, children: list.append(pg.children, children))
 }
 
+pub fn a11y(pg: PaneGrid, a: A11y) -> PaneGrid {
+  PaneGrid(..pg, a11y: option.Some(a))
+}
+
 pub fn build(pg: PaneGrid) -> Node {
   let props =
     dict.new()
@@ -87,5 +94,6 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional_string("divider_color", pg.divider_color)
     |> build.put_optional_float("divider_width", pg.divider_width)
     |> build.put_optional_float("leeway", pg.leeway)
+    |> build.put_optional("a11y", pg.a11y, a11y.to_prop_value)
   Node(id: pg.id, kind: "pane_grid", props:, children: pg.children)
 }

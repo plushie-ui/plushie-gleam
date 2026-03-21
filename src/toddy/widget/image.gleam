@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/content_fit.{type ContentFit}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -17,6 +18,7 @@ pub opaque type Image {
     rotation: Option(Float),
     opacity: Option(Float),
     border_radius: Option(Float),
+    a11y: Option(A11y),
   )
 }
 
@@ -30,6 +32,7 @@ pub fn new(id: String, source: String) -> Image {
     rotation: None,
     opacity: None,
     border_radius: None,
+    a11y: None,
   )
 }
 
@@ -57,6 +60,10 @@ pub fn border_radius(img: Image, r: Float) -> Image {
   Image(..img, border_radius: option.Some(r))
 }
 
+pub fn a11y(img: Image, a: A11y) -> Image {
+  Image(..img, a11y: option.Some(a))
+}
+
 pub fn build(img: Image) -> Node {
   let props =
     dict.new()
@@ -71,5 +78,6 @@ pub fn build(img: Image) -> Node {
     |> build.put_optional_float("rotation", img.rotation)
     |> build.put_optional_float("opacity", img.opacity)
     |> build.put_optional_float("border_radius", img.border_radius)
+    |> build.put_optional("a11y", img.a11y, a11y.to_prop_value)
   Node(id: img.id, kind: "image", props:, children: [])
 }

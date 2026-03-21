@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
@@ -21,6 +22,7 @@ pub opaque type Column {
     align_x: Option(Alignment),
     clip: Option(Bool),
     wrap: Option(Bool),
+    a11y: Option(A11y),
   )
 }
 
@@ -36,6 +38,7 @@ pub fn new(id: String) -> Column {
     align_x: None,
     clip: None,
     wrap: None,
+    a11y: None,
   )
 }
 
@@ -81,6 +84,10 @@ pub fn extend(col: Column, children: List(Node)) -> Column {
   Column(..col, children: list.append(col.children, children))
 }
 
+pub fn a11y(col: Column, a: A11y) -> Column {
+  Column(..col, a11y: option.Some(a))
+}
+
 pub fn build(col: Column) -> Node {
   let props =
     dict.new()
@@ -92,5 +99,6 @@ pub fn build(col: Column) -> Node {
     |> build.put_optional("align_x", col.align_x, alignment.to_prop_value)
     |> build.put_optional_bool("clip", col.clip)
     |> build.put_optional_bool("wrap", col.wrap)
+    |> build.put_optional("a11y", col.a11y, a11y.to_prop_value)
   Node(id: col.id, kind: "column", props:, children: col.children)
 }

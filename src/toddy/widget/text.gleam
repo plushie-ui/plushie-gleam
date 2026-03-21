@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/color.{type Color}
 import toddy/prop/font.{type Font}
@@ -24,6 +25,7 @@ pub opaque type Text {
     align_y: Option(Alignment),
     wrapping: Option(Wrapping),
     shaping: Option(Shaping),
+    a11y: Option(A11y),
   )
 }
 
@@ -40,6 +42,7 @@ pub fn new(id: String, content: String) -> Text {
     align_y: None,
     wrapping: None,
     shaping: None,
+    a11y: None,
   )
 }
 
@@ -79,6 +82,10 @@ pub fn shaping(text: Text, s: Shaping) -> Text {
   Text(..text, shaping: option.Some(s))
 }
 
+pub fn a11y(text: Text, a: A11y) -> Text {
+  Text(..text, a11y: option.Some(a))
+}
+
 pub fn build(text: Text) -> Node {
   let props =
     dict.new()
@@ -92,5 +99,6 @@ pub fn build(text: Text) -> Node {
     |> build.put_optional("align_y", text.align_y, alignment.to_prop_value)
     |> build.put_optional("wrapping", text.wrapping, wrapping.to_prop_value)
     |> build.put_optional("shaping", text.shaping, shaping.to_prop_value)
+    |> build.put_optional("a11y", text.a11y, a11y.to_prop_value)
   Node(id: text.id, kind: "text", props:, children: [])
 }

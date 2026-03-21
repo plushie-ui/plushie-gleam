@@ -145,10 +145,10 @@ pub fn normalize_warns_on_duplicate_sibling_ids_test() {
 
   let result = tree.normalize(root)
   // Both children are present despite the warning
-  should.equal(
-    result.children |> list.map(fn(c) { c.id }),
-    ["root/dup", "root/dup"],
-  )
+  should.equal(result.children |> list.map(fn(c) { c.id }), [
+    "root/dup",
+    "root/dup",
+  ])
 }
 
 pub fn normalize_no_warning_on_unique_sibling_ids_test() {
@@ -159,10 +159,7 @@ pub fn normalize_no_warning_on_unique_sibling_ids_test() {
     |> node.with_children([a, b])
 
   let result = tree.normalize(root)
-  should.equal(
-    result.children |> list.map(fn(c) { c.id }),
-    ["root/a", "root/b"],
-  )
+  should.equal(result.children |> list.map(fn(c) { c.id }), ["root/a", "root/b"])
 }
 
 // --- diff --------------------------------------------------------------------

@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/position.{type Position}
 import toddy/widget/build
 
@@ -15,11 +16,20 @@ pub opaque type Tooltip {
     position: Option(Position),
     gap: Option(Float),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
 pub fn new(id: String, tip: String) -> Tooltip {
-  Tooltip(id:, children: [], tip:, position: None, gap: None, style: None)
+  Tooltip(
+    id:,
+    children: [],
+    tip:,
+    position: None,
+    gap: None,
+    style: None,
+    a11y: None,
+  )
 }
 
 pub fn position(tt: Tooltip, p: Position) -> Tooltip {
@@ -44,6 +54,10 @@ pub fn extend(tt: Tooltip, children: List(Node)) -> Tooltip {
   Tooltip(..tt, children: list.append(tt.children, children))
 }
 
+pub fn a11y(tt: Tooltip, a: A11y) -> Tooltip {
+  Tooltip(..tt, a11y: option.Some(a))
+}
+
 pub fn build(tt: Tooltip) -> Node {
   let props =
     dict.new()
@@ -51,5 +65,6 @@ pub fn build(tt: Tooltip) -> Node {
     |> build.put_optional("position", tt.position, position.to_prop_value)
     |> build.put_optional_float("gap", tt.gap)
     |> build.put_optional_string("style", tt.style)
+    |> build.put_optional("a11y", tt.a11y, a11y.to_prop_value)
   Node(id: tt.id, kind: "tooltip", props:, children: tt.children)
 }

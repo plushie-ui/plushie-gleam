@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/direction.{type Direction}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -17,6 +18,7 @@ pub opaque type Scrollable {
     direction: Option(Direction),
     spacing: Option(Int),
     on_scroll: Option(Bool),
+    a11y: Option(A11y),
   )
 }
 
@@ -29,6 +31,7 @@ pub fn new(id: String) -> Scrollable {
     direction: None,
     spacing: None,
     on_scroll: None,
+    a11y: None,
   )
 }
 
@@ -62,6 +65,10 @@ pub fn extend(s: Scrollable, children: List(Node)) -> Scrollable {
   Scrollable(..s, children: list.append(s.children, children))
 }
 
+pub fn a11y(s: Scrollable, a: A11y) -> Scrollable {
+  Scrollable(..s, a11y: option.Some(a))
+}
+
 pub fn build(s: Scrollable) -> Node {
   let props =
     dict.new()
@@ -70,5 +77,6 @@ pub fn build(s: Scrollable) -> Node {
     |> build.put_optional("direction", s.direction, direction.to_prop_value)
     |> build.put_optional_int("spacing", s.spacing)
     |> build.put_optional_bool("on_scroll", s.on_scroll)
+    |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "scrollable", props:, children: s.children)
 }

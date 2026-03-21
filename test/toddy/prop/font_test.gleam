@@ -22,7 +22,7 @@ pub fn family_encodes_to_dict_test() {
   should.equal(result, expected)
 }
 
-pub fn custom_font_encodes_all_fields_test() {
+pub fn custom_font_encodes_non_default_fields_test() {
   let f = CustomFont("Inter", Bold, Italic, Expanded)
   let result = font.to_prop_value(f)
   let expected =
@@ -32,6 +32,47 @@ pub fn custom_font_encodes_all_fields_test() {
         #("weight", StringVal("Bold")),
         #("style", StringVal("Italic")),
         #("stretch", StringVal("Expanded")),
+      ]),
+    )
+  should.equal(result, expected)
+}
+
+pub fn custom_font_omits_normal_style_test() {
+  let f = CustomFont("Inter", Bold, NormalStyle, Expanded)
+  let result = font.to_prop_value(f)
+  let expected =
+    DictVal(
+      dict.from_list([
+        #("family", StringVal("Inter")),
+        #("weight", StringVal("Bold")),
+        #("stretch", StringVal("Expanded")),
+      ]),
+    )
+  should.equal(result, expected)
+}
+
+pub fn custom_font_omits_normal_stretch_test() {
+  let f = CustomFont("Inter", Bold, Italic, NormalStretch)
+  let result = font.to_prop_value(f)
+  let expected =
+    DictVal(
+      dict.from_list([
+        #("family", StringVal("Inter")),
+        #("weight", StringVal("Bold")),
+        #("style", StringVal("Italic")),
+      ]),
+    )
+  should.equal(result, expected)
+}
+
+pub fn custom_font_omits_both_defaults_test() {
+  let f = CustomFont("Inter", Bold, NormalStyle, NormalStretch)
+  let result = font.to_prop_value(f)
+  let expected =
+    DictVal(
+      dict.from_list([
+        #("family", StringVal("Inter")),
+        #("weight", StringVal("Bold")),
       ]),
     )
   should.equal(result, expected)

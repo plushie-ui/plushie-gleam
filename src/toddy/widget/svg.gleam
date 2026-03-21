@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/content_fit.{type ContentFit}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -16,6 +17,7 @@ pub opaque type Svg {
     content_fit: Option(ContentFit),
     rotation: Option(Float),
     opacity: Option(Float),
+    a11y: Option(A11y),
   )
 }
 
@@ -28,6 +30,7 @@ pub fn new(id: String, source: String) -> Svg {
     content_fit: None,
     rotation: None,
     opacity: None,
+    a11y: None,
   )
 }
 
@@ -51,6 +54,10 @@ pub fn opacity(s: Svg, o: Float) -> Svg {
   Svg(..s, opacity: option.Some(o))
 }
 
+pub fn a11y(s: Svg, a: A11y) -> Svg {
+  Svg(..s, a11y: option.Some(a))
+}
+
 pub fn build(s: Svg) -> Node {
   let props =
     dict.new()
@@ -64,5 +71,6 @@ pub fn build(s: Svg) -> Node {
     )
     |> build.put_optional_float("rotation", s.rotation)
     |> build.put_optional_float("opacity", s.opacity)
+    |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "svg", props:, children: [])
 }

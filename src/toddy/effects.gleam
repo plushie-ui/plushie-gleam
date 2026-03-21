@@ -137,13 +137,13 @@ pub fn notification(
 /// File dialogs get 120s (user interaction), clipboard and notification
 /// ops get 5s. Unknown kinds fall back to 30s.
 pub fn default_timeout(kind: String) -> Int {
-  case string.starts_with(kind, "file_") || string.starts_with(kind, "directory_") {
+  case
+    string.starts_with(kind, "file_") || string.starts_with(kind, "directory_")
+  {
     True -> 120_000
     False ->
-      case
-        string.starts_with(kind, "clipboard_") || kind == "notification"
-      {
-        True -> 5_000
+      case string.starts_with(kind, "clipboard_") || kind == "notification" {
+        True -> 5000
         False -> 30_000
       }
   }
@@ -166,9 +166,7 @@ fn file_dialog_payload(opts: List(FileDialogOpt)) -> List(#(String, PropValue)) 
       DefaultPath(p) -> [#("default_path", StringVal(p)), ..acc]
       Filters(filters) -> {
         let filter_list =
-          list.map(filters, fn(f) {
-            ListVal([StringVal(f.0), StringVal(f.1)])
-          })
+          list.map(filters, fn(f) { ListVal([StringVal(f.0), StringVal(f.1)]) })
         [#("filters", ListVal(filter_list)), ..acc]
       }
     }

@@ -329,10 +329,7 @@ fn find_exact(tree: Node, id: String) -> Option(Node) {
   }
 }
 
-fn find_exact_in_children(
-  children: List(Node),
-  id: String,
-) -> Option(Node) {
+fn find_exact_in_children(children: List(Node), id: String) -> Option(Node) {
   case children {
     [] -> option.None
     [child, ..rest] ->
@@ -346,10 +343,11 @@ fn find_exact_in_children(
 fn find_by_local(tree: Node, target: String) -> Option(Node) {
   let local = case string.split(tree.id, "/") {
     [] -> tree.id
-    segments -> case list.last(segments) {
-      Ok(last) -> last
-      Error(_) -> tree.id
-    }
+    segments ->
+      case list.last(segments) {
+        Ok(last) -> last
+        Error(_) -> tree.id
+      }
   }
   case local == target {
     True -> option.Some(tree)
@@ -370,7 +368,6 @@ fn find_by_local_in_children(
       }
   }
 }
-
 
 /// Check whether a node with the given ID exists anywhere in the tree.
 pub fn exists(tree: Node, id: String) -> Bool {

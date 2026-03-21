@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, ListVal, Node, StringVal}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
@@ -20,6 +21,7 @@ pub opaque type PickList {
     text_size: Option(Float),
     font: Option(Font),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -38,6 +40,7 @@ pub fn new(
     text_size: None,
     font: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -65,6 +68,10 @@ pub fn style(pl: PickList, s: String) -> PickList {
   PickList(..pl, style: option.Some(s))
 }
 
+pub fn a11y(pl: PickList, a: A11y) -> PickList {
+  PickList(..pl, a11y: option.Some(a))
+}
+
 pub fn build(pl: PickList) -> Node {
   let props =
     dict.new()
@@ -76,5 +83,6 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional_float("text_size", pl.text_size)
     |> build.put_optional("font", pl.font, font.to_prop_value)
     |> build.put_optional_string("style", pl.style)
+    |> build.put_optional("a11y", pl.a11y, a11y.to_prop_value)
   Node(id: pl.id, kind: "pick_list", props:, children: [])
 }

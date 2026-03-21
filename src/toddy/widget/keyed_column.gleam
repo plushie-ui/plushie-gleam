@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
@@ -18,6 +19,7 @@ pub opaque type KeyedColumn {
     width: Option(Length),
     height: Option(Length),
     align_x: Option(Alignment),
+    a11y: Option(A11y),
   )
 }
 
@@ -30,6 +32,7 @@ pub fn new(id: String) -> KeyedColumn {
     width: None,
     height: None,
     align_x: None,
+    a11y: None,
   )
 }
 
@@ -63,6 +66,10 @@ pub fn extend(kc: KeyedColumn, children: List(Node)) -> KeyedColumn {
   KeyedColumn(..kc, children: list.append(kc.children, children))
 }
 
+pub fn a11y(kc: KeyedColumn, a: A11y) -> KeyedColumn {
+  KeyedColumn(..kc, a11y: option.Some(a))
+}
+
 pub fn build(kc: KeyedColumn) -> Node {
   let props =
     dict.new()
@@ -71,5 +78,6 @@ pub fn build(kc: KeyedColumn) -> Node {
     |> build.put_optional("width", kc.width, length.to_prop_value)
     |> build.put_optional("height", kc.height, length.to_prop_value)
     |> build.put_optional("align_x", kc.align_x, alignment.to_prop_value)
+    |> build.put_optional("a11y", kc.a11y, a11y.to_prop_value)
   Node(id: kc.id, kind: "keyed_column", props:, children: kc.children)
 }

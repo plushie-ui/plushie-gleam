@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -18,6 +19,7 @@ pub opaque type Toggler {
     text_size: Option(Float),
     font: Option(Font),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -32,6 +34,7 @@ pub fn new(id: String, label: String, is_toggled: Bool) -> Toggler {
     text_size: None,
     font: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -59,6 +62,10 @@ pub fn style(t: Toggler, s: String) -> Toggler {
   Toggler(..t, style: option.Some(s))
 }
 
+pub fn a11y(t: Toggler, a: A11y) -> Toggler {
+  Toggler(..t, a11y: option.Some(a))
+}
+
 pub fn build(t: Toggler) -> Node {
   let props =
     dict.new()
@@ -70,5 +77,6 @@ pub fn build(t: Toggler) -> Node {
     |> build.put_optional_float("text_size", t.text_size)
     |> build.put_optional("font", t.font, font.to_prop_value)
     |> build.put_optional_string("style", t.style)
+    |> build.put_optional("a11y", t.a11y, a11y.to_prop_value)
   Node(id: t.id, kind: "toggler", props:, children: [])
 }

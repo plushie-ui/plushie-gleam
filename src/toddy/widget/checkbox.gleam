@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
@@ -19,6 +20,7 @@ pub opaque type Checkbox {
     font: Option(Font),
     style: Option(String),
     disabled: Option(Bool),
+    a11y: Option(A11y),
   )
 }
 
@@ -34,6 +36,7 @@ pub fn new(id: String, label: String, is_toggled: Bool) -> Checkbox {
     font: None,
     style: None,
     disabled: None,
+    a11y: None,
   )
 }
 
@@ -65,6 +68,10 @@ pub fn disabled(cb: Checkbox, d: Bool) -> Checkbox {
   Checkbox(..cb, disabled: option.Some(d))
 }
 
+pub fn a11y(cb: Checkbox, a: A11y) -> Checkbox {
+  Checkbox(..cb, a11y: option.Some(a))
+}
+
 pub fn build(cb: Checkbox) -> Node {
   let props =
     dict.new()
@@ -77,5 +84,6 @@ pub fn build(cb: Checkbox) -> Node {
     |> build.put_optional("font", cb.font, font.to_prop_value)
     |> build.put_optional_string("style", cb.style)
     |> build.put_optional_bool("disabled", cb.disabled)
+    |> build.put_optional("a11y", cb.a11y, a11y.to_prop_value)
   Node(id: cb.id, kind: "checkbox", props:, children: [])
 }

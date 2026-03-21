@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/widget/build
 
 pub opaque type Window {
@@ -22,6 +23,7 @@ pub opaque type Window {
     decorations: Option(Bool),
     transparent: Option(Bool),
     exit_on_close_request: Option(Bool),
+    a11y: Option(A11y),
   )
 }
 
@@ -41,6 +43,7 @@ pub fn new(id: String) -> Window {
     decorations: None,
     transparent: None,
     exit_on_close_request: None,
+    a11y: None,
   )
 }
 
@@ -106,6 +109,10 @@ pub fn extend(w: Window, children: List(Node)) -> Window {
   Window(..w, children: list.append(w.children, children))
 }
 
+pub fn a11y(w: Window, a: A11y) -> Window {
+  Window(..w, a11y: option.Some(a))
+}
+
 pub fn build(w: Window) -> Node {
   let props =
     dict.new()
@@ -121,5 +128,6 @@ pub fn build(w: Window) -> Node {
     |> build.put_optional_bool("decorations", w.decorations)
     |> build.put_optional_bool("transparent", w.transparent)
     |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
+    |> build.put_optional("a11y", w.a11y, a11y.to_prop_value)
   Node(id: w.id, kind: "window", props:, children: w.children)
 }

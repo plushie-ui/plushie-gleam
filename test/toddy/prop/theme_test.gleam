@@ -1,5 +1,6 @@
+import gleam/dict
 import gleeunit/should
-import toddy/node.{StringVal}
+import toddy/node.{DictVal, StringVal}
 import toddy/prop/theme
 
 pub fn light_encodes_test() {
@@ -40,4 +41,42 @@ pub fn kanagawa_wave_encodes_test() {
 
 pub fn system_theme_encodes_test() {
   should.equal(theme.to_prop_value(theme.SystemTheme), StringVal("system"))
+}
+
+pub fn custom_encodes_as_dict_test() {
+  let t =
+    theme.custom(
+      "My Theme",
+      dict.from_list([#("primary", StringVal("#7aa2f7"))]),
+    )
+  let result = theme.to_prop_value(t)
+  let expected =
+    DictVal(
+      dict.from_list([
+        #("name", StringVal("My Theme")),
+        #("primary", StringVal("#7aa2f7")),
+      ]),
+    )
+  should.equal(result, expected)
+}
+
+pub fn custom_with_base_encodes_test() {
+  let t =
+    theme.custom(
+      "Nord+",
+      dict.from_list([
+        #("base", StringVal("nord")),
+        #("primary", StringVal("#88c0d0")),
+      ]),
+    )
+  let result = theme.to_prop_value(t)
+  let expected =
+    DictVal(
+      dict.from_list([
+        #("name", StringVal("Nord+")),
+        #("base", StringVal("nord")),
+        #("primary", StringVal("#88c0d0")),
+      ]),
+    )
+  should.equal(result, expected)
 }

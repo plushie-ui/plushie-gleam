@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, ListVal, Node, StringVal}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
@@ -21,6 +22,7 @@ pub opaque type ComboBox {
     font: Option(Font),
     on_submit: Option(Bool),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -36,6 +38,7 @@ pub fn new(id: String, options: List(String), value: String) -> ComboBox {
     font: None,
     on_submit: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -67,6 +70,10 @@ pub fn style(cb: ComboBox, s: String) -> ComboBox {
   ComboBox(..cb, style: option.Some(s))
 }
 
+pub fn a11y(cb: ComboBox, a: A11y) -> ComboBox {
+  ComboBox(..cb, a11y: option.Some(a))
+}
+
 pub fn build(cb: ComboBox) -> Node {
   let props =
     dict.new()
@@ -79,5 +86,6 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional("font", cb.font, font.to_prop_value)
     |> build.put_optional_bool("on_submit", cb.on_submit)
     |> build.put_optional_string("style", cb.style)
+    |> build.put_optional("a11y", cb.a11y, a11y.to_prop_value)
   Node(id: cb.id, kind: "combo_box", props:, children: [])
 }

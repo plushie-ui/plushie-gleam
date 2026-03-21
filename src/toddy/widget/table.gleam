@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
 import toddy/widget/build
@@ -16,6 +17,7 @@ pub opaque type Table {
     height: Option(Length),
     spacing: Option(Int),
     padding: Option(Padding),
+    a11y: Option(A11y),
   )
 }
 
@@ -27,6 +29,7 @@ pub fn new(id: String) -> Table {
     height: None,
     spacing: None,
     padding: None,
+    a11y: None,
   )
 }
 
@@ -56,6 +59,10 @@ pub fn extend(t: Table, children: List(Node)) -> Table {
   Table(..t, children: list.append(t.children, children))
 }
 
+pub fn a11y(t: Table, a: A11y) -> Table {
+  Table(..t, a11y: option.Some(a))
+}
+
 pub fn build(t: Table) -> Node {
   let props =
     dict.new()
@@ -63,5 +70,6 @@ pub fn build(t: Table) -> Node {
     |> build.put_optional("height", t.height, length.to_prop_value)
     |> build.put_optional_int("spacing", t.spacing)
     |> build.put_optional("padding", t.padding, padding.to_prop_value)
+    |> build.put_optional("a11y", t.a11y, a11y.to_prop_value)
   Node(id: t.id, kind: "table", props:, children: t.children)
 }

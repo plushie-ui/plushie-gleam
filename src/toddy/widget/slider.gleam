@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, FloatVal, ListVal, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -17,6 +18,7 @@ pub opaque type Slider {
     width: Option(Length),
     height: Option(Float),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -31,6 +33,7 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> Slider {
     width: None,
     height: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -62,6 +65,10 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
+pub fn a11y(slider: Slider, a: A11y) -> Slider {
+  Slider(..slider, a11y: option.Some(a))
+}
+
 pub fn build(slider: Slider) -> Node {
   let props =
     dict.new()
@@ -73,5 +80,6 @@ pub fn build(slider: Slider) -> Node {
     |> build.put_optional("width", slider.width, length.to_prop_value)
     |> build.put_optional_float("height", slider.height)
     |> build.put_optional_string("style", slider.style)
+    |> build.put_optional("a11y", slider.a11y, a11y.to_prop_value)
   Node(id: slider.id, kind: "slider", props:, children: [])
 }

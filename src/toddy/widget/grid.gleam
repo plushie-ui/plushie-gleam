@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
 import toddy/widget/build
@@ -16,6 +17,7 @@ pub opaque type Grid {
     spacing: Option(Int),
     padding: Option(Padding),
     width: Option(Length),
+    a11y: Option(A11y),
   )
 }
 
@@ -27,6 +29,7 @@ pub fn new(id: String) -> Grid {
     spacing: None,
     padding: None,
     width: None,
+    a11y: None,
   )
 }
 
@@ -56,6 +59,10 @@ pub fn extend(g: Grid, children: List(Node)) -> Grid {
   Grid(..g, children: list.append(g.children, children))
 }
 
+pub fn a11y(g: Grid, a: A11y) -> Grid {
+  Grid(..g, a11y: option.Some(a))
+}
+
 pub fn build(g: Grid) -> Node {
   let props =
     dict.new()
@@ -63,5 +70,6 @@ pub fn build(g: Grid) -> Node {
     |> build.put_optional_int("spacing", g.spacing)
     |> build.put_optional("padding", g.padding, padding.to_prop_value)
     |> build.put_optional("width", g.width, length.to_prop_value)
+    |> build.put_optional("a11y", g.a11y, a11y.to_prop_value)
   Node(id: g.id, kind: "grid", props:, children: g.children)
 }

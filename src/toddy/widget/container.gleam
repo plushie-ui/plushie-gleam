@@ -4,6 +4,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/border.{type Border}
 import toddy/prop/color.{type Color}
@@ -30,6 +31,7 @@ pub opaque type Container {
     border: Option(Border),
     shadow: Option(Shadow),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -51,6 +53,7 @@ pub fn new(id: String) -> Container {
     border: None,
     shadow: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -120,6 +123,10 @@ pub fn extend(c: Container, children: List(Node)) -> Container {
   Container(..c, children: list.append(c.children, children))
 }
 
+pub fn a11y(c: Container, a: A11y) -> Container {
+  Container(..c, a11y: option.Some(a))
+}
+
 pub fn build(c: Container) -> Node {
   let props =
     dict.new()
@@ -137,5 +144,6 @@ pub fn build(c: Container) -> Node {
     |> build.put_optional("border", c.border, border.to_prop_value)
     |> build.put_optional("shadow", c.shadow, shadow.to_prop_value)
     |> build.put_optional_string("style", c.style)
+    |> build.put_optional("a11y", c.a11y, a11y.to_prop_value)
   Node(id: c.id, kind: "container", props:, children: c.children)
 }

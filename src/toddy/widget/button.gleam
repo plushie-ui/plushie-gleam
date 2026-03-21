@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node, StringVal}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
 import toddy/widget/build
@@ -28,6 +29,7 @@ pub opaque type Button {
     padding: Option(Padding),
     clip: Option(Bool),
     disabled: Option(Bool),
+    a11y: Option(A11y),
   )
 }
 
@@ -41,6 +43,7 @@ pub fn new(id: String, label: String) -> Button {
     padding: None,
     clip: None,
     disabled: None,
+    a11y: None,
   )
 }
 
@@ -68,6 +71,10 @@ pub fn disabled(button: Button, d: Bool) -> Button {
   Button(..button, disabled: option.Some(d))
 }
 
+pub fn a11y(button: Button, a: A11y) -> Button {
+  Button(..button, a11y: option.Some(a))
+}
+
 pub fn build(button: Button) -> Node {
   let props =
     dict.new()
@@ -80,6 +87,7 @@ pub fn build(button: Button) -> Node {
     |> build.put_optional("padding", button.padding, padding.to_prop_value)
     |> build.put_optional_bool("clip", button.clip)
     |> build.put_optional_bool("disabled", button.disabled)
+    |> build.put_optional("a11y", button.a11y, a11y.to_prop_value)
   Node(id: button.id, kind: "button", props:, children: [])
 }
 

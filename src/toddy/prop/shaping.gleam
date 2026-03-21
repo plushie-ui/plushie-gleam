@@ -6,6 +6,7 @@
 import toddy/node.{type PropValue, StringVal}
 
 pub type Shaping {
+  Auto
   Basic
   Advanced
 }
@@ -17,6 +18,7 @@ pub fn to_prop_value(s: Shaping) -> PropValue {
 
 pub fn to_string(s: Shaping) -> String {
   case s {
+    Auto -> "auto"
     Basic -> "basic"
     Advanced -> "advanced"
   }

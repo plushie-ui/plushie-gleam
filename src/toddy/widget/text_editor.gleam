@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/prop/length.{type Length}
 import toddy/prop/padding.{type Padding}
@@ -20,6 +21,7 @@ pub opaque type TextEditor {
     size: Option(Float),
     wrapping: Option(Wrapping),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -34,6 +36,7 @@ pub fn new(id: String, content: String) -> TextEditor {
     size: None,
     wrapping: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -65,6 +68,10 @@ pub fn style(te: TextEditor, s: String) -> TextEditor {
   TextEditor(..te, style: option.Some(s))
 }
 
+pub fn a11y(te: TextEditor, a: A11y) -> TextEditor {
+  TextEditor(..te, a11y: option.Some(a))
+}
+
 pub fn build(te: TextEditor) -> Node {
   let props =
     dict.new()
@@ -76,5 +83,6 @@ pub fn build(te: TextEditor) -> Node {
     |> build.put_optional_float("size", te.size)
     |> build.put_optional("wrapping", te.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("style", te.style)
+    |> build.put_optional("a11y", te.a11y, a11y.to_prop_value)
   Node(id: te.id, kind: "text_editor", props:, children: [])
 }

@@ -6,6 +6,7 @@
 
 import gleam/dict.{type Dict}
 import toddy/node.{type PropValue, DictVal, StringVal}
+import toddy/prop/gradient.{type Gradient}
 
 pub type StyleMap {
   StyleMap(props: Dict(String, PropValue))
@@ -19,6 +20,11 @@ pub fn new() -> StyleMap {
 /// Set the background color (hex string).
 pub fn background(sm: StyleMap, hex: String) -> StyleMap {
   StyleMap(props: dict.insert(sm.props, "background", StringVal(hex)))
+}
+
+/// Set the background to a gradient.
+pub fn gradient_background(sm: StyleMap, g: Gradient) -> StyleMap {
+  StyleMap(props: dict.insert(sm.props, "background", gradient.to_prop_value(g)))
 }
 
 /// Set the text color (hex string).

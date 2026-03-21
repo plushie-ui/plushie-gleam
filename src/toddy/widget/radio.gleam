@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/font.{type Font}
 import toddy/widget/build
 
@@ -17,6 +18,7 @@ pub opaque type Radio {
     text_size: Option(Float),
     font: Option(Font),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
@@ -36,6 +38,7 @@ pub fn new(
     text_size: None,
     font: None,
     style: None,
+    a11y: None,
   )
 }
 
@@ -59,6 +62,10 @@ pub fn style(r: Radio, s: String) -> Radio {
   Radio(..r, style: option.Some(s))
 }
 
+pub fn a11y(r: Radio, a: A11y) -> Radio {
+  Radio(..r, a11y: option.Some(a))
+}
+
 pub fn build(r: Radio) -> Node {
   let props =
     dict.new()
@@ -70,5 +77,6 @@ pub fn build(r: Radio) -> Node {
     |> build.put_optional_float("text_size", r.text_size)
     |> build.put_optional("font", r.font, font.to_prop_value)
     |> build.put_optional_string("style", r.style)
+    |> build.put_optional("a11y", r.a11y, a11y.to_prop_value)
   Node(id: r.id, kind: "radio", props:, children: [])
 }

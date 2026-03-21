@@ -4,7 +4,7 @@
 //// and Monospace are simple variants; Family picks a named font; CustomFont
 //// allows full control over weight, style, and stretch.
 
-import gleam/dict
+import gleam/dict.{type Dict}
 import toddy/node.{type PropValue, DictVal, StringVal}
 
 pub type Font {
@@ -56,14 +56,7 @@ pub fn to_prop_value(font: Font) -> PropValue {
     Monospace -> StringVal("monospace")
     Family(name) -> DictVal(dict.from_list([#("family", StringVal(name))]))
     CustomFont(family:, weight:, style:, stretch:) ->
-      DictVal(
-        dict.from_list([
-          #("family", StringVal(family)),
-          #("weight", StringVal(weight_to_string(weight))),
-          #("style", StringVal(style_to_string(style))),
-          #("stretch", StringVal(stretch_to_string(stretch))),
-        ]),
-      )
+      DictVal(custom_font_fields(family, weight, style, stretch))
   }
 }
 
@@ -100,5 +93,28 @@ pub fn stretch_to_string(s: FontStretch) -> String {
     Expanded -> "Expanded"
     ExtraExpanded -> "ExtraExpanded"
     UltraExpanded -> "UltraExpanded"
+  }
+}
+
+/// Build the dict for a CustomFont, omitting fields that match defaults
+/// (NormalStyle for style, NormalStretch for stretch). Weight is always
+/// included since there is no "default" weight -- the Elixir SDK treats
+/// nil weight as omitted, not as "Normal".
+fn custom_font_fields(
+  family: String,
+  weight: FontWeight,
+  style: FontStyle,
+  stretch: FontStretch,
+) -> Dict(String, PropValue) {
+  let fields = dict.from_list([#("family", StringVal(family))])
+  let fields =
+    dict.insert(fields, "weight", StringVal(weight_to_string(weight)))
+  let fields = case style {
+    NormalStyle -> fields
+    _ -> dict.insert(fields, "style", StringVal(style_to_string(style)))
+  }
+  case stretch {
+    NormalStretch -> fields
+    _ -> dict.insert(fields, "stretch", StringVal(stretch_to_string(stretch)))
   }
 }

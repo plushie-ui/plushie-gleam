@@ -3,6 +3,7 @@
 import gleam/dict
 import gleam/option.{type Option, None}
 import toddy/node.{type Node, FloatVal, ListVal, Node}
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -14,11 +15,20 @@ pub opaque type ProgressBar {
     width: Option(Length),
     height: Option(Float),
     style: Option(String),
+    a11y: Option(A11y),
   )
 }
 
 pub fn new(id: String, range: #(Float, Float), value: Float) -> ProgressBar {
-  ProgressBar(id:, range:, value:, width: None, height: None, style: None)
+  ProgressBar(
+    id:,
+    range:,
+    value:,
+    width: None,
+    height: None,
+    style: None,
+    a11y: None,
+  )
 }
 
 pub fn width(pb: ProgressBar, w: Length) -> ProgressBar {
@@ -37,6 +47,10 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
+pub fn a11y(pb: ProgressBar, a: A11y) -> ProgressBar {
+  ProgressBar(..pb, a11y: option.Some(a))
+}
+
 pub fn build(pb: ProgressBar) -> Node {
   let props =
     dict.new()
@@ -45,5 +59,6 @@ pub fn build(pb: ProgressBar) -> Node {
     |> build.put_optional("width", pb.width, length.to_prop_value)
     |> build.put_optional_float("height", pb.height)
     |> build.put_optional_string("style", pb.style)
+    |> build.put_optional("a11y", pb.a11y, a11y.to_prop_value)
   Node(id: pb.id, kind: "progress_bar", props:, children: [])
 }

@@ -233,17 +233,17 @@ pub fn default_timeout_directory_dialogs_test() {
 }
 
 pub fn default_timeout_clipboard_test() {
-  assert effects.default_timeout("clipboard_read") == 5_000
-  assert effects.default_timeout("clipboard_write") == 5_000
-  assert effects.default_timeout("clipboard_read_html") == 5_000
-  assert effects.default_timeout("clipboard_write_html") == 5_000
-  assert effects.default_timeout("clipboard_clear") == 5_000
-  assert effects.default_timeout("clipboard_read_primary") == 5_000
-  assert effects.default_timeout("clipboard_write_primary") == 5_000
+  assert effects.default_timeout("clipboard_read") == 5000
+  assert effects.default_timeout("clipboard_write") == 5000
+  assert effects.default_timeout("clipboard_read_html") == 5000
+  assert effects.default_timeout("clipboard_write_html") == 5000
+  assert effects.default_timeout("clipboard_clear") == 5000
+  assert effects.default_timeout("clipboard_read_primary") == 5000
+  assert effects.default_timeout("clipboard_write_primary") == 5000
 }
 
 pub fn default_timeout_notification_test() {
-  assert effects.default_timeout("notification") == 5_000
+  assert effects.default_timeout("notification") == 5000
 }
 
 pub fn default_timeout_unknown_kind_test() {

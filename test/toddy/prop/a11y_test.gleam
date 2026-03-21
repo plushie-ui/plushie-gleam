@@ -52,10 +52,23 @@ pub fn to_prop_value_is_dict_val_test() {
   should.equal(result, expected)
 }
 
-pub fn role_to_string_samples_test() {
-  should.equal(a11y.role_to_string(a11y.AlertDialog), "alertdialog")
-  should.equal(a11y.role_to_string(a11y.Checkbox), "checkbox")
-  should.equal(a11y.role_to_string(a11y.MenuItemRadio), "menuitemradio")
-  should.equal(a11y.role_to_string(a11y.ProgressBar), "progressbar")
+pub fn role_to_string_matches_rust_parser_test() {
+  should.equal(a11y.role_to_string(a11y.AlertDialog), "alert_dialog")
+  should.equal(a11y.role_to_string(a11y.CheckBox), "check_box")
+  should.equal(a11y.role_to_string(a11y.ComboBox), "combo_box")
+  should.equal(a11y.role_to_string(a11y.ColumnHeader), "column_header")
+  should.equal(a11y.role_to_string(a11y.Image), "image")
+  should.equal(
+    a11y.role_to_string(a11y.ProgressIndicator),
+    "progress_indicator",
+  )
+  should.equal(a11y.role_to_string(a11y.RadioButton), "radio_button")
+  should.equal(a11y.role_to_string(a11y.ScrollBar), "scroll_bar")
+  should.equal(a11y.role_to_string(a11y.TextInput), "text_input")
   should.equal(a11y.role_to_string(a11y.TreeItem), "tree_item")
+  should.equal(a11y.role_to_string(a11y.Canvas), "canvas")
+  should.equal(a11y.role_to_string(a11y.Label), "label")
+  should.equal(a11y.role_to_string(a11y.Meter), "meter")
+  should.equal(a11y.role_to_string(a11y.StaticText), "static_text")
+  should.equal(a11y.role_to_string(a11y.Window), "window")
 }
