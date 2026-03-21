@@ -519,8 +519,8 @@ fn decode_event(
 
     // Mouse events
     "cursor_moved" -> decode_cursor_moved(map)
-    "cursor_entered" -> Ok(EventMessage(event.MouseEntered))
-    "cursor_left" -> Ok(EventMessage(event.MouseLeft))
+    "cursor_entered" -> decode_cursor_entered(map)
+    "cursor_left" -> decode_cursor_left(map)
     "button_pressed" -> decode_mouse_button(map, event.MouseButtonPressed)
     "button_released" -> decode_mouse_button(map, event.MouseButtonReleased)
     "wheel_scrolled" -> decode_wheel_scrolled(map)
@@ -532,10 +532,10 @@ fn decode_event(
     "finger_lost" -> decode_touch(map, event.TouchLost)
 
     // IME events
-    "ime_opened" -> Ok(EventMessage(event.ImeOpened))
+    "ime_opened" -> decode_ime_opened(map)
     "ime_preedit" -> decode_ime_preedit(map)
     "ime_commit" -> decode_ime_commit(map)
-    "ime_closed" -> Ok(EventMessage(event.ImeClosed))
+    "ime_closed" -> decode_ime_closed(map)
 
     // Sensor events
     "sensor_resize" -> decode_sensor_resize(map)
@@ -751,19 +751,23 @@ fn decode_key_press(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let data = get_map(map, "data")
   let key = get_string_or(data, "key", "")
+  let modified_key = get_string_or(data, "modified_key", key)
   let modifiers = parse_modifiers(map)
   let physical_key = get_optional_string(data, "physical_key")
   let location = parse_key_location(get_string_or(data, "location", "standard"))
   let text = get_optional_string(data, "text")
   let repeat = get_bool_or(data, "repeat", False)
+  let captured = get_bool_or(map, "captured", False)
   Ok(
     EventMessage(event.KeyPress(
       key:,
+      modified_key:,
       modifiers:,
       physical_key:,
       location:,
       text:,
       repeat:,
+      captured:,
     )),
   )
 }
@@ -773,17 +777,21 @@ fn decode_key_release(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let data = get_map(map, "data")
   let key = get_string_or(data, "key", "")
+  let modified_key = get_string_or(data, "modified_key", key)
   let modifiers = parse_modifiers(map)
   let physical_key = get_optional_string(data, "physical_key")
   let location = parse_key_location(get_string_or(data, "location", "standard"))
   let text = get_optional_string(data, "text")
+  let captured = get_bool_or(map, "captured", False)
   Ok(
     EventMessage(event.KeyRelease(
       key:,
+      modified_key:,
       modifiers:,
       physical_key:,
       location:,
       text:,
+      captured:,
     )),
   )
 }
@@ -792,7 +800,8 @@ fn decode_modifiers_changed(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let modifiers = parse_modifiers(map)
-  Ok(EventMessage(event.ModifiersChanged(modifiers:)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.ModifiersChanged(modifiers:, captured:)))
 }
 
 // ---------------------------------------------------------------------------
@@ -884,19 +893,35 @@ fn decode_cursor_moved(
   let data = get_map(map, "data")
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
-  Ok(EventMessage(event.MouseMoved(x:, y:)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.MouseMoved(x:, y:, captured:)))
+}
+
+fn decode_cursor_entered(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.MouseEntered(captured:)))
+}
+
+fn decode_cursor_left(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.MouseLeft(captured:)))
 }
 
 fn decode_mouse_button(
   map: Dict(String, PropValue),
-  constructor: fn(MouseButton, Float, Float) -> Event,
+  constructor: fn(MouseButton, Float, Float, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let button_str = get_string_or(map, "value", "left")
   let button = parse_mouse_button(button_str)
   let data = get_map(map, "data")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
-  Ok(EventMessage(constructor(button, x, y)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(constructor(button, x, y, captured)))
 }
 
 fn decode_wheel_scrolled(
@@ -906,7 +931,10 @@ fn decode_wheel_scrolled(
   use delta_x <- result.try(get_float(data, "delta_x"))
   use delta_y <- result.try(get_float(data, "delta_y"))
   let unit = parse_scroll_unit(get_string_or(data, "unit", "line"))
-  Ok(EventMessage(event.MouseWheelScrolled(delta_x:, delta_y:, unit:)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.MouseWheelScrolled(delta_x:, delta_y:, unit:, captured:)),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -915,18 +943,26 @@ fn decode_wheel_scrolled(
 
 fn decode_touch(
   map: Dict(String, PropValue),
-  constructor: fn(Int, Float, Float) -> Event,
+  constructor: fn(Int, Float, Float, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let data = get_map(map, "data")
   use finger_id <- result.try(get_int(data, "id"))
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
-  Ok(EventMessage(constructor(finger_id, x, y)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(constructor(finger_id, x, y, captured)))
 }
 
 // ---------------------------------------------------------------------------
 // IME event decoders
 // ---------------------------------------------------------------------------
+
+fn decode_ime_opened(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.ImeOpened(captured:)))
+}
 
 fn decode_ime_preedit(
   map: Dict(String, PropValue),
@@ -941,7 +977,8 @@ fn decode_ime_preedit(
     }
     _ -> None
   }
-  Ok(EventMessage(event.ImePreedit(text:, cursor:)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.ImePreedit(text:, cursor:, captured:)))
 }
 
 fn decode_ime_commit(
@@ -949,7 +986,15 @@ fn decode_ime_commit(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let data = get_map(map, "data")
   let text = get_string_or(data, "text", "")
-  Ok(EventMessage(event.ImeCommit(text:)))
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.ImeCommit(text:, captured:)))
+}
+
+fn decode_ime_closed(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let captured = get_bool_or(map, "captured", False)
+  Ok(EventMessage(event.ImeClosed(captured:)))
 }
 
 // ---------------------------------------------------------------------------

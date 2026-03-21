@@ -239,10 +239,15 @@ pub fn encode_widget_op(
 pub fn encode_subscribe(
   kind: String,
   tag: String,
+  max_rate: option.Option(Int),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
   let fields = [#("kind", StringVal(kind)), #("tag", StringVal(tag))]
+  let fields = case max_rate {
+    option.Some(rate) -> list.append(fields, [#("max_rate", IntVal(rate))])
+    option.None -> fields
+  }
   serialize(message("subscribe", session, fields), format)
 }
 

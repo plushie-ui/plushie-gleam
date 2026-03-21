@@ -168,7 +168,7 @@ type LoopState(model) {
 
 type SubEntry {
   TimerSub(timer: process.Timer, interval_ms: Int, tag: String)
-  RendererSub(kind: String)
+  RendererSub(kind: String, max_rate: option.Option(Int))
 }
 
 // -- Process entry point -----------------------------------------------------
@@ -1826,14 +1826,34 @@ fn sync_subscriptions(
       }
     })
 
-  // Start new subscriptions
+  // Start new subscriptions and update max_rate on kept renderer subs
   dict.fold(desired_by_key, current, fn(acc, key, sub) {
-    case dict.has_key(acc, key) {
-      True -> acc
-      False -> {
+    case dict.get(acc, key) {
+      Error(_) -> {
         let entry = start_subscription(sub, bridge, self, opts)
         dict.insert(acc, key, entry)
       }
+      Ok(RendererSub(kind:, max_rate: old_rate)) -> {
+        let new_rate = subscription.get_max_rate(sub)
+        case old_rate == new_rate {
+          True -> acc
+          False -> {
+            let tag = subscription.tag(sub)
+            send_encoded(
+              bridge,
+              encode.encode_subscribe(
+                kind,
+                tag,
+                new_rate,
+                opts.session,
+                opts.format,
+              ),
+            )
+            dict.insert(acc, key, RendererSub(kind:, max_rate: new_rate))
+          }
+        }
+      }
+      Ok(_) -> acc
     }
   })
 }
@@ -1861,11 +1881,12 @@ fn start_subscription(
     _ -> {
       let kind = subscription.wire_kind(sub)
       let tag = subscription.tag(sub)
+      let max_rate = subscription.get_max_rate(sub)
       send_encoded(
         bridge,
-        encode.encode_subscribe(kind, tag, opts.session, opts.format),
+        encode.encode_subscribe(kind, tag, max_rate, opts.session, opts.format),
       )
-      RendererSub(kind:)
+      RendererSub(kind:, max_rate:)
     }
   }
 }
@@ -1880,7 +1901,7 @@ fn stop_subscription(
       process.cancel_timer(timer)
       Nil
     }
-    RendererSub(kind:) -> {
+    RendererSub(kind:, ..) -> {
       send_encoded(
         bridge,
         encode.encode_unsubscribe(kind, opts.session, opts.format),

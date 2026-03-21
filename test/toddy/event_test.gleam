@@ -25,11 +25,13 @@ pub fn key_press_with_modifiers_test() {
   let evt =
     KeyPress(
       key: "s",
+      modified_key: "s",
       modifiers: mods,
       physical_key: Some("KeyS"),
       location: Standard,
       text: Some("s"),
       repeat: False,
+      captured: False,
     )
 
   assert evt.key == "s"

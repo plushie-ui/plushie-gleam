@@ -116,18 +116,22 @@ pub type Event {
   // --- Key events ---
   KeyPress(
     key: String,
+    modified_key: String,
     modifiers: Modifiers,
     physical_key: Option(String),
     location: KeyLocation,
     text: Option(String),
     repeat: Bool,
+    captured: Bool,
   )
   KeyRelease(
     key: String,
+    modified_key: String,
     modifiers: Modifiers,
     physical_key: Option(String),
     location: KeyLocation,
     text: Option(String),
+    captured: Bool,
   )
 
   // --- Window events ---
@@ -151,27 +155,32 @@ pub type Event {
   WindowFilesHoveredLeft(window_id: String)
 
   // --- Mouse events (global subscriptions) ---
-  MouseMoved(x: Float, y: Float)
-  MouseEntered
-  MouseLeft
-  MouseButtonPressed(button: MouseButton, x: Float, y: Float)
-  MouseButtonReleased(button: MouseButton, x: Float, y: Float)
-  MouseWheelScrolled(delta_x: Float, delta_y: Float, unit: ScrollUnit)
+  MouseMoved(x: Float, y: Float, captured: Bool)
+  MouseEntered(captured: Bool)
+  MouseLeft(captured: Bool)
+  MouseButtonPressed(button: MouseButton, x: Float, y: Float, captured: Bool)
+  MouseButtonReleased(button: MouseButton, x: Float, y: Float, captured: Bool)
+  MouseWheelScrolled(
+    delta_x: Float,
+    delta_y: Float,
+    unit: ScrollUnit,
+    captured: Bool,
+  )
 
   // --- Touch events ---
-  TouchPressed(finger_id: Int, x: Float, y: Float)
-  TouchMoved(finger_id: Int, x: Float, y: Float)
-  TouchLifted(finger_id: Int, x: Float, y: Float)
-  TouchLost(finger_id: Int, x: Float, y: Float)
+  TouchPressed(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchMoved(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLifted(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLost(finger_id: Int, x: Float, y: Float, captured: Bool)
 
   // --- IME events ---
-  ImeOpened
-  ImePreedit(text: String, cursor: Option(#(Int, Int)))
-  ImeCommit(text: String)
-  ImeClosed
+  ImeOpened(captured: Bool)
+  ImePreedit(text: String, cursor: Option(#(Int, Int)), captured: Bool)
+  ImeCommit(text: String, captured: Bool)
+  ImeClosed(captured: Bool)
 
   // --- Modifier change ---
-  ModifiersChanged(modifiers: Modifiers)
+  ModifiersChanged(modifiers: Modifiers, captured: Bool)
 
   // --- Sensor events ---
   SensorResize(id: String, scope: List(String), width: Float, height: Float)

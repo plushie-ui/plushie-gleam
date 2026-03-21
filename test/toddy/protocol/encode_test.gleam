@@ -313,11 +313,33 @@ pub fn encode_patch_msgpack_round_trip_test() {
 
 pub fn encode_subscribe_test() {
   let assert Ok(bytes) =
-    encode.encode_subscribe("on_key_press", "keys", "", protocol.Json)
+    encode.encode_subscribe(
+      "on_key_press",
+      "keys",
+      option.None,
+      "",
+      protocol.Json,
+    )
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"subscribe\"")
   assert string.contains(s, "\"kind\":\"on_key_press\"")
   assert string.contains(s, "\"tag\":\"keys\"")
+}
+
+pub fn encode_subscribe_with_max_rate_test() {
+  let assert Ok(bytes) =
+    encode.encode_subscribe(
+      "on_mouse_move",
+      "mouse",
+      option.Some(30),
+      "",
+      protocol.Json,
+    )
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"type\":\"subscribe\"")
+  assert string.contains(s, "\"kind\":\"on_mouse_move\"")
+  assert string.contains(s, "\"tag\":\"mouse\"")
+  assert string.contains(s, "\"max_rate\":30")
 }
 
 pub fn encode_unsubscribe_test() {
@@ -394,18 +416,9 @@ pub fn encode_image_op_msgpack_binary_native_test() {
     encode.encode_image_op("create_image", payload, "", protocol.Msgpack)
   let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
   let assert data.Map(m) = decoded
-  should.equal(
-    dict.get(m, data.String("type")),
-    Ok(data.String("image_op")),
-  )
-  should.equal(
-    dict.get(m, data.String("op")),
-    Ok(data.String("create_image")),
-  )
-  should.equal(
-    dict.get(m, data.String("handle")),
-    Ok(data.String("logo")),
-  )
+  should.equal(dict.get(m, data.String("type")), Ok(data.String("image_op")))
+  should.equal(dict.get(m, data.String("op")), Ok(data.String("create_image")))
+  should.equal(dict.get(m, data.String("handle")), Ok(data.String("logo")))
   // Binary data uses native msgpack binary type
   should.equal(
     dict.get(m, data.String("data")),
