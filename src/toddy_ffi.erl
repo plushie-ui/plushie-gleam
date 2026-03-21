@@ -26,7 +26,15 @@
     extract_eof/1,
     null_port/0,
     drain_timer_ticks/2,
-    stable_hash_key/1
+    stable_hash_key/1,
+    gleam_build/0,
+    reload_modules/1,
+    list_beam_files/1,
+    start_file_watcher/1,
+    file_watcher_subscribe/1,
+    sha256_hex/1,
+    crc32/1,
+    zlib_compress/1
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -220,3 +228,52 @@ drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag) ->
 %% how the value is wrapped (e.g. raw vs Dynamic).
 stable_hash_key(Value) ->
     integer_to_binary(erlang:phash2(Value)).
+
+%% Run `gleam build` and return the output as a binary string.
+gleam_build() ->
+    Output = os:cmd("gleam build 2>&1"),
+    list_to_binary(Output).
+
+%% Reload a list of module atoms: purge and reload each.
+reload_modules(Modules) ->
+    lists:foreach(fun(M) ->
+        code:purge(M),
+        code:load_file(M)
+    end, Modules),
+    nil.
+
+%% Scan a directory for .beam files, returning [{ModuleAtom, Mtime}].
+list_beam_files(Dir) ->
+    DirStr = binary_to_list(Dir),
+    case filelib:wildcard(DirStr ++ "/**/*.beam") of
+        [] -> [];
+        Files ->
+            [{list_to_atom(filename:basename(F, ".beam")),
+              filelib:last_modified(F)} || F <- Files]
+    end.
+
+%% Start a file_system watcher on the given list of directories.
+start_file_watcher(Dirs) ->
+    DirsStr = [binary_to_list(D) || D <- Dirs],
+    {ok, Pid} = file_system:start_link(DirsStr),
+    Pid.
+
+%% Subscribe the calling process to file events from the watcher.
+file_watcher_subscribe(Pid) ->
+    file_system:subscribe(Pid),
+    nil.
+
+%% Compute SHA-256 hash and return as lowercase hex binary.
+sha256_hex(Data) ->
+    Hash = crypto:hash(sha256, Data),
+    list_to_binary(string:lowercase(binary_to_list(
+        << <<(integer_to_binary(B, 16))/binary>> || <<B:4>> <= Hash >>
+    ))).
+
+%% CRC32 of binary data.
+crc32(Data) ->
+    erlang:crc32(Data).
+
+%% Zlib compress binary data.
+zlib_compress(Data) ->
+    zlib:compress(Data).

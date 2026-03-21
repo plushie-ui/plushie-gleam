@@ -56,6 +56,8 @@ pub type RuntimeMessage {
   ProcessDown(process.Down)
   /// Delayed renderer restart attempt.
   RestartRenderer
+  /// Force a re-render without resetting state (dev-mode live reload).
+  ForceRerender
   /// Shutdown.
   Shutdown
 }
@@ -722,6 +724,79 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
         Error(_) -> {
           io.println("toddy: failed to restart renderer, giving up")
           Nil
+        }
+      }
+    }
+
+    ForceRerender -> {
+      io.println("toddy runtime: force re-render (code reload)")
+      // Re-render view and diff/patch
+      let view_fn = app.get_view(state.app)
+      case ffi.try_call(fn() { view_fn(state.model) }) {
+        Ok(new_tree_raw) -> {
+          let new_tree = tree.normalize(new_tree_raw)
+          // Diff and send patch (or snapshot if no previous tree)
+          case state.tree {
+            Some(old_tree) -> {
+              let ops = tree.diff(old_tree, new_tree)
+              case ops {
+                [] -> Nil
+                _ ->
+                  send_encoded(
+                    state.bridge,
+                    encode.encode_patch(
+                      ops,
+                      state.opts.session,
+                      state.opts.format,
+                    ),
+                  )
+              }
+            }
+            None ->
+              send_encoded(
+                state.bridge,
+                encode.encode_snapshot(
+                  new_tree,
+                  state.opts.session,
+                  state.opts.format,
+                ),
+              )
+          }
+          // Re-sync subscriptions
+          let new_subs =
+            sync_subscriptions(
+              safe_subscribe(state.app, state.model),
+              state.active_subs,
+              state.bridge,
+              state.self,
+              state.opts,
+            )
+          // Re-sync windows
+          let new_windows = detect_windows(new_tree)
+          sync_windows(
+            new_tree,
+            state.windows,
+            new_windows,
+            state.tree,
+            state.bridge,
+            state.app,
+            state.model,
+            state.opts,
+          )
+          LoopState(
+            ..state,
+            tree: Some(new_tree),
+            active_subs: new_subs,
+            windows: new_windows,
+          )
+          |> message_loop()
+        }
+        Error(reason) -> {
+          io.println(
+            "toddy runtime: force re-render view crashed: "
+            <> string.inspect(reason),
+          )
+          message_loop(state)
         }
       }
     }

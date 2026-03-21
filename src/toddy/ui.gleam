@@ -250,21 +250,13 @@ pub fn grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
   make_node(id, "grid", attrs, children)
 }
 
-pub fn keyed_column(
-  id: String,
-  attrs: List(Attr),
-  children: List(Node),
-) -> Node {
+pub fn keyed_column(id: String, attrs: List(Attr), children: List(Node)) -> Node {
   make_node(id, "keyed_column", attrs, children)
 }
 
 // --- Responsive / positional wrappers ----------------------------------------
 
-pub fn responsive(
-  id: String,
-  attrs: List(Attr),
-  children: List(Node),
-) -> Node {
+pub fn responsive(id: String, attrs: List(Attr), children: List(Node)) -> Node {
   make_node(id, "responsive", attrs, children)
 }
 
@@ -278,11 +270,7 @@ pub fn floating(id: String, attrs: List(Attr), children: List(Node)) -> Node {
 
 // --- Interaction wrappers ----------------------------------------------------
 
-pub fn mouse_area(
-  id: String,
-  attrs: List(Attr),
-  children: List(Node),
-) -> Node {
+pub fn mouse_area(id: String, attrs: List(Attr), children: List(Node)) -> Node {
   make_node(id, "mouse_area", attrs, children)
 }
 

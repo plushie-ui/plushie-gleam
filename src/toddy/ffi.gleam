@@ -112,3 +112,35 @@ pub fn null_port() -> Port
 /// value is wrapped (raw term vs Dynamic).
 @external(erlang, "toddy_ffi", "stable_hash_key")
 pub fn stable_hash_key(value: Dynamic) -> String
+
+/// Run `gleam build` and return the output.
+@external(erlang, "toddy_ffi", "gleam_build")
+pub fn gleam_build() -> String
+
+/// Reload a list of module atoms (purge + load_file).
+@external(erlang, "toddy_ffi", "reload_modules")
+pub fn reload_modules(modules: List(Dynamic)) -> Nil
+
+/// List .beam files in a directory, returning (module_atom, mtime) tuples.
+@external(erlang, "toddy_ffi", "list_beam_files")
+pub fn list_beam_files(dir: String) -> List(#(Dynamic, Dynamic))
+
+/// Start a file_system watcher on the given directories.
+@external(erlang, "toddy_ffi", "start_file_watcher")
+pub fn start_file_watcher(dirs: List(String)) -> Dynamic
+
+/// Subscribe the calling process to file events from the watcher.
+@external(erlang, "toddy_ffi", "file_watcher_subscribe")
+pub fn file_watcher_subscribe(pid: Dynamic) -> Nil
+
+/// Compute SHA-256 hash and return as lowercase hex string.
+@external(erlang, "toddy_ffi", "sha256_hex")
+pub fn sha256_hex(data: BitArray) -> String
+
+/// CRC32 of binary data.
+@external(erlang, "toddy_ffi", "crc32")
+pub fn crc32(data: BitArray) -> Int
+
+/// Zlib compress binary data.
+@external(erlang, "toddy_ffi", "zlib_compress")
+pub fn zlib_compress(data: BitArray) -> BitArray

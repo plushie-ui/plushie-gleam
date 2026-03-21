@@ -44,6 +44,7 @@ import gleam/result
 import toddy/app.{type App}
 import toddy/binary
 import toddy/bridge
+import toddy/dev_server
 import toddy/protocol
 import toddy/runtime
 
@@ -79,6 +80,10 @@ pub type StartOpts {
     renderer_args: List(String),
     /// Transport mode. Default: Spawn.
     transport: Transport,
+    /// Enable dev-mode live reload. Default: False.
+    /// When True, starts a file watcher that recompiles on source
+    /// changes and triggers a force re-render without losing state.
+    dev: Bool,
   )
 }
 
@@ -92,6 +97,7 @@ pub fn default_start_opts() -> StartOpts {
     app_opts: dynamic.nil(),
     renderer_args: [],
     transport: Spawn,
+    dev: False,
   )
 }
 
@@ -132,8 +138,18 @@ pub fn start(
       renderer_args: opts.renderer_args,
     )
 
-  runtime.start(app, binary_path, runtime_opts)
-  |> result.map_error(RuntimeStartFailed)
+  let runtime_result =
+    runtime.start(app, binary_path, runtime_opts)
+    |> result.map_error(RuntimeStartFailed)
+
+  // Start the dev server if dev mode is enabled
+  case runtime_result, opts.dev {
+    Ok(runtime_subject), True -> {
+      dev_server.start(runtime_subject)
+      runtime_result
+    }
+    _, _ -> runtime_result
+  }
 }
 
 /// Stop a running toddy application by sending Shutdown to the runtime.

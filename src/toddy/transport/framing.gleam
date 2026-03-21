@@ -18,9 +18,7 @@ pub fn encode_packet(data: BitArray) -> BitArray {
 
 /// Extract complete length-prefixed frames from a buffer.
 /// Returns the decoded messages and any remaining partial data.
-pub fn decode_packets(
-  buffer: BitArray,
-) -> #(List(BitArray), BitArray) {
+pub fn decode_packets(buffer: BitArray) -> #(List(BitArray), BitArray) {
   decode_packets_loop(buffer, [])
 }
 
@@ -49,9 +47,7 @@ pub fn encode_line(data: BitArray) -> BitArray {
 
 /// Split a buffer on newline boundaries.
 /// Returns complete lines and any remaining partial line.
-pub fn decode_lines(
-  buffer: BitArray,
-) -> #(List(BitArray), BitArray) {
+pub fn decode_lines(buffer: BitArray) -> #(List(BitArray), BitArray) {
   decode_lines_loop(buffer, 0, [])
 }
 

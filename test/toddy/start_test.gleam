@@ -29,6 +29,7 @@ pub fn custom_start_opts_test() {
       app_opts: dynamic.nil(),
       renderer_args: ["--headless"],
       transport: toddy.Spawn,
+      dev: False,
     )
   assert opts.binary_path == option.Some("/usr/bin/toddy")
   assert opts.format == protocol.Json
