@@ -61,8 +61,7 @@ pub type QueryOpt(a) {
 pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
   let filter_fn = find_filter(opts)
   let search = find_search(opts)
-  let sort = find_sort(opts)
-  let sort_by = find_sort_by(opts)
+  let sort_specs = collect_sort_specs(opts)
   let page = find_page(opts)
   let page_size = find_page_size(opts)
 
@@ -83,27 +82,10 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
     }
     None -> result
   }
-  // SortBy takes precedence over Sort (custom comparison vs string key)
-  let result = case sort_by {
-    Some(#(dir, cmp)) ->
-      list.sort(result, fn(a, b) {
-        case dir {
-          Asc -> cmp(a, b)
-          Desc -> order.negate(cmp(a, b))
-        }
-      })
-    None ->
-      case sort {
-        Some(#(dir, key_fn)) ->
-          list.sort(result, fn(a, b) {
-            let cmp = string.compare(key_fn(a), key_fn(b))
-            case dir {
-              Asc -> cmp
-              Desc -> order.negate(cmp)
-            }
-          })
-        None -> result
-      }
+  // Apply all sort specs in order for multi-column tiebreaking
+  let result = case sort_specs {
+    [] -> result
+    specs -> list.sort(result, fn(a, b) { compare_multi(a, b, specs) })
   }
   let total = list.length(result)
   let result = paginate(result, page, page_size)
@@ -151,28 +133,50 @@ fn find_search(
   |> option.from_result()
 }
 
-fn find_sort(
-  opts: List(QueryOpt(a)),
-) -> Option(#(SortDirection, fn(a) -> String)) {
-  list.find_map(opts, fn(opt) {
-    case opt {
-      Sort(direction:, key:) -> Ok(#(direction, key))
-      _ -> Error(Nil)
-    }
-  })
-  |> option.from_result()
+/// A normalized sort comparator with direction applied.
+type SortSpec(a) {
+  SortSpec(compare: fn(a, a) -> order.Order)
 }
 
-fn find_sort_by(
-  opts: List(QueryOpt(a)),
-) -> Option(#(SortDirection, fn(a, a) -> order.Order)) {
-  list.find_map(opts, fn(opt) {
+/// Collect all Sort and SortBy opts (in order) into normalized comparators.
+/// Multiple sort specs enable multi-column tiebreaking.
+fn collect_sort_specs(opts: List(QueryOpt(a))) -> List(SortSpec(a)) {
+  list.filter_map(opts, fn(opt) {
     case opt {
-      SortBy(direction:, compare:) -> Ok(#(direction, compare))
+      Sort(direction: dir, key: key_fn) ->
+        Ok(
+          SortSpec(compare: fn(a, b) {
+            let cmp = string.compare(key_fn(a), key_fn(b))
+            case dir {
+              Asc -> cmp
+              Desc -> order.negate(cmp)
+            }
+          }),
+        )
+      SortBy(direction: dir, compare: cmp) ->
+        Ok(
+          SortSpec(compare: fn(a, b) {
+            case dir {
+              Asc -> cmp(a, b)
+              Desc -> order.negate(cmp(a, b))
+            }
+          }),
+        )
       _ -> Error(Nil)
     }
   })
-  |> option.from_result()
+}
+
+/// Multi-column tiebreaking: walk through sort specs until one breaks the tie.
+fn compare_multi(a: a, b: a, specs: List(SortSpec(a))) -> order.Order {
+  case specs {
+    [] -> order.Eq
+    [spec, ..rest] ->
+      case spec.compare(a, b) {
+        order.Eq -> compare_multi(a, b, rest)
+        result -> result
+      }
+  }
 }
 
 fn find_page(opts: List(QueryOpt(a))) -> Int {

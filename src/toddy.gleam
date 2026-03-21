@@ -43,8 +43,24 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import toddy/app.{type App}
 import toddy/binary
+import toddy/bridge
 import toddy/protocol
 import toddy/runtime
+
+/// Transport mode for communicating with the renderer.
+///
+/// - `Spawn` (default): spawns the renderer binary as a child process
+///   using an Erlang Port.
+/// - `Stdio`: reads/writes the BEAM's own stdin/stdout. Used when the
+///   renderer spawns the Gleam process (e.g. `toddy --exec`).
+/// - `Iostream`: sends and receives protocol messages via an external
+///   process. Used for custom transports like SSH channels, TCP sockets,
+///   or WebSockets where an adapter process handles the underlying I/O.
+pub type Transport {
+  Spawn
+  Stdio
+  Iostream(adapter: Subject(bridge.IoStreamMessage))
+}
 
 /// Options for starting a toddy application.
 pub type StartOpts {
@@ -61,6 +77,8 @@ pub type StartOpts {
     app_opts: Dynamic,
     /// Extra CLI arguments prepended to the renderer command.
     renderer_args: List(String),
+    /// Transport mode. Default: Spawn.
+    transport: Transport,
   )
 }
 
@@ -73,6 +91,7 @@ pub fn default_start_opts() -> StartOpts {
     session: "",
     app_opts: dynamic.nil(),
     renderer_args: [],
+    transport: Spawn,
   )
 }
 

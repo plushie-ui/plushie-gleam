@@ -274,7 +274,7 @@ fn run(
     LoopState(
       ..state,
       active_subs: sync_subscriptions(
-        app.get_subscribe(app)(state.model),
+        safe_subscribe(app, state.model),
         state.active_subs,
         bridge,
         self,
@@ -442,6 +442,9 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
     }
 
     TimerFired(tag:) -> {
+      // Drain any queued ticks for the same tag to coalesce rapid-fire
+      // timer events (only the latest tick matters).
+      drain_matching_ticks(state.self, tag)
       let timestamp = erlang_monotonic_time()
       let new_state = handle_event(state, event.TimerTick(tag:, timestamp:))
       reschedule_timer(new_state, tag) |> message_loop()
@@ -678,7 +681,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           // Re-sync subscriptions with new renderer
           let new_subs =
             sync_subscriptions(
-              app.get_subscribe(state.app)(state.model),
+              safe_subscribe(state.app, state.model),
               dict.new(),
               new_bridge,
               state.self,
@@ -959,7 +962,7 @@ fn dispatch_update(
           // Sync subscriptions
           let new_subs =
             sync_subscriptions(
-              app.get_subscribe(state.app)(new_model),
+              safe_subscribe(state.app, new_model),
               state.active_subs,
               state.bridge,
               state.self,
@@ -1961,6 +1964,24 @@ fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
 
 // -- Subscription management -------------------------------------------------
 
+/// Call the app's subscribe callback wrapped in try_call.
+/// On error, log and return an empty list so the runtime stays alive.
+fn safe_subscribe(
+  application: App(model, msg),
+  model: model,
+) -> List(Subscription) {
+  let subscribe_fn = app.get_subscribe(application)
+  case ffi.try_call(fn() { subscribe_fn(model) }) {
+    Ok(subs) -> subs
+    Error(reason) -> {
+      io.println(
+        "toddy runtime: subscribe/1 raised: " <> string.inspect(reason),
+      )
+      []
+    }
+  }
+}
+
 fn sync_subscriptions(
   desired: List(Subscription),
   current: Dict(String, SubEntry),
@@ -2069,6 +2090,14 @@ fn stop_subscription(
     }
   }
 }
+
+/// Drain queued TimerFired messages for the same tag from the mailbox.
+/// Uses Erlang selective receive (via FFI) with zero timeout to consume
+/// only matching messages without disturbing other mailbox contents.
+/// This coalesces rapid-fire timer ticks so the runtime only processes
+/// the latest one.
+@external(erlang, "toddy_ffi", "drain_timer_ticks")
+fn drain_matching_ticks(subject: Subject(RuntimeMessage), tag: String) -> Nil
 
 /// Reschedule a timer subscription after it fires.
 /// Matches by the tag stored in the SubEntry (not string matching).

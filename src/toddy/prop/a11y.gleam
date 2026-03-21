@@ -101,6 +101,125 @@ pub fn live(a: A11y, s: String) -> A11y {
   A11y(props: dict.insert(a.props, "live", StringVal(s)))
 }
 
+/// Set expanded/collapsed state for disclosure widgets.
+pub fn expanded(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "expanded", BoolVal(b)))
+}
+
+/// Mark a form field as required.
+pub fn required(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "required", BoolVal(b)))
+}
+
+/// Set loading/processing state.
+pub fn busy(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "busy", BoolVal(b)))
+}
+
+/// Set form validation failure state.
+pub fn invalid(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "invalid", BoolVal(b)))
+}
+
+/// Set whether a dialog is modal.
+pub fn modal(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "modal", BoolVal(b)))
+}
+
+/// Set read-only state (can be read but not edited).
+pub fn read_only(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "read_only", BoolVal(b)))
+}
+
+/// Set an Alt+letter keyboard shortcut (single character).
+pub fn mnemonic(a: A11y, s: String) -> A11y {
+  A11y(props: dict.insert(a.props, "mnemonic", StringVal(s)))
+}
+
+/// Set toggled/checked state for custom toggle widgets.
+pub fn toggled(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "toggled", BoolVal(b)))
+}
+
+/// Set selected state for custom selectable widgets.
+pub fn selected(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "selected", BoolVal(b)))
+}
+
+/// Set the current value as a string (for custom value-displaying widgets).
+pub fn value(a: A11y, s: String) -> A11y {
+  A11y(props: dict.insert(a.props, "value", StringVal(s)))
+}
+
+/// Orientation type for accessible widgets.
+pub type Orientation {
+  Horizontal
+  Vertical
+}
+
+/// Set the orientation of the widget.
+pub fn orientation(a: A11y, o: Orientation) -> A11y {
+  let val = case o {
+    Horizontal -> "horizontal"
+    Vertical -> "vertical"
+  }
+  A11y(props: dict.insert(a.props, "orientation", StringVal(val)))
+}
+
+/// Set the ID of the widget that labels this one.
+/// Resolved during tree normalization (scoped ID lookup).
+pub fn labelled_by(a: A11y, id: String) -> A11y {
+  A11y(props: dict.insert(a.props, "labelled_by", StringVal(id)))
+}
+
+/// Set the ID of the widget that describes this one.
+/// Resolved during tree normalization (scoped ID lookup).
+pub fn described_by(a: A11y, id: String) -> A11y {
+  A11y(props: dict.insert(a.props, "described_by", StringVal(id)))
+}
+
+/// Set the ID of the widget showing the error message for this one.
+/// Resolved during tree normalization (scoped ID lookup).
+pub fn error_message(a: A11y, id: String) -> A11y {
+  A11y(props: dict.insert(a.props, "error_message", StringVal(id)))
+}
+
+/// Override disabled state for assistive technology.
+pub fn disabled(a: A11y, b: Bool) -> A11y {
+  A11y(props: dict.insert(a.props, "disabled", BoolVal(b)))
+}
+
+/// Set 1-based position within a set (lists, radio groups, tabs).
+pub fn position_in_set(a: A11y, n: Int) -> A11y {
+  A11y(props: dict.insert(a.props, "position_in_set", IntVal(n)))
+}
+
+/// Set the total number of items in the set.
+pub fn size_of_set(a: A11y, n: Int) -> A11y {
+  A11y(props: dict.insert(a.props, "size_of_set", IntVal(n)))
+}
+
+/// Popup type for has_popup attribute.
+pub type HasPopup {
+  ListboxPopup
+  MenuPopup
+  DialogPopup
+  TreePopup
+  GridPopup
+}
+
+/// Set the popup type for this widget.
+pub fn has_popup(a: A11y, p: HasPopup) -> A11y {
+  let val = case p {
+    ListboxPopup -> "listbox"
+    MenuPopup -> "menu"
+    DialogPopup -> "dialog"
+    TreePopup -> "tree"
+    GridPopup -> "grid"
+  }
+  A11y(props: dict.insert(a.props, "has_popup", StringVal(val)))
+}
+
 /// Set an arbitrary accessibility property.
 pub fn set(a: A11y, key: String, val: PropValue) -> A11y {
   A11y(props: dict.insert(a.props, key, val))

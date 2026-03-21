@@ -139,8 +139,8 @@ pub type Event {
     window_id: String,
     width: Float,
     height: Float,
-    x: Float,
-    y: Float,
+    position_x: Option(Float),
+    position_y: Option(Float),
     scale_factor: Float,
   )
   WindowClosed(window_id: String)
@@ -158,8 +158,8 @@ pub type Event {
   MouseMoved(x: Float, y: Float, captured: Bool)
   MouseEntered(captured: Bool)
   MouseLeft(captured: Bool)
-  MouseButtonPressed(button: MouseButton, x: Float, y: Float, captured: Bool)
-  MouseButtonReleased(button: MouseButton, x: Float, y: Float, captured: Bool)
+  MouseButtonPressed(button: MouseButton, captured: Bool)
+  MouseButtonReleased(button: MouseButton, captured: Bool)
   MouseWheelScrolled(
     delta_x: Float,
     delta_y: Float,
@@ -186,11 +186,11 @@ pub type Event {
   SensorResize(id: String, scope: List(String), width: Float, height: Float)
 
   // --- MouseArea events ---
-  MouseAreaRightPress(id: String, scope: List(String), x: Float, y: Float)
-  MouseAreaRightRelease(id: String, scope: List(String), x: Float, y: Float)
-  MouseAreaMiddlePress(id: String, scope: List(String), x: Float, y: Float)
-  MouseAreaMiddleRelease(id: String, scope: List(String), x: Float, y: Float)
-  MouseAreaDoubleClick(id: String, scope: List(String), x: Float, y: Float)
+  MouseAreaRightPress(id: String, scope: List(String))
+  MouseAreaRightRelease(id: String, scope: List(String))
+  MouseAreaMiddlePress(id: String, scope: List(String))
+  MouseAreaMiddleRelease(id: String, scope: List(String))
+  MouseAreaDoubleClick(id: String, scope: List(String))
   MouseAreaEnter(id: String, scope: List(String))
   MouseAreaExit(id: String, scope: List(String))
   MouseAreaMove(id: String, scope: List(String), x: Float, y: Float)
@@ -256,6 +256,12 @@ pub type Event {
   // --- Async/Stream ---
   AsyncResult(tag: String, result: Result(Dynamic, Dynamic))
   StreamValue(tag: String, value: Dynamic)
+
+  // --- Accessibility ---
+  Announce(text: String)
+
+  // --- Error events ---
+  DuplicateNodeIds(details: Dynamic)
 
   // --- Effect response ---
   EffectResponse(request_id: String, result: EffectResult)

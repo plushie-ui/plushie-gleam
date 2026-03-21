@@ -39,6 +39,7 @@ pub type InboundMessage {
     name: String,
     backend: String,
     extensions: List(String),
+    transport: String,
   )
 
   /// A user interaction or system event.
@@ -291,6 +292,17 @@ fn get_optional_string(
   }
 }
 
+fn get_optional_float(
+  map: Dict(String, PropValue),
+  key: String,
+) -> Option(Float) {
+  case dict.get(map, key) {
+    Ok(PFloat(f)) -> Some(f)
+    Ok(PInt(n)) -> Some(int.to_float(n))
+    _ -> None
+  }
+}
+
 fn get_string_or(
   map: Dict(String, PropValue),
   key: String,
@@ -396,7 +408,8 @@ fn decode_hello(
   use name <- result.try(get_string(map, "name"))
   let backend = get_string_or(map, "backend", "unknown")
   let extensions = get_string_list(map, "extensions")
-  Ok(Hello(protocol: proto, version:, name:, backend:, extensions:))
+  let transport = get_string_or(map, "transport", "stdio")
+  Ok(Hello(protocol: proto, version:, name:, backend:, extensions:, transport:))
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +585,12 @@ fn decode_event(
     "animation_frame" -> decode_animation_frame(map)
     "theme_changed" -> decode_theme_changed(map)
     "all_windows_closed" -> Ok(EventMessage(event.AllWindowsClosed))
+
+    // Announce (headless/mock: screen reader announcements)
+    "announce" -> decode_announce(map)
+
+    // Error events
+    "error" -> decode_error_event(map)
 
     // Unknown family -- wrap in the catch-all WidgetEvent
     _ -> decode_generic_widget_event(map, family)
@@ -815,12 +834,14 @@ fn decode_window_opened(
   use window_id <- result.try(get_string(data, "window_id"))
   use width <- result.try(get_float(data, "width"))
   use height <- result.try(get_float(data, "height"))
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  // Position may also be nested under a "position" key
+  // Position may be at top level x/y or nested under a "position" key.
+  // When absent/null, use None.
   let #(px, py) = case dict.get(data, "position") {
-    Ok(PMap(pos)) -> #(get_float_or(pos, "x", x), get_float_or(pos, "y", y))
-    _ -> #(x, y)
+    Ok(PMap(pos)) -> #(
+      get_optional_float(pos, "x"),
+      get_optional_float(pos, "y"),
+    )
+    _ -> #(get_optional_float(data, "x"), get_optional_float(data, "y"))
   }
   let scale_factor = get_float_or(data, "scale_factor", 1.0)
   Ok(
@@ -828,8 +849,8 @@ fn decode_window_opened(
       window_id:,
       width:,
       height:,
-      x: px,
-      y: py,
+      position_x: px,
+      position_y: py,
       scale_factor:,
     )),
   )
@@ -913,15 +934,12 @@ fn decode_cursor_left(
 
 fn decode_mouse_button(
   map: Dict(String, PropValue),
-  constructor: fn(MouseButton, Float, Float, Bool) -> Event,
+  constructor: fn(MouseButton, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let button_str = get_string_or(map, "value", "left")
   let button = parse_mouse_button(button_str)
-  let data = get_map(map, "data")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(constructor(button, x, y, captured)))
+  Ok(EventMessage(constructor(button, captured)))
 }
 
 fn decode_wheel_scrolled(
@@ -1018,14 +1036,11 @@ fn decode_sensor_resize(
 
 fn decode_mouse_area_no_coords(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String), Float, Float) -> Event,
+  constructor: fn(String, List(String)) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
-  let data = get_map(map, "data")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
   let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope, x, y)))
+  Ok(EventMessage(constructor(local, scope)))
 }
 
 fn decode_mouse_area_move(
@@ -1179,4 +1194,36 @@ fn decode_theme_changed(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use theme <- result.try(get_string(map, "value"))
   Ok(EventMessage(event.ThemeChanged(theme:)))
+}
+
+// ---------------------------------------------------------------------------
+// Announce event decoder
+// ---------------------------------------------------------------------------
+
+fn decode_announce(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let data = get_map(map, "data")
+  let text = get_string_or(data, "text", "")
+  Ok(EventMessage(event.Announce(text:)))
+}
+
+// ---------------------------------------------------------------------------
+// Error event decoder
+// ---------------------------------------------------------------------------
+
+fn decode_error_event(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let error_id = get_string_or(map, "id", "")
+  case error_id {
+    "duplicate_node_ids" -> {
+      let details = case dict.get(map, "data") {
+        Ok(v) -> prop_to_dynamic(v)
+        Error(_) -> dynamic.nil()
+      }
+      Ok(EventMessage(event.DuplicateNodeIds(details:)))
+    }
+    _ -> decode_generic_widget_event(map, "error")
+  }
 }

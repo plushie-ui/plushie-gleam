@@ -1,5 +1,5 @@
 import gleam/bit_array
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleeunit/should
 import toddy/event
 import toddy/protocol
@@ -58,7 +58,14 @@ pub fn decode_hello_with_extras_json_test() {
   let data = bit_array.from_string(json)
   let assert Ok(msg) = decode.decode_message(data, protocol.Json)
   case msg {
-    decode.Hello(protocol:, version:, name:, backend:, extensions:) -> {
+    decode.Hello(
+      protocol:,
+      version:,
+      name:,
+      backend:,
+      extensions:,
+      transport: _,
+    ) -> {
       should.equal(protocol, 1)
       should.equal(version, "0.2.0")
       should.equal(name, "toddy")
@@ -224,12 +231,19 @@ pub fn decode_window_opened_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowOpened(window_id:, width:, height:, x:, y:, scale_factor:) -> {
+    event.WindowOpened(
+      window_id:,
+      width:,
+      height:,
+      position_x:,
+      position_y:,
+      scale_factor:,
+    ) -> {
       should.equal(window_id, "main")
       should.equal(width, 800.0)
       should.equal(height, 600.0)
-      should.equal(x, 100.0)
-      should.equal(y, 50.0)
+      should.equal(position_x, Some(100.0))
+      should.equal(position_y, Some(50.0))
       should.equal(scale_factor, 2.0)
     }
     _ -> should.fail()
@@ -600,6 +614,151 @@ pub fn decode_wheel_scrolled_captured_json_test() {
     decode.decode_message(data, protocol.Json)
   case evt {
     event.MouseWheelScrolled(captured:, ..) -> should.equal(captured, True)
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hello transport field
+// ---------------------------------------------------------------------------
+
+pub fn decode_hello_transport_default_json_test() {
+  let json =
+    "{\"type\":\"hello\",\"protocol\":1,\"version\":\"0.1.0\",\"name\":\"toddy\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(msg) = decode.decode_message(data, protocol.Json)
+  case msg {
+    decode.Hello(transport:, ..) -> should.equal(transport, "stdio")
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_hello_transport_explicit_json_test() {
+  let json =
+    "{\"type\":\"hello\",\"protocol\":1,\"version\":\"0.1.0\",\"name\":\"toddy\",\"transport\":\"websocket\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(msg) = decode.decode_message(data, protocol.Json)
+  case msg {
+    decode.Hello(transport:, ..) -> should.equal(transport, "websocket")
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Announce event
+// ---------------------------------------------------------------------------
+
+pub fn decode_announce_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"announce\",\"data\":{\"text\":\"Item added\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Announce(text:) -> should.equal(text, "Item added")
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DuplicateNodeIds error event
+// ---------------------------------------------------------------------------
+
+pub fn decode_duplicate_node_ids_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"duplicate_node_ids\",\"data\":{\"ids\":[\"btn1\"]}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.DuplicateNodeIds(..) -> Nil
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WindowOpened with no position
+// ---------------------------------------------------------------------------
+
+pub fn decode_window_opened_no_position_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"window_opened\",\"data\":{\"window_id\":\"main\",\"width\":800.0,\"height\":600.0,\"scale_factor\":1.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.WindowOpened(position_x:, position_y:, ..) -> {
+      should.equal(position_x, None)
+      should.equal(position_y, None)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_window_opened_nested_position_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"window_opened\",\"data\":{\"window_id\":\"w\",\"width\":400.0,\"height\":300.0,\"position\":{\"x\":10.0,\"y\":20.0}}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.WindowOpened(position_x:, position_y:, ..) -> {
+      should.equal(position_x, Some(10.0))
+      should.equal(position_y, Some(20.0))
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MouseArea events without coordinates
+// ---------------------------------------------------------------------------
+
+pub fn decode_mouse_right_press_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"mouse_right_press\",\"id\":\"area1\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.MouseAreaRightPress(id:, scope:) -> {
+      should.equal(id, "area1")
+      should.equal(scope, [])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_mouse_double_click_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"mouse_double_click\",\"id\":\"area2\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.MouseAreaDoubleClick(id:, scope:) -> {
+      should.equal(id, "area2")
+      should.equal(scope, [])
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MouseButton events without coordinates
+// ---------------------------------------------------------------------------
+
+pub fn decode_button_pressed_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"button_pressed\",\"value\":\"right\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.MouseButtonPressed(button:, captured:) -> {
+      should.equal(button, event.RightButton)
+      should.equal(captured, False)
+    }
     _ -> should.fail()
   }
 }

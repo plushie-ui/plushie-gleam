@@ -1,13 +1,13 @@
-//// Async fetch example: demonstrates loading state pattern.
-////
-//// Note: Command.async is not yet fully implemented in the runtime.
-//// This example shows the intended API pattern.
+//// Async fetch example: demonstrates loading state pattern with
+//// command.async for background work.
 
+import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/erlang/process
 import toddy
 import toddy/app
 import toddy/command
-import toddy/event.{type Event, WidgetClick}
+import toddy/event.{type Event, AsyncResult, WidgetClick}
 import toddy/node.{type Node}
 import toddy/prop/padding
 import toddy/ui
@@ -29,12 +29,29 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "fetch", ..) ->
-      // When async is implemented, this would be:
-      // #(Model(..model, status: Loading), command.async(fetch_data, "fetch"))
-      #(Model(status: Loading, data: ""), command.none())
+    WidgetClick(id: "fetch", ..) -> #(
+      Model(..model, status: Loading),
+      command.async(fetch_data, "fetch"),
+    )
+    AsyncResult(tag: "fetch", result: Ok(value)) -> {
+      let data = case decode.run(value, decode.string) {
+        Ok(s) -> s
+        Error(_) -> "unexpected value"
+      }
+      #(Model(status: Loaded, data:), command.none())
+    }
+    AsyncResult(tag: "fetch", result: Error(_)) -> #(
+      Model(..model, status: Failed("fetch failed")),
+      command.none(),
+    )
     _ -> #(model, command.none())
   }
+}
+
+fn fetch_data() -> dynamic.Dynamic {
+  // Simulate async work -- in a real app this would be an HTTP request
+  process.sleep(500)
+  dynamic.string("Hello from the async world")
 }
 
 fn view(model: Model) -> Node {

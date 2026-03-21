@@ -1,6 +1,9 @@
 import gleam/dict
+import gleam/int
 import gleeunit/should
-import toddy/data.{Asc, Desc, Filter, Group, Page, PageSize, Search, Sort}
+import toddy/data.{
+  Asc, Desc, Filter, Group, Page, PageSize, Search, Sort, SortBy,
+}
 
 type Person {
   Person(name: String, age: Int, city: String)
@@ -156,3 +159,46 @@ pub fn query_group_with_pagination_test() {
 }
 
 import gleam/list
+
+// ---------------------------------------------------------------------------
+// Multi-column sort (tiebreaking)
+// ---------------------------------------------------------------------------
+
+pub fn query_multi_column_sort_test() {
+  let people = [
+    Person("Alice", 30, "London"),
+    Person("Bob", 25, "London"),
+    Person("Charlie", 25, "Berlin"),
+    Person("Diana", 30, "Paris"),
+  ]
+  // Primary sort by age ascending, secondary by name ascending
+  let result =
+    data.query(people, [
+      SortBy(direction: Asc, compare: fn(a: Person, b: Person) {
+        int.compare(a.age, b.age)
+      }),
+      Sort(direction: Asc, key: fn(p: Person) { p.name }),
+    ])
+  let names = list.map(result.entries, fn(p: Person) { p.name })
+  // Age 25: Bob, Charlie; Age 30: Alice, Diana
+  should.equal(names, ["Bob", "Charlie", "Alice", "Diana"])
+}
+
+pub fn query_multi_column_sort_desc_tiebreak_test() {
+  let people = [
+    Person("Alice", 30, "London"),
+    Person("Bob", 30, "London"),
+    Person("Charlie", 25, "Berlin"),
+  ]
+  // Primary sort by age descending, secondary by name descending
+  let result =
+    data.query(people, [
+      SortBy(direction: Desc, compare: fn(a: Person, b: Person) {
+        int.compare(a.age, b.age)
+      }),
+      Sort(direction: Desc, key: fn(p: Person) { p.name }),
+    ])
+  let names = list.map(result.entries, fn(p: Person) { p.name })
+  // Age 30 desc: Bob, Alice (name desc); Age 25: Charlie
+  should.equal(names, ["Bob", "Alice", "Charlie"])
+}

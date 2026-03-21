@@ -82,3 +82,69 @@ pub fn commands_creates_batch_test() {
 }
 
 import gleam/list
+
+// ---------------------------------------------------------------------------
+// validate
+// ---------------------------------------------------------------------------
+
+pub fn validate_valid_def_test() {
+  let result = extension.validate(gauge_def)
+  should.be_ok(result)
+}
+
+pub fn validate_empty_kind_test() {
+  let def =
+    extension.ExtensionDef(
+      kind: "",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [],
+      commands: [],
+    )
+  let assert Error(errors) = extension.validate(def)
+  should.be_true(list.contains(errors, "kind must not be empty"))
+}
+
+pub fn validate_duplicate_prop_names_test() {
+  let def =
+    extension.ExtensionDef(
+      kind: "widget",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [
+        extension.NumberProp("value"),
+        extension.StringProp("label"),
+        extension.NumberProp("value"),
+      ],
+      commands: [],
+    )
+  let assert Error(errors) = extension.validate(def)
+  should.be_true(list.contains(errors, "duplicate prop name \"value\""))
+}
+
+pub fn validate_reserved_names_test() {
+  let def =
+    extension.ExtensionDef(
+      kind: "widget",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [extension.StringProp("id"), extension.StringProp("type")],
+      commands: [],
+    )
+  let assert Error(errors) = extension.validate(def)
+  should.be_true(list.contains(errors, "prop name \"id\" is reserved"))
+  should.be_true(list.contains(errors, "prop name \"type\" is reserved"))
+}
+
+pub fn validate_multiple_errors_test() {
+  let def =
+    extension.ExtensionDef(
+      kind: "",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [extension.StringProp("children")],
+      commands: [],
+    )
+  let assert Error(errors) = extension.validate(def)
+  should.be_true(list.length(errors) >= 2)
+}

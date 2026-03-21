@@ -1,26 +1,27 @@
 import gleam/dict
 import gleeunit/should
 import toddy/node.{DictVal, FloatVal, ListVal, StringVal}
+import toddy/prop/color
 import toddy/prop/gradient
 
 pub fn linear_constructs_test() {
   let g =
     gradient.linear(45.0, [
-      gradient.stop(0.0, "#000"),
-      gradient.stop(1.0, "#fff"),
+      gradient.stop(0.0, color.black),
+      gradient.stop(1.0, color.white),
     ])
   should.equal(g.angle, 45.0)
   should.equal(g.stops, [
-    gradient.GradientStop(0.0, "#000"),
-    gradient.GradientStop(1.0, "#fff"),
+    gradient.GradientStop(0.0, color.black),
+    gradient.GradientStop(1.0, color.white),
   ])
 }
 
 pub fn to_prop_value_encodes_correctly_test() {
   let g =
     gradient.linear(90.0, [
-      gradient.stop(0.0, "#ff0000"),
-      gradient.stop(1.0, "#0000ff"),
+      gradient.stop(0.0, color.red),
+      gradient.stop(1.0, color.blue),
     ])
   let result = gradient.to_prop_value(g)
   let expected =
@@ -62,4 +63,11 @@ pub fn empty_stops_test() {
       ]),
     )
   should.equal(result, expected)
+}
+
+pub fn stop_uses_color_type_test() {
+  let assert Ok(c) = color.from_hex("#aabbcc")
+  let s = gradient.stop(0.5, c)
+  should.equal(s.offset, 0.5)
+  should.equal(s.color, c)
 }

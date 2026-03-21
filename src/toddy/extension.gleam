@@ -199,6 +199,66 @@ pub fn command_names(def: ExtensionDef) -> List(String) {
   list.map(def.commands, fn(cmd) { cmd.name })
 }
 
+/// Reserved property names that must not be used in extension definitions.
+const reserved_names = ["id", "type", "children", "a11y"]
+
+/// Validate an extension definition at runtime.
+///
+/// Returns `Ok(Nil)` when valid, or `Error(errors)` with a list of
+/// human-readable validation failure messages.
+///
+/// Checks performed:
+/// - `kind` must be non-empty
+/// - No duplicate prop names
+/// - No reserved prop names (id, type, children, a11y)
+pub fn validate(def: ExtensionDef) -> Result(Nil, List(String)) {
+  let names = list.map(def.props, prop_def_name)
+  let kind_errors = case def.kind {
+    "" -> ["kind must not be empty"]
+    _ -> []
+  }
+  let duplicate_errors = find_duplicate_names(names, [], [])
+  let reserved_errors =
+    list.filter_map(names, fn(name) {
+      case list.contains(reserved_names, name) {
+        True -> Ok("prop name \"" <> name <> "\" is reserved")
+        False -> Error(Nil)
+      }
+    })
+  let all_errors =
+    list.flatten([kind_errors, duplicate_errors, reserved_errors])
+  case all_errors {
+    [] -> Ok(Nil)
+    errors -> Error(errors)
+  }
+}
+
+fn find_duplicate_names(
+  names: List(String),
+  seen: List(String),
+  dupes: List(String),
+) -> List(String) {
+  case names {
+    [] -> dupes
+    [name, ..rest] ->
+      case list.contains(seen, name) {
+        True ->
+          case list.contains(dupes, name) {
+            True -> find_duplicate_names(rest, seen, dupes)
+            False ->
+              find_duplicate_names(
+                rest,
+                seen,
+                list.append(dupes, [
+                  "duplicate prop name \"" <> name <> "\"",
+                ]),
+              )
+          }
+        False -> find_duplicate_names(rest, [name, ..seen], dupes)
+      }
+  }
+}
+
 fn prop_def_name(prop: PropDef) -> String {
   case prop {
     NumberProp(name:) -> name

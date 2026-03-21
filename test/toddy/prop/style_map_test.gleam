@@ -1,6 +1,7 @@
 import gleam/dict
 import gleeunit/should
 import toddy/node.{DictVal, StringVal}
+import toddy/prop/color
 import toddy/prop/gradient
 import toddy/prop/style_map
 
@@ -17,8 +18,8 @@ pub fn background_sets_prop_test() {
 pub fn gradient_background_sets_prop_test() {
   let g =
     gradient.linear(90.0, [
-      gradient.stop(0.0, "#ff0000"),
-      gradient.stop(1.0, "#0000ff"),
+      gradient.stop(0.0, color.red),
+      gradient.stop(1.0, color.blue),
     ])
   let sm = style_map.new() |> style_map.gradient_background(g)
   should.equal(dict.get(sm.props, "background"), Ok(gradient.to_prop_value(g)))

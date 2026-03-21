@@ -16,7 +16,16 @@
     get_env/1,
     set_env/2,
     unset_env/1,
-    monotonic_time_ms/0
+    monotonic_time_ms/0,
+    telemetry_execute/3,
+    telemetry_attach/4,
+    telemetry_detach/1,
+    stdio_port_options_msgpack/0,
+    stdio_port_options_json/0,
+    open_fd_port/3,
+    extract_eof/1,
+    null_port/0,
+    drain_timer_ticks/2
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -117,3 +126,90 @@ unset_env(Name) ->
 %% Return monotonic time in milliseconds.
 monotonic_time_ms() ->
     erlang:monotonic_time(millisecond).
+
+%% Telemetry: execute an event.
+%% Converts the event name from a list of binaries to a list of atoms,
+%% and measurements/metadata from Gleam Dict to Erlang maps with atom keys.
+telemetry_execute(EventName, Measurements, Metadata) ->
+    AtomName = [binary_to_atom(N, utf8) || N <- EventName],
+    AtomMeasurements = gleam_dict_to_atom_map(Measurements),
+    AtomMetadata = gleam_dict_to_atom_map(Metadata),
+    telemetry:execute(AtomName, AtomMeasurements, AtomMetadata),
+    nil.
+
+%% Telemetry: attach a handler.
+%% The Gleam handler takes (List(String), Dict, Dict) -> Nil.
+%% We wrap it to convert from atoms back to strings for the callback.
+telemetry_attach(HandlerId, EventName, Handler, _Config) ->
+    AtomName = [binary_to_atom(N, utf8) || N <- EventName],
+    WrappedHandler = fun(Event, Measurements, Metadata, _Cfg) ->
+        StringEvent = [atom_to_binary(A, utf8) || A <- Event],
+        StringMeasurements = atom_map_to_gleam_dict(Measurements),
+        StringMetadata = atom_map_to_gleam_dict(Metadata),
+        Handler(StringEvent, StringMeasurements, StringMetadata)
+    end,
+    case telemetry:attach(HandlerId, AtomName, WrappedHandler, nil) of
+        ok -> {ok, nil};
+        {error, Reason} -> {error, Reason}
+    end.
+
+%% Telemetry: detach a handler.
+telemetry_detach(HandlerId) ->
+    telemetry:detach(HandlerId),
+    nil.
+
+%% Convert a Gleam Dict (with binary keys) to an Erlang map with atom keys.
+gleam_dict_to_atom_map(Dict) ->
+    maps:fold(fun(K, V, Acc) ->
+        AtomKey = binary_to_atom(K, utf8),
+        Acc#{AtomKey => V}
+    end, #{}, Dict).
+
+%% Convert an Erlang map with atom keys to a Gleam-compatible map with binary keys.
+atom_map_to_gleam_dict(Map) ->
+    maps:fold(fun(K, V, Acc) ->
+        BinKey = case is_atom(K) of
+            true -> atom_to_binary(K, utf8);
+            false -> K
+        end,
+        Acc#{BinKey => V}
+    end, #{}, Map).
+
+%% Port options for stdio transport (MessagePack, no exit_status).
+stdio_port_options_msgpack() ->
+    [binary, eof, {packet, 4}].
+
+%% Port options for stdio transport (JSON, no exit_status).
+stdio_port_options_json() ->
+    [binary, eof, {line, 65536}].
+
+%% Open an fd port for stdin/stdout transport.
+open_fd_port(InputFd, OutputFd, Options) ->
+    erlang:open_port({fd, InputFd, OutputFd}, Options).
+
+%% Extract eof from a port message {Port, eof}.
+extract_eof({_Port, eof}) -> {ok, nil};
+extract_eof(_) -> {error, not_eof}.
+
+%% Return a placeholder value for iostream transport (no real port).
+%% Uses a self-referencing atom to avoid any accidental port operations.
+null_port() ->
+    %% Open and immediately close a dummy port to get a valid but dead port ref.
+    Port = erlang:open_port({spawn, "true"}, []),
+    erlang:port_close(Port),
+    Port.
+
+%% Drain queued TimerFired messages for the same tag from the mailbox.
+%% Uses Erlang selective receive with zero timeout so non-matching
+%% messages are left undisturbed in the mailbox.
+%%
+%% The Subject is {subject, Owner, SubjectTag} in Gleam's compiled form.
+%% Messages sent via the subject arrive as {SubjectTag, Payload}.
+%% TimerFired(tag: Tag) compiles to {timer_fired, Tag}.
+drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag) ->
+    receive
+        {SubjectTag, {timer_fired, TimerTag}} ->
+            drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag)
+    after
+        0 -> nil
+    end.

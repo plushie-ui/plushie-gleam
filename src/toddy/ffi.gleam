@@ -86,3 +86,23 @@ pub fn unset_env(name: String) -> Nil
 /// Return the current monotonic time in milliseconds.
 @external(erlang, "toddy_ffi", "monotonic_time_ms")
 pub fn monotonic_time_ms() -> Int
+
+/// Port options for stdio transport with MessagePack (eof, no exit_status).
+@external(erlang, "toddy_ffi", "stdio_port_options_msgpack")
+pub fn stdio_port_options_msgpack() -> Dynamic
+
+/// Port options for stdio transport with JSON (eof, no exit_status).
+@external(erlang, "toddy_ffi", "stdio_port_options_json")
+pub fn stdio_port_options_json() -> Dynamic
+
+/// Open an fd port (for stdin/stdout stdio transport).
+@external(erlang, "toddy_ffi", "open_fd_port")
+pub fn open_fd_port(input_fd: Int, output_fd: Int, options: Dynamic) -> Port
+
+/// Extract eof signal from a port message {Port, eof}.
+@external(erlang, "toddy_ffi", "extract_eof")
+pub fn extract_eof(msg: Dynamic) -> Result(Nil, Dynamic)
+
+/// Return a null port value for iostream transport (never used for I/O).
+@external(erlang, "toddy_ffi", "null_port")
+pub fn null_port() -> Port
