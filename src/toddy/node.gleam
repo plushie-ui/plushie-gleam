@@ -19,6 +19,7 @@ pub type PropValue {
   FloatVal(Float)
   BoolVal(Bool)
   NullVal
+  BinaryVal(BitArray)
   ListVal(List(PropValue))
   DictVal(Dict(String, PropValue))
 }

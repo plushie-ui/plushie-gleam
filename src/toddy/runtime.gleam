@@ -22,7 +22,7 @@ import toddy/command.{type Command}
 import toddy/event.{type Event}
 import toddy/ffi
 import toddy/node.{
-  type Node, type PropValue, BoolVal, FloatVal, IntVal, StringVal,
+  type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
 }
 import toddy/protocol
 import toddy/protocol/decode.{EventMessage, Hello}
@@ -1354,11 +1354,8 @@ fn execute_commands(
     command.CreateImage(handle:, data:) -> {
       send_image_op(
         state.bridge,
-        "create",
-        [
-          #("handle", StringVal(handle)),
-          #("data", StringVal(encode_base64(data))),
-        ],
+        "create_image",
+        [#("handle", StringVal(handle)), #("data", BinaryVal(data))],
         state.opts,
       )
       state
@@ -1367,12 +1364,12 @@ fn execute_commands(
     command.CreateImageRgba(handle:, width:, height:, pixels:) -> {
       send_image_op(
         state.bridge,
-        "create_rgba",
+        "create_image",
         [
           #("handle", StringVal(handle)),
           #("width", IntVal(width)),
           #("height", IntVal(height)),
-          #("pixels", StringVal(encode_base64(pixels))),
+          #("pixels", BinaryVal(pixels)),
         ],
         state.opts,
       )
@@ -1382,11 +1379,8 @@ fn execute_commands(
     command.UpdateImage(handle:, data:) -> {
       send_image_op(
         state.bridge,
-        "update",
-        [
-          #("handle", StringVal(handle)),
-          #("data", StringVal(encode_base64(data))),
-        ],
+        "update_image",
+        [#("handle", StringVal(handle)), #("data", BinaryVal(data))],
         state.opts,
       )
       state
@@ -1395,12 +1389,12 @@ fn execute_commands(
     command.UpdateImageRgba(handle:, width:, height:, pixels:) -> {
       send_image_op(
         state.bridge,
-        "update_rgba",
+        "update_image",
         [
           #("handle", StringVal(handle)),
           #("width", IntVal(width)),
           #("height", IntVal(height)),
-          #("pixels", StringVal(encode_base64(pixels))),
+          #("pixels", BinaryVal(pixels)),
         ],
         state.opts,
       )
@@ -1410,7 +1404,7 @@ fn execute_commands(
     command.DeleteImage(handle:) -> {
       send_image_op(
         state.bridge,
-        "delete",
+        "delete_image",
         [#("handle", StringVal(handle))],
         state.opts,
       )
@@ -1418,9 +1412,9 @@ fn execute_commands(
     }
 
     command.ListImages(tag:) -> {
-      send_image_op(
+      send_widget_op(
         state.bridge,
-        "list",
+        "list_images",
         [#("tag", StringVal(tag))],
         state.opts,
       )
@@ -1428,7 +1422,7 @@ fn execute_commands(
     }
 
     command.ClearImages -> {
-      send_image_op(state.bridge, "clear", [], state.opts)
+      send_widget_op(state.bridge, "clear_images", [], state.opts)
       state
     }
 

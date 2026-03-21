@@ -14,8 +14,8 @@ import glepack
 import glepack/data
 import toddy/app.{type Settings}
 import toddy/node.{
-  type Node, type PropValue, BoolVal, DictVal, FloatVal, IntVal, ListVal,
-  NullVal, StringVal,
+  type Node, type PropValue, BinaryVal, BoolVal, DictVal, FloatVal, IntVal,
+  ListVal, NullVal, StringVal,
 }
 import toddy/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
@@ -35,6 +35,7 @@ pub fn prop_value_to_json(v: PropValue) -> json.Json {
     FloatVal(f) -> json.float(f)
     BoolVal(b) -> json.bool(b)
     NullVal -> json.null()
+    BinaryVal(bytes) -> json.string(bit_array.base64_encode(bytes, True))
     ListVal(items) ->
       json.preprocessed_array(list.map(items, prop_value_to_json))
     DictVal(d) ->
@@ -52,6 +53,7 @@ pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
     FloatVal(f) -> data.Float(f)
     BoolVal(b) -> data.Boolean(b)
     NullVal -> data.Nil
+    BinaryVal(bytes) -> data.Binary(bytes)
     ListVal(items) -> data.Array(list.map(items, prop_value_to_msgpack))
     DictVal(d) ->
       dict.to_list(d)
@@ -286,15 +288,19 @@ pub fn encode_effect(
   serialize(message("effect", session, fields), format)
 }
 
-/// Encode an image operation (create, update, delete).
+/// Encode an image operation (create_image, update_image, delete_image).
+///
+/// Payload fields are flat-merged into the top-level message dict
+/// (not nested under "payload"), matching the Elixir reference.
 pub fn encode_image_op(
   op: String,
   payload: Dict(String, PropValue),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
-  let fields = [#("op", StringVal(op)), #("payload", DictVal(payload))]
-  serialize(message("image_op", session, fields), format)
+  let base = message("image_op", session, [#("op", StringVal(op))])
+  let merged = dict.merge(base, payload)
+  serialize(merged, format)
 }
 
 /// Encode an extension command for custom widget operations.

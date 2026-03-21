@@ -8,7 +8,8 @@ import glepack
 import glepack/data
 import toddy/app
 import toddy/node.{
-  BoolVal, DictVal, FloatVal, IntVal, ListVal, Node, NullVal, StringVal,
+  BinaryVal, BoolVal, DictVal, FloatVal, IntVal, ListVal, Node, NullVal,
+  StringVal,
 }
 import toddy/patch
 import toddy/prop/theme
@@ -365,13 +366,73 @@ pub fn encode_effect_test() {
 
 // --- encode_image_op ---------------------------------------------------------
 
-pub fn encode_image_op_test() {
-  let payload = dict.from_list([#("handle", StringVal("img-1"))])
+pub fn encode_image_op_flat_merges_payload_test() {
+  let payload =
+    dict.from_list([
+      #("handle", StringVal("img-1")),
+      #("data", BinaryVal(<<1, 2, 3>>)),
+    ])
   let assert Ok(bytes) =
-    encode.encode_image_op("create", payload, "", protocol.Json)
+    encode.encode_image_op("create_image", payload, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"image_op\"")
-  assert string.contains(s, "\"op\":\"create\"")
+  assert string.contains(s, "\"op\":\"create_image\"")
+  // Payload fields are flat-merged, not nested under "payload"
+  assert string.contains(s, "\"handle\":\"img-1\"")
+  assert !string.contains(s, "\"payload\"")
+  // Binary data is base64-encoded in JSON
+  assert string.contains(s, "\"data\":\"AQID\"")
+}
+
+pub fn encode_image_op_msgpack_binary_native_test() {
+  let payload =
+    dict.from_list([
+      #("handle", StringVal("logo")),
+      #("data", BinaryVal(<<255, 0, 128>>)),
+    ])
+  let assert Ok(bytes) =
+    encode.encode_image_op("create_image", payload, "", protocol.Msgpack)
+  let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
+  let assert data.Map(m) = decoded
+  should.equal(
+    dict.get(m, data.String("type")),
+    Ok(data.String("image_op")),
+  )
+  should.equal(
+    dict.get(m, data.String("op")),
+    Ok(data.String("create_image")),
+  )
+  should.equal(
+    dict.get(m, data.String("handle")),
+    Ok(data.String("logo")),
+  )
+  // Binary data uses native msgpack binary type
+  should.equal(
+    dict.get(m, data.String("data")),
+    Ok(data.Binary(<<255, 0, 128>>)),
+  )
+}
+
+pub fn encode_image_op_delete_test() {
+  let payload = dict.from_list([#("handle", StringVal("old-img"))])
+  let assert Ok(bytes) =
+    encode.encode_image_op("delete_image", payload, "", protocol.Json)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"op\":\"delete_image\"")
+  assert string.contains(s, "\"handle\":\"old-img\"")
+  assert !string.contains(s, "\"payload\"")
+}
+
+// --- BinaryVal encoding ------------------------------------------------------
+
+pub fn prop_value_to_json_binary_base64_test() {
+  let j = encode.prop_value_to_json(BinaryVal(<<1, 2, 3>>))
+  should.equal(json.to_string(j), "\"AQID\"")
+}
+
+pub fn prop_value_to_msgpack_binary_test() {
+  let v = encode.prop_value_to_msgpack(BinaryVal(<<10, 20>>))
+  should.equal(v, data.Binary(<<10, 20>>))
 }
 
 // --- encode_extension_command ------------------------------------------------
