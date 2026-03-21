@@ -1,6 +1,11 @@
 //// Start a toddy GUI application.
 ////
-//// Library module -- users call `gui.run` from their own entry point:
+//// This is the primary entry point for desktop apps. It resolves the
+//// toddy binary, starts the runtime (which spawns the Rust renderer
+//// as a child port), and blocks the calling process indefinitely.
+//// The runtime manages its own lifecycle in a spawned process.
+////
+//// Users call `gui.run` from their own `main` function:
 ////
 //// ```gleam
 //// import toddy/cli/gui
@@ -9,6 +14,10 @@
 ////   gui.run(my_app.app(), gui.default_opts())
 //// }
 //// ```
+////
+//// Set `dev: True` in `GuiOpts` to enable live reload -- the dev
+//// server watches `src/` for changes, recompiles, hot-reloads BEAM
+//// modules, and triggers a re-render without losing app state.
 
 import gleam/erlang/process
 import gleam/io

@@ -8,6 +8,7 @@
 //// pure Erlang (:zlib for deflate, :erlang.crc32 for chunk CRCs).
 
 import gleam/bit_array
+import gleam/int
 import gleam/string
 import toddy/ffi
 
@@ -94,6 +95,23 @@ pub fn assert_screenshot(
 // -- PNG encoding ------------------------------------------------------------
 
 fn encode_png(width: Int, height: Int, rgba_data: BitArray) -> BitArray {
+  let expected_size = width * height * 4
+  let actual_size = bit_array.byte_size(rgba_data)
+  case actual_size == expected_size {
+    True -> Nil
+    False ->
+      panic as {
+        "encode_png: RGBA data size mismatch -- expected "
+        <> int.to_string(expected_size)
+        <> " bytes ("
+        <> int.to_string(width)
+        <> "x"
+        <> int.to_string(height)
+        <> "x4) but got "
+        <> int.to_string(actual_size)
+      }
+  }
+
   // PNG signature
   let signature = <<137, 80, 78, 71, 13, 10, 26, 10>>
 

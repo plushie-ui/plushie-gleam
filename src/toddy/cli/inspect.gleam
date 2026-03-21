@@ -1,7 +1,13 @@
 //// Inspect a toddy app's initial view tree without a renderer.
 ////
-//// Calls init and view, normalizes the tree, and prints it as JSON.
-//// No binary or renderer is required.
+//// A debugging tool that runs the app's init and view functions,
+//// normalizes the resulting tree, and prints it as JSON to stdout.
+//// No toddy binary or renderer process is required -- this runs
+//// entirely in Gleam.
+////
+//// Useful for verifying the initial widget tree structure, checking
+//// scoped IDs after normalization, and debugging view functions
+//// without launching a full GUI.
 ////
 //// ```gleam
 //// import toddy/cli/inspect

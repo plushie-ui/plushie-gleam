@@ -1,12 +1,31 @@
 //// Test backend: record-of-functions defining backend capabilities.
 ////
-//// Backends provide different fidelity levels for testing:
-//// - Mock: pure Gleam, no renderer. Tests logic and tree structure.
-//// - Headless: real renderer with software rendering.
-//// - Windowed: real renderer with GPU rendering.
+//// The `TestBackend` type is a record of functions that implement
+//// each testing operation (find, click, type_text, etc.). This
+//// design lets tests be polymorphic over the backend -- swap
+//// `mock()` for `headless()` or `windowed()` and the same test
+//// code runs at different fidelity levels.
 ////
-//// All backends expose the same interface so tests can switch backends
-//// without changing assertions.
+//// ## Backend variants
+////
+//// - **mock()**: pure Gleam, no renderer process. Runs the Elm loop
+////   directly. Fast, deterministic, no external dependencies. Best
+////   for unit-testing logic, tree structure, and model state.
+//// - **headless()**: starts the Rust binary with `--headless` for
+////   software rendering. Supports screenshots and pixel-level
+////   assertions. Requires the toddy binary on PATH or configured.
+//// - **windowed()**: starts the Rust binary with GPU rendering and
+////   a visible window. For manual visual verification and
+////   interactive debugging.
+////
+//// ## Concurrency
+////
+//// Mock backends are synchronous -- each operation completes
+//// immediately in the calling process. Headless and windowed
+//// backends communicate with a renderer actor over OTP messages,
+//// so operations involve a `process.call` with a timeout.
+//// All backends are single-session; concurrent access to the
+//// same session is not supported.
 
 import gleam/option.{type Option}
 import toddy/app.{type App}

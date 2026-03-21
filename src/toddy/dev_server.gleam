@@ -151,11 +151,20 @@ fn handle_message(
 
 // -- Helpers -----------------------------------------------------------------
 
-/// Check if a path ends with the Gleam file extension.
+/// Check if a path is a Gleam source file worth watching.
+/// Excludes _build/ and build/ only when they appear as directory
+/// boundaries, not as substrings of other directory names.
 fn is_gleam_file(path: String) -> Bool {
   string.ends_with(path, gleam_extension)
   && !string.contains(path, "/_build/")
-  && !string.contains(path, "/build/")
+  && !string.starts_with(path, "_build/")
+  && !is_build_output_dir(path)
+}
+
+/// Check if a path is inside a top-level build output directory.
+/// Matches "/build/dev/" or "build/dev/" but not "/my_build/".
+fn is_build_output_dir(path: String) -> Bool {
+  string.contains(path, "/build/dev/") || string.starts_with(path, "build/dev/")
 }
 
 /// Extract a file path from a raw file_system event.

@@ -5,9 +5,26 @@
 //// decoded events through update, processes commands, re-renders the
 //// view, and sends snapshots back to the renderer.
 ////
-//// Request/response correlation is managed via a pending map keyed
-//// by request ID, with each entry tracking the request type and the
-//// reply Subject.
+//// ## Request/response lifecycle
+////
+//// External callers send `Call*` messages (find, interact, tree_hash,
+//// screenshot, reset) which include a reply Subject. The actor
+//// assigns a unique request ID, sends a wire message to the Rust
+//// binary, and stores a `PendingEntry` keyed by that ID. When the
+//// Rust binary responds, the actor matches the response ID to the
+//// pending map, replies to the caller, and removes the entry.
+////
+//// **Pending map invariant**: every entry in the pending map
+//// corresponds to exactly one outstanding wire request. If the port
+//// exits, all pending callers receive a `ReplyError` and the actor
+//// stops. No request ID is ever reused.
+////
+//// ## Backends
+////
+//// Use headless mode (`--headless` args) for CI and screenshot tests
+//// with software rendering. Use windowed mode for manual visual
+//// verification. The mock backend does not use this actor at all --
+//// it runs the Elm loop in pure Gleam without a port.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}

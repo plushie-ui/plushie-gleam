@@ -262,6 +262,11 @@ fn do_tokenize(
         "" -> tokens
         _ -> [current, ..tokens]
       }
+    // Escape sequences inside quoted strings: \" and \\
+    ["\\", "\"", ..rest] if in_quote ->
+      do_tokenize(rest, True, current <> "\"", tokens)
+    ["\\", "\\", ..rest] if in_quote ->
+      do_tokenize(rest, True, current <> "\\", tokens)
     ["\"", ..rest] ->
       case in_quote {
         True -> {

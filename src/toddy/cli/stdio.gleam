@@ -1,7 +1,13 @@
 //// Run a toddy application in stdio transport mode.
 ////
-//// In stdio mode, the renderer spawns the Gleam process and
-//// communicates over stdin/stdout. All log output goes to stderr.
+//// In stdio mode, the Rust renderer spawns the Gleam process (not
+//// the other way around) and communicates over stdin/stdout. This
+//// is the inverse of `gui.run` where Gleam spawns the renderer.
+//// All log output goes to stderr to avoid corrupting the wire
+//// protocol on stdout.
+////
+//// Use stdio mode when embedding toddy in a larger application
+//// that manages the renderer lifecycle externally.
 ////
 //// ```gleam
 //// import toddy/cli/stdio
