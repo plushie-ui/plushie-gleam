@@ -69,7 +69,7 @@ pub fn build(cb: Checkbox) -> Node {
   let props =
     dict.new()
     |> build.put_string("label", cb.label)
-    |> build.put_optional_bool("is_toggled", option.Some(cb.is_toggled))
+    |> build.put_optional_bool("checked", option.Some(cb.is_toggled))
     |> build.put_optional_int("spacing", cb.spacing)
     |> build.put_optional("width", cb.width, length.to_prop_value)
     |> build.put_optional_float("size", cb.size)

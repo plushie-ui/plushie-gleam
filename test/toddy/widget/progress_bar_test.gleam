@@ -1,5 +1,5 @@
 import gleam/dict
-import toddy/node.{DictVal, FloatVal, StringVal}
+import toddy/node.{FloatVal, ListVal, StringVal}
 import toddy/prop/length
 import toddy/widget/progress_bar
 
@@ -11,10 +11,7 @@ pub fn new_builds_minimal_progress_bar_test() {
   assert node.kind == "progress_bar"
   assert node.children == []
   assert dict.get(node.props, "value") == Ok(FloatVal(42.0))
-  let range_val =
-    DictVal(
-      dict.from_list([#("min", FloatVal(0.0)), #("max", FloatVal(100.0))]),
-    )
+  let range_val = ListVal([FloatVal(0.0), FloatVal(100.0)])
   assert dict.get(node.props, "range") == Ok(range_val)
   assert dict.size(node.props) == 2
 }

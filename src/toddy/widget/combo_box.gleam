@@ -71,7 +71,7 @@ pub fn build(cb: ComboBox) -> Node {
   let props =
     dict.new()
     |> dict.insert("options", ListVal(list.map(cb.options, StringVal)))
-    |> build.put_string("value", cb.value)
+    |> build.put_string("selected", cb.value)
     |> build.put_optional_string("placeholder", cb.placeholder)
     |> build.put_optional("width", cb.width, length.to_prop_value)
     |> build.put_optional("padding", cb.padding, padding.to_prop_value)

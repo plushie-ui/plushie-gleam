@@ -10,14 +10,14 @@ pub fn new_builds_minimal_checkbox_test() {
   assert node.kind == "checkbox"
   assert node.children == []
   assert dict.get(node.props, "label") == Ok(StringVal("I agree"))
-  assert dict.get(node.props, "is_toggled") == Ok(BoolVal(False))
+  assert dict.get(node.props, "checked") == Ok(BoolVal(False))
   assert dict.size(node.props) == 2
 }
 
 pub fn toggled_true_sets_bool_prop_test() {
   let node = checkbox.new("cb", "Check", True) |> checkbox.build()
 
-  assert dict.get(node.props, "is_toggled") == Ok(BoolVal(True))
+  assert dict.get(node.props, "checked") == Ok(BoolVal(True))
 }
 
 pub fn spacing_sets_int_prop_test() {
@@ -83,7 +83,7 @@ pub fn chaining_multiple_setters_test() {
     |> checkbox.build()
 
   assert dict.get(node.props, "label") == Ok(StringVal("Accept"))
-  assert dict.get(node.props, "is_toggled") == Ok(BoolVal(True))
+  assert dict.get(node.props, "checked") == Ok(BoolVal(True))
   assert dict.get(node.props, "spacing") == Ok(IntVal(8))
   assert dict.get(node.props, "size") == Ok(FloatVal(24.0))
   assert dict.get(node.props, "disabled") == Ok(BoolVal(False))

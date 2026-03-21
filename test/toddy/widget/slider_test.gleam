@@ -1,5 +1,5 @@
 import gleam/dict
-import toddy/node.{DictVal, FloatVal, StringVal}
+import toddy/node.{FloatVal, ListVal, StringVal}
 import toddy/prop/length
 import toddy/widget/slider
 
@@ -10,10 +10,7 @@ pub fn new_builds_minimal_slider_test() {
   assert node.kind == "slider"
   assert node.children == []
   assert dict.get(node.props, "value") == Ok(FloatVal(50.0))
-  let range_val =
-    DictVal(
-      dict.from_list([#("min", FloatVal(0.0)), #("max", FloatVal(100.0))]),
-    )
+  let range_val = ListVal([FloatVal(0.0), FloatVal(100.0)])
   assert dict.get(node.props, "range") == Ok(range_val)
   assert dict.size(node.props) == 2
 }
@@ -42,7 +39,7 @@ pub fn default_value_sets_float_prop_test() {
     |> slider.default_value(50.0)
     |> slider.build()
 
-  assert dict.get(node.props, "default_value") == Ok(FloatVal(50.0))
+  assert dict.get(node.props, "default") == Ok(FloatVal(50.0))
 }
 
 pub fn width_sets_length_prop_test() {
@@ -83,7 +80,7 @@ pub fn chaining_multiple_setters_test() {
 
   assert dict.get(node.props, "step") == Ok(FloatVal(1.0))
   assert dict.get(node.props, "shift_step") == Ok(FloatVal(10.0))
-  assert dict.get(node.props, "default_value") == Ok(FloatVal(128.0))
+  assert dict.get(node.props, "default") == Ok(FloatVal(128.0))
   assert dict.get(node.props, "width")
     == Ok(length.to_prop_value(length.Fixed(200.0)))
 }
@@ -93,7 +90,7 @@ pub fn omitted_optionals_are_absent_test() {
 
   assert dict.get(node.props, "step") == Error(Nil)
   assert dict.get(node.props, "shift_step") == Error(Nil)
-  assert dict.get(node.props, "default_value") == Error(Nil)
+  assert dict.get(node.props, "default") == Error(Nil)
   assert dict.get(node.props, "width") == Error(Nil)
   assert dict.get(node.props, "height") == Error(Nil)
   assert dict.get(node.props, "style") == Error(Nil)

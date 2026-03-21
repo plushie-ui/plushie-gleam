@@ -2,7 +2,7 @@
 
 import gleam/dict
 import gleam/option.{type Option, None}
-import toddy/node.{type Node, DictVal, FloatVal, Node}
+import toddy/node.{type Node, FloatVal, ListVal, Node}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -34,12 +34,7 @@ pub fn style(pb: ProgressBar, s: String) -> ProgressBar {
 }
 
 fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
-  DictVal(
-    dict.from_list([
-      #("min", FloatVal(range.0)),
-      #("max", FloatVal(range.1)),
-    ]),
-  )
+  ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
 pub fn build(pb: ProgressBar) -> Node {

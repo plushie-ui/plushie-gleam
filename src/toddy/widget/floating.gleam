@@ -43,5 +43,5 @@ pub fn build(f: Floating) -> Node {
     dict.new()
     |> build.put_optional("width", f.width, length.to_prop_value)
     |> build.put_optional("height", f.height, length.to_prop_value)
-  Node(id: f.id, kind: "floating", props:, children: f.children)
+  Node(id: f.id, kind: "float", props:, children: f.children)
 }

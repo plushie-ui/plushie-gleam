@@ -2,7 +2,7 @@
 
 import gleam/dict
 import gleam/option.{type Option, None}
-import toddy/node.{type Node, DictVal, FloatVal, Node}
+import toddy/node.{type Node, FloatVal, ListVal, Node}
 import toddy/prop/length.{type Length}
 import toddy/widget/build
 
@@ -59,12 +59,7 @@ pub fn style(vs: VerticalSlider, s: String) -> VerticalSlider {
 }
 
 fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
-  DictVal(
-    dict.from_list([
-      #("min", FloatVal(range.0)),
-      #("max", FloatVal(range.1)),
-    ]),
-  )
+  ListVal([FloatVal(range.0), FloatVal(range.1)])
 }
 
 pub fn build(vs: VerticalSlider) -> Node {
@@ -74,7 +69,7 @@ pub fn build(vs: VerticalSlider) -> Node {
     |> dict.insert("value", FloatVal(vs.value))
     |> build.put_optional_float("step", vs.step)
     |> build.put_optional_float("shift_step", vs.shift_step)
-    |> build.put_optional_float("default_value", vs.default_value)
+    |> build.put_optional_float("default", vs.default_value)
     |> build.put_optional("width", vs.width, length.to_prop_value)
     |> build.put_optional_float("height", vs.height)
     |> build.put_optional_string("style", vs.style)
