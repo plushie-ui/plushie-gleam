@@ -244,6 +244,92 @@ pub fn rule(id: String, attrs: List(Attr)) -> Node {
   make_node(id, "rule", attrs, [])
 }
 
+// --- Grid / keyed layout widgets ---------------------------------------------
+
+pub fn grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
+  make_node(id, "grid", attrs, children)
+}
+
+pub fn keyed_column(
+  id: String,
+  attrs: List(Attr),
+  children: List(Node),
+) -> Node {
+  make_node(id, "keyed_column", attrs, children)
+}
+
+// --- Responsive / positional wrappers ----------------------------------------
+
+pub fn responsive(
+  id: String,
+  attrs: List(Attr),
+  children: List(Node),
+) -> Node {
+  make_node(id, "responsive", attrs, children)
+}
+
+pub fn pin(id: String, attrs: List(Attr), children: List(Node)) -> Node {
+  make_node(id, "pin", attrs, children)
+}
+
+pub fn floating(id: String, attrs: List(Attr), children: List(Node)) -> Node {
+  make_node(id, "floating", attrs, children)
+}
+
+// --- Interaction wrappers ----------------------------------------------------
+
+pub fn mouse_area(
+  id: String,
+  attrs: List(Attr),
+  children: List(Node),
+) -> Node {
+  make_node(id, "mouse_area", attrs, children)
+}
+
+pub fn sensor(id: String, attrs: List(Attr), children: List(Node)) -> Node {
+  make_node(id, "sensor", attrs, children)
+}
+
+// --- Theme / pane layout -----------------------------------------------------
+
+pub fn themer(
+  id: String,
+  theme: String,
+  attrs: List(Attr),
+  children: List(Node),
+) -> Node {
+  make_node(id, "themer", [Attr("theme", StringVal(theme)), ..attrs], children)
+}
+
+pub fn pane_grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
+  make_node(id, "pane_grid", attrs, children)
+}
+
+// --- Tooltip -----------------------------------------------------------------
+
+pub fn tooltip(
+  id: String,
+  tip: String,
+  attrs: List(Attr),
+  children: List(Node),
+) -> Node {
+  make_node(id, "tooltip", [Attr("tip", StringVal(tip)), ..attrs], children)
+}
+
+// --- Data / canvas / content widgets -----------------------------------------
+
+pub fn table(id: String, attrs: List(Attr)) -> Node {
+  make_node(id, "table", attrs, [])
+}
+
+pub fn canvas(id: String, attrs: List(Attr)) -> Node {
+  make_node(id, "canvas", attrs, [])
+}
+
+pub fn markdown(id: String, content: String, attrs: List(Attr)) -> Node {
+  make_node(id, "markdown", [Attr("content", StringVal(content)), ..attrs], [])
+}
+
 // --- Tree query delegates ----------------------------------------------------
 
 pub fn find(tree_node: Node, id: String) -> Option(Node) {
