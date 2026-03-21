@@ -1,3 +1,4 @@
+import gleam/dynamic
 import gleam/option
 import toddy
 import toddy/app
@@ -25,6 +26,8 @@ pub fn custom_start_opts_test() {
       format: protocol.Json,
       daemon: True,
       session: "my-session",
+      app_opts: dynamic.nil(),
+      renderer_args: ["--headless"],
     )
   assert opts.binary_path == option.Some("/usr/bin/toddy")
   assert opts.format == protocol.Json

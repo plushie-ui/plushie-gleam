@@ -198,6 +198,17 @@ pub fn encode_settings(
       ..settings_fields
     ]
   }
+  let settings_fields = case settings.default_font {
+    option.Some(font) -> [#("default_font", font), ..settings_fields]
+    option.None -> settings_fields
+  }
+  let settings_fields = case settings.default_event_rate {
+    option.Some(rate) -> [
+      #("default_event_rate", IntVal(rate)),
+      ..settings_fields
+    ]
+    option.None -> settings_fields
+  }
   let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]
   serialize(message("settings", session, fields), format)
 }

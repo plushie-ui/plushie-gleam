@@ -38,8 +38,10 @@ import toddy/tree
 pub type RuntimeMessage {
   /// Notification from the bridge.
   FromBridge(RuntimeNotification)
-  /// Internal event dispatch (SendAfter, Done, timer).
+  /// Internal event dispatch (timer ticks, etc.).
   InternalEvent(Event)
+  /// Internal msg dispatch (Done, SendAfter -- already mapped to msg).
+  InternalMsg(Dynamic)
   /// Subscription timer fired.
   TimerFired(tag: String)
   /// Async task completed with nonce for freshness validation.
@@ -60,12 +62,24 @@ pub type RuntimeMessage {
 
 /// Start options for the runtime.
 pub type RuntimeOpts {
-  RuntimeOpts(format: protocol.Format, session: String, daemon: Bool)
+  RuntimeOpts(
+    format: protocol.Format,
+    session: String,
+    daemon: Bool,
+    app_opts: Dynamic,
+    renderer_args: List(String),
+  )
 }
 
 /// Default runtime options.
 pub fn default_opts() -> RuntimeOpts {
-  RuntimeOpts(format: protocol.Msgpack, session: "", daemon: False)
+  RuntimeOpts(
+    format: protocol.Msgpack,
+    session: "",
+    daemon: False,
+    app_opts: dynamic.nil(),
+    renderer_args: [],
+  )
 }
 
 /// Start the runtime as a linked process.
@@ -79,7 +93,7 @@ pub fn default_opts() -> RuntimeOpts {
 /// Returns `Ok(runtime_subject)` on success, or an error if bridge
 /// startup fails or times out (5 second deadline).
 pub fn start(
-  app: App(model, Event),
+  app: App(model, msg),
   binary_path: String,
   opts: RuntimeOpts,
 ) -> Result(Subject(RuntimeMessage), StartError) {
@@ -94,7 +108,13 @@ pub fn start(
 
     // Start bridge actor with our notification subject
     case
-      bridge.start(binary_path, opts.format, notification_subject, opts.session)
+      bridge.start(
+        binary_path,
+        opts.format,
+        notification_subject,
+        opts.session,
+        opts.renderer_args,
+      )
     {
       Ok(bridge_subject) -> {
         // Report success to parent
@@ -134,11 +154,12 @@ import gleam/otp/actor
 
 // -- Internal state ----------------------------------------------------------
 
-type LoopState(model) {
+type LoopState(model, msg) {
   LoopState(
-    app: App(model, Event),
+    app: App(model, msg),
     model: model,
     bridge: Subject(BridgeMessage),
+    bridge_pid: Option(Pid),
     self: Subject(RuntimeMessage),
     notifications: Subject(RuntimeNotification),
     tree: Option(Node),
@@ -174,7 +195,7 @@ type SubEntry {
 // -- Process entry point -----------------------------------------------------
 
 fn run(
-  app: App(model, Event),
+  app: App(model, msg),
   bridge: Subject(BridgeMessage),
   self: Subject(RuntimeMessage),
   notifications: Subject(RuntimeNotification),
@@ -182,7 +203,7 @@ fn run(
   binary_path: String,
 ) -> Nil {
   // Initialize
-  let #(model, init_cmds) = app.get_init(app)()
+  let #(model, init_cmds) = app.get_init(app)(opts.app_opts)
 
   // Send settings to bridge
   let settings = app.get_settings(app)()
@@ -203,6 +224,21 @@ fn run(
   // Detect initial windows
   let initial_windows = detect_windows(initial_tree)
 
+  // Get the bridge actor's PID for monitoring (D-039)
+  let bridge_pid = case process.subject_owner(bridge) {
+    Ok(pid) -> Some(pid)
+    Error(_) -> None
+  }
+
+  // Monitor the bridge process so we can detect unexpected crashes
+  case bridge_pid {
+    Some(pid) -> {
+      process.monitor(pid)
+      Nil
+    }
+    None -> Nil
+  }
+
   // Build initial state (before init commands so execute_commands can
   // thread the full LoopState, enabling async task PID tracking)
   let state =
@@ -210,6 +246,7 @@ fn run(
       app:,
       model:,
       bridge:,
+      bridge_pid:,
       self:,
       notifications:,
       tree: Some(initial_tree),
@@ -262,7 +299,7 @@ fn run(
 
 // -- Message loop ------------------------------------------------------------
 
-fn message_loop(state: LoopState(model)) -> Nil {
+fn message_loop(state: LoopState(model, msg)) -> Nil {
   let selector =
     process.new_selector()
     |> process.select(state.self)
@@ -389,6 +426,21 @@ fn message_loop(state: LoopState(model)) -> Nil {
       }
     }
 
+    InternalMsg(dyn_msg) -> {
+      // Done/SendAfter deliver msg values wrapped as Dynamic.
+      // Remove delivered timer entry for deduplication.
+      let timer_key = string.inspect(dyn_msg)
+      let state =
+        LoopState(
+          ..state,
+          pending_timers: dict.delete(state.pending_timers, timer_key),
+        )
+      // Unsafe coerce: the Dynamic contains a value of type msg
+      let msg = unsafe_coerce_dynamic(dyn_msg)
+      let new_state = handle_msg(state, msg)
+      message_loop(new_state)
+    }
+
     TimerFired(tag:) -> {
       let timestamp = erlang_monotonic_time()
       let new_state = handle_event(state, event.TimerTick(tag:, timestamp:))
@@ -446,41 +498,72 @@ fn message_loop(state: LoopState(model)) -> Nil {
     }
 
     ProcessDown(process.ProcessDown(monitor: _, pid: down_pid, reason: reason)) -> {
-      // Find which async task this pid belongs to
-      let found =
-        dict.fold(state.async_tasks, None, fn(acc, tag, entry) {
-          case acc {
-            Some(_) -> acc
-            None -> {
-              let #(task_pid, _nonce, _monitor) = entry
-              case task_pid == down_pid {
-                True -> Some(tag)
-                False -> None
-              }
+      // Check if this is the bridge actor dying (D-039)
+      let is_bridge = case state.bridge_pid {
+        Some(bpid) -> bpid == down_pid
+        None -> False
+      }
+      case is_bridge {
+        True -> {
+          io.println(
+            "toddy: bridge process died unexpectedly: "
+            <> string.inspect(reason),
+          )
+          // Treat it like a renderer exit -- attempt restart
+          case state.restart_count < state.max_restarts {
+            True -> {
+              let delay =
+                calculate_backoff(state.restart_delay_base, state.restart_count)
+              process.send_after(state.self, delay, RestartRenderer)
+              message_loop(LoopState(..state, bridge_pid: None))
             }
-          }
-        })
-      case found {
-        Some(tag) -> {
-          let state =
-            LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
-          case reason {
-            process.Normal -> message_loop(state)
-            _ -> {
-              let crash_reason = case reason {
-                process.Killed -> dynamic.string("killed")
-                process.Abnormal(r) -> r
-                process.Normal -> dynamic.string("normal")
-              }
-              handle_event(
-                state,
-                event.AsyncResult(tag:, result: Error(crash_reason)),
-              )
-              |> message_loop()
+            False -> {
+              io.println("toddy: bridge crashed too many times, giving up")
+              Nil
             }
           }
         }
-        None -> message_loop(state)
+        False -> {
+          // Find which async task this pid belongs to
+          let found =
+            dict.fold(state.async_tasks, None, fn(acc, tag, entry) {
+              case acc {
+                Some(_) -> acc
+                None -> {
+                  let #(task_pid, _nonce, _monitor) = entry
+                  case task_pid == down_pid {
+                    True -> Some(tag)
+                    False -> None
+                  }
+                }
+              }
+            })
+          case found {
+            Some(tag) -> {
+              let state =
+                LoopState(
+                  ..state,
+                  async_tasks: dict.delete(state.async_tasks, tag),
+                )
+              case reason {
+                process.Normal -> message_loop(state)
+                _ -> {
+                  let crash_reason = case reason {
+                    process.Killed -> dynamic.string("killed")
+                    process.Abnormal(r) -> r
+                    process.Normal -> dynamic.string("normal")
+                  }
+                  handle_event(
+                    state,
+                    event.AsyncResult(tag:, result: Error(crash_reason)),
+                  )
+                  |> message_loop()
+                }
+              }
+            }
+            None -> message_loop(state)
+          }
+        }
       }
     }
 
@@ -498,10 +581,21 @@ fn message_loop(state: LoopState(model)) -> Nil {
           state.opts.format,
           notification_subject,
           state.opts.session,
+          state.opts.renderer_args,
         )
       {
         Ok(new_bridge) -> {
           let new_count = state.restart_count + 1
+
+          // Monitor the new bridge process (D-039)
+          let new_bridge_pid = case process.subject_owner(new_bridge) {
+            Ok(pid) -> {
+              process.monitor(pid)
+              Some(pid)
+            }
+            Error(_) -> None
+          }
+
           io.println(
             "toddy: renderer restarted (attempt "
             <> int.to_string(new_count)
@@ -515,6 +609,7 @@ fn message_loop(state: LoopState(model)) -> Nil {
             LoopState(
               ..state,
               bridge: new_bridge,
+              bridge_pid: new_bridge_pid,
               notifications: notification_subject,
             )
 
@@ -680,7 +775,7 @@ fn coalesce_key(ev: Event) -> Option(String) {
 
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
-fn flush_coalesced(state: LoopState(model)) -> LoopState(model) {
+fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let state = case state.coalesce_timer {
     Some(timer) -> {
       process.cancel_timer(timer)
@@ -697,9 +792,9 @@ fn flush_coalesced(state: LoopState(model)) -> LoopState(model) {
 
 /// Cancel an effect timeout timer if the event is an EffectResponse.
 fn maybe_cancel_effect_timeout(
-  state: LoopState(model),
+  state: LoopState(model, msg),
   ev: Event,
-) -> LoopState(model) {
+) -> LoopState(model, msg) {
   case ev {
     event.EffectResponse(request_id:, ..) ->
       case dict.get(state.pending_effects, request_id) {
@@ -737,7 +832,9 @@ fn pow2(n: Int) -> Int {
 
 /// Fail all pending effects with a "renderer_restarted" error and cancel
 /// their timeout timers. The old renderer can no longer respond.
-fn flush_pending_effects_on_restart(state: LoopState(model)) -> LoopState(model) {
+fn flush_pending_effects_on_restart(
+  state: LoopState(model, msg),
+) -> LoopState(model, msg) {
   // Cancel all effect timeout timers
   dict.each(state.pending_effects, fn(_id, timer) {
     process.cancel_timer(timer)
@@ -758,10 +855,67 @@ fn flush_pending_effects_on_restart(state: LoopState(model)) -> LoopState(model)
 
 // -- Event handling (the core update cycle) ----------------------------------
 
-fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
+/// Map a wire Event to the app's msg type using on_event, if defined.
+/// For simple() apps (on_event=None), we use an unsafe coerce because
+/// msg is known to be Event at the type level.
+fn map_event(app: App(model, msg), event: Event) -> msg {
+  case app.get_on_event(app) {
+    Some(mapper) -> mapper(event)
+    None -> coerce_event(event)
+  }
+}
+
+@external(erlang, "erlang", "element")
+fn erlang_element(n: Int, tuple: a) -> b
+
+/// Unsafe coerce: for simple() apps where msg = Event, bypass the type
+/// system since Gleam doesn't have type equality witnesses.
+fn coerce_event(event: Event) -> msg {
+  // At runtime, Event IS msg for simple() apps. This is safe because
+  // the only code path that reaches here is when on_event is None,
+  // which only happens via simple() where msg = Event.
+  let boxed = #(event)
+  erlang_element(1, boxed)
+}
+
+/// Coerce a Dynamic back to the msg type. Safe because we only store
+/// msg values as Dynamic in InternalMsg, and the type parameter is
+/// consistent within a single runtime instance.
+fn unsafe_coerce_dynamic(dyn: Dynamic) -> msg {
+  let boxed = #(dyn)
+  erlang_element(1, boxed)
+}
+
+/// Coerce any value to Dynamic for transport through RuntimeMessage.
+fn coerce_to_dynamic(value: a) -> Dynamic {
+  let boxed = #(value)
+  erlang_element(1, boxed)
+}
+
+/// Handle a message that is already the app's msg type (from Done/SendAfter).
+/// Runs the full update cycle without event mapping.
+fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
+  dispatch_update(state, msg)
+}
+
+/// Handle a wire event by mapping it to the app's msg type first.
+fn handle_event(
+  state: LoopState(model, msg),
+  event: Event,
+) -> LoopState(model, msg) {
+  let mapped_msg = map_event(state.app, event)
+  dispatch_update(state, mapped_msg)
+}
+
+/// Core update cycle: call update -> execute commands -> render view ->
+/// diff -> patch -> sync subscriptions -> sync windows.
+fn dispatch_update(
+  state: LoopState(model, msg),
+  msg: msg,
+) -> LoopState(model, msg) {
   let update_fn = app.get_update(state.app)
 
-  case ffi.try_call(fn() { update_fn(state.model, event) }) {
+  case ffi.try_call(fn() { update_fn(state.model, msg) }) {
     Ok(#(new_model, commands)) -> {
       // Execute commands (before view, matching Elixir SDK)
       let state_after_cmds =
@@ -867,9 +1021,9 @@ fn handle_event(state: LoopState(model), event: Event) -> LoopState(model) {
 // -- Command execution -------------------------------------------------------
 
 fn execute_commands(
-  cmd: Command(Event),
-  state: LoopState(model),
-) -> LoopState(model) {
+  cmd: Command(msg),
+  state: LoopState(model, msg),
+) -> LoopState(model, msg) {
   case cmd {
     command.None -> state
 
@@ -891,7 +1045,13 @@ fn execute_commands(
         }
         Error(_) -> state
       }
-      let timer = process.send_after(state.self, delay_ms, InternalEvent(msg))
+      // Wrap msg as Dynamic since RuntimeMessage is not parameterized
+      let timer =
+        process.send_after(
+          state.self,
+          delay_ms,
+          InternalMsg(coerce_to_dynamic(msg)),
+        )
       LoopState(
         ..state,
         pending_timers: dict.insert(state.pending_timers, timer_key, timer),
@@ -899,8 +1059,8 @@ fn execute_commands(
     }
 
     command.Done(value:, mapper:) -> {
-      let event = mapper(value)
-      process.send(state.self, InternalEvent(event))
+      let mapped_msg = mapper(value)
+      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg)))
       state
     }
 
@@ -1675,9 +1835,9 @@ fn execute_commands(
 
 /// Kill an existing async task with the given tag and clean up its monitor.
 fn cancel_existing_task(
-  state: LoopState(model),
+  state: LoopState(model, msg),
   tag: String,
-) -> LoopState(model) {
+) -> LoopState(model, msg) {
   case dict.get(state.async_tasks, tag) {
     Ok(#(pid, _nonce, monitor)) -> {
       process.demonitor_process(monitor)
@@ -1912,7 +2072,10 @@ fn stop_subscription(
 
 /// Reschedule a timer subscription after it fires.
 /// Matches by the tag stored in the SubEntry (not string matching).
-fn reschedule_timer(state: LoopState(model), tag: String) -> LoopState(model) {
+fn reschedule_timer(
+  state: LoopState(model, msg),
+  tag: String,
+) -> LoopState(model, msg) {
   let new_subs =
     dict.fold(state.active_subs, state.active_subs, fn(acc, key, entry) {
       case entry {
@@ -1949,9 +2112,9 @@ pub fn detect_windows(tree_node: Node) -> Set(String) {
 /// Window prop keys tracked for lifecycle sync. When a window node
 /// has any of these props and they change, an update op is sent.
 const window_prop_keys = [
-  "title", "width", "height", "maximized", "fullscreen", "visible", "resizable",
-  "closeable", "minimizable", "decorations", "transparent", "blur", "level",
-  "exit_on_close_request",
+  "title", "size", "width", "height", "position", "min_size", "max_size",
+  "maximized", "fullscreen", "visible", "resizable", "closeable", "minimizable",
+  "decorations", "transparent", "blur", "level", "exit_on_close_request",
 ]
 
 /// Synchronize window lifecycle: open new windows, close removed ones,
@@ -1962,7 +2125,7 @@ fn sync_windows(
   new_windows: Set(String),
   old_tree: Option(Node),
   bridge: Subject(BridgeMessage),
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
   opts: RuntimeOpts,
 ) -> Nil {

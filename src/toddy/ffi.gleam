@@ -82,3 +82,7 @@ pub fn set_env(name: String, value: String) -> Nil
 /// Unset an environment variable.
 @external(erlang, "toddy_ffi", "unset_env")
 pub fn unset_env(name: String) -> Nil
+
+/// Return the current monotonic time in milliseconds.
+@external(erlang, "toddy_ffi", "monotonic_time_ms")
+pub fn monotonic_time_ms() -> Int

@@ -49,7 +49,17 @@ pub fn select(sel: Selection, id: String, extend: Bool) -> Selection {
         False ->
           Selection(..sel, selected: set.from_list([id]), anchor: Some(id))
       }
-    Range -> Selection(..sel, selected: set.from_list([id]), anchor: Some(id))
+    Range ->
+      case extend {
+        True ->
+          Selection(
+            ..sel,
+            selected: set.insert(sel.selected, id),
+            anchor: Some(id),
+          )
+        False ->
+          Selection(..sel, selected: set.from_list([id]), anchor: Some(id))
+      }
   }
 }
 

@@ -103,3 +103,27 @@ pub fn range_select_no_anchor_selects_single_test() {
   should.equal(selection.is_selected(sel, "b"), True)
   should.equal(set.size(selection.selected(sel)), 1)
 }
+
+pub fn range_select_with_extend_adds_to_selection_test() {
+  let order = ["a", "b", "c", "d", "e"]
+  let sel =
+    selection.new_with_order(Range, order)
+    |> selection.select("a", False)
+    |> selection.select("d", True)
+  // Range mode with extend=True should add to selection (same as Multi)
+  should.equal(selection.is_selected(sel, "a"), True)
+  should.equal(selection.is_selected(sel, "d"), True)
+  should.equal(set.size(selection.selected(sel)), 2)
+}
+
+pub fn range_select_without_extend_replaces_test() {
+  let order = ["a", "b", "c", "d", "e"]
+  let sel =
+    selection.new_with_order(Range, order)
+    |> selection.select("a", False)
+    |> selection.select("d", False)
+  // Range mode with extend=False should replace selection
+  should.equal(selection.is_selected(sel, "a"), False)
+  should.equal(selection.is_selected(sel, "d"), True)
+  should.equal(set.size(selection.selected(sel)), 1)
+}

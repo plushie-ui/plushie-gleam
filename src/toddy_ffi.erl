@@ -15,7 +15,8 @@
     extract_exit_status/1,
     get_env/1,
     set_env/2,
-    unset_env/1
+    unset_env/1,
+    monotonic_time_ms/0
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -112,3 +113,7 @@ set_env(Name, Value) ->
 unset_env(Name) ->
     os:unsetenv(binary_to_list(Name)),
     nil.
+
+%% Return monotonic time in milliseconds.
+monotonic_time_ms() ->
+    erlang:monotonic_time(millisecond).

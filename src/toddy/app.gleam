@@ -22,6 +22,8 @@ pub type Settings {
     fonts: List(String),
     vsync: Bool,
     scale_factor: Float,
+    default_font: Option(PropValue),
+    default_event_rate: Option(Int),
   )
 }
 
@@ -34,13 +36,15 @@ pub fn default_settings() -> Settings {
     fonts: [],
     vsync: True,
     scale_factor: 1.0,
+    default_font: option.None,
+    default_event_rate: option.None,
   )
 }
 
 /// Application definition bundling all callbacks.
 pub opaque type App(model, msg) {
   App(
-    init: fn() -> #(model, Command(msg)),
+    init: fn(Dynamic) -> #(model, Command(msg)),
     update: fn(model, msg) -> #(model, Command(msg)),
     view: fn(model) -> Node,
     subscribe: fn(model) -> List(Subscription),
@@ -53,8 +57,28 @@ pub opaque type App(model, msg) {
 
 /// Create a simple app where msg = Event.
 /// This covers the common case where update receives toddy Events directly.
+/// The init function ignores the Dynamic app_opts argument. Use
+/// `simple_with_opts` if you need to receive app_opts.
 pub fn simple(
   init: fn() -> #(model, Command(Event)),
+  update: fn(model, Event) -> #(model, Command(Event)),
+  view: fn(model) -> Node,
+) -> App(model, Event) {
+  App(
+    init: fn(_opts) { init() },
+    update:,
+    view:,
+    subscribe: fn(_) { [] },
+    settings: default_settings,
+    window_config: fn(_) { dict.new() },
+    on_renderer_exit: option.None,
+    on_event: option.None,
+  )
+}
+
+/// Create a simple app with app_opts passed to init.
+pub fn simple_with_opts(
+  init: fn(Dynamic) -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
   view: fn(model) -> Node,
 ) -> App(model, Event) {
@@ -74,6 +98,25 @@ pub fn simple(
 /// The `on_event` function maps wire Events to the app's msg type.
 pub fn application(
   init: fn() -> #(model, Command(msg)),
+  update: fn(model, msg) -> #(model, Command(msg)),
+  view: fn(model) -> Node,
+  on_event: fn(Event) -> msg,
+) -> App(model, msg) {
+  App(
+    init: fn(_opts) { init() },
+    update:,
+    view:,
+    subscribe: fn(_) { [] },
+    settings: default_settings,
+    window_config: fn(_) { dict.new() },
+    on_renderer_exit: option.None,
+    on_event: option.Some(on_event),
+  )
+}
+
+/// Create an app with a custom message type and app_opts passed to init.
+pub fn application_with_opts(
+  init: fn(Dynamic) -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
   view: fn(model) -> Node,
   on_event: fn(Event) -> msg,
@@ -124,7 +167,7 @@ pub fn with_on_renderer_exit(
 
 // --- Accessor functions (for the runtime to call) ---
 
-pub fn get_init(app: App(model, msg)) -> fn() -> #(model, Command(msg)) {
+pub fn get_init(app: App(model, msg)) -> fn(Dynamic) -> #(model, Command(msg)) {
   app.init
 }
 

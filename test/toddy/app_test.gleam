@@ -1,4 +1,5 @@
 import gleam/dict
+import gleam/dynamic
 import gleam/option
 import gleeunit/should
 import toddy/app
@@ -32,7 +33,7 @@ fn test_view(_model: Model) {
 pub fn simple_creates_app_test() {
   let my_app = app.simple(test_init, test_update, test_view)
   // Can call init through accessor
-  let #(model, _cmd) = app.get_init(my_app)()
+  let #(model, _cmd) = app.get_init(my_app)(dynamic.nil())
   should.equal(model.count, 0)
 }
 
@@ -63,6 +64,23 @@ pub fn default_settings_test() {
   should.equal(s.fonts, [])
   should.equal(s.vsync, True)
   should.equal(s.scale_factor, 1.0)
+  should.equal(s.default_font, option.None)
+  should.equal(s.default_event_rate, option.None)
+}
+
+pub fn init_receives_app_opts_test() {
+  let my_app =
+    app.simple_with_opts(
+      fn(opts) {
+        // Dynamic opts are passed through
+        let _ = opts
+        #(Model(count: 42), command.none())
+      },
+      test_update,
+      test_view,
+    )
+  let #(model, _cmd) = app.get_init(my_app)(dynamic.nil())
+  should.equal(model.count, 42)
 }
 
 pub fn update_through_accessor_test() {
@@ -119,7 +137,7 @@ pub fn application_stores_on_event_test() {
 pub fn application_init_works_test() {
   let my_app =
     app.application(msg_init, msg_update, msg_view, fn(e) { TodoEvent(e) })
-  let #(model, _cmd) = app.get_init(my_app)()
+  let #(model, _cmd) = app.get_init(my_app)(dynamic.nil())
   should.equal(model.count, 0)
 }
 

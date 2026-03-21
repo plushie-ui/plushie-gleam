@@ -1,4 +1,5 @@
 import gleam/dict
+import gleam/dynamic
 import gleam/option.{None, Some}
 import gleam/set
 import toddy/node.{type Node, BoolVal, FloatVal, StringVal}
@@ -26,6 +27,8 @@ pub fn custom_opts_test() {
       format: protocol.Json,
       session: "test-session",
       daemon: True,
+      app_opts: dynamic.nil(),
+      renderer_args: ["--headless"],
     )
   assert opts.format == protocol.Json
   assert opts.session == "test-session"
@@ -106,6 +109,35 @@ pub fn extract_window_props_returns_tracked_keys_test() {
   assert dict.get(props, "resizable") == Ok(BoolVal(True))
   // untracked_prop should not appear
   assert dict.get(props, "untracked_prop") == Error(Nil)
+}
+
+pub fn extract_window_props_includes_size_and_position_test() {
+  // D-047: size, position, min_size, max_size should be tracked
+  let size_val =
+    node.DictVal(
+      dict.from_list([
+        #("width", FloatVal(800.0)),
+        #("height", FloatVal(600.0)),
+      ]),
+    )
+  let pos_val =
+    node.DictVal(
+      dict.from_list([#("x", FloatVal(100.0)), #("y", FloatVal(200.0))]),
+    )
+  let tree =
+    node.new("main", "window")
+    |> node.with_props([
+      #("size", size_val),
+      #("position", pos_val),
+      #("min_size", size_val),
+      #("max_size", size_val),
+    ])
+  let props = runtime.extract_window_props(tree, "main")
+  assert dict.size(props) == 4
+  assert dict.has_key(props, "size")
+  assert dict.has_key(props, "position")
+  assert dict.has_key(props, "min_size")
+  assert dict.has_key(props, "max_size")
 }
 
 pub fn extract_window_props_child_window_test() {

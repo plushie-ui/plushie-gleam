@@ -14,6 +14,7 @@ import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/port.{type Port}
 import gleam/erlang/process.{type Subject}
 import gleam/io
+import gleam/list
 import gleam/otp/actor
 import gleam/result
 import toddy/ffi
@@ -68,6 +69,7 @@ pub fn start(
   format: protocol.Format,
   runtime: Subject(RuntimeNotification),
   session: String,
+  renderer_args: List(String),
 ) -> Result(Subject(BridgeMessage), actor.StartError) {
   actor.new_with_initialiser(5000, fn(subject) {
     let options = case format {
@@ -75,10 +77,11 @@ pub fn start(
       protocol.Json -> ffi.json_port_options()
     }
 
-    let args = case format {
+    let format_args = case format {
       protocol.Json -> ["--json"]
       protocol.Msgpack -> []
     }
+    let args = list.append(renderer_args, format_args)
 
     let env_entries = renderer_env.build(renderer_env.default_opts())
     let env = renderer_env.to_port_env(env_entries)

@@ -37,12 +37,12 @@
 //// }
 //// ```
 
+import gleam/dynamic.{type Dynamic}
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import toddy/app.{type App}
 import toddy/binary
-import toddy/event.{type Event}
 import toddy/protocol
 import toddy/runtime
 
@@ -57,6 +57,10 @@ pub type StartOpts {
     daemon: Bool,
     /// Session identifier. Default: "" (single-session).
     session: String,
+    /// Application options passed to init/1. Default: dynamic.nil().
+    app_opts: Dynamic,
+    /// Extra CLI arguments prepended to the renderer command.
+    renderer_args: List(String),
   )
 }
 
@@ -67,6 +71,8 @@ pub fn default_start_opts() -> StartOpts {
     format: protocol.Msgpack,
     daemon: False,
     session: "",
+    app_opts: dynamic.nil(),
+    renderer_args: [],
   )
 }
 
@@ -88,7 +94,7 @@ pub type StartError {
 /// Returns the runtime's message subject, which can be used with
 /// `stop` to shut down the application.
 pub fn start(
-  app: App(model, Event),
+  app: App(model, msg),
   opts: StartOpts,
 ) -> Result(Subject(runtime.RuntimeMessage), StartError) {
   // Resolve binary path
@@ -103,6 +109,8 @@ pub fn start(
       format: opts.format,
       session: opts.session,
       daemon: opts.daemon,
+      app_opts: opts.app_opts,
+      renderer_args: opts.renderer_args,
     )
 
   runtime.start(app, binary_path, runtime_opts)
