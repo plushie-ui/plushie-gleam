@@ -19,6 +19,8 @@ pub type PropValue {
   FloatVal(Float)
   BoolVal(Bool)
   NullVal
+  /// Raw binary data. Encoded as base64 on the JSON wire format and
+  /// as raw bytes on the MessagePack wire format.
   BinaryVal(BitArray)
   ListVal(List(PropValue))
   DictVal(Dict(String, PropValue))

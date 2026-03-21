@@ -106,3 +106,9 @@ pub fn extract_eof(msg: Dynamic) -> Result(Nil, Dynamic)
 /// Return a null port value for iostream transport (never used for I/O).
 @external(erlang, "toddy_ffi", "null_port")
 pub fn null_port() -> Port
+
+/// Return a stable hash key for any value as a string.
+/// Uses erlang:phash2 for consistent results regardless of how the
+/// value is wrapped (raw term vs Dynamic).
+@external(erlang, "toddy_ffi", "stable_hash_key")
+pub fn stable_hash_key(value: Dynamic) -> String

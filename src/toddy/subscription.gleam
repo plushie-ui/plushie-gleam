@@ -1,7 +1,12 @@
 //// Subscription types for ongoing event sources.
 ////
 //// Return subscriptions from the `subscribe` callback. The runtime
-//// diffs the list each cycle, starting new and stopping removed subs.
+//// diffs the list each cycle using `key/1`: subscriptions with the
+//// same key are considered identical and kept alive; new keys trigger
+//// a subscribe message to the renderer, and removed keys trigger an
+//// unsubscribe. This means a subscription's identity is its
+//// (kind, tag) pair -- changing max_rate on an existing key updates
+//// the rate without re-subscribing.
 ////
 //// Renderer subscriptions accept an optional `max_rate` that tells the
 //// renderer to coalesce events beyond the given rate (events per second).

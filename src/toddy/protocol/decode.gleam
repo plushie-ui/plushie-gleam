@@ -92,10 +92,11 @@ pub fn decode_message(
 pub fn split_scoped_id(wire_id: String) -> #(String, List(String)) {
   case string.split(wire_id, "/") {
     [local] -> #(local, [])
-    parts -> {
-      let assert [local, ..scope] = list.reverse(parts)
-      #(local, scope)
-    }
+    parts ->
+      case list.reverse(parts) {
+        [local, ..scope] -> #(local, scope)
+        [] -> #("", [])
+      }
   }
 }
 
@@ -161,7 +162,7 @@ fn msgpack_to_prop(value: data.Value) -> PropValue {
     data.Integer(n) -> PInt(n)
     data.Float(f) -> PFloat(f)
     data.String(s) -> PString(s)
-    data.Binary(_) -> PNull
+    data.Binary(b) -> PString(bit_array.base64_encode(b, True))
     data.Array(items) -> PList(list.map(items, msgpack_to_prop))
     data.Map(entries) -> PMap(msgpack_map_to_string_dict(entries))
     data.Extension(_, _) -> PNull

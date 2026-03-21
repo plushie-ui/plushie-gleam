@@ -116,21 +116,28 @@ pub type Event {
   // --- Key events ---
   KeyPress(
     key: String,
+    /// The key value after applying modifier transforms. For example,
+    /// Shift+a produces modified_key "A". Falls back to the unmodified
+    /// key when no transform applies.
     modified_key: String,
     modifiers: Modifiers,
     physical_key: Option(String),
     location: KeyLocation,
     text: Option(String),
     repeat: Bool,
+    /// Whether a subscription already consumed this event. Apps can
+    /// check this to skip captured events and avoid double-processing.
     captured: Bool,
   )
   KeyRelease(
     key: String,
+    /// The key value after applying modifier transforms.
     modified_key: String,
     modifiers: Modifiers,
     physical_key: Option(String),
     location: KeyLocation,
     text: Option(String),
+    /// Whether a subscription already consumed this event.
     captured: Bool,
   )
 
@@ -258,9 +265,13 @@ pub type Event {
   StreamValue(tag: String, value: Dynamic)
 
   // --- Accessibility ---
+  /// Request the system screen reader to announce the given text.
   Announce(text: String)
 
   // --- Error events ---
+  /// Emitted when the tree contains duplicate node IDs after
+  /// normalization. The details Dynamic contains a list of the
+  /// offending IDs. Usually indicates a bug in the view function.
   DuplicateNodeIds(details: Dynamic)
 
   // --- Effect response ---

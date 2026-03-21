@@ -16,13 +16,23 @@ import toddy/subscription.{type Subscription}
 /// App-level settings sent to the Rust binary on startup.
 pub type Settings {
   Settings(
+    /// Enable anti-aliasing for rendered content. Default: True.
     antialiasing: Bool,
+    /// Base text size in logical pixels. Default: 16.0.
     default_text_size: Float,
+    /// Override the application theme. None uses the system theme.
     theme: Option(Theme),
+    /// Paths to custom font files to load at startup.
     fonts: List(String),
+    /// Enable vertical sync. Default: True.
     vsync: Bool,
+    /// Global UI scale factor (1.0 = 100%). Default: 1.0.
     scale_factor: Float,
+    /// Override the default font family. None uses the built-in default.
     default_font: Option(PropValue),
+    /// Maximum events per second for coalescable event sources
+    /// (mouse moves, sensor resizes, etc.). None uses the renderer's
+    /// built-in default. A value of 0 subscribes but never emits.
     default_event_rate: Option(Int),
   )
 }

@@ -412,7 +412,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
 
     InternalEvent(event) -> {
       // Remove delivered timer entry (SendAfter deduplication)
-      let timer_key = string.inspect(event)
+      let timer_key = ffi.stable_hash_key(coerce_to_dynamic(event))
       let state =
         LoopState(
           ..state,
@@ -429,7 +429,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
     InternalMsg(dyn_msg) -> {
       // Done/SendAfter deliver msg values wrapped as Dynamic.
       // Remove delivered timer entry for deduplication.
-      let timer_key = string.inspect(dyn_msg)
+      let timer_key = ffi.stable_hash_key(dyn_msg)
       let state =
         LoopState(
           ..state,
@@ -1039,7 +1039,7 @@ fn execute_commands(
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      let timer_key = string.inspect(msg)
+      let timer_key = ffi.stable_hash_key(coerce_to_dynamic(msg))
       // Cancel any existing timer for the same event key
       let state = case dict.get(state.pending_timers, timer_key) {
         Ok(old_timer) -> {

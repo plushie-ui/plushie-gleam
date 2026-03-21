@@ -25,7 +25,8 @@
     open_fd_port/3,
     extract_eof/1,
     null_port/0,
-    drain_timer_ticks/2
+    drain_timer_ticks/2,
+    stable_hash_key/1
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -213,3 +214,9 @@ drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag) ->
     after
         0 -> nil
     end.
+
+%% Return a stable hash key for any Erlang term as a binary string.
+%% Uses erlang:phash2 which gives consistent results regardless of
+%% how the value is wrapped (e.g. raw vs Dynamic).
+stable_hash_key(Value) ->
+    integer_to_binary(erlang:phash2(Value)).

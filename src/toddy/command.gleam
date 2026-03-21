@@ -1,7 +1,10 @@
 //// Command types returned from update.
 ////
 //// Commands describe side effects that the runtime executes after
-//// `update` returns. For no side effects, return `command.none()`.
+//// `update` returns. The lifecycle is: `update` returns
+//// `#(model, command)`, the runtime executes the command, and then
+//// calls `view` with the new model. Batched commands execute in
+//// list order. For no side effects, return `command.none()`.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
@@ -9,16 +12,28 @@ import gleam/option.{type Option}
 import toddy/node.{type PropValue}
 
 pub type Command(msg) {
+  /// No side effect.
   None
+  /// Execute multiple commands in list order.
   Batch(commands: List(Command(msg)))
+  /// Deliver an already-resolved value through update via the mapper.
   Done(value: Dynamic, mapper: fn(Dynamic) -> msg)
+  /// Run a function on a background process. The result is delivered
+  /// as an `AsyncResult` event identified by `tag`.
   Async(work: fn() -> Dynamic, tag: String)
+  /// Run a function that can emit multiple values over time. Each
+  /// value is delivered as a `StreamValue` event identified by `tag`.
   Stream(work: fn(fn(Dynamic) -> Nil) -> Dynamic, tag: String)
+  /// Cancel a running Async or Stream task by tag.
   Cancel(tag: String)
+  /// Deliver `msg` back to update after `delay_ms` milliseconds.
+  /// Sending another SendAfter with an identical msg cancels the
+  /// previous timer (deduplication via stable hashing).
   SendAfter(delay_ms: Int, msg: msg)
+  /// Shut down the runtime and close all windows.
   Exit
 
-  // Focus
+  /// Move keyboard focus to the given widget.
   Focus(widget_id: String)
   FocusNext
   FocusPrevious
@@ -106,7 +121,8 @@ pub type Command(msg) {
   FindFocused(tag: String)
   LoadFont(data: BitArray)
 
-  // Effects (platform I/O)
+  /// Request a platform effect (file dialog, clipboard, notification).
+  /// The result arrives as an `EffectResponse` event matched by `id`.
   Effect(id: String, kind: String, payload: Dict(String, PropValue))
 
   // Extensions
