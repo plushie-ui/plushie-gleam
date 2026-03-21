@@ -893,11 +893,14 @@ fn execute_commands(
       state
     }
 
-    command.ScrollTo(widget_id:, offset: _) -> {
+    command.ScrollTo(widget_id:, offset:) -> {
       send_widget_op(
         state.bridge,
         "scroll_to",
-        [#("target", StringVal(widget_id))],
+        [
+          #("target", StringVal(widget_id)),
+          #("offset_y", dynamic_to_prop_value(offset)),
+        ],
         state.opts,
       )
       state
@@ -942,7 +945,12 @@ fn execute_commands(
     }
 
     command.CloseWindow(window_id:) -> {
-      send_window_op(state.bridge, "close", window_id, [], state.opts)
+      send_widget_op(
+        state.bridge,
+        "close_window",
+        [#("window_id", StringVal(window_id))],
+        state.opts,
+      )
       state
     }
 
@@ -1056,7 +1064,7 @@ fn execute_commands(
       }
       send_window_op(
         state.bridge,
-        "request_user_attention",
+        "request_attention",
         window_id,
         payload,
         state.opts,
@@ -1111,9 +1119,9 @@ fn execute_commands(
     command.EnableMousePassthrough(window_id:) -> {
       send_window_op(
         state.bridge,
-        "enable_mouse_passthrough",
+        "mouse_passthrough",
         window_id,
-        [],
+        [#("enabled", BoolVal(True))],
         state.opts,
       )
       state
@@ -1122,9 +1130,9 @@ fn execute_commands(
     command.DisableMousePassthrough(window_id:) -> {
       send_window_op(
         state.bridge,
-        "disable_mouse_passthrough",
+        "mouse_passthrough",
         window_id,
-        [],
+        [#("enabled", BoolVal(False))],
         state.opts,
       )
       state
@@ -1162,9 +1170,10 @@ fn execute_commands(
     }
 
     command.AllowAutomaticTabbing(enabled:) -> {
-      send_widget_op(
+      send_window_op(
         state.bridge,
         "allow_automatic_tabbing",
+        "_global",
         [#("enabled", BoolVal(enabled))],
         state.opts,
       )
@@ -1461,8 +1470,8 @@ fn execute_commands(
         state.bridge,
         "pane_split",
         [
-          #("pane_grid_id", StringVal(pane_grid_id)),
-          #("pane_id", dynamic_to_prop_value(pane_id)),
+          #("target", StringVal(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
           #("axis", StringVal(axis)),
           #("new_pane_id", dynamic_to_prop_value(new_pane_id)),
         ],
@@ -1476,8 +1485,8 @@ fn execute_commands(
         state.bridge,
         "pane_close",
         [
-          #("pane_grid_id", StringVal(pane_grid_id)),
-          #("pane_id", dynamic_to_prop_value(pane_id)),
+          #("target", StringVal(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
         ],
         state.opts,
       )
@@ -1489,9 +1498,9 @@ fn execute_commands(
         state.bridge,
         "pane_swap",
         [
-          #("pane_grid_id", StringVal(pane_grid_id)),
-          #("pane_a", dynamic_to_prop_value(pane_a)),
-          #("pane_b", dynamic_to_prop_value(pane_b)),
+          #("target", StringVal(pane_grid_id)),
+          #("a", dynamic_to_prop_value(pane_a)),
+          #("b", dynamic_to_prop_value(pane_b)),
         ],
         state.opts,
       )
@@ -1503,8 +1512,8 @@ fn execute_commands(
         state.bridge,
         "pane_maximize",
         [
-          #("pane_grid_id", StringVal(pane_grid_id)),
-          #("pane_id", dynamic_to_prop_value(pane_id)),
+          #("target", StringVal(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
         ],
         state.opts,
       )
@@ -1515,7 +1524,7 @@ fn execute_commands(
       send_widget_op(
         state.bridge,
         "pane_restore",
-        [#("pane_grid_id", StringVal(pane_grid_id))],
+        [#("target", StringVal(pane_grid_id))],
         state.opts,
       )
       state
