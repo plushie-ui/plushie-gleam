@@ -57,5 +57,5 @@ pub fn role_to_string_samples_test() {
   should.equal(a11y.role_to_string(a11y.Checkbox), "checkbox")
   should.equal(a11y.role_to_string(a11y.MenuItemRadio), "menuitemradio")
   should.equal(a11y.role_to_string(a11y.ProgressBar), "progressbar")
-  should.equal(a11y.role_to_string(a11y.TreeItem), "treeitem")
+  should.equal(a11y.role_to_string(a11y.TreeItem), "tree_item")
 }

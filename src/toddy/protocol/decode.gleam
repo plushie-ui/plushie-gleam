@@ -454,21 +454,16 @@ fn decode_op_query_response(
     "list_images" ->
       event.ImageList(
         tag:,
-        handles: get_string_list(get_map(map, "data_map"), "handles"),
+        handles: get_string_list(get_map(map, "data"), "handles"),
       )
     "tree_hash" -> {
-      let hash = case dict.get(map, "data") {
-        Ok(PString(s)) -> s
-        _ -> ""
-      }
+      let data_map = get_map(map, "data")
+      let hash = get_string_or(data_map, "hash", "")
       event.TreeHash(tag:, hash:)
     }
     "find_focused" -> {
-      let widget_id = case dict.get(map, "data") {
-        Ok(PString(s)) -> Some(s)
-        Ok(PNull) -> None
-        _ -> None
-      }
+      let data_map = get_map(map, "data")
+      let widget_id = get_optional_string(data_map, "focused")
       event.FocusedWidget(tag:, widget_id:)
     }
     _ -> event.SystemInfo(tag:, data: data_val)
@@ -620,7 +615,7 @@ fn parse_mouse_button(value: String) -> MouseButton {
 
 fn parse_scroll_unit(value: String) -> ScrollUnit {
   case value {
-    "pixel" -> event.Pixel
+    "pixel" | "pixels" -> event.Pixel
     _ -> event.Line
   }
 }
