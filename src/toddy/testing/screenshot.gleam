@@ -41,7 +41,7 @@ pub fn save_png(screenshot: Screenshot, path: String) -> Nil {
     _, _, 0 -> Nil
     w, h, _ -> {
       let png_data = encode_png(w, h, screenshot.pixels)
-      write_file(path, png_data)
+      write_file_atomic(path, png_data)
       Nil
     }
   }
@@ -84,7 +84,7 @@ pub fn assert_screenshot(
         }
         _, _ -> {
           mkdir_p(dir_name(golden_path))
-          write_file_text(golden_path, current_hash)
+          write_file_text_atomic(golden_path, current_hash)
           Nil
         }
       }
@@ -165,11 +165,11 @@ fn file_exists(path: String) -> Bool
 @external(erlang, "toddy_snapshot_ffi", "read_file")
 fn read_file_text(path: String) -> Result(String, Nil)
 
-@external(erlang, "toddy_snapshot_ffi", "write_file")
-fn write_file_text(path: String, content: String) -> Nil
+@external(erlang, "toddy_snapshot_ffi", "write_file_atomic")
+fn write_file_text_atomic(path: String, content: String) -> Nil
 
-@external(erlang, "toddy_screenshot_ffi", "write_binary_file")
-fn write_file(path: String, data: BitArray) -> Nil
+@external(erlang, "toddy_screenshot_ffi", "write_binary_file_atomic")
+fn write_file_atomic(path: String, data: BitArray) -> Nil
 
 @external(erlang, "toddy_snapshot_ffi", "mkdir_p")
 fn mkdir_p(path: String) -> Nil

@@ -384,7 +384,7 @@ fn init_renderer(
   let init_fn = app.get_init(app)
   let #(init_model, init_commands) = init_fn(dynamic.nil())
   let #(model, _events) =
-    command_processor.process_commands(app, init_model, init_commands, 0)
+    command_processor.process_commands(app, init_model, init_commands, None)
   let view_fn = app.get_view(app)
   let initial_tree = view_fn(model) |> tree.normalize()
 
@@ -597,7 +597,12 @@ fn handle_reset(
   let init_fn = app.get_init(state.app)
   let #(init_model, init_commands) = init_fn(dynamic.nil())
   let #(model, _events) =
-    command_processor.process_commands(state.app, init_model, init_commands, 0)
+    command_processor.process_commands(
+      state.app,
+      init_model,
+      init_commands,
+      None,
+    )
   let view_fn = app.get_view(state.app)
   let new_tree = view_fn(model) |> tree.normalize()
 
@@ -807,7 +812,7 @@ fn run_update(state: RendererState(model), event: Event) -> RendererState(model)
   let update_fn = app.get_update(state.app)
   let #(new_model, commands) = update_fn(state.model, event)
   let #(model, _events) =
-    command_processor.process_commands(state.app, new_model, commands, 0)
+    command_processor.process_commands(state.app, new_model, commands, None)
   let view_fn = app.get_view(state.app)
   let new_tree = view_fn(model) |> tree.normalize()
 

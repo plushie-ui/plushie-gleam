@@ -9,6 +9,7 @@ import gleam/list
 import gleam/option
 import gleam/string
 import toddy/event.{type Event}
+import toddy/ffi
 import toddy/node.{BoolVal, StringVal}
 import toddy/testing/element
 import toddy/testing/session.{type TestSession}
@@ -121,6 +122,17 @@ fn read_bool_prop(session: TestSession(model, msg), id: String) -> Bool {
       }
     }
     option.None -> False
+  }
+}
+
+/// Check whether a display server is available (DISPLAY or WAYLAND_DISPLAY).
+/// Use this to guard tests that spawn the actual toddy renderer so they
+/// skip gracefully in headless CI environments without Xvfb.
+pub fn display_available() -> Bool {
+  case ffi.get_env("DISPLAY"), ffi.get_env("WAYLAND_DISPLAY") {
+    Ok(_), _ -> True
+    _, Ok(_) -> True
+    _, _ -> False
   }
 }
 

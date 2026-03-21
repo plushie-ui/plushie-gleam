@@ -22,6 +22,7 @@ pub fn decode_test_event(
   let #(local, scope) = split_scoped_id(id)
 
   case family {
+    // -- Widget events -------------------------------------------------------
     "click" -> Ok(event.WidgetClick(id: local, scope:))
     "input" ->
       Ok(event.WidgetInput(
@@ -73,12 +74,54 @@ pub fn decode_test_event(
       ))
     "open" -> Ok(event.WidgetOpen(id: local, scope:))
     "close" -> Ok(event.WidgetClose(id: local, scope:))
+    "option_hovered" ->
+      Ok(event.WidgetOptionHovered(
+        id: local,
+        scope:,
+        value: get_string(data, "value", ""),
+      ))
+    "key_binding" ->
+      Ok(event.WidgetKeyBinding(
+        id: local,
+        scope:,
+        value: get_string(data, "value", ""),
+      ))
+    "scroll" -> {
+      let scroll_data =
+        event.ScrollData(
+          absolute_x: get_float(data, "absolute_x", 0.0),
+          absolute_y: get_float(data, "absolute_y", 0.0),
+          relative_x: get_float(data, "relative_x", 0.0),
+          relative_y: get_float(data, "relative_y", 0.0),
+          bounds_width: get_float(data, "bounds_width", 0.0),
+          bounds_height: get_float(data, "bounds_height", 0.0),
+          content_width: get_float(data, "content_width", 0.0),
+          content_height: get_float(data, "content_height", 0.0),
+        )
+      Ok(event.WidgetScroll(id: local, scope:, data: scroll_data))
+    }
+
+    // -- Key events ----------------------------------------------------------
     "key_press" -> Ok(decode_key_press(data))
     "key_release" -> Ok(decode_key_release(data))
+
+    // -- Mouse events (global subscriptions) ---------------------------------
     "cursor_moved" ->
       Ok(event.MouseMoved(
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "cursor_entered" -> Ok(event.MouseEntered(captured: False))
+    "cursor_left" -> Ok(event.MouseLeft(captured: False))
+    "button_pressed" ->
+      Ok(event.MouseButtonPressed(
+        button: decode_mouse_button(get_string(data, "button", "left")),
+        captured: False,
+      ))
+    "button_released" ->
+      Ok(event.MouseButtonReleased(
+        button: decode_mouse_button(get_string(data, "button", "left")),
         captured: False,
       ))
     "wheel_scrolled" ->
@@ -88,6 +131,216 @@ pub fn decode_test_event(
         unit: event.Line,
         captured: False,
       ))
+
+    // -- Touch events --------------------------------------------------------
+    "finger_pressed" ->
+      Ok(event.TouchPressed(
+        finger_id: get_int(data, "finger_id", 0),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "finger_moved" ->
+      Ok(event.TouchMoved(
+        finger_id: get_int(data, "finger_id", 0),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "finger_lifted" ->
+      Ok(event.TouchLifted(
+        finger_id: get_int(data, "finger_id", 0),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "finger_lost" ->
+      Ok(event.TouchLost(
+        finger_id: get_int(data, "finger_id", 0),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+
+    // -- Window events -------------------------------------------------------
+    "window_opened" ->
+      Ok(event.WindowOpened(
+        window_id: get_string(data, "window_id", ""),
+        width: get_float(data, "width", 0.0),
+        height: get_float(data, "height", 0.0),
+        position_x: get_optional_float(data, "position_x"),
+        position_y: get_optional_float(data, "position_y"),
+        scale_factor: get_float(data, "scale_factor", 1.0),
+      ))
+    "window_closed" ->
+      Ok(event.WindowClosed(window_id: get_string(data, "window_id", "")))
+    "window_close_requested" ->
+      Ok(
+        event.WindowCloseRequested(window_id: get_string(data, "window_id", "")),
+      )
+    "window_moved" ->
+      Ok(event.WindowMoved(
+        window_id: get_string(data, "window_id", ""),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+      ))
+    "window_resized" ->
+      Ok(event.WindowResized(
+        window_id: get_string(data, "window_id", ""),
+        width: get_float(data, "width", 0.0),
+        height: get_float(data, "height", 0.0),
+      ))
+    "window_focused" ->
+      Ok(event.WindowFocused(window_id: get_string(data, "window_id", "")))
+    "window_unfocused" ->
+      Ok(event.WindowUnfocused(window_id: get_string(data, "window_id", "")))
+    "window_rescaled" ->
+      Ok(event.WindowRescaled(
+        window_id: get_string(data, "window_id", ""),
+        scale_factor: get_float(data, "scale_factor", 1.0),
+      ))
+    "window_file_hovered" ->
+      Ok(event.WindowFileHovered(
+        window_id: get_string(data, "window_id", ""),
+        path: get_string(data, "path", ""),
+      ))
+    "window_file_dropped" ->
+      Ok(event.WindowFileDropped(
+        window_id: get_string(data, "window_id", ""),
+        path: get_string(data, "path", ""),
+      ))
+    "window_files_hovered_left" ->
+      Ok(
+        event.WindowFilesHoveredLeft(window_id: get_string(
+          data,
+          "window_id",
+          "",
+        )),
+      )
+
+    // -- IME events ----------------------------------------------------------
+    "ime_opened" -> Ok(event.ImeOpened(captured: False))
+    "ime_preedit" ->
+      Ok(event.ImePreedit(
+        text: get_string(data, "text", ""),
+        cursor: None,
+        captured: False,
+      ))
+    "ime_commit" ->
+      Ok(event.ImeCommit(text: get_string(data, "text", ""), captured: False))
+    "ime_closed" -> Ok(event.ImeClosed(captured: False))
+
+    // -- Modifiers changed ---------------------------------------------------
+    "modifiers_changed" ->
+      Ok(event.ModifiersChanged(
+        modifiers: decode_modifiers(data),
+        captured: False,
+      ))
+
+    // -- MouseArea events ----------------------------------------------------
+    "mouse_area_right_press" -> Ok(event.MouseAreaRightPress(id: local, scope:))
+    "mouse_area_right_release" ->
+      Ok(event.MouseAreaRightRelease(id: local, scope:))
+    "mouse_area_middle_press" ->
+      Ok(event.MouseAreaMiddlePress(id: local, scope:))
+    "mouse_area_middle_release" ->
+      Ok(event.MouseAreaMiddleRelease(id: local, scope:))
+    "mouse_area_double_click" ->
+      Ok(event.MouseAreaDoubleClick(id: local, scope:))
+    "mouse_area_enter" -> Ok(event.MouseAreaEnter(id: local, scope:))
+    "mouse_area_exit" -> Ok(event.MouseAreaExit(id: local, scope:))
+    "mouse_area_move" ->
+      Ok(event.MouseAreaMove(
+        id: local,
+        scope:,
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+      ))
+    "mouse_area_scroll" ->
+      Ok(event.MouseAreaScroll(
+        id: local,
+        scope:,
+        delta_x: get_float(data, "delta_x", 0.0),
+        delta_y: get_float(data, "delta_y", 0.0),
+      ))
+
+    // -- Canvas events -------------------------------------------------------
+    "canvas_press" ->
+      Ok(event.CanvasPress(
+        id: local,
+        scope:,
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        button: get_string(data, "button", "left"),
+      ))
+    "canvas_release" ->
+      Ok(event.CanvasRelease(
+        id: local,
+        scope:,
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        button: get_string(data, "button", "left"),
+      ))
+    "canvas_move" ->
+      Ok(event.CanvasMove(
+        id: local,
+        scope:,
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+      ))
+    "canvas_scroll" ->
+      Ok(event.CanvasScroll(
+        id: local,
+        scope:,
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        delta_x: get_float(data, "delta_x", 0.0),
+        delta_y: get_float(data, "delta_y", 0.0),
+      ))
+
+    // -- Pane events ---------------------------------------------------------
+    "pane_resized" ->
+      Ok(event.PaneResized(
+        id: local,
+        scope:,
+        split: get_dynamic(data, "split"),
+        ratio: get_float(data, "ratio", 0.5),
+      ))
+    "pane_dragged" ->
+      Ok(event.PaneDragged(
+        id: local,
+        scope:,
+        pane: get_dynamic(data, "pane"),
+        target: get_dynamic(data, "target"),
+        action: get_string(data, "action", ""),
+        region: get_optional_string(data, "region"),
+        edge: get_optional_string(data, "edge"),
+      ))
+    "pane_clicked" ->
+      Ok(event.PaneClicked(id: local, scope:, pane: get_dynamic(data, "pane")))
+    "pane_focus_cycle" ->
+      Ok(event.PaneFocusCycle(
+        id: local,
+        scope:,
+        pane: get_dynamic(data, "pane"),
+      ))
+
+    // -- Sensor events -------------------------------------------------------
+    "sensor_resize" ->
+      Ok(event.SensorResize(
+        id: local,
+        scope:,
+        width: get_float(data, "width", 0.0),
+        height: get_float(data, "height", 0.0),
+      ))
+
+    // -- System events -------------------------------------------------------
+    "animation_frame" ->
+      Ok(event.AnimationFrame(timestamp: get_int(data, "timestamp", 0)))
+    "theme_changed" ->
+      Ok(event.ThemeChanged(theme: get_string(data, "theme", "")))
+    "all_windows_closed" -> Ok(event.AllWindowsClosed)
+
     _ -> Error(Nil)
   }
 }
@@ -216,6 +469,19 @@ fn parse_wire_key_name(name: String) -> String {
   }
 }
 
+// -- Mouse button decoding ---------------------------------------------------
+
+fn decode_mouse_button(name: String) -> event.MouseButton {
+  case name {
+    "left" -> event.LeftButton
+    "right" -> event.RightButton
+    "middle" -> event.MiddleButton
+    "back" -> event.BackButton
+    "forward" -> event.ForwardButton
+    other -> event.OtherButton(other)
+  }
+}
+
 // -- Dict helpers ------------------------------------------------------------
 
 fn get_string(
@@ -230,6 +496,20 @@ fn get_string(
         Error(_) -> default
       }
     Error(_) -> default
+  }
+}
+
+fn get_optional_string(
+  data: Dict(String, Dynamic),
+  key: String,
+) -> option.Option(String) {
+  case dict.get(data, key) {
+    Ok(val) ->
+      case decode.run(val, decode.string) {
+        Ok(s) -> Some(s)
+        Error(_) -> None
+      }
+    Error(_) -> None
   }
 }
 
@@ -248,6 +528,35 @@ fn get_float(data: Dict(String, Dynamic), key: String, default: Float) -> Float 
   }
 }
 
+fn get_optional_float(
+  data: Dict(String, Dynamic),
+  key: String,
+) -> option.Option(Float) {
+  case dict.get(data, key) {
+    Ok(val) ->
+      case decode.run(val, decode.float) {
+        Ok(f) -> Some(f)
+        Error(_) ->
+          case decode.run(val, decode.int) {
+            Ok(i) -> Some(int_to_float(i))
+            Error(_) -> None
+          }
+      }
+    Error(_) -> None
+  }
+}
+
+fn get_int(data: Dict(String, Dynamic), key: String, default: Int) -> Int {
+  case dict.get(data, key) {
+    Ok(val) ->
+      case decode.run(val, decode.int) {
+        Ok(i) -> i
+        Error(_) -> default
+      }
+    Error(_) -> default
+  }
+}
+
 fn get_bool(data: Dict(String, Dynamic), key: String, default: Bool) -> Bool {
   case dict.get(data, key) {
     Ok(val) ->
@@ -256,6 +565,13 @@ fn get_bool(data: Dict(String, Dynamic), key: String, default: Bool) -> Bool {
         Error(_) -> default
       }
     Error(_) -> default
+  }
+}
+
+fn get_dynamic(data: Dict(String, Dynamic), key: String) -> Dynamic {
+  case dict.get(data, key) {
+    Ok(val) -> val
+    Error(_) -> dynamic.nil()
   }
 }
 

@@ -73,7 +73,7 @@ pub fn default_config() -> PoolConfig {
 /// Messages the pool actor handles.
 pub opaque type PoolMessage {
   /// Register a new session. Replies with session ID.
-  Register(reply: Subject(RegisterReply))
+  Register(reply: Subject(RegisterReply), caller_pid: Pid)
   /// Unregister a session (send reset, wait for response).
   Unregister(session_id: String, reply: Subject(UnregisterReply))
   /// Send a message and wait for a correlated response.
@@ -105,6 +105,7 @@ pub opaque type PoolMessage {
 pub type RegisterReply {
   Registered(session_id: String)
   PoolFull(max: Int)
+  AlreadyRegistered(session_id: String)
 }
 
 /// Reply for unregister calls.
@@ -148,6 +149,8 @@ type PoolState {
     format: protocol.Format,
     max_sessions: Int,
     sessions: Dict(String, SessionEntry),
+    /// Reverse lookup: owner pid -> session_id for duplicate detection.
+    owners: Dict(String, String),
     pending: Dict(String, PendingValue),
     pending_close: Dict(String, Bool),
     next_id: Int,
@@ -169,8 +172,10 @@ pub fn start(config: PoolConfig) -> Result(PoolSubject, actor.StartError) {
 
 /// Register a new session. Returns the session ID.
 pub fn register(pool: PoolSubject) -> String {
-  case process.call(pool, 10_000, fn(reply) { Register(reply:) }) {
+  let caller_pid = get_caller_pid()
+  case process.call(pool, 10_000, fn(reply) { Register(reply:, caller_pid:) }) {
     Registered(session_id:) -> session_id
+    AlreadyRegistered(session_id:) -> session_id
     PoolFull(max:) ->
       panic as {
         "session pool is full ("
@@ -291,6 +296,7 @@ fn init_pool(subject: PoolSubject, config: PoolConfig) {
       format: config.format,
       max_sessions: config.max_sessions,
       sessions: dict.new(),
+      owners: dict.new(),
       pending: dict.new(),
       pending_close: dict.new(),
       next_id: 1,
@@ -312,7 +318,7 @@ fn handle_message(
   msg: PoolMessage,
 ) -> actor.Next(PoolState, PoolMessage) {
   case msg {
-    Register(reply:) -> handle_register(state, reply)
+    Register(reply:, caller_pid:) -> handle_register(state, reply, caller_pid)
     Unregister(session_id:, reply:) ->
       handle_unregister(state, session_id, reply)
     SendSync(session_id:, msg:, response_type:, reply:) ->
@@ -330,23 +336,39 @@ fn handle_message(
 fn handle_register(
   state: PoolState,
   reply: Subject(RegisterReply),
+  caller_pid: Pid,
 ) -> actor.Next(PoolState, PoolMessage) {
-  case dict.size(state.sessions) >= state.max_sessions {
-    True -> {
-      process.send(reply, PoolFull(max: state.max_sessions))
+  let pid_key = pid_to_string(caller_pid)
+
+  // Duplicate registration check: same process already owns a session
+  case dict.get(state.owners, pid_key) {
+    Ok(existing_session_id) -> {
+      process.send(reply, AlreadyRegistered(session_id: existing_session_id))
       actor.continue(state)
     }
-    False -> {
-      let session_id = "pool_" <> int.to_string(state.next_session)
-      let caller_pid = get_caller_pid()
-      let monitor_ref = monitor_process(caller_pid)
-      let entry = SessionEntry(owner: caller_pid, monitor_ref:)
-      let sessions = dict.insert(state.sessions, session_id, entry)
-      process.send(reply, Registered(session_id:))
-      actor.continue(
-        PoolState(..state, sessions:, next_session: state.next_session + 1),
-      )
-    }
+    Error(_) ->
+      case dict.size(state.sessions) >= state.max_sessions {
+        True -> {
+          process.send(reply, PoolFull(max: state.max_sessions))
+          actor.continue(state)
+        }
+        False -> {
+          let session_id = "pool_" <> int.to_string(state.next_session)
+          let monitor_ref = monitor_process(caller_pid)
+          let entry = SessionEntry(owner: caller_pid, monitor_ref:)
+          let sessions = dict.insert(state.sessions, session_id, entry)
+          let owners = dict.insert(state.owners, pid_key, session_id)
+          process.send(reply, Registered(session_id:))
+          actor.continue(
+            PoolState(
+              ..state,
+              sessions:,
+              owners:,
+              next_session: state.next_session + 1,
+            ),
+          )
+        }
+      }
   }
 }
 
@@ -355,10 +377,13 @@ fn handle_unregister(
   session_id: String,
   reply: Subject(UnregisterReply),
 ) -> actor.Next(PoolState, PoolMessage) {
-  // Demonitor the session owner
-  case dict.get(state.sessions, session_id) {
-    Ok(entry) -> demonitor(entry.monitor_ref)
-    Error(_) -> Nil
+  // Demonitor the session owner and clean up owner tracking
+  let owners = case dict.get(state.sessions, session_id) {
+    Ok(entry) -> {
+      demonitor(entry.monitor_ref)
+      dict.delete(state.owners, pid_to_string(entry.owner))
+    }
+    Error(_) -> state.owners
   }
 
   // Send reset to free renderer resources
@@ -382,6 +407,7 @@ fn handle_unregister(
     PoolState(
       ..state,
       sessions:,
+      owners:,
       pending:,
       pending_close:,
       next_id: state.next_id + 1,
@@ -442,8 +468,26 @@ fn handle_owner_down(
   state: PoolState,
   session_id: String,
 ) -> actor.Next(PoolState, PoolMessage) {
+  // Clean up owner tracking
+  let owners = case dict.get(state.sessions, session_id) {
+    Ok(entry) -> dict.delete(state.owners, pid_to_string(entry.owner))
+    Error(_) -> state.owners
+  }
   let sessions = dict.delete(state.sessions, session_id)
-  actor.continue(PoolState(..state, sessions:))
+
+  // Fail any pending requests for this dead session
+  let pending =
+    dict.fold(state.pending, state.pending, fn(acc, key, pv) {
+      case starts_with_session(key, session_id) {
+        True -> {
+          process.send(pv.reply, SendError("session owner died"))
+          dict.delete(acc, key)
+        }
+        False -> acc
+      }
+    })
+
+  actor.continue(PoolState(..state, sessions:, owners:, pending:))
 }
 
 // ---------------------------------------------------------------------------
@@ -620,6 +664,16 @@ fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   }
 }
 
+/// Check whether a pending key belongs to a given session.
+/// Keys are formatted as "session_id:req_id".
+fn starts_with_session(key: String, session_id: String) -> Bool {
+  let prefix = session_id <> ":"
+  case key {
+    _ if key == prefix -> True
+    _ -> string_starts_with(key, prefix)
+  }
+}
+
 // -- FFI ----------------------------------------------------------------------
 
 @external(erlang, "toddy_test_renderer_ffi", "deserialize_wire")
@@ -643,6 +697,14 @@ fn demonitor(ref: Dynamic) -> Nil
 /// Send a message to a pid.
 @external(erlang, "toddy_test_pool_ffi", "send_to_pid")
 fn send_to_pid(pid: Pid, msg: PoolEvent) -> Nil
+
+/// Convert a pid to a string for use as dict key.
+@external(erlang, "toddy_test_pool_ffi", "pid_to_string")
+fn pid_to_string(pid: Pid) -> String
+
+/// Check if a string starts with a prefix.
+@external(erlang, "toddy_test_pool_ffi", "string_starts_with")
+fn string_starts_with(str: String, prefix: String) -> Bool
 
 /// Find toddy binary (re-export from binary module).
 fn toddy_binary_find() -> Result(String, Nil) {

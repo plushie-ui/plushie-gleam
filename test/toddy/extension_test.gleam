@@ -2,7 +2,7 @@ import gleam/dict
 import gleeunit/should
 import toddy/command
 import toddy/extension
-import toddy/node.{FloatVal, StringVal}
+import toddy/node.{FloatVal}
 
 const gauge_def = extension.ExtensionDef(
   kind: "gauge",

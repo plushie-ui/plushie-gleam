@@ -57,7 +57,7 @@ pub fn assert_tree_hash(tree: Node, name: String, path: String) -> Nil {
     }
     _, _ -> {
       mkdir_p(dir_name(golden_path))
-      write_file(golden_path, current_hash)
+      write_file_atomic(golden_path, current_hash)
       Nil
     }
   }
@@ -71,8 +71,8 @@ fn file_exists(path: String) -> Bool
 @external(erlang, "toddy_snapshot_ffi", "read_file")
 fn read_file(path: String) -> Result(String, Nil)
 
-@external(erlang, "toddy_snapshot_ffi", "write_file")
-fn write_file(path: String, content: String) -> Nil
+@external(erlang, "toddy_snapshot_ffi", "write_file_atomic")
+fn write_file_atomic(path: String, content: String) -> Nil
 
 @external(erlang, "toddy_snapshot_ffi", "mkdir_p")
 fn mkdir_p(path: String) -> Nil

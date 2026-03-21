@@ -8,23 +8,31 @@
 //// commands have already completed by the time it is called.
 
 import gleam/dynamic.{type Dynamic}
-import gleam/option
+import gleam/option.{type Option, None, Some}
 import toddy/app.{type App}
 import toddy/command.{type Command}
 import toddy/event.{type Event}
 
-/// Max depth for recursive command processing (guards against infinite loops).
-const max_command_depth = 100
+/// Default max depth for recursive command processing (guards against
+/// infinite loops).
+const default_max_depth = 100
 
 /// Process commands synchronously, threading model state through each
 /// update dispatch. Returns the final model and list of events processed.
+///
+/// `max_depth` controls recursion depth: `None` uses the default limit,
+/// `Some(n)` uses n.
 pub fn process_commands(
   app: App(model, msg),
   model: model,
   commands: Command(msg),
-  max_depth: Int,
+  max_depth: Option(Int),
 ) -> #(model, List(Event)) {
-  do_process(app, model, commands, 0, max_depth, [])
+  let effective_max = case max_depth {
+    Some(n) -> n
+    None -> default_max_depth
+  }
+  do_process(app, model, commands, 0, effective_max, [])
 }
 
 fn do_process(
@@ -35,29 +43,18 @@ fn do_process(
   max_depth: Int,
   events: List(Event),
 ) -> #(model, List(Event)) {
-  let effective_max = case max_depth > 0 {
-    True -> max_depth
-    False -> max_command_depth
-  }
-  case depth > effective_max {
+  case depth > max_depth {
     True -> #(model, events)
     False ->
       case cmd {
         command.None -> #(model, events)
         command.Batch(commands:) ->
-          batch_process(app, model, commands, depth, effective_max, events)
+          batch_process(app, model, commands, depth, max_depth, events)
         command.Done(value:, mapper:) -> {
           let msg = mapper(value)
           let update_fn = app.get_update(app)
           let #(new_model, new_commands) = update_fn(model, msg)
-          do_process(
-            app,
-            new_model,
-            new_commands,
-            depth + 1,
-            effective_max,
-            events,
-          )
+          do_process(app, new_model, new_commands, depth + 1, max_depth, events)
         }
         command.Async(work:, tag:) -> {
           let result = work()
@@ -67,7 +64,7 @@ fn do_process(
             tag,
             Ok(result),
             depth,
-            effective_max,
+            max_depth,
             events,
           )
         }
@@ -80,7 +77,7 @@ fn do_process(
               tag,
               values.0,
               depth,
-              effective_max,
+              max_depth,
               events,
             )
           dispatch_async_result(
@@ -89,7 +86,7 @@ fn do_process(
             tag,
             Ok(values.1),
             depth,
-            effective_max,
+            max_depth,
             events,
           )
         }
