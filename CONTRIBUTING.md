@@ -1,4 +1,4 @@
-# Contributing to toddy-gleam
+# Contributing to plushie-gleam
 
 ## Development setup
 
@@ -8,14 +8,14 @@ You need:
   [gleam.run](https://gleam.run/getting-started/installing/)
 - **Erlang/OTP** (>= 26) -- Gleam compiles to BEAM bytecode
 - **Rust toolchain** (optional) -- only needed if building the
-  toddy renderer from source or working on native extensions
+  plushie renderer from source or working on native extensions
 
 ### Getting the renderer
 
 For built-in widgets only (no Rust extensions):
 
 ```sh
-bin/toddy_download
+bin/plushie_download
 ```
 
 This fetches a precompiled renderer binary for your platform.
@@ -23,7 +23,7 @@ This fetches a precompiled renderer binary for your platform.
 To build from source (required for native extensions):
 
 ```sh
-bin/toddy_build
+bin/plushie_build
 ```
 
 ### Building and testing

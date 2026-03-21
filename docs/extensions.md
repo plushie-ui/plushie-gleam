@@ -1,6 +1,6 @@
 # Writing Widget Extensions
 
-Guide for building custom widget extensions for Toddy. Extensions let you
+Guide for building custom widget extensions for Plushie. Extensions let you
 render arbitrary Rust-native widgets (iced widgets, custom `iced::advanced::Widget`
 implementations, third-party crates) while keeping your app's state and logic
 in Gleam.
@@ -9,21 +9,21 @@ in Gleam.
 
 An extension has two halves:
 
-1. **Gleam side:** define an `ExtensionDef` from `toddy/extension`. This declares
+1. **Gleam side:** define an `ExtensionDef` from `plushie/extension`. This declares
    the widget's props, commands, and (for native widgets) the Rust crate and
    constructor.
 
-2. **Rust side:** implement the `WidgetExtension` trait from `toddy-core`. This
+2. **Rust side:** implement the `WidgetExtension` trait from `plushie-core`. This
    receives tree nodes from Gleam and returns `iced::Element`s for rendering.
 
 <!-- test: extensions_sparkline_def_validates_test, extensions_sparkline_build_creates_node_test -- keep this code block in sync with the test -->
 ```gleam
 // src/my_sparkline.gleam
-import toddy/extension.{
+import plushie/extension.{
   type ExtensionDef, ColorProp, CommandDef, ExtensionDef, NumberProp,
   NumberParam,
 }
-import toddy/node
+import plushie/node
 
 pub const sparkline_def = ExtensionDef(
   kind: "sparkline",
@@ -55,7 +55,7 @@ pub fn push(node_id: String, value: Float) {
 
 ```rust
 // native/my_sparkline/src/lib.rs
-use toddy_core::prelude::*;
+use plushie_core::prelude::*;
 
 pub struct SparklineExtension;
 
@@ -74,13 +74,13 @@ impl WidgetExtension for SparklineExtension {
 }
 ```
 
-Build with `bin/toddy_build` (extensions are registered in your build
-configuration) or run the renderer binary directly. The `ToddyAppBuilder`
+Build with `bin/plushie_build` (extensions are registered in your build
+configuration) or run the renderer binary directly. The `PlushieAppBuilder`
 chains `.extension()` calls in the generated `main.rs`:
 
 ```rust
-toddy::run(
-    ToddyAppBuilder::new()
+plushie::run(
+    PlushieAppBuilder::new()
         .extension(my_sparkline::SparklineExtension::new())
 )
 ```
@@ -94,7 +94,7 @@ rendered by a Rust crate.
 
 <!-- test: extensions_hex_view_validates_test, extensions_hex_view_build_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/extension.{ExtensionDef, NumberProp, StringProp}
+import plushie/extension.{ExtensionDef, NumberProp, StringProp}
 
 pub const hex_view_def = ExtensionDef(
   kind: "hex_view",
@@ -115,8 +115,8 @@ Node trees. No registration or Rust code needed.
 
 <!-- test: extensions_composite_labeled_input_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/node.{type Node}
-import toddy/ui
+import plushie/node.{type Node}
+import plushie/ui
 
 // A labeled input composite widget
 pub fn labeled_input(
@@ -330,8 +330,8 @@ Extensions doing DPI-aware rendering or per-window adaptation can use
 
 ### Prelude additions
 
-The `toddy_core::prelude` now re-exports `alignment`, `Point`, and `Size`,
-so you no longer need to reach into `toddy_core::iced::alignment` for
+The `plushie_core::prelude` now re-exports `alignment`, `Point`, and `Size`,
+so you no longer need to reach into `plushie_core::iced::alignment` for
 alignment types.
 
 
@@ -342,7 +342,7 @@ publish events back through the extension system. Use the `Message::Event`
 variant:
 
 ```rust
-use toddy_core::message::Message;
+use plushie_core::message::Message;
 use serde_json::json;
 
 // In your Widget::update() method:
@@ -597,7 +597,7 @@ via `Widget::state()` or `canvas::Program`), and a `GenerationCounter` in
 `ExtensionCaches` tracks when your data changes.
 
 ```rust
-use toddy_core::prelude::*;
+use plushie_core::prelude::*;
 use iced::widget::canvas;
 
 /// Stored in ExtensionCaches (Send + Sync).
@@ -668,10 +668,10 @@ raw bytes?). The counter approach is the recommended pattern.
 call `.bump()` to increment, and `.get()` to read the current value.
 
 
-## toddy-iced Widget trait guide
+## plushie-iced Widget trait guide
 
 Extensions implementing `iced::advanced::Widget` directly (Tier C) need to
-be aware of the toddy-iced API. Several methods changed names and signatures
+be aware of the plushie-iced API. Several methods changed names and signatures
 from earlier versions.
 
 ### Key changes
@@ -679,7 +679,7 @@ from earlier versions.
 **`on_event` is now `update`:**
 
 ```rust
-// toddy-iced
+// plushie-iced
 fn update(
     &mut self,
     tree: &mut widget::Tree,
@@ -750,7 +750,7 @@ fn tag(&self) -> widget::tree::Tag {
 
 Use `shell.publish(Message::Event(...))` as described in the Message::Event
 construction section above. The `Message` type is re-exported from
-`toddy_core::prelude`.
+`plushie_core::prelude`.
 
 ### Full Widget skeleton
 
@@ -759,7 +759,7 @@ use iced::advanced::widget::{self, Widget};
 use iced::advanced::{layout, mouse, renderer, Clipboard, Layout, Shell};
 use iced::event;
 use iced::{Element, Length, Rectangle, Size, Theme};
-use toddy_core::prelude::*;
+use plushie_core::prelude::*;
 
 struct MyWidget<'a> {
     node_id: String,
@@ -841,7 +841,7 @@ impl<'a> From<MyWidget<'a>> for Element<'a, Message> {
 
 ## Prop helpers reference
 
-The `toddy_core::prop_helpers` module (re-exported via `prelude::*`) provides
+The `plushie_core::prop_helpers` module (re-exported via `prelude::*`) provides
 typed accessors for reading props from `TreeNode`. Use these instead of
 manually traversing `serde_json::Value`:
 
@@ -871,7 +871,7 @@ manually traversing `serde_json::Value`:
 | `node.prop_padding(key)` | `Padding` | Method on `TreeNode` (same as `prop_padding`) |
 | `node.props()` | `Option<&Map>` | Access the props object directly |
 | `OutgoingEvent::with_value(value)` | `OutgoingEvent` | Set the `value` field on extension events |
-| `ToddyAppBuilder::extension_boxed(ext)` | `ToddyAppBuilder` | Register pre-boxed extensions |
+| `PlushieAppBuilder::extension_boxed(ext)` | `PlushieAppBuilder` | Register pre-boxed extensions |
 | `f64_to_f32(v)` | `f32` | Clamping f64-to-f32 conversion |
 | `prop_padding(node, key)` | `Padding` | Public padding prop helper |
 
@@ -884,8 +884,8 @@ Test your extension's definition and builder functions:
 
 ```gleam
 import gleeunit/should
-import toddy/extension
-import toddy/node
+import plushie/extension
+import plushie/node
 
 pub fn sparkline_def_validates_test() {
   extension.validate(sparkline_def)
@@ -907,12 +907,12 @@ pub fn extension_prop_names_test() {
 ### Rust-side tests
 
 Test pure logic functions, `handle_command`, and `prepare`/`cleanup` using
-the helpers from `toddy_core::testing`:
+the helpers from `plushie_core::testing`:
 
 ```rust
 #[cfg(test)]
 mod tests {
-    use toddy_core::testing::*;
+    use plushie_core::testing::*;
     use super::*;
 
     #[test]
@@ -949,7 +949,7 @@ mod tests {
 
 ### Render smoke testing
 
-Use `widget_env_with()` from `toddy_core::testing` to construct a
+Use `widget_env_with()` from `plushie_core::testing` to construct a
 `WidgetEnv` for smoke-testing your `render()` method. This verifies the
 method doesn't panic and returns a valid `Element`:
 
@@ -980,7 +980,7 @@ patterns.
 
 For integration tests that exercise the full wire protocol round-trip
 (including extension commands), build a custom renderer with
-`bin/toddy_build` and use the headless backend.
+`bin/plushie_build` and use the headless backend.
 
 
 ## ExtensionCaches
@@ -1065,7 +1065,7 @@ performance-critical rendering that canvas can't handle efficiently.
 
 ### Package structure
 
-A toddy widget package is a standard Gleam project:
+A plushie widget package is a standard Gleam project:
 
 ```
 my_widget/
@@ -1086,12 +1086,12 @@ name = "my_widget"
 version = "0.1.0"
 
 [dependencies]
-toddy = ">= 0.1.0"
+plushie = ">= 0.1.0"
 ```
 
-toddy is a compile-time dependency. Your package does not need the renderer
-binary -- it only uses toddy's Gleam modules (`toddy/node`, `toddy/ui`,
-`toddy/prop/*`, `toddy/canvas/shape`).
+plushie is a compile-time dependency. Your package does not need the renderer
+binary -- it only uses plushie's Gleam modules (`plushie/node`, `plushie/ui`,
+`plushie/prop/*`, `plushie/canvas/shape`).
 
 ### Building a widget
 
@@ -1120,10 +1120,10 @@ A ring chart rendered via canvas:
 
 import gleam/float
 import gleam/list
-import toddy/canvas/shape
-import toddy/node.{type Node}
-import toddy/prop/length
-import toddy/widget/canvas
+import plushie/canvas/shape
+import plushie/node.{type Node}
+import plushie/prop/length
+import plushie/widget/canvas
 
 pub type Segment {
   Segment(label: String, value: Float, color: String)
@@ -1192,7 +1192,7 @@ fn build_arc_shapes(chart: DonutChart) -> List(shape.Shape) {
 
 Key points:
 
-- The builder follows toddy's pipeline pattern.
+- The builder follows plushie's pipeline pattern.
 - `build` emits a `"canvas"` node with `"layers"` -- a type the stock
   renderer already handles.
 - No Rust code. No custom node types. The renderer sees a canvas widget.
@@ -1200,11 +1200,11 @@ Key points:
 #### Convenience constructors
 
 For consumer ergonomics, add a top-level module with functions that mirror
-the `toddy/ui` calling conventions:
+the `plushie/ui` calling conventions:
 
 ```gleam
 import my_widget/donut_chart.{type Segment}
-import toddy/node.{type Node}
+import plushie/node.{type Node}
 
 /// Creates a donut chart node with default options.
 pub fn donut_chart(id: String, segments: List(Segment)) -> Node {
@@ -1215,7 +1215,7 @@ pub fn donut_chart(id: String, segments: List(Segment)) -> Node {
 Consumers use it like any other widget:
 
 ```gleam
-import toddy/ui
+import plushie/ui
 import my_widget
 
 ui.column("layout", [], [
@@ -1258,8 +1258,8 @@ pub fn size_is_customizable_test() {
 For testing widget behaviour in a running app:
 
 ```gleam
-import toddy/test
-import toddy/ui
+import plushie/test
+import plushie/ui
 import my_widget
 
 fn chart_app() {
@@ -1277,10 +1277,10 @@ pub fn chart_renders_in_tree_test() {
 
 Document these in your package README:
 
-1. **Minimum toddy version.** Your package depends on toddy; specify the
+1. **Minimum plushie version.** Your package depends on plushie; specify the
    compatible range.
 2. **No renderer changes needed.** Pure Gleam packages work with the stock
-   toddy binary. Consumers do not need to rebuild anything.
+   plushie binary. Consumers do not need to rebuild anything.
 3. **Which built-in features are required.** If your widget uses canvas,
    consumers need the feature enabled (it is by default). Document this if
    it matters.

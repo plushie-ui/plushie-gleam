@@ -17,8 +17,8 @@ needed.
 <!-- test: testing_doc_adding_a_todo_appends_and_clears_input_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
-import toddy/event.{WidgetClick}
-import toddy/command
+import plushie/event.{WidgetClick}
+import plushie/command
 
 pub fn adding_a_todo_appends_to_list_and_clears_input_test() {
   let model = Model(todos: [], input: "Buy milk")
@@ -37,8 +37,8 @@ verify what `update` asked the runtime to do, without executing anything.
 <!-- test: testing_doc_submitting_todo_returns_focus_command_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
-import toddy/command
-import toddy/event.{WidgetSubmit, WidgetClick}
+import plushie/command
+import plushie/event.{WidgetSubmit, WidgetClick}
 
 pub fn submitting_todo_refocuses_the_input_test() {
   let model = Model(todos: [], input: "Buy milk")
@@ -63,8 +63,8 @@ pub fn save_triggers_an_async_task_test() {
 <!-- test: testing_doc_view_shows_todo_count_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/option
-import toddy/tree
-import toddy/node
+import plushie/tree
+import plushie/node
 
 pub fn view_shows_todo_count_test() {
   let model = Model(
@@ -95,11 +95,11 @@ pub fn init_returns_valid_initial_state_test() {
 
 ### Tree query helpers
 
-`toddy/tree` provides helpers for querying view trees directly:
+`plushie/tree` provides helpers for querying view trees directly:
 
 <!-- test: testing_doc_tree_find_test, testing_doc_tree_ids_test, testing_doc_tree_find_all_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/tree
+import plushie/tree
 import gleam/option
 
 tree.find(tree, "my_button")            // find node by ID
@@ -116,12 +116,12 @@ session or backend required.
 ### JSON tree snapshots
 
 For complex views, snapshot the entire tree as JSON to catch unintended
-structural changes. `toddy/testing/snapshot.assert_tree_snapshot` compares
+structural changes. `plushie/testing/snapshot.assert_tree_snapshot` compares
 a tree against a stored JSON file at the unit test level -- no backend
 needed.
 
 ```gleam
-import toddy/testing/snapshot
+import plushie/testing/snapshot
 
 pub fn initial_view_snapshot_test() {
   let #(model, _cmd) = my_app.init(dynamic.nil())
@@ -135,7 +135,7 @@ First run writes the file. Subsequent runs compare and fail with a diff on
 mismatch. Update after intentional changes:
 
 ```bash
-TODDY_UPDATE_SNAPSHOTS=1 gleam test
+PLUSHIE_UPDATE_SNAPSHOTS=1 gleam test
 ```
 
 This is a pure JSON comparison -- it normalizes key ordering for stable
@@ -154,8 +154,8 @@ iced. That is what the test framework is for.
 ```gleam
 import gleeunit/should
 import gleam/option
-import toddy/testing as test
-import toddy/testing/element
+import plushie/testing as test
+import plushie/testing/element
 
 pub fn clicking_increment_updates_counter_test() {
   let session = test.start(counter_app)
@@ -167,7 +167,7 @@ pub fn clicking_increment_updates_counter_test() {
 }
 ```
 
-`toddy/testing.start` creates a session, runs init, and normalizes the
+`plushie/testing.start` creates a session, runs init, and normalizes the
 initial view. State is threaded explicitly through each operation -- no
 process dictionary, no mutable state.
 
@@ -176,7 +176,7 @@ process dictionary, no mutable state.
 
 ### Where do widget IDs come from?
 
-Every widget in toddy gets an ID from the first argument to its builder or
+Every widget in plushie gets an ID from the first argument to its builder or
 constructor. For example, `ui.button("save_btn", "Save", [])` creates a
 button with ID `"save_btn"`.
 
@@ -194,7 +194,7 @@ with convenient accessors:
 
 <!-- test: testing_doc_element_id_and_kind_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/testing/element
+import plushie/testing/element
 
 let assert option.Some(el) = test.find(session, "my-button")
 element.id(el)        // => "my-button"
@@ -234,8 +234,8 @@ State threading is explicit.
 ```gleam
 import gleeunit/should
 import gleam/option
-import toddy/testing as test
-import toddy/testing/element
+import plushie/testing as test
+import plushie/testing/element
 
 // Text content
 let assert option.Some(el) = test.find(session, "count")
@@ -260,7 +260,7 @@ should.equal(element.kind(el), "text")
 
 ## API reference
 
-All functions are in `toddy/testing`:
+All functions are in `plushie/testing`:
 
 | Function | Description |
 |---|---|
@@ -283,11 +283,11 @@ Additional modules:
 
 | Module | Key functions |
 |---|---|
-| `toddy/testing/element` | `find`, `text`, `prop`, `id`, `kind`, `children`, `find_all` |
-| `toddy/testing/snapshot` | `assert_tree_snapshot`, `node_to_json` |
-| `toddy/testing/tree_hash` | `hash`, `assert_tree_hash` |
-| `toddy/testing/screenshot` | `empty`, `save_png`, `assert_screenshot` |
-| `toddy/testing/script` | `parse`, `parse_file` |
+| `plushie/testing/element` | `find`, `text`, `prop`, `id`, `kind`, `children`, `find_all` |
+| `plushie/testing/snapshot` | `assert_tree_snapshot`, `node_to_json` |
+| `plushie/testing/tree_hash` | `hash`, `assert_tree_hash` |
+| `plushie/testing/screenshot` | `empty`, `save_png`, `assert_screenshot` |
+| `plushie/testing/script` | `parse`, `parse_file` |
 
 
 ## Backends
@@ -310,16 +310,16 @@ changing assertions.
 | **Real rendering** | No | Yes (tiny-skia) | Yes (GPU) |
 | **Real windows** | No | No | Yes |
 
-- **`:pooled_mock`** -- shared `toddy --mock` process with session
+- **`:pooled_mock`** -- shared `plushie --mock` process with session
   multiplexing. Tests app logic, tree structure, and wire protocol.
   No rendering, no display, sub-millisecond. The right default for
   90% of tests.
 
-- **`:headless`** -- `toddy --headless` with software rendering via
+- **`:headless`** -- `plushie --headless` with software rendering via
   tiny-skia (no display server). Pixel screenshots for visual
   regression. Catches rendering bugs that mock mode can't.
 
-- **`:windowed`** -- `toddy` with real iced windows and GPU rendering.
+- **`:windowed`** -- `plushie` with real iced windows and GPU rendering.
   Effects execute, subscriptions fire, screenshots capture exactly
   what a user sees. Needs a display server (Xvfb or headless Weston).
 
@@ -331,13 +331,13 @@ Tests are portable across all three.
 
 | Priority | Source | Example |
 |---|---|---|
-| 1 | Environment variable | `TODDY_TEST_BACKEND=headless gleam test` |
+| 1 | Environment variable | `PLUSHIE_TEST_BACKEND=headless gleam test` |
 | 2 | Default | `:pooled_mock` |
 
 
 ## Snapshots and screenshots
 
-Toddy has three distinct regression testing mechanisms. Understanding the
+Plushie has three distinct regression testing mechanisms. Understanding the
 difference is important.
 
 ### Structural tree hashes (`assert_tree_hash`)
@@ -347,8 +347,8 @@ tree and compares it against a golden file. It works on all three backends
 because every backend can produce a tree.
 
 ```gleam
-import toddy/testing as test
-import toddy/testing/tree_hash
+import plushie/testing as test
+import plushie/testing/tree_hash
 
 pub fn counter_initial_state_test() {
   let session = test.start(counter_app)
@@ -369,7 +369,7 @@ is compared and the test fails on mismatch.
 To update golden files after intentional changes:
 
 ```bash
-TODDY_UPDATE_SNAPSHOTS=1 gleam test
+PLUSHIE_UPDATE_SNAPSHOTS=1 gleam test
 ```
 
 ### Pixel screenshots (`assert_screenshot`)
@@ -386,8 +386,8 @@ match GPU output exactly. Maintain separate golden files per backend, or
 use headless screenshots for layout regression testing only.
 
 ```gleam
-import toddy/testing as test
-import toddy/testing/screenshot
+import plushie/testing as test
+import plushie/testing/screenshot
 
 pub fn counter_renders_correctly_test() {
   let session = test.start(counter_app)
@@ -405,7 +405,7 @@ Golden files are stored in `test/screenshots/` as `.sha256` files. The
 workflow is the same as structural snapshots but uses a separate env var:
 
 ```bash
-TODDY_UPDATE_SCREENSHOTS=1 gleam test
+PLUSHIE_UPDATE_SCREENSHOTS=1 gleam test
 ```
 
 Because screenshots silently no-op on pooled_mock, you can include
@@ -435,15 +435,15 @@ See the [Unit testing](#json-tree-snapshots) section above.
 
 ## Script-based testing
 
-`.toddy` scripts provide a declarative format for describing interaction
+`.plushie` scripts provide a declarative format for describing interaction
 sequences. The format is a superset of iced's `.ice` test scripts -- the
 core instructions (`click`, `type`, `expect`, `snapshot`) use the same
-syntax. Toddy adds `assert_text`, `assert_model`, `screenshot`, `wait`, and
+syntax. Plushie adds `assert_text`, `assert_model`, `screenshot`, `wait`, and
 a header section for app configuration.
 
-### The `.toddy` format
+### The `.plushie` format
 
-A `.toddy` file has a header and an instruction section separated by
+A `.plushie` file has a header and an instruction section separated by
 `-----`:
 
 ```
@@ -494,16 +494,16 @@ Lines starting with `#` are comments (in both header and body sections).
 
 ```bash
 # Run all scripts in test/scripts/
-gleam run -m toddy/testing/script_runner
+gleam run -m plushie/testing/script_runner
 
 # Run specific scripts
-gleam run -m toddy/testing/script_runner -- test/scripts/counter.toddy test/scripts/todo.toddy
+gleam run -m plushie/testing/script_runner -- test/scripts/counter.plushie test/scripts/todo.plushie
 ```
 
 ### Replaying scripts
 
 ```bash
-gleam run -m toddy/testing/script_runner -- --replay test/scripts/counter.toddy
+gleam run -m plushie/testing/script_runner -- --replay test/scripts/counter.plushie
 ```
 
 Replay mode forces the `:windowed` backend and respects `wait` timings, so you
@@ -601,10 +601,10 @@ No special setup. Works anywhere Gleam runs.
 
 ### Headless CI
 
-Requires the toddy binary (download or build from source).
+Requires the plushie binary (download or build from source).
 
 ```yaml
-- run: TODDY_TEST_BACKEND=headless gleam test
+- run: PLUSHIE_TEST_BACKEND=headless gleam test
 ```
 
 ### Windowed CI
@@ -619,7 +619,7 @@ Requires a display server and GPU/software rendering. Two options:
     Xvfb :99 -screen 0 1024x768x24 &
     export DISPLAY=:99
     export WINIT_UNIX_BACKEND=x11
-    TODDY_TEST_BACKEND=windowed gleam test
+    PLUSHIE_TEST_BACKEND=windowed gleam test
 ```
 
 **Option B: Weston (Wayland)**
@@ -631,12 +631,12 @@ runs the full rendering pipeline on CPU.
 ```yaml
 - run: sudo apt-get install -y weston mesa-vulkan-drivers
 - run: |
-    export XDG_RUNTIME_DIR=/tmp/toddy-xdg-runtime
+    export XDG_RUNTIME_DIR=/tmp/plushie-xdg-runtime
     mkdir -p "$XDG_RUNTIME_DIR" && chmod 0700 "$XDG_RUNTIME_DIR"
-    weston --backend=headless --width=1024 --height=768 --socket=toddy-test &
+    weston --backend=headless --width=1024 --height=768 --socket=plushie-test &
     sleep 1
-    export WAYLAND_DISPLAY=toddy-test
-    TODDY_TEST_BACKEND=windowed gleam test
+    export WAYLAND_DISPLAY=plushie-test
+    PLUSHIE_TEST_BACKEND=windowed gleam test
 ```
 
 On Arch Linux, `weston` and `vulkan-swrast` are available via pacman.
@@ -650,13 +650,13 @@ Run pooled_mock tests fast, then promote to higher-fidelity backends for subsets
 - run: gleam test
 
 # Full suite on headless for protocol verification
-- run: TODDY_TEST_BACKEND=headless gleam test
+- run: PLUSHIE_TEST_BACKEND=headless gleam test
 
 # Windowed for pixel regression (tagged subset)
 - run: |
     Xvfb :99 -screen 0 1024x768x24 &
     export DISPLAY=:99
-    TODDY_TEST_BACKEND=windowed gleam test
+    PLUSHIE_TEST_BACKEND=windowed gleam test
 ```
 
 
@@ -700,7 +700,7 @@ pub fn build_produces_correct_node_test() {
 Demo apps test the extension in context:
 
 ```gleam
-import toddy/tree
+import plushie/tree
 import gleam/option
 
 pub fn view_produces_a_gauge_widget_test() {
@@ -713,12 +713,12 @@ pub fn view_produces_a_gauge_widget_test() {
 
 ### Rust-side: unit tests (no Gleam)
 
-The `toddy_core::testing` module provides `TestEnv` and node factories
+The `plushie_core::testing` module provides `TestEnv` and node factories
 for testing `WidgetExtension::render()` in isolation:
 
 ```rust
-use toddy_core::testing::*;
-use toddy_core::prelude::*;
+use plushie_core::testing::*;
+use plushie_core::prelude::*;
 
 #[test]
 fn gauge_renders_without_panic() {
@@ -739,13 +739,13 @@ backend:
 
 ```bash
 # Run tests through the real renderer (headless, no display server)
-TODDY_TEST_BACKEND=headless gleam test
+PLUSHIE_TEST_BACKEND=headless gleam test
 ```
 
 Write end-to-end tests with the test framework:
 
 ```gleam
-import toddy/testing as test
+import plushie/testing as test
 import gleam/option
 
 pub fn gauge_appears_in_rendered_tree_test() {
@@ -763,7 +763,7 @@ pub fn gauge_responds_to_push_command_test() {
 ```
 
 These tests run on `:pooled_mock` by default (fast, logic-only). Set
-`TODDY_TEST_BACKEND=headless` to exercise the full Rust rendering path
+`PLUSHIE_TEST_BACKEND=headless` to exercise the full Rust rendering path
 with the extension compiled in.
 
 

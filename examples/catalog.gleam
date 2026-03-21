@@ -7,34 +7,34 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
-import toddy
-import toddy/app
-import toddy/canvas/shape
-import toddy/command
-import toddy/event.{
+import plushie
+import plushie/app
+import plushie/canvas/shape
+import plushie/command
+import plushie/event.{
   type Event, MouseAreaEnter, MouseAreaExit, SensorResize, WidgetClick,
   WidgetInput, WidgetSelect, WidgetSlide, WidgetToggle,
 }
-import toddy/node.{type Node, type PropValue, StringVal}
-import toddy/prop/length
-import toddy/prop/padding
-import toddy/prop/position
-import toddy/ui
-import toddy/widget/canvas
-import toddy/widget/combo_box
-import toddy/widget/grid
-import toddy/widget/markdown
-import toddy/widget/mouse_area
-import toddy/widget/pane_grid
-import toddy/widget/pick_list
-import toddy/widget/radio
-import toddy/widget/rich_text
-import toddy/widget/sensor
-import toddy/widget/table
-import toddy/widget/text_editor
-import toddy/widget/toggler
-import toddy/widget/tooltip
-import toddy/widget/vertical_slider
+import plushie/node.{type Node, type PropValue, StringVal}
+import plushie/prop/length
+import plushie/prop/padding
+import plushie/prop/position
+import plushie/ui
+import plushie/widget/canvas
+import plushie/widget/combo_box
+import plushie/widget/grid
+import plushie/widget/markdown
+import plushie/widget/mouse_area
+import plushie/widget/pane_grid
+import plushie/widget/pick_list
+import plushie/widget/radio
+import plushie/widget/rich_text
+import plushie/widget/sensor
+import plushie/widget/table
+import plushie/widget/text_editor
+import plushie/widget/toggler
+import plushie/widget/tooltip
+import plushie/widget/vertical_slider
 
 type Model {
   Model(
@@ -195,7 +195,7 @@ fn update(model: Model, event: Event) {
 fn view(model: Model) -> Node {
   ui.window("catalog", [ui.title("Widget Catalog")], [
     ui.column("root", [ui.spacing(12), ui.padding(padding.all(16.0))], [
-      ui.text("catalog_title", "Toddy Widget Catalog", [ui.font_size(24.0)]),
+      ui.text("catalog_title", "Plushie Widget Catalog", [ui.font_size(24.0)]),
       ui.rule("divider1", []),
       ui.row("tabs", [ui.spacing(8)], [
         ui.button_("tab_layout", "Layout"),
@@ -518,6 +518,6 @@ fn composite_tab(model: Model) -> Node {
 
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

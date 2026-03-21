@@ -1,23 +1,23 @@
-# toddy
+# plushie
 
 Build native desktop apps in Gleam. **[Pre-1.0](#status)**
 
-Toddy is a desktop GUI framework that allows you to write your entire
+Plushie is a desktop GUI framework that allows you to write your entire
 application in Gleam -- state, events, UI -- and get native windows
 on Linux, macOS, and Windows. Rendering is powered by
 [iced](https://github.com/iced-rs/iced), a cross-platform GUI library
-for Rust, which toddy drives as a precompiled binary behind the scenes.
+for Rust, which plushie drives as a precompiled binary behind the scenes.
 
 <!-- test: readme_counter_init_test, readme_counter_view_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
-import toddy/app
-import toddy/cli/gui
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/padding
-import toddy/ui
+import plushie/app
+import plushie/cli/gui
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/ui
 
 type Model {
   Model(count: Int)
@@ -62,16 +62,16 @@ running and see changes instantly.
 
 ## Getting started
 
-Add toddy to your dependencies:
+Add plushie to your dependencies:
 
 ```sh
-gleam add toddy
+gleam add plushie
 ```
 
 Then:
 
 ```bash
-bin/toddy_download                    # download precompiled binary
+bin/plushie_download                    # download precompiled binary
 gleam run -m my_app                   # run your app
 ```
 
@@ -80,7 +80,7 @@ Pin to an exact version and read the
 
 The precompiled binary requires no Rust toolchain. To build from
 source instead, install [rustup](https://rustup.rs/) and run
-`bin/toddy_build`. See the
+`bin/plushie_build`. See the
 [getting started guide](docs/getting-started.md) for the full
 walkthrough.
 
@@ -118,7 +118,7 @@ walkthrough.
 
 ## Testing
 
-Toddy ships a test framework with three interchangeable backends.
+Plushie ships a test framework with three interchangeable backends.
 Write your tests once, run them at whatever fidelity you need:
 
 - **Mocked** -- millisecond tests, no display server. Uses a shared
@@ -132,8 +132,8 @@ Write your tests once, run them at whatever fidelity you need:
 ```gleam
 import gleeunit/should
 import gleam/option
-import toddy/testing as test
-import toddy/testing/element
+import plushie/testing as test
+import plushie/testing/element
 
 pub fn add_and_complete_a_todo_test() {
   let session = test.start(todo_app)
@@ -166,7 +166,7 @@ platform integration. Your Gleam code sends widget trees to the
 renderer over stdin; the renderer draws native windows and sends
 user events back over stdout.
 
-You don't need Rust to use toddy. The renderer is a precompiled
+You don't need Rust to use plushie. The renderer is a precompiled
 binary, similar to how your app talks to a database without you
 writing C. If you ever need custom native rendering, the
 [extension system](docs/extensions.md) lets you write Rust for just
@@ -184,13 +184,13 @@ still evolving:
 
 - Pin to an exact version and read the
   [CHANGELOG](CHANGELOG.md) when upgrading.
-- The extension framework (`toddy/extension`) is the least stable
+- The extension framework (`plushie/extension`) is the least stable
   part of the API.
 
 ## Documentation
 
 Guides are in [`docs/`](docs/) and will be on
-[hexdocs](https://hexdocs.pm/toddy) once published:
+[hexdocs](https://hexdocs.pm/plushie) once published:
 
 - [Getting started](docs/getting-started.md) -- setup, first app, CLI helpers, dev mode
 - [Tutorial](docs/tutorial.md) -- build a todo app step by step
@@ -216,7 +216,7 @@ Mirrors CI and stops on first failure: format, compile, test.
 
 ## System requirements
 
-The precompiled binary (`bin/toddy_download`) has no additional
+The precompiled binary (`bin/plushie_download`) has no additional
 dependencies. To build from source, install a Rust toolchain via
 [rustup](https://rustup.rs/) and the platform-specific libraries:
 
@@ -233,10 +233,10 @@ dependencies. To build from source, install a Rust toolchain via
 
 | | |
 |---|---|
-| Gleam SDK | [github.com/toddy-ui/toddy-gleam](https://github.com/toddy-ui/toddy-gleam) |
-| Elixir SDK | [github.com/toddy-ui/toddy-elixir](https://github.com/toddy-ui/toddy-elixir) |
-| Renderer | [github.com/toddy-ui/toddy](https://github.com/toddy-ui/toddy) |
-| Rust crate | [crates.io/crates/toddy](https://crates.io/crates/toddy) |
+| Gleam SDK | [github.com/plushie-ui/plushie-gleam](https://github.com/plushie-ui/plushie-gleam) |
+| Elixir SDK | [github.com/plushie-ui/plushie-elixir](https://github.com/plushie-ui/plushie-elixir) |
+| Renderer | [github.com/plushie-ui/plushie](https://github.com/plushie-ui/plushie) |
+| Rust crate | [crates.io/crates/plushie](https://crates.io/crates/plushie) |
 
 ## License
 

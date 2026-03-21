@@ -1,6 +1,6 @@
 # Accessibility
 
-Toddy provides built-in accessibility support via
+Plushie provides built-in accessibility support via
 [accesskit](https://github.com/AccessKit/accesskit), a cross-platform
 accessibility toolkit. The default renderer build includes accessibility,
 activating native platform APIs automatically: VoiceOver on macOS,
@@ -24,11 +24,11 @@ support. Three pieces work together:
 2. **TreeBuilder assembles the accesskit tree** -- `iced_winit::a11y`
    contains a `TreeBuilder` that walks the widget tree during `operate()`,
    collecting `Accessible` metadata and building an accesskit `TreeUpdate`.
-   This happens natively inside iced -- toddy does not build the tree.
+   This happens natively inside iced -- plushie does not build the tree.
 
 3. **AT actions become native iced events** -- when an AT triggers an action
    (e.g. a screen reader user activates a button), iced translates it to a
-   native event. The renderer maps it to a standard toddy event and sends it
+   native event. The renderer maps it to a standard plushie event and sends it
    to Gleam over the wire protocol.
 
 ```
@@ -43,11 +43,11 @@ Host (Gleam)              Renderer (iced)               Platform AT
    |<-- WidgetClick ---------|                              |
 ```
 
-### toddy's role
+### plushie's role
 
-toddy does not build its own accesskit tree. Iced handles tree building,
-AT actions, and platform integration natively. toddy's contribution is the
-`A11yOverride` wrapper widget (`a11y_widget.rs` in toddy) that
+plushie does not build its own accesskit tree. Iced handles tree building,
+AT actions, and platform integration natively. plushie's contribution is the
+`A11yOverride` wrapper widget (`a11y_widget.rs` in plushie) that
 intercepts `operate()` to apply Gleam-side overrides from the `a11y` prop.
 
 This means:
@@ -134,7 +134,7 @@ Widget state is extracted from existing props automatically:
 ## The a11y prop
 
 For cases where auto-inference is insufficient, every widget accepts an
-`a11y` prop -- built with the `toddy/prop/a11y` module's builder functions.
+`a11y` prop -- built with the `plushie/prop/a11y` module's builder functions.
 
 ### Fields
 
@@ -165,18 +165,18 @@ For cases where auto-inference is insufficient, every widget accepts an
 | `size_of_set` | `a11y.size_of_set(n)` | Total items in the set |
 | `has_popup` | `a11y.has_popup(p)` | Popup type: `ListboxPopup`, `MenuPopup`, `DialogPopup`, `TreePopup`, `GridPopup` |
 
-The type is defined in `toddy/prop/a11y`. All fields are optional -- start
+The type is defined in `plushie/prop/a11y`. All fields are optional -- start
 with `a11y.new()` and pipe through only the setters you need.
 
 ### Using the a11y prop
 
-With `toddy/ui` (convenience builder):
+With `plushie/ui` (convenience builder):
 
 <!-- test: a11y_heading_level_1_ui_builder_test, a11y_icon_button_label_test, a11y_landmark_region_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/ui
-import toddy/prop/a11y
-import toddy/prop/padding
+import plushie/ui
+import plushie/prop/a11y
+import plushie/prop/padding
 
 // Headings
 ui.text("title", "Welcome to MyApp", [
@@ -228,14 +228,14 @@ ui.text_input("email", model.email, [
 ])
 ```
 
-With the typed widget builder API (`toddy/widget/*`):
+With the typed widget builder API (`plushie/widget/*`):
 
 <!-- test: a11y_button_widget_builder_test, a11y_text_widget_builder_test, a11y_text_input_widget_builder_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/widget/button
-import toddy/widget/text
-import toddy/widget/text_input
-import toddy/prop/a11y
+import plushie/widget/button
+import plushie/widget/text
+import plushie/widget/text_input
+import plushie/prop/a11y
 
 button.new("close", "X")
 |> button.a11y(a11y.new() |> a11y.label("Close dialog"))
@@ -252,7 +252,7 @@ text_input.new("email", model.email)
 
 ### Available roles
 
-The `role` function accepts a `Role` constructor from `toddy/prop/a11y`.
+The `role` function accepts a `Role` constructor from `plushie/prop/a11y`.
 Use them to override the auto-inferred role when a widget is semantically
 different from its type (e.g. a `text` that's actually a heading, or a
 `container` that's a navigation landmark).
@@ -439,7 +439,7 @@ ui.column("form", [ui.spacing(12)], [
 ```
 
 **Why the explicit `a11y.label("Username")` when there's a visible
-`text_("username_label", "Username")` above?** Because toddy doesn't
+`text_("username_label", "Username")` above?** Because plushie doesn't
 automatically associate a text label with the input below it. The visible
 text and the input are separate widgets in the tree. The `a11y` label
 connects them for AT users.
@@ -524,8 +524,8 @@ geometry. Always provide alternative text:
 
 <!-- test: a11y_canvas_with_role_and_label_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/widget/canvas
-import toddy/prop/length.{Fill}
+import plushie/widget/canvas
+import plushie/prop/length.{Fill}
 
 // Static chart -- describe the content
 canvas.new("chart", Fill, Fill)
@@ -565,9 +565,9 @@ primitives. Without interactive shapes, a canvas is a single opaque
 "image" node to screen readers.
 
 ```gleam
-import toddy/canvas/shape
-import toddy/widget/canvas
-import toddy/prop/length.{Px}
+import plushie/canvas/shape
+import plushie/widget/canvas
+import plushie/prop/length.{Px}
 
 canvas.new("color-picker", Px(200.0), Px(100.0))
 |> canvas.layer("options",
@@ -609,8 +609,8 @@ control drawn with raw shapes.
 
 <!-- test: a11y_canvas_switch_toggled_test, a11y_canvas_meter_with_value_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/widget/canvas
-import toddy/prop/length.{Px}
+import plushie/widget/canvas
+import plushie/prop/length.{Px}
 
 // Custom toggle switch built with canvas
 canvas.new("dark-mode-switch", Px(60.0), Px(30.0))
@@ -649,7 +649,7 @@ from primitives (custom lists, tab bars, radio groups). Without these,
 screen readers cannot announce position context like "Item 3 of 7".
 
 ```gleam
-import toddy/widget/radio
+import plushie/widget/radio
 
 // Radio group with position context
 ui.container("colors", [
@@ -771,8 +771,8 @@ accesskit label from this prop.
 
 <!-- test: a11y_image_alt_prop_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/widget/svg
-import toddy/widget/qr_code
+import plushie/widget/svg
+import plushie/widget/qr_code
 
 ui.image("logo", "/images/logo.png", [ui.alt("Company logo")])
 
@@ -861,9 +861,9 @@ widget's own `Accessible` implementation.
 ## Action handling
 
 When an AT triggers an action, iced translates it to a native event. The
-renderer maps it to a standard toddy event:
+renderer maps it to a standard plushie event:
 
-| AT action | Toddy event | Notes |
+| AT action | Plushie event | Notes |
 |---|---|---|
 | Click | `WidgetClick(id: id, ..)` | Screen reader activate, switch press |
 | SetValue | `WidgetInput(id: id, value: val, ..)` | AT sets an input value directly |
@@ -897,7 +897,7 @@ Checks the inferred role for an element. This mirrors the role mapping,
 so it catches mismatches between your widget type and the intended role:
 
 ```gleam
-import toddy/test
+import plushie/test
 
 pub fn heading_has_correct_role_test() {
   let session = test.start(my_app())
@@ -942,11 +942,11 @@ clear message.
 
 ### Element helpers
 
-`toddy/test/element` provides lower-level accessors:
+`plushie/test/element` provides lower-level accessors:
 
 ```gleam
-import toddy/test
-import toddy/test/element
+import plushie/test
+import plushie/test/element
 
 pub fn element_accessors_test() {
   let session = test.start(my_app())
@@ -992,7 +992,7 @@ pub fn todo_app_is_accessible_test() {
 ## Building
 
 Accessibility is included by default in both precompiled binaries
-(`bin/toddy_download`) and source builds (`bin/toddy_build`).
+(`bin/plushie_download`) and source builds (`bin/plushie_build`).
 
 The renderer uses an iced fork (`v0.14.0-a11y-accesskit` branch) that adds
 native accessibility support. The fork is referenced via `[patch.crates-io]`
@@ -1003,8 +1003,8 @@ Accessibility support is provided by:
 
 | Component | What it provides |
 |---|---|
-| toddy-iced fork | accesskit + accesskit_winit, TreeBuilder, per-window adapter management |
-| `toddy-core` | `A11yOverride` wrapper widget, `HiddenInterceptor`, AT action handling |
+| plushie-iced fork | accesskit + accesskit_winit, TreeBuilder, per-window adapter management |
+| `plushie-core` | `A11yOverride` wrapper widget, `HiddenInterceptor`, AT action handling |
 
 
 ## Platform support
@@ -1027,7 +1027,7 @@ To manually verify accessibility with a real screen reader:
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/toddy_build
+bin/plushie_build
 
 # Start Orca (usually Super+Alt+S, or from accessibility settings)
 orca &
@@ -1043,7 +1043,7 @@ Activate buttons with Enter or Space.
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/toddy_build
+bin/plushie_build
 
 # Toggle VoiceOver: Cmd+F5
 # Run your app
@@ -1057,7 +1057,7 @@ should announce each widget's role and label.
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/toddy_build
+bin/plushie_build
 
 # Start NVDA
 # Run your app
@@ -1083,14 +1083,14 @@ The iced fork adds native accessibility support. Key additions:
 - **Per-window adapters** -- each window gets an accesskit adapter connecting
   to the platform's AT layer.
 - **AT action routing** -- AT actions are translated to native iced events,
-  which the renderer maps to toddy wire events.
+  which the renderer maps to plushie wire events.
 
 The fork is referenced via `[patch.crates-io]` in the renderer's
 `Cargo.toml`.
 
 ### A11yOverride wrapper widget
 
-`a11y_widget.rs` in toddy contains two wrapper widgets:
+`a11y_widget.rs` in plushie contains two wrapper widgets:
 
 - **`A11yOverride`** -- wraps any iced `Element` and intercepts `operate()`
   to apply Gleam-side overrides from the `a11y` prop (role, label,
@@ -1101,12 +1101,12 @@ The fork is referenced via `[patch.crates-io]` in the renderer's
   accessibility tree when `hidden: True` is set.
 
 These wrappers are applied automatically by the renderer when building the
-iced widget tree from toddy's UI tree. No manual wrapping is needed from
+iced widget tree from plushie's UI tree. No manual wrapping is needed from
 Gleam.
 
 ### Renderer integration
 
-When the renderer builds the iced widget tree from a toddy snapshot or
+When the renderer builds the iced widget tree from a plushie snapshot or
 patch, it checks each node's `a11y` prop. If present (and not just
 `hidden: True`), the rendered widget is wrapped in `A11yOverride`. If
 `hidden: True`, it's wrapped in `HiddenInterceptor`. Nodes without an

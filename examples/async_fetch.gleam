@@ -4,13 +4,13 @@
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/erlang/process
-import toddy
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, AsyncResult, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/padding
-import toddy/ui
+import plushie
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, AsyncResult, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/ui
 
 type Model {
   Model(status: Status, data: String)
@@ -74,6 +74,6 @@ fn view(model: Model) -> Node {
 
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

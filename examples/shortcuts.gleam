@@ -8,16 +8,16 @@ import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string
-import toddy
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, type Modifiers, KeyPress}
-import toddy/key
-import toddy/node.{type Node}
-import toddy/prop/length
-import toddy/prop/padding
-import toddy/subscription
-import toddy/ui
+import plushie
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, type Modifiers, KeyPress}
+import plushie/key
+import plushie/node.{type Node}
+import plushie/prop/length
+import plushie/prop/padding
+import plushie/subscription
+import plushie/ui
 
 const max_log_entries = 50
 
@@ -131,6 +131,6 @@ pub fn main() {
   let my_app =
     app.simple(init, update, view)
     |> app.with_subscriptions(subscribe)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

@@ -21,8 +21,8 @@ renderer (decide whether to execute it). Keep the renderer dumb.
 
 <!-- test: effects_file_open_returns_effect_command_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/effects
-import toddy/event.{EffectOk, EffectError, EffectCancelled}
+import plushie/effects
+import plushie/event.{EffectOk, EffectError, EffectCancelled}
 
 fn update(model, event) {
   case event {
@@ -100,7 +100,7 @@ Adding an effect requires changes in two places:
 
 1. **Renderer:** handle the new `kind` in the effect dispatch, execute the
    platform operation, return the result.
-2. **Gleam:** add a convenience function in `toddy/effects` (optional, apps
+2. **Gleam:** add a convenience function in `plushie/effects` (optional, apps
    can always send raw requests).
 
 The transport does not need to change. Unknown effect kinds return
@@ -109,7 +109,7 @@ The transport does not need to change. Unknown effect kinds return
 ## Effects are not commands
 
 Some frameworks conflate effects (I/O operations) with commands (internal
-state mutations). In toddy, `update` handles state mutations synchronously.
+state mutations). In plushie, `update` handles state mutations synchronously.
 Effects handle I/O asynchronously. They are separate concerns with separate
 code paths.
 

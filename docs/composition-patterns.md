@@ -1,23 +1,23 @@
 # Composition patterns
 
-Toddy provides primitives, not pre-built composites. There is no `TabBar`
+Plushie provides primitives, not pre-built composites. There is no `TabBar`
 widget, no `Modal` widget, no `Card` widget. Instead, you compose the same
 building blocks -- `row`, `column`, `container`, `stack`, `button`, `text`,
 `rule`, `mouse_area`, `space` -- with `StyleMap` to build any UI pattern you
 need.
 
 This guide shows how. Every pattern is copy-pasteable and produces a polished
-result. All examples use `toddy/ui` functions and assume you have the following
+result. All examples use `plushie/ui` functions and assume you have the following
 at the top of your module:
 
 ```gleam
-import toddy/ui
-import toddy/prop/style_map.{type StyleMap}
-import toddy/prop/border
-import toddy/prop/shadow
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/prop/alignment
+import plushie/ui
+import plushie/prop/style_map.{type StyleMap}
+import plushie/prop/border
+import plushie/prop/shadow
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/prop/alignment
 ```
 
 ---
@@ -35,15 +35,15 @@ views.
 import gleam/int
 import gleam/list
 import gleam/string
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/prop/style_map
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/prop/style_map
+import plushie/ui
 
 pub type Model {
   Model(active_tab: String)
@@ -143,14 +143,14 @@ that highlight on hover. The selected item has an accent background.
 ```gleam
 import gleam/list
 import gleam/string
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding.{Padding}
-import toddy/prop/style_map
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding.{Padding}
+import plushie/prop/style_map
+import plushie/ui
 
 pub type Model {
   Model(page: String)
@@ -267,15 +267,15 @@ view.
 ### Code
 
 ```gleam
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/prop/style_map
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/prop/style_map
+import plushie/ui
 
 pub type Model {
   Model(bold: Bool, italic: Bool, underline: Bool)
@@ -419,17 +419,17 @@ container that dims the background.
 <!-- test: modal_init_test, modal_open_test, modal_confirm_test, modal_view_has_overlay_when_open_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/prop/shadow
-import toddy/prop/style_map
-import toddy/prop/alignment
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/prop/shadow
+import plushie/prop/style_map
+import plushie/prop/alignment
+import plushie/ui
 
 pub type Model {
   Model(show_modal: Bool, confirmed: Bool)
@@ -571,15 +571,15 @@ styled container.
 <!-- test: card_helper_produces_correct_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
-import toddy/app
-import toddy/command
-import toddy/event.{type Event}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/prop/shadow
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/prop/shadow
+import plushie/ui
 
 pub type Model {
   Model
@@ -726,13 +726,13 @@ cursor to a horizontal resize indicator.
 
 <!-- test: split_panel_has_three_sections_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/app
-import toddy/command
-import toddy/event.{type Event}
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event}
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding
+import plushie/ui
 
 pub type Model {
   Model(left_width: Float)
@@ -829,21 +829,21 @@ location.
 import gleam/int
 import gleam/list
 import gleam/string
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill}
-import toddy/prop/padding.{Padding}
-import toddy/prop/style_map
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill}
+import plushie/prop/padding.{Padding}
+import plushie/prop/style_map
+import plushie/ui
 
 pub type Model {
   Model(path: List(String))
 }
 
 pub fn init(_flags) {
-  #(Model(path: ["Home", "Projects", "Toddy", "Docs"]), command.None)
+  #(Model(path: ["Home", "Projects", "Plushie", "Docs"]), command.None)
 }
 
 pub fn update(model: Model, event: Event) {
@@ -940,7 +940,7 @@ Clicking a breadcrumb truncates the path to that index, navigating "up".
 
 ### What it looks like
 
-A horizontal line of text: "Home > Projects > Toddy > Docs". Everything
+A horizontal line of text: "Home > Projects > Plushie > Docs". Everything
 except "Docs" is blue and clickable. Hovering over a segment highlights it
 with a light blue background. "Docs" is plain dark text.
 
@@ -958,15 +958,15 @@ for tags, counts, status indicators, or filter chips.
 import gleam/list
 import gleam/set.{type Set}
 import gleam/string
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill}
-import toddy/prop/padding.{Padding}
-import toddy/prop/style_map
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill}
+import plushie/prop/padding.{Padding}
+import plushie/prop/style_map
+import plushie/ui
 
 pub type Model {
   Model(selected: Set(String))
@@ -1118,14 +1118,14 @@ feedback and focus ring locally. The host only sees click events.
 #### Code
 
 ```gleam
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetEvent}
-import toddy/node.{type Node}
-import toddy/prop/length.{Px}
-import toddy/prop/padding
-import toddy/canvas/shape
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetEvent}
+import plushie/node.{type Node}
+import plushie/prop/length.{Px}
+import plushie/prop/padding
+import plushie/canvas/shape
+import plushie/ui
 
 pub type Model {
   Model(dark_mode: Bool)
@@ -1190,7 +1190,7 @@ pointer cursor, and can provide a11y metadata. On click, the host toggles
 
 Canvas shape functions (`shape.rect`, `shape.circle`, `shape.line`,
 `shape.path`, `shape.stroke`, `shape.linear_gradient`, etc.) are available
-via `import toddy/canvas/shape`.
+via `import plushie/canvas/shape`.
 
 ### Canvas-only: chart with clickable data points
 
@@ -1203,14 +1203,14 @@ has a tooltip, and announces its position in the set.
 import gleam/float
 import gleam/int
 import gleam/list
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetEvent}
-import toddy/node.{type Node}
-import toddy/prop/length.{Px}
-import toddy/prop/padding
-import toddy/canvas/shape
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetEvent}
+import plushie/node.{type Node}
+import plushie/prop/length.{Px}
+import plushie/prop/padding
+import plushie/canvas/shape
+import plushie/ui
 import gleam/option.{type Option, None, Some}
 
 pub type BarData {
@@ -1299,14 +1299,14 @@ IME, and clipboard.
 #### Code
 
 ```gleam
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetInput}
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding.{Padding}
-import toddy/canvas/shape
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetInput}
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding.{Padding}
+import plushie/canvas/shape
+import plushie/ui
 
 pub type Model {
   Model(query: String)
@@ -1378,15 +1378,15 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick, WidgetInput, WidgetEvent}
-import toddy/node.{type Node}
-import toddy/prop/border
-import toddy/prop/length.{Fill, Px}
-import toddy/prop/padding.{Padding}
-import toddy/canvas/shape
-import toddy/ui
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetEvent}
+import plushie/node.{type Node}
+import plushie/prop/border
+import plushie/prop/length.{Fill, Px}
+import plushie/prop/padding.{Padding}
+import plushie/canvas/shape
+import plushie/ui
 
 pub type Model {
   Model(open: Bool, filter: String, selected: Option(String))
@@ -1565,20 +1565,20 @@ returning plain data -- no macros needed.
 
 ## State helpers
 
-Toddy provides optional state management modules for common UI patterns.
+Plushie provides optional state management modules for common UI patterns.
 None of these are required -- your model can be any type. They exist because
 these patterns come up repeatedly in desktop apps and getting them right from
 scratch is tedious.
 
 All helpers are pure data structures with no processes or side effects.
 
-### toddy/undo
+### plushie/undo
 
 Undo/redo stack for commands.
 
 <!-- test: state_helper_undo_apply_and_revert_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/undo
+import plushie/undo
 import gleam/option.{None, Some}
 
 let stack = undo.new(model)
@@ -1617,17 +1617,17 @@ let stack = undo.apply(stack, undo.UndoCommand(
 // are merged into a single undo entry.
 ```
 
-Use `toddy/undo` when your app has user actions that should be reversible
+Use `plushie/undo` when your app has user actions that should be reversible
 (text editing, form filling, drawing, configuration changes). Skip it for
 apps where undo does not make sense (dashboards, monitoring).
 
-### toddy/selection
+### plushie/selection
 
 Selection state for lists and tables.
 
 <!-- test: state_helper_selection_multi_test, state_helper_selection_range_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/selection
+import plushie/selection
 import gleam/set
 
 let sel = selection.new(selection.Multi)
@@ -1653,18 +1653,18 @@ selection.selected(sel)
 // => set.from_list(["b", "c", "d"])
 ```
 
-Use `toddy/selection` when you have selectable lists, tables, or tree
+Use `plushie/selection` when you have selectable lists, tables, or tree
 views. It handles single, multi (ctrl-click), and range (shift-click)
 selection modes correctly. Skip it for simple cases where a single
 `selected_id` in your model is sufficient.
 
-### toddy/route
+### plushie/route
 
 Client-side routing for multi-view apps.
 
 <!-- test: state_helper_route_push_and_pop_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/route
+import plushie/route
 import gleam/dict
 
 let r = route.new("/dashboard")
@@ -1687,13 +1687,13 @@ is for apps that have multiple "screens" and want back/forward navigation
 with history tracking. Use it for apps with distinct screens (settings,
 detail views, wizards). Skip it for single-screen apps.
 
-### toddy/data
+### plushie/data
 
 Query pipeline for in-memory record collections.
 
 <!-- test: state_helper_data_query_filter_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/data
+import plushie/data
 import gleam/string
 
 let records = [
@@ -1717,7 +1717,7 @@ data.query(records, [
 // )
 ```
 
-Use `toddy/data` when you have tabular data that needs filtering, sorting,
+Use `plushie/data` when you have tabular data that needs filtering, sorting,
 grouping, or pagination in the UI. It is a query pipeline over lists, not a
 database -- keep data sets small enough to fit in memory.
 
@@ -1733,9 +1733,9 @@ These helpers share a few properties:
   as fields in your model type.
 
 ```gleam
-import toddy/undo
-import toddy/selection
-import toddy/route
+import plushie/undo
+import plushie/selection
+import plushie/route
 
 pub type Model {
   Model(

@@ -9,19 +9,19 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/set
 import gleam/string
-import toddy
-import toddy/app
-import toddy/command
-import toddy/data
-import toddy/event.{type Event, WidgetClick, WidgetInput, WidgetToggle}
-import toddy/node.{type Node}
-import toddy/prop/length
-import toddy/prop/padding
-import toddy/route
-import toddy/selection
-import toddy/ui
-import toddy/undo
-import toddy/widget/text_editor
+import plushie
+import plushie/app
+import plushie/command
+import plushie/data
+import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetToggle}
+import plushie/node.{type Node}
+import plushie/prop/length
+import plushie/prop/padding
+import plushie/route
+import plushie/selection
+import plushie/ui
+import plushie/undo
+import plushie/widget/text_editor
 
 type Note {
   Note(id: Int, title: String, body: String)
@@ -299,6 +299,6 @@ fn view_edit(model: Model) -> Node {
 
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

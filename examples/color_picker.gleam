@@ -10,16 +10,16 @@ import gleam/erlang/process
 import gleam/float
 import gleam/int
 import gleam/list
-import toddy
-import toddy/app
-import toddy/canvas/shape
-import toddy/command
-import toddy/event.{type Event, CanvasMove, CanvasPress, CanvasRelease}
-import toddy/node.{type Node, type PropValue}
-import toddy/prop/length
-import toddy/prop/padding
-import toddy/ui
-import toddy/widget/canvas
+import plushie
+import plushie/app
+import plushie/canvas/shape
+import plushie/command
+import plushie/event.{type Event, CanvasMove, CanvasPress, CanvasRelease}
+import plushie/node.{type Node, type PropValue}
+import plushie/prop/length
+import plushie/prop/padding
+import plushie/ui
+import plushie/widget/canvas
 
 // -- Geometry constants -------------------------------------------------------
 
@@ -385,7 +385,7 @@ fn float_floor(x: Float) -> Float
 // construct it directly from outside the module, we use the prop
 // value approach via ui.background which accepts Color.
 // We need to use color.from_hex and assert Ok.
-import toddy/prop/color
+import plushie/prop/color
 
 fn unsafe_color(hex: String) -> color.Color {
   let assert Ok(c) = color.from_hex(hex)
@@ -394,6 +394,6 @@ fn unsafe_color(hex: String) -> color.Color {
 
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

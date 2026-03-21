@@ -1,6 +1,6 @@
 # Getting started
 
-Build native desktop GUIs from Gleam. Toddy handles rendering via
+Build native desktop GUIs from Gleam. Plushie handles rendering via
 iced (Rust) while you own state, logic, and UI trees in pure Gleam.
 
 ## Prerequisites
@@ -22,16 +22,16 @@ gleam new my_app
 cd my_app
 ```
 
-### 2. Add toddy as a dependency
+### 2. Add plushie as a dependency
 
 ```sh
-gleam add toddy
+gleam add plushie
 ```
 
 ### 3. Fetch dependencies and build the renderer
 
 ```sh
-bin/toddy_build
+bin/plushie_build
 ```
 
 The build step compiles the Rust renderer binary. First build takes a
@@ -44,13 +44,13 @@ Create `src/my_app.gleam`:
 <!-- test: getting_started_counter_init_test, getting_started_counter_increment_test, getting_started_counter_decrement_test, getting_started_counter_unknown_event_test, getting_started_counter_view_test, getting_started_counter_view_after_increments_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
-import toddy/app
-import toddy/cli/gui
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/padding
-import toddy/ui
+import plushie/app
+import plushie/cli/gui
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/ui
 
 type Model {
   Model(count: Int)
@@ -103,14 +103,14 @@ A native window appears with the count and two buttons.
 
 ## The Elm architecture
 
-Toddy follows the Elm architecture. Your app is built from three
+Plushie follows the Elm architecture. Your app is built from three
 functions passed to `app.simple`:
 
 - **`init`** -- returns a tuple of the initial model and a command.
 - **`update`** -- takes the current model and an event, returns
   a tuple of the new model and a command. Pure function. See
   [Commands](commands.md).
-- **`view`** -- takes the model and returns a UI tree. Toddy diffs
+- **`view`** -- takes the model and returns a UI tree. Plushie diffs
   trees and sends only patches to the renderer.
 
 For apps that need subscriptions, use `app.with_subscriptions` to
@@ -121,7 +121,7 @@ See [App behaviour](app-behaviour.md) for the full API.
 
 ## Event types
 
-Events are constructors of the `Event` type in `toddy/event`.
+Events are constructors of the `Event` type in `plushie/event`.
 Pattern match in `update`:
 
 | Event | Meaning |
@@ -138,11 +138,11 @@ See [Events](events.md) for the full taxonomy.
 
 ## CLI helpers
 
-Toddy provides CLI modules for common tasks:
+Plushie provides CLI modules for common tasks:
 
 ```gleam
 // src/my_app.gleam -- build and run
-import toddy/cli/gui
+import plushie/cli/gui
 
 pub fn main() {
   gui.run(my_app(), gui.default_opts())
@@ -151,7 +151,7 @@ pub fn main() {
 
 ```gleam
 // src/inspect_app.gleam -- print UI tree as JSON
-import toddy/cli/inspect
+import plushie/cli/inspect
 
 pub fn main() {
   inspect.run(my_app())
@@ -159,9 +159,9 @@ pub fn main() {
 ```
 
 ```bash
-bin/toddy_build                       # build renderer only
-bin/toddy_build --release             # release build
-bin/toddy_download                    # download precompiled binary
+bin/plushie_build                       # build renderer only
+bin/plushie_build --release             # release build
+bin/plushie_download                    # download precompiled binary
 ```
 
 Use `GuiOpts` to configure the runner:
@@ -182,7 +182,7 @@ gui.run(my_app(), GuiOpts(..gui.default_opts(), json: True))
 Enable verbose renderer logging:
 
 ```sh
-RUST_LOG=toddy=debug gleam run -m my_app
+RUST_LOG=plushie=debug gleam run -m my_app
 ```
 
 ## Error handling
@@ -212,7 +212,7 @@ your view function and save. The window updates instantly.
 ## Next steps
 
 - [Tutorial: building a todo app](tutorial.md) -- step-by-step guide
-- Browse the [examples](https://github.com/toddy-ui/toddy-gleam/tree/main/examples) for patterns
+- Browse the [examples](https://github.com/plushie-ui/plushie-gleam/tree/main/examples) for patterns
 - [App behaviour](app-behaviour.md) -- full API
 - [Layout](layout.md) -- sizing and positioning widgets
 - [Commands](commands.md) -- async work, file dialogs, effects

@@ -1,13 +1,13 @@
-name = "toddy"
+name = "plushie"
 version = "0.1.0"
 target = "erlang"
 
 description = "Native desktop GUIs from Gleam, powered by iced"
 licences = ["MIT"]
-repository = { type = "github", user = "toddy-ui", repo = "toddy-gleam" }
+repository = { type = "github", user = "plushie-ui", repo = "plushie-gleam" }
 links = [
-  { title = "Rust binary", href = "https://github.com/toddy-ui/toddy" },
-  { title = "Elixir SDK", href = "https://github.com/toddy-ui/toddy-elixir" },
+  { title = "Rust binary", href = "https://github.com/plushie-ui/plushie" },
+  { title = "Elixir SDK", href = "https://github.com/plushie-ui/plushie-elixir" },
 ]
 
 [dependencies]

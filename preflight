@@ -30,9 +30,9 @@ run_step() {
 run_step "gleam format --check"
 
 # Binary check (warning only -- tests don't need the binary)
-if [ ! -f priv/bin/toddy ] && [ -z "${TODDY_BINARY_PATH:-}" ]; then
-    echo "Warning: toddy binary not found at priv/bin/toddy"
-    echo "Run bin/toddy_download or bin/toddy_build first"
+if [ ! -f priv/bin/plushie ] && [ -z "${PLUSHIE_BINARY_PATH:-}" ]; then
+    echo "Warning: plushie binary not found at priv/bin/plushie"
+    echo "Run bin/plushie_download or bin/plushie_build first"
 fi
 
 run_step "gleam build"

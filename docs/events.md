@@ -1,10 +1,10 @@
 # Events
 
 Events are constructors of the `Event` union type, delivered to your `update`
-function. All events live in the `toddy/event` module.
+function. All events live in the `plushie/event` module.
 
 ```gleam
-import toddy/event.{
+import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
   WidgetSelect, WidgetSlide, KeyPress, KeyRelease, MouseMoved,
   TouchPressed, ImeCommit, WindowCloseRequested, WindowResized,

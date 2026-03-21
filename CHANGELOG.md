@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.1.0] - 2026-03-21
 
-Initial release of the Gleam SDK for toddy.
+Initial release of the Gleam SDK for plushie.
 
 ### Added
 
@@ -23,13 +23,13 @@ Initial release of the Gleam SDK for toddy.
 - **22 built-in themes** -- light, dark, dracula, nord, solarized,
   gruvbox, catppuccin, tokyo night, kanagawa, moonfly, nightfly,
   oxocarbon, ferra. Custom palettes and per-widget style overrides
-  via `toddy/prop/style_map`.
+  via `plushie/prop/style_map`.
 - **Multi-window** -- declare window nodes in the widget tree; the
   framework manages open/close/update automatically.
 - **Platform effects** -- native file dialogs, clipboard (text, HTML,
   primary selection), OS notifications.
 - **Accessibility** -- screen reader support via accesskit on all
-  platforms. A11y builder (`toddy/prop/a11y`) on all widgets.
+  platforms. A11y builder (`plushie/prop/a11y`) on all widgets.
 - **Commands** -- async work, streaming, timers, widget ops (focus,
   scroll, select), window management, image management, platform
   effects, extension commands.
@@ -42,22 +42,22 @@ Initial release of the Gleam SDK for toddy.
   automatically. Pattern match on local ID or scope chain.
 - **Extension system** -- pure Gleam composite widgets or Rust-backed
   native widgets via `ExtensionDef` data-driven definitions.
-- **Two-layer builder API** -- `toddy/ui` convenience functions with
-  `Attr` lists, and `toddy/widget/*` typed opaque builders with
+- **Two-layer builder API** -- `plushie/ui` convenience functions with
+  `Attr` lists, and `plushie/widget/*` typed opaque builders with
   chainable setters.
-- **CLI entry points** -- `toddy/cli/gui` for local desktop apps,
-  `toddy/cli/stdio` for exec/remote rendering mode.
+- **CLI entry points** -- `plushie/cli/gui` for local desktop apps,
+  `plushie/cli/stdio` for exec/remote rendering mode.
 - **Bridge restart** -- automatic renderer restart with exponential
   backoff on crash (model state preserved).
 - **Event coalescing** -- high-frequency events (mouse moves, sensor
   resizes) are deferred and coalesced per source.
-- **Precompiled binaries** -- `bin/toddy_download` fetches
+- **Precompiled binaries** -- `bin/plushie_download` fetches
   platform-specific binaries.
-- **Build from source** -- `bin/toddy_build` compiles the toddy
+- **Build from source** -- `bin/plushie_build` compiles the plushie
   binary with optional extension workspace generation.
-- **State helpers** -- `toddy/undo` (undo/redo), `toddy/selection`
-  (single/multi/range), `toddy/route` (navigation), `toddy/data`
-  (query pipeline), `toddy/animation` (easing functions).
+- **State helpers** -- `plushie/undo` (undo/redo), `plushie/selection`
+  (single/multi/range), `plushie/route` (navigation), `plushie/data`
+  (query pipeline), `plushie/animation` (easing functions).
 - **Canvas drawing** -- shape primitives (rect, circle, arc, path,
   text, image) with layers, gradients, opacity, interactive shapes,
   and caching.

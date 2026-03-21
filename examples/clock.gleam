@@ -2,14 +2,14 @@
 
 import gleam/erlang/process
 import gleam/int
-import toddy
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, TimerTick}
-import toddy/node.{type Node}
-import toddy/prop/padding
-import toddy/subscription
-import toddy/ui
+import plushie
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, TimerTick}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/subscription
+import plushie/ui
 
 type Model {
   Model(seconds: Int)
@@ -58,6 +58,6 @@ pub fn main() {
   let my_app =
     app.simple(init, update, view)
     |> app.with_subscriptions(subscribe)
-  let _ = toddy.start(my_app, toddy.default_start_opts())
+  let _ = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }

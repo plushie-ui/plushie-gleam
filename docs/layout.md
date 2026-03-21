@@ -1,13 +1,13 @@
 # Layout
 
-Toddy's layout model mirrors iced's. Understanding it is essential for
+Plushie's layout model mirrors iced's. Understanding it is essential for
 building UIs that size and position correctly.
 
 ## Length
 
 Length controls how a widget claims space along an axis.
 
-| Toddy value | Iced equivalent | Meaning |
+| Plushie value | Iced equivalent | Meaning |
 |---|---|---|
 | `Fill` | `Length::Fill` | Take all remaining space |
 | `FillPortion(n)` | `Length::FillPortion(n)` | Proportional share of remaining space |
@@ -16,9 +16,9 @@ Length controls how a widget claims space along an axis.
 
 <!-- test: layout_length_fill_test, layout_length_fixed_test, layout_length_fill_portion_test, layout_length_shrink_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/ui
-import toddy/prop/length.{Fill, FillPortion, Fixed, Shrink}
-import toddy/prop/padding
+import plushie/ui
+import plushie/prop/length.{Fill, FillPortion, Fixed, Shrink}
+import plushie/prop/padding
 
 // Fill available width
 ui.column("main", [ui.width(Fill)], [...])
@@ -46,7 +46,7 @@ accommodate their children.
 
 Padding is the space between a widget's boundary and its content.
 
-| Toddy value | Meaning |
+| Plushie value | Meaning |
 |---|---|
 | `padding.all(10.0)` | Uniform: 10px on all sides |
 | `padding.xy(10.0, 20.0)` | Axis: 10px vertical, 20px horizontal |
@@ -101,7 +101,7 @@ the cross axis.
 
 <!-- test: layout_align_x_column_test, layout_align_center_container_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/prop/alignment.{Center}
+import plushie/prop/alignment.{Center}
 
 // Center children horizontally in a column
 ui.column("col", [ui.align_x(Center)], [
@@ -145,7 +145,7 @@ ui.row("nav", [ui.spacing(8), ui.align_y(Center)], [
 ```
 
 Props: `spacing`, `padding`, `width`, `height`, `align_y`, `wrap` (new
-in toddy-iced -- wraps children to next line when they overflow).
+in plushie-iced -- wraps children to next line when they overflow).
 
 ### container
 
@@ -210,7 +210,7 @@ ui.row("spread", [], [
 
 ### grid
 
-Arranges children in a grid layout (new in toddy-iced).
+Arranges children in a grid layout (new in plushie-iced).
 
 <!-- test: layout_grid_test -- keep this code block in sync with the test -->
 ```gleam

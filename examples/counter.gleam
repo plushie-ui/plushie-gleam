@@ -1,14 +1,14 @@
-//// Counter example: demonstrates the basic toddy app pattern.
+//// Counter example: demonstrates the basic plushie app pattern.
 
 import gleam/erlang/process
 import gleam/int
-import toddy
-import toddy/app
-import toddy/command
-import toddy/event.{type Event, WidgetClick}
-import toddy/node.{type Node}
-import toddy/prop/padding
-import toddy/ui
+import plushie
+import plushie/app
+import plushie/command
+import plushie/event.{type Event, WidgetClick}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/ui
 
 type Model {
   Model(count: Int)
@@ -46,6 +46,6 @@ fn view(model: Model) -> Node {
 
 pub fn main() {
   let counter = app.simple(init, update, view)
-  let _ = toddy.start(counter, toddy.default_start_opts())
+  let _ = plushie.start(counter, plushie.default_start_opts())
   process.sleep_forever()
 }

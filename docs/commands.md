@@ -1,7 +1,7 @@
 # Commands and subscriptions
 
 Iced has two mechanisms beyond the basic update/view cycle: `Task` (async
-commands from update) and `Subscription` (ongoing event sources). Toddy
+commands from update) and `Subscription` (ongoing event sources). Plushie
 provides Gleam equivalents for both.
 
 ## Commands
@@ -16,8 +16,8 @@ schedule a delayed event. These are commands.
 `command.none()` when no side effects are needed:
 
 ```gleam
-import toddy/command
-import toddy/event.{type Event, WidgetClick, AsyncResult}
+import plushie/command
+import plushie/event.{type Event, WidgetClick, AsyncResult}
 
 fn update(model: Model, event: Event) {
   case event {
@@ -466,7 +466,7 @@ Return `command.none()` when `update` has no side effects.
 ### Chaining commands
 
 In iced, commands support `.then()` and `.chain()` for sequencing async
-work. Toddy does not need dedicated chaining combinators because the Elm
+work. Plushie does not need dedicated chaining combinators because the Elm
 update cycle provides this naturally: each `update` can return
 `#(model, command)`, and the result of each command feeds back into
 `update` as an event, which can return more commands.
@@ -552,7 +552,7 @@ constructors like `KeyPress(..)` regardless of what tag you chose.
 ### The subscribe callback
 
 ```gleam
-import toddy/subscription
+import plushie/subscription
 
 fn subscribe(model: Model) -> List(subscription.Subscription) {
   let subs = []
@@ -822,7 +822,7 @@ native platform operations handled by the renderer (see [effects.md](effects.md)
 | Handled by | Gleam runtime | Rust renderer |
 | Examples | async work, timers, focus | file dialogs, clipboard, notifications |
 | Transport | internal | wire protocol request/response |
-| Return from | `update` | `update` (via `toddy/effects` functions) |
+| Return from | `update` | `update` (via `plushie/effects` functions) |
 
 Widget operations and window commands are a hybrid -- they are initiated
 from the Gleam side but executed by the renderer. They use the command

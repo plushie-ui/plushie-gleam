@@ -1,6 +1,6 @@
 # Theming
 
-Toddy exposes iced's theming system directly. No additional abstraction
+Plushie exposes iced's theming system directly. No additional abstraction
 layer, no token system, no design system framework. If you need those,
 build them in your app.
 
@@ -9,8 +9,8 @@ build them in your app.
 Themes are set at the window level:
 
 ```gleam
-import toddy/ui
-import toddy/prop/theme
+import plushie/ui
+import plushie/prop/theme
 
 fn view(model) {
   ui.window("main", [ui.title("My App")], [
@@ -27,8 +27,8 @@ Or set the default theme in app settings:
 
 <!-- test: theming_settings_theme_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/app
-import toddy/prop/theme.{CatppuccinMocha}
+import plushie/app
+import plushie/prop/theme.{CatppuccinMocha}
 import gleam/option.{Some}
 
 let settings = app.Settings(..app.default_settings(), theme: Some(CatppuccinMocha))
@@ -36,7 +36,7 @@ let settings = app.Settings(..app.default_settings(), theme: Some(CatppuccinMoch
 
 ## Built-in themes
 
-Iced 0.14 ships with 22 built-in themes. Toddy passes the theme name
+Iced 0.14 ships with 22 built-in themes. Plushie passes the theme name
 string directly to the renderer, which resolves it to an iced `Theme`
 variant.
 
@@ -75,8 +75,8 @@ Custom themes are defined by providing a palette via `theme.custom`:
 
 <!-- test: theming_custom_theme_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/prop/theme
-import toddy/node.{StringVal}
+import plushie/prop/theme
+import plushie/node.{StringVal}
 import gleam/dict
 
 let my_theme = theme.custom("my_app", dict.from_list([
@@ -90,7 +90,7 @@ let my_theme = theme.custom("my_app", dict.from_list([
 ```
 
 The palette dict is passed to iced's `Theme::custom()` with Oklch-based
-palette generation (toddy-iced). Only the colors you specify are overridden;
+palette generation (plushie-iced). Only the colors you specify are overridden;
 the rest are derived automatically.
 
 ## Extended palette shade overrides
@@ -204,10 +204,10 @@ rule, slider, vertical_slider, and tooltip.
 
 <!-- test: theming_style_map_basic_test, theming_style_map_with_border_test, theming_style_map_with_shadow_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/prop/style_map
-import toddy/prop/border
-import toddy/prop/shadow
-import toddy/prop/color
+import plushie/prop/style_map
+import plushie/prop/border
+import plushie/prop/shadow
+import plushie/prop/color
 
 let card_style =
   style_map.new()
@@ -287,7 +287,7 @@ for standard looks and style maps when you need custom appearance:
 ui.button("delete", "Delete", [ui.style("danger")])
 
 // Custom branded button (pass style_map as a prop via widget builder)
-import toddy/widget/button
+import plushie/widget/button
 
 button.new("cta", "Get Started")
 |> button.style_map(
@@ -321,7 +321,7 @@ For manual control, subscribe to theme change events with
 `subscription.on_theme_change`:
 
 ```gleam
-import toddy/subscription
+import plushie/subscription
 
 fn subscribe(_model) {
   [subscription.on_theme_change("theme_changed")]

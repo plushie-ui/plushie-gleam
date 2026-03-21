@@ -84,7 +84,7 @@ do not carry scope.
 local IDs:
 
 ```gleam
-import toddy/tree
+import plushie/tree
 
 // Exact match on scoped path
 tree.find(tree_node, "sidebar/form/save")

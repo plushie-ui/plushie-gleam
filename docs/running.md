@@ -1,6 +1,6 @@
-# Running toddy
+# Running plushie
 
-Toddy's **renderer** draws windows and handles input. Your Gleam
+Plushie's **renderer** draws windows and handles input. Your Gleam
 code (the **host**) manages state and builds the UI tree. They talk
 over a wire protocol -- locally through a pipe, remotely over SSH,
 or through any transport you provide. This guide covers all the ways
@@ -13,7 +13,7 @@ The simplest setup: the host spawns the renderer as a child process.
 <!-- test: running_gui_default_opts_test -- keep this code block in sync with the test -->
 ```gleam
 // src/my_app/main.gleam
-import toddy/cli/gui
+import plushie/cli/gui
 
 pub fn main() {
   gui.run(my_app.app(), gui.default_opts())
@@ -27,9 +27,9 @@ gleam run -m my_app/main
 ```
 
 The renderer is resolved automatically. For most projects,
-`bin/toddy_download` fetches a precompiled renderer and you're done.
-If you have native Rust extensions, `bin/toddy_build` compiles a
-custom renderer. You can also set `TODDY_BINARY_PATH` explicitly.
+`bin/plushie_download` fetches a precompiled renderer and you're done.
+If you have native Rust extensions, `bin/plushie_build` compiles a
+custom renderer. You can also set `PLUSHIE_BINARY_PATH` explicitly.
 
 ### Dev mode
 
@@ -38,7 +38,7 @@ see the result instantly. The model state is preserved across reloads.
 
 <!-- test: running_gui_opts_with_dev_mode_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/cli/gui
+import plushie/cli/gui
 
 pub fn main() {
   let opts = gui.GuiOpts(..gui.default_opts(), dev: True)
@@ -49,18 +49,18 @@ pub fn main() {
 ### Exec mode
 
 The renderer can spawn the host instead of the other way around. This
-is useful when toddy is the entry point (a release binary or launcher)
+is useful when plushie is the entry point (a release binary or launcher)
 and it's the foundation for remote rendering over SSH.
 
 ```sh
-toddy --exec "gleam run -m my_app/stdio_main"
+plushie --exec "gleam run -m my_app/stdio_main"
 ```
 
 Where `stdio_main` uses stdio transport:
 
 ```gleam
 // src/my_app/stdio_main.gleam
-import toddy/cli/stdio
+import plushie/cli/stdio
 
 pub fn main() {
   stdio.run(my_app.app(), stdio.default_opts())
@@ -68,7 +68,7 @@ pub fn main() {
 ```
 
 The renderer controls the lifecycle. When the user closes the window,
-the renderer closes stdin, and the toddy process exits cleanly.
+the renderer closes stdin, and the plushie process exits cleanly.
 
 ## Remote rendering
 
@@ -87,9 +87,9 @@ Your `init`/`update`/`view` code doesn't change at all.
 
 ### Prerequisites
 
-- **Your laptop**: the `toddy` renderer installed and on your PATH.
+- **Your laptop**: the `plushie` renderer installed and on your PATH.
   Download from the GitHub releases page, or build with
-  `cargo install toddy` if you have a Rust toolchain.
+  `cargo install plushie` if you have a Rust toolchain.
 - **The server**: your Gleam project deployed with its dependencies.
   The server does NOT need the renderer or a display server.
 - **SSH access**: you can `ssh user@server` from your laptop.
@@ -97,7 +97,7 @@ Your `init`/`update`/`view` code doesn't change at all.
 ### Quick start
 
 ```sh
-toddy --exec "ssh user@server 'cd /app && gleam run -m my_app/stdio_main'"
+plushie --exec "ssh user@server 'cd /app && gleam run -m my_app/stdio_main'"
 ```
 
 The renderer on your laptop spawns an SSH session, which starts the
@@ -129,9 +129,9 @@ not the server). How you get it there depends on your project:
 
 | Your project uses | Renderer needed | How to get it |
 |---|---|---|
-| Built-in widgets only | Precompiled | `bin/toddy_download` or GitHub release |
+| Built-in widgets only | Precompiled | `bin/plushie_download` or GitHub release |
 | Pure Gleam extensions | Precompiled | Same -- composites don't need a custom build |
-| Native Rust extensions | Custom build | `bin/toddy_build` targeting your laptop's architecture |
+| Native Rust extensions | Custom build | `bin/plushie_build` targeting your laptop's architecture |
 
 The server doesn't need the renderer at all. It only needs your
 Gleam project and its dependencies.
@@ -139,7 +139,7 @@ Gleam project and its dependencies.
 ## Resiliency
 
 Things go wrong. Renderers crash, code has bugs, networks drop.
-Toddy handles these without losing your model state.
+Plushie handles these without losing your model state.
 
 ### Renderer crashes
 
@@ -151,9 +151,9 @@ subscriptions and windows. The user sees a brief flicker, then the
 UI is back.
 
 The host retries up to 5 times (100ms, 200ms, 400ms, 800ms, 1.6s).
-If all retries fail, it logs troubleshooting steps and the toddy
+If all retries fail, it logs troubleshooting steps and the plushie
 process stops. The rest of your application is unaffected -- only
-the toddy process exits. A successful connection resets the
+the plushie process exits. A successful connection resets the
 retry counter, so intermittent crashes get a fresh budget each time.
 
 ### Exceptions in your code
@@ -173,9 +173,9 @@ When an SSH connection drops, both sides detect the broken pipe:
 
 - **The renderer** sees the host's stdout close. It can display an
   error or retry the connection.
-- **The host** sees stdin close. Without daemon mode, the toddy
+- **The host** sees stdin close. Without daemon mode, the plushie
   process exits (the rest of your service is unaffected). With
-  daemon mode, toddy keeps running with the model preserved.
+  daemon mode, plushie keeps running with the model preserved.
 
 When a new renderer connects (another SSH session), the host sends a
 snapshot of the current state. No restart, no state loss, no cold
@@ -183,24 +183,24 @@ start.
 
 <!-- test: running_start_opts_stdio_daemon_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy
-import toddy/app
+import plushie
+import plushie/app
 
 let start_opts =
-  toddy.StartOpts(
-    ..toddy.default_start_opts(),
-    transport: toddy.Stdio,
+  plushie.StartOpts(
+    ..plushie.default_start_opts(),
+    transport: plushie.Stdio,
     daemon: True,
   )
-let _ = toddy.start(my_app.app(), start_opts)
+let _ = plushie.start(my_app.app(), start_opts)
 ```
 
 ### Window close
 
 When the user closes the last window, your `update` receives the
 event. You can save state, persist data, or show a confirmation
-dialog. In non-daemon mode, the toddy process exits. In daemon mode,
-toddy keeps running and waits for a new renderer to connect.
+dialog. In non-daemon mode, the plushie process exits. In daemon mode,
+plushie keeps running and waits for a new renderer to connect.
 
 ## Event rate limiting
 
@@ -241,7 +241,7 @@ Override the global rate for specific event sources:
 
 <!-- test: running_subscription_mouse_move_with_rate_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/subscription
+import plushie/subscription
 
 fn subscribe(_model: Model) -> List(subscription.Subscription(Event)) {
   [
@@ -276,8 +276,8 @@ states) and accepting that model updates lag by the round-trip time.
 ## Custom transports
 
 For advanced use cases, the iostream transport lets you bridge any
-I/O mechanism to toddy. Write an adapter process that speaks a simple
-four-message protocol, and toddy handles the rest. Most projects
+I/O mechanism to plushie. Write an adapter process that speaks a simple
+four-message protocol, and plushie handles the rest. Most projects
 don't need this -- the built-in local and SSH transports cover the
 common cases.
 
@@ -317,12 +317,12 @@ handle_info({iostream_bridge, BridgePid}, State) ->
 
 %% Bridge wants to send data to the renderer
 handle_info({iostream_send, IoData}, #{socket := Socket} = State) ->
-    gen_tcp:send(Socket, toddy_framing:encode_packet(IoData)),
+    gen_tcp:send(Socket, plushie_framing:encode_packet(IoData)),
     {noreply, State};
 
 %% TCP data arrived -- decode frames and forward complete messages
 handle_info({tcp, _Socket, Data}, #{bridge := Bridge, buffer := Buf} = State) ->
-    {Messages, NewBuf} = toddy_framing:decode_packets(<<Buf/binary, Data/binary>>),
+    {Messages, NewBuf} = plushie_framing:decode_packets(<<Buf/binary, Data/binary>>),
     [Bridge ! {iostream_data, Msg} || Msg <- Messages],
     {noreply, State#{buffer := NewBuf}};
 
@@ -345,9 +345,9 @@ First, start an SSH daemon in your supervisor:
 
 ```erlang
 ssh:daemon(2022, [
-    {system_dir, "/etc/toddy_ssh"},
+    {system_dir, "/etc/plushie_ssh"},
     {user_dir, "~/.ssh"},
-    {subsystems, [{"toddy", {my_ssh_channel, []}}]}
+    {subsystems, [{"plushie", {my_ssh_channel, []}}]}
 ]).
 ```
 
@@ -374,23 +374,23 @@ init(_Args) ->
 %% Renderer data arrived over SSH -- decode and forward to Bridge
 handle_ssh_msg({ssh_cm, _Conn, {data, _Channel, 0, Data}},
                #{bridge := Bridge, buffer := Buf} = State) ->
-    {Messages, NewBuf} = toddy_framing:decode_packets(<<Buf/binary, Data/binary>>),
+    {Messages, NewBuf} = plushie_framing:decode_packets(<<Buf/binary, Data/binary>>),
     [Bridge ! {iostream_data, Msg} || Msg <- Messages],
     {ok, State#{buffer := NewBuf}};
 
-%% Bridge registered itself during toddy.start
+%% Bridge registered itself during plushie.start
 handle_msg({iostream_bridge, BridgePid}, State) ->
     {ok, State#{bridge := BridgePid}};
 
 %% Bridge wants to send data to the renderer
 handle_msg({iostream_send, IoData}, #{conn := Conn, channel := Ch} = State) ->
-    Framed = toddy_framing:encode_packet(IoData),
+    Framed = plushie_framing:encode_packet(IoData),
     ssh_connection:send(Conn, Ch, Framed),
     {ok, State};
 
 %% SSH channel is ready -- start the host
 handle_msg({ssh_channel_up, Channel, Conn}, State) ->
-    {ok, _Pid} = toddy:start(my_app:app(), #{
+    {ok, _Pid} = plushie:start(my_app:app(), #{
         transport => {iostream, self()},
         format => msgpack
     }),
@@ -400,7 +400,7 @@ handle_msg({ssh_channel_up, Channel, Conn}, State) ->
 ### Framing
 
 Raw byte streams (SSH channels, raw sockets) need message boundaries.
-The toddy framing module handles this. Transports with built-in
+The plushie framing module handles this. Transports with built-in
 framing (Erlang Ports, `gen_tcp` with `{packet, 4}`) don't need it.
 
 ```
@@ -415,19 +415,19 @@ See [Testing](testing.md) for the full guide. Quick summary:
 ```sh
 gleam test                                         # compile + run tests
 ./preflight                                        # format check, compile, test
-TODDY_TEST_BACKEND=headless gleam test             # real rendering, no display
-TODDY_TEST_BACKEND=windowed gleam test             # real windows (needs display)
+PLUSHIE_TEST_BACKEND=headless gleam test             # real rendering, no display
+PLUSHIE_TEST_BACKEND=windowed gleam test             # real windows (needs display)
 ```
 
 ## How props reach the renderer
 
-You don't need to understand this to use toddy. It's here for when
+You don't need to understand this to use plushie. It's here for when
 you're debugging wire format issues or writing extensions.
 
 When you return a tree from `view`, it passes through four stages
 before reaching the wire:
 
-1. **Widget builders** (`toddy/ui` functions, `toddy/widget/*` modules)
+1. **Widget builders** (`plushie/ui` functions, `plushie/widget/*` modules)
    return `Node` values with typed Gleam values -- custom types, strings,
    floats.
 
@@ -435,7 +435,7 @@ before reaching the wire:
    to `Node` records with `PropValue` dictionaries. Values are already
    encoded to wire-compatible primitives at this stage.
 
-3. **Tree normalization** (`toddy/tree.normalize`) walks the tree and
+3. **Tree normalization** (`plushie/tree.normalize`) walks the tree and
    resolves scoped IDs, a11y cross-references (`labelled_by`,
    `described_by`, `error_message`), and applies ID prefixing.
 

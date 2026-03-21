@@ -1,0 +1,146 @@
+//// Erlang FFI wrappers for port operations, error handling, and
+//// unique ID generation.
+
+import gleam/dynamic.{type Dynamic}
+import gleam/erlang/port.{type Port}
+
+/// Open a port to spawn an external process.
+/// Uses {spawn_executable, Path} with explicit args and environment.
+@external(erlang, "plushie_ffi", "open_port_spawn")
+pub fn open_port_spawn(
+  path: String,
+  args: List(String),
+  env: Dynamic,
+  options: Dynamic,
+) -> Port
+
+/// Send data to a port. Returns True on success.
+@external(erlang, "plushie_ffi", "port_command")
+pub fn port_command(port: Port, data: BitArray) -> Bool
+
+/// Close a port.
+@external(erlang, "plushie_ffi", "port_close")
+pub fn port_close(port: Port) -> Bool
+
+/// Call a function with try/catch error handling.
+/// Catches panics and exceptions, returning Result.
+@external(erlang, "plushie_ffi", "try_call")
+pub fn try_call(f: fn() -> a) -> Result(a, Dynamic)
+
+/// Generate a unique monotonic ID string.
+@external(erlang, "plushie_ffi", "unique_id")
+pub fn unique_id() -> String
+
+/// Port options for MessagePack wire format (4-byte length prefix).
+@external(erlang, "plushie_ffi", "msgpack_port_options")
+pub fn msgpack_port_options() -> Dynamic
+
+/// Port options for JSONL wire format (newline-delimited).
+@external(erlang, "plushie_ffi", "json_port_options")
+pub fn json_port_options() -> Dynamic
+
+/// Check whether a file exists at the given path.
+@external(erlang, "plushie_ffi", "file_exists")
+pub fn file_exists(path: String) -> Bool
+
+/// Return the platform as a string (linux, darwin, windows, unknown).
+@external(erlang, "plushie_ffi", "platform_string")
+pub fn platform_string() -> String
+
+/// Return the CPU architecture as a string (x86_64, aarch64, or raw).
+@external(erlang, "plushie_ffi", "arch_string")
+pub fn arch_string() -> String
+
+/// Extract data payload from an Erlang port message tuple.
+/// Works for {packet, N} mode where data is a plain binary.
+@external(erlang, "plushie_ffi", "extract_port_data")
+pub fn extract_port_data(msg: Dynamic) -> Result(Dynamic, Dynamic)
+
+/// Line data from {line, N} port mode: complete line or partial chunk.
+pub type LineData {
+  Eol(data: BitArray)
+  Noeol(data: BitArray)
+}
+
+/// Extract line data from a port message in {line, N} mode.
+/// Returns Eol for complete lines, Noeol for partial chunks.
+@external(erlang, "plushie_ffi", "extract_line_data")
+pub fn extract_line_data(msg: Dynamic) -> Result(LineData, Dynamic)
+
+/// Extract exit status from an Erlang port message tuple.
+@external(erlang, "plushie_ffi", "extract_exit_status")
+pub fn extract_exit_status(msg: Dynamic) -> Result(Dynamic, Dynamic)
+
+/// Get an environment variable.
+@external(erlang, "plushie_ffi", "get_env")
+pub fn get_env(name: String) -> Result(String, Nil)
+
+/// Set an environment variable.
+@external(erlang, "plushie_ffi", "set_env")
+pub fn set_env(name: String, value: String) -> Nil
+
+/// Unset an environment variable.
+@external(erlang, "plushie_ffi", "unset_env")
+pub fn unset_env(name: String) -> Nil
+
+/// Return the current monotonic time in milliseconds.
+@external(erlang, "plushie_ffi", "monotonic_time_ms")
+pub fn monotonic_time_ms() -> Int
+
+/// Port options for stdio transport with MessagePack (eof, no exit_status).
+@external(erlang, "plushie_ffi", "stdio_port_options_msgpack")
+pub fn stdio_port_options_msgpack() -> Dynamic
+
+/// Port options for stdio transport with JSON (eof, no exit_status).
+@external(erlang, "plushie_ffi", "stdio_port_options_json")
+pub fn stdio_port_options_json() -> Dynamic
+
+/// Open an fd port (for stdin/stdout stdio transport).
+@external(erlang, "plushie_ffi", "open_fd_port")
+pub fn open_fd_port(input_fd: Int, output_fd: Int, options: Dynamic) -> Port
+
+/// Extract eof signal from a port message {Port, eof}.
+@external(erlang, "plushie_ffi", "extract_eof")
+pub fn extract_eof(msg: Dynamic) -> Result(Nil, Dynamic)
+
+/// Return a null port value for iostream transport (never used for I/O).
+@external(erlang, "plushie_ffi", "null_port")
+pub fn null_port() -> Port
+
+/// Return a stable hash key for any value as a string.
+/// Uses erlang:phash2 for consistent results regardless of how the
+/// value is wrapped (raw term vs Dynamic).
+@external(erlang, "plushie_ffi", "stable_hash_key")
+pub fn stable_hash_key(value: Dynamic) -> String
+
+/// Run `gleam build` and return the output.
+@external(erlang, "plushie_ffi", "gleam_build")
+pub fn gleam_build() -> String
+
+/// Reload a list of module atoms (purge + load_file).
+@external(erlang, "plushie_ffi", "reload_modules")
+pub fn reload_modules(modules: List(Dynamic)) -> Nil
+
+/// List .beam files in a directory, returning (module_atom, mtime) tuples.
+@external(erlang, "plushie_ffi", "list_beam_files")
+pub fn list_beam_files(dir: String) -> List(#(Dynamic, Dynamic))
+
+/// Start a file_system watcher on the given directories.
+@external(erlang, "plushie_ffi", "start_file_watcher")
+pub fn start_file_watcher(dirs: List(String)) -> Dynamic
+
+/// Subscribe the calling process to file events from the watcher.
+@external(erlang, "plushie_ffi", "file_watcher_subscribe")
+pub fn file_watcher_subscribe(pid: Dynamic) -> Nil
+
+/// Compute SHA-256 hash and return as lowercase hex string.
+@external(erlang, "plushie_ffi", "sha256_hex")
+pub fn sha256_hex(data: BitArray) -> String
+
+/// CRC32 of binary data.
+@external(erlang, "plushie_ffi", "crc32")
+pub fn crc32(data: BitArray) -> Int
+
+/// Zlib compress binary data.
+@external(erlang, "plushie_ffi", "zlib_compress")
+pub fn zlib_compress(data: BitArray) -> BitArray

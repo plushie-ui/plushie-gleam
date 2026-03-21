@@ -1,6 +1,6 @@
 # App behaviour
 
-`toddy/app` defines the application structure. It follows the
+`plushie/app` defines the application structure. It follows the
 Elm architecture: model, update, view.
 
 ## Constructors
@@ -9,10 +9,10 @@ The simplest app uses `app.simple`, where `update` receives `Event` directly:
 
 <!-- test: app_behaviour_simple_constructor_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/app
-import toddy/command
-import toddy/event.{type Event}
-import toddy/node.{type Node}
+import plushie/app
+import plushie/command
+import plushie/event.{type Event}
+import plushie/node.{type Node}
 
 let my_app = app.simple(init, update, view)
 ```
@@ -88,7 +88,7 @@ when no side effects are needed.
 
 <!-- test: app_behaviour_update_add_todo_test, app_behaviour_update_submit_returns_focus_test, app_behaviour_update_unknown_event_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/event.{WidgetClick, WidgetInput, WidgetSubmit}
+import plushie/event.{WidgetClick, WidgetInput, WidgetSubmit}
 
 fn update(model: Model, event: Event) {
   case event {
@@ -119,7 +119,7 @@ fn update(model: Model, event: Event) {
 
 See [commands.md](commands.md) for the full command API.
 
-Events are constructors of the `Event` type in `toddy/event`. See
+Events are constructors of the `Event` type in `plushie/event`. See
 [events.md](events.md) for the full event taxonomy. Common families:
 
 - `WidgetClick(id: id, ..)` -- button press
@@ -141,8 +141,8 @@ Receives the current model, returns a UI tree.
 
 <!-- test: app_behaviour_view_basic_structure_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/ui
-import toddy/prop/padding
+import plushie/ui
+import plushie/prop/padding
 
 fn view(model: Model) -> Node {
   ui.window("main", [ui.title("Todos")], [
@@ -169,14 +169,14 @@ The view function is called after every update. It must be a pure function
 of the model. The runtime diffs the returned tree against the previous one
 and sends only the changes to the renderer.
 
-UI trees are `Node` values. The `toddy/ui` module provides builder functions
-for composition. The `toddy/widget/*.gleam` modules offer typed builders with
+UI trees are `Node` values. The `plushie/ui` module provides builder functions
+for composition. The `plushie/widget/*.gleam` modules offer typed builders with
 chainable setters for more control.
 
 ## Lifecycle
 
 ```
-toddy.start(app, opts)
+plushie.start(app, opts)
   |
   v
 init() -> #(model, commands)
@@ -211,7 +211,7 @@ subscriptions automatically. Set via `app.with_subscriptions`.
 
 <!-- test: app_behaviour_subscribe_without_auto_refresh_test, app_behaviour_subscribe_with_auto_refresh_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/subscription
+import plushie/subscription
 
 fn subscribe(model: Model) -> List(subscription.Subscription) {
   let subs = [subscription.on_key_press("key_event")]
@@ -260,7 +260,7 @@ renderer. Returns a `Settings` record. Set via `app.with_settings`.
 
 <!-- test: app_behaviour_settings_test, app_behaviour_default_settings_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/app.{Settings}
+import plushie/app.{Settings}
 import gleam/option.{None, Some}
 
 fn settings() -> Settings {
@@ -295,23 +295,23 @@ Default: `app.default_settings()` (renderer uses its own defaults).
 
 ```gleam
 import gleam/erlang/process
-import toddy
-import toddy/app
+import plushie
+import plushie/app
 
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let assert Ok(_) = toddy.start(my_app, toddy.default_start_opts())
+  let assert Ok(_) = plushie.start(my_app, plushie.default_start_opts())
   process.sleep_forever()
 }
 
 // With custom options:
 pub fn main() {
   let my_app = app.simple(init, update, view)
-  let opts = toddy.StartOpts(
-    ..toddy.default_start_opts(),
-    binary_path: option.Some("/path/to/toddy"),
+  let opts = plushie.StartOpts(
+    ..plushie.default_start_opts(),
+    binary_path: option.Some("/path/to/plushie"),
   )
-  let assert Ok(_) = toddy.start(my_app, opts)
+  let assert Ok(_) = plushie.start(my_app, opts)
   process.sleep_forever()
 }
 ```
@@ -322,8 +322,8 @@ Apps can be tested without a renderer:
 
 ```gleam
 import gleeunit/should
-import toddy/event.{WidgetInput, WidgetClick}
-import toddy/command
+import plushie/event.{WidgetInput, WidgetClick}
+import plushie/command
 
 pub fn adding_a_todo_test() {
   let #(model, _) = init()
@@ -352,7 +352,7 @@ test infrastructure is needed. The renderer is not involved.
 
 ## Multi-window
 
-Toddy supports multiple windows driven declaratively from `view`. Windows
+Plushie supports multiple windows driven declaratively from `view`. Windows
 are nodes in the tree -- if a window node is present, the window is open; if
 it disappears, the window closes.
 
@@ -582,15 +582,15 @@ Values returned by `view` go through several transformation stages
 before reaching the wire. Understanding this pipeline helps when
 debugging unexpected behaviour or writing custom extensions.
 
-1. **Widget builders** (`toddy/ui` functions, `toddy/widget/*.gleam` builders)
+1. **Widget builders** (`plushie/ui` functions, `plushie/widget/*.gleam` builders)
    return `Node` values with typed Gleam values -- custom types, strings,
    floats. Prop values are encoded to `PropValue` at `build()` time.
 
-2. **`toddy/tree.normalize`** walks the tree and applies scoped ID
+2. **`plushie/tree.normalize`** walks the tree and applies scoped ID
    prefixing and a11y reference resolution. By this stage, all prop
    values are already wire-compatible `PropValue` primitives.
 
-3. **Protocol encoding** (`toddy/protocol/encode`) serializes the
+3. **Protocol encoding** (`plushie/protocol/encode`) serializes the
    `PropValue` tree to wire bytes using gleam_json (JSONL mode) or
    glepack (MessagePack mode).
 

@@ -12,14 +12,14 @@ text.
 <!-- test: tutorial_step1_init_test, tutorial_step1_view_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
-import toddy/app
-import toddy/cli/gui
-import toddy/command
-import toddy/event.{type Event}
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill}
-import toddy/prop/padding
-import toddy/ui
+import plushie/app
+import plushie/cli/gui
+import plushie/command
+import plushie/event.{type Event}
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill}
+import plushie/prop/padding
+import plushie/ui
 
 type Todo {
   Todo(id: String, text: String, done: Bool)
@@ -68,7 +68,7 @@ submit handler that creates a todo when the user presses Enter.
 
 <!-- test: tutorial_step2_input_updates_model_test, tutorial_step2_submit_creates_todo_test, tutorial_step2_empty_submit_does_nothing_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/event.{type Event, WidgetInput, WidgetSubmit}
+import plushie/event.{type Event, WidgetInput, WidgetSubmit}
 import gleam/int
 import gleam/string
 
@@ -172,7 +172,7 @@ immediate parent. Pattern match on both:
 
 <!-- test: tutorial_step4_toggle_test, tutorial_step4_delete_test -- keep this code block in sync with the test -->
 ```gleam
-import toddy/event.{
+import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
 }
 
@@ -312,24 +312,24 @@ returns a `Node`.
 ## The complete app
 
 The full source is in
-[`examples/todo.gleam`](https://github.com/toddy-ui/toddy-gleam/blob/main/examples/todo.gleam)
+[`examples/todo.gleam`](https://github.com/plushie-ui/plushie-gleam/blob/main/examples/todo.gleam)
 with tests in
-[`test/toddy/examples/todo_test.gleam`](https://github.com/toddy-ui/toddy-gleam/blob/main/test/toddy/examples/todo_test.gleam).
+[`test/plushie/examples/todo_test.gleam`](https://github.com/plushie-ui/plushie-gleam/blob/main/test/plushie/examples/todo_test.gleam).
 
 ```gleam
 import gleam/int
 import gleam/list
 import gleam/string
-import toddy/app
-import toddy/cli/gui
-import toddy/command
-import toddy/event.{
+import plushie/app
+import plushie/cli/gui
+import plushie/command
+import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
 }
-import toddy/node.{type Node}
-import toddy/prop/length.{Fill}
-import toddy/prop/padding
-import toddy/ui
+import plushie/node.{type Node}
+import plushie/prop/length.{Fill}
+import plushie/prop/padding
+import plushie/ui
 
 // -- Types -------------------------------------------------------------------
 
