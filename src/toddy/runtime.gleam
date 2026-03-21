@@ -46,6 +46,8 @@ pub type RuntimeMessage {
   StreamEmit(tag: String, nonce: Int, value: Dynamic)
   /// Effect request timed out.
   EffectTimeout(request_id: String)
+  /// Flush deferred coalescable events (zero-delay timer).
+  CoalesceFlush
   /// Shutdown.
   Shutdown
 }
@@ -137,6 +139,10 @@ type LoopState(model) {
     nonce_counter: Int,
     // request_id -> timeout timer for pending platform effects
     pending_effects: Dict(String, process.Timer),
+    // Deferred coalescable events, keyed by coalesce identity
+    pending_coalesce: Dict(String, Event),
+    // Timer for flushing deferred events (zero-delay)
+    coalesce_timer: Option(process.Timer),
   )
 }
 
@@ -193,6 +199,8 @@ fn run(
       async_tasks: dict.new(),
       nonce_counter: 0,
       pending_effects: dict.new(),
+      pending_coalesce: dict.new(),
+      coalesce_timer: None,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -237,23 +245,30 @@ fn message_loop(state: LoopState(model)) -> Nil {
   let msg = process.selector_receive_forever(selector)
 
   case msg {
-    FromBridge(InboundEvent(EventMessage(event))) -> {
-      // Cancel effect timeout if this is an EffectResponse
-      let state = case event {
-        event.EffectResponse(request_id:, ..) ->
-          case dict.get(state.pending_effects, request_id) {
-            Ok(timer) -> {
-              process.cancel_timer(timer)
-              LoopState(
-                ..state,
-                pending_effects: dict.delete(state.pending_effects, request_id),
-              )
-            }
-            Error(_) -> state
+    FromBridge(InboundEvent(EventMessage(ev))) -> {
+      case coalesce_key(ev) {
+        Some(key) -> {
+          // Defer this event -- latest value wins
+          let new_coalesce = dict.insert(state.pending_coalesce, key, ev)
+          // Start flush timer if not already running
+          let timer = case state.coalesce_timer {
+            Some(_) -> state.coalesce_timer
+            None -> Some(process.send_after(state.self, 0, CoalesceFlush))
           }
-        _ -> state
+          LoopState(
+            ..state,
+            pending_coalesce: new_coalesce,
+            coalesce_timer: timer,
+          )
+          |> message_loop()
+        }
+        None -> {
+          // Non-coalescable: flush pending first, then process
+          let state = flush_coalesced(state)
+          let state = maybe_cancel_effect_timeout(state, ev)
+          handle_event(state, ev) |> message_loop()
+        }
       }
-      handle_event(state, event) |> message_loop()
     }
 
     FromBridge(InboundEvent(Hello(protocol: proto, ..))) -> {
@@ -347,6 +362,10 @@ fn message_loop(state: LoopState(model)) -> Nil {
       }
     }
 
+    CoalesceFlush -> {
+      flush_coalesced(state) |> message_loop()
+    }
+
     Shutdown -> {
       // Cancel all subscription timers
       dict.each(state.active_subs, fn(_key, entry) {
@@ -363,6 +382,14 @@ fn message_loop(state: LoopState(model)) -> Nil {
         process.cancel_timer(timer)
         Nil
       })
+      // Cancel coalesce timer if running
+      case state.coalesce_timer {
+        Some(timer) -> {
+          process.cancel_timer(timer)
+          Nil
+        }
+        None -> Nil
+      }
       Nil
     }
   }
@@ -370,6 +397,57 @@ fn message_loop(state: LoopState(model)) -> Nil {
 
 @external(erlang, "erlang", "monotonic_time")
 fn erlang_monotonic_time() -> Int
+
+// -- Event coalescing --------------------------------------------------------
+
+/// Determine which events are coalescable and return their dedup key.
+/// High-frequency events like mouse moves and sensor resizes are deferred
+/// so only the latest value is processed, preventing update storms.
+fn coalesce_key(ev: Event) -> Option(String) {
+  case ev {
+    event.MouseMoved(..) -> Some("mouse_moved")
+    event.SensorResize(id:, ..) -> Some("sensor_resize:" <> id)
+    _ -> None
+  }
+}
+
+/// Flush all pending coalescable events, processing each through handle_event.
+/// Cancels the coalesce timer and clears the pending map.
+fn flush_coalesced(state: LoopState(model)) -> LoopState(model) {
+  let state = case state.coalesce_timer {
+    Some(timer) -> {
+      process.cancel_timer(timer)
+      LoopState(..state, coalesce_timer: None)
+    }
+    None -> state
+  }
+  let state =
+    dict.fold(state.pending_coalesce, state, fn(st, _key, ev) {
+      handle_event(st, ev)
+    })
+  LoopState(..state, pending_coalesce: dict.new())
+}
+
+/// Cancel an effect timeout timer if the event is an EffectResponse.
+fn maybe_cancel_effect_timeout(
+  state: LoopState(model),
+  ev: Event,
+) -> LoopState(model) {
+  case ev {
+    event.EffectResponse(request_id:, ..) ->
+      case dict.get(state.pending_effects, request_id) {
+        Ok(timer) -> {
+          process.cancel_timer(timer)
+          LoopState(
+            ..state,
+            pending_effects: dict.delete(state.pending_effects, request_id),
+          )
+        }
+        Error(_) -> state
+      }
+    _ -> state
+  }
+}
 
 // -- Event handling (the core update cycle) ----------------------------------
 
