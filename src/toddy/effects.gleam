@@ -7,9 +7,10 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
 import toddy/command.{type Command}
 import toddy/ffi
-import toddy/node.{type PropValue, BoolVal, DictVal, IntVal, ListVal, StringVal}
+import toddy/node.{type PropValue, IntVal, ListVal, StringVal}
 
 // -- File dialog option types ------------------------------------------------
 
@@ -34,8 +35,8 @@ pub type NotificationOpt {
   NotifTimeout(Int)
   /// Notification urgency level.
   Urgency(NotifUrgency)
-  /// Whether to play a sound.
-  Sound(Bool)
+  /// Sound theme name to play (e.g. "message-new-instant").
+  Sound(String)
 }
 
 /// Urgency level for notifications.
@@ -130,6 +131,24 @@ pub fn notification(
   make_effect("notification", payload)
 }
 
+// -- Timeouts ----------------------------------------------------------------
+
+/// Returns the default timeout in milliseconds for the given effect kind.
+/// File dialogs get 120s (user interaction), clipboard and notification
+/// ops get 5s. Unknown kinds fall back to 30s.
+pub fn default_timeout(kind: String) -> Int {
+  case string.starts_with(kind, "file_") || string.starts_with(kind, "directory_") {
+    True -> 120_000
+    False ->
+      case
+        string.starts_with(kind, "clipboard_") || kind == "notification"
+      {
+        True -> 5_000
+        False -> 30_000
+      }
+  }
+}
+
 // -- Internal helpers --------------------------------------------------------
 
 fn make_effect(
@@ -148,12 +167,7 @@ fn file_dialog_payload(opts: List(FileDialogOpt)) -> List(#(String, PropValue)) 
       Filters(filters) -> {
         let filter_list =
           list.map(filters, fn(f) {
-            DictVal(
-              dict.from_list([
-                #("label", StringVal(f.0)),
-                #("pattern", StringVal(f.1)),
-              ]),
-            )
+            ListVal([StringVal(f.0), StringVal(f.1)])
           })
         [#("filters", ListVal(filter_list)), ..acc]
       }
@@ -174,7 +188,7 @@ fn notif_payload(opts: List(NotificationOpt)) -> List(#(String, PropValue)) {
         }
         [#("urgency", StringVal(s)), ..acc]
       }
-      Sound(s) -> [#("sound", BoolVal(s)), ..acc]
+      Sound(s) -> [#("sound", StringVal(s)), ..acc]
     }
   })
 }

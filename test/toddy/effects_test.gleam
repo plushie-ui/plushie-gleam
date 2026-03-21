@@ -2,7 +2,7 @@ import gleam/dict
 import gleam/option
 import toddy/command
 import toddy/effects
-import toddy/node.{BoolVal, IntVal, StringVal}
+import toddy/node.{IntVal, ListVal, StringVal}
 
 pub fn file_open_creates_effect_command_test() {
   let cmd = effects.file_open([])
@@ -50,7 +50,9 @@ pub fn file_dialog_filters_test() {
   let cmd = effects.file_open([effects.Filters([#("Images", "*.png;*.jpg")])])
   case cmd {
     command.Effect(payload:, ..) -> {
-      assert dict.has_key(payload, "filters") == True
+      let expected =
+        ListVal([ListVal([StringVal("Images"), StringVal("*.png;*.jpg")])])
+      assert dict.get(payload, "filters") == Ok(expected)
     }
     _ -> panic as "expected Effect command"
   }
@@ -182,14 +184,14 @@ pub fn notification_with_all_opts_test() {
       effects.NotifIcon("/icon.png"),
       effects.NotifTimeout(3000),
       effects.Urgency(effects.Low),
-      effects.Sound(True),
+      effects.Sound("message-new-instant"),
     ])
   case cmd {
     command.Effect(payload:, ..) -> {
       assert dict.get(payload, "icon") == Ok(StringVal("/icon.png"))
       assert dict.get(payload, "timeout") == Ok(IntVal(3000))
       assert dict.get(payload, "urgency") == Ok(StringVal("low"))
-      assert dict.get(payload, "sound") == Ok(BoolVal(True))
+      assert dict.get(payload, "sound") == Ok(StringVal("message-new-instant"))
     }
     _ -> panic as "expected Effect command"
   }
@@ -217,4 +219,33 @@ pub fn unique_ids_per_effect_test() {
     _ -> ""
   }
   assert id1 != id2
+}
+
+pub fn default_timeout_file_dialogs_test() {
+  assert effects.default_timeout("file_open") == 120_000
+  assert effects.default_timeout("file_open_multiple") == 120_000
+  assert effects.default_timeout("file_save") == 120_000
+}
+
+pub fn default_timeout_directory_dialogs_test() {
+  assert effects.default_timeout("directory_select") == 120_000
+  assert effects.default_timeout("directory_select_multiple") == 120_000
+}
+
+pub fn default_timeout_clipboard_test() {
+  assert effects.default_timeout("clipboard_read") == 5_000
+  assert effects.default_timeout("clipboard_write") == 5_000
+  assert effects.default_timeout("clipboard_read_html") == 5_000
+  assert effects.default_timeout("clipboard_write_html") == 5_000
+  assert effects.default_timeout("clipboard_clear") == 5_000
+  assert effects.default_timeout("clipboard_read_primary") == 5_000
+  assert effects.default_timeout("clipboard_write_primary") == 5_000
+}
+
+pub fn default_timeout_notification_test() {
+  assert effects.default_timeout("notification") == 5_000
+}
+
+pub fn default_timeout_unknown_kind_test() {
+  assert effects.default_timeout("something_else") == 30_000
 }

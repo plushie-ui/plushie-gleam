@@ -19,6 +19,7 @@ import toddy/bridge.{
   Send,
 }
 import toddy/command.{type Command}
+import toddy/effects
 import toddy/event.{type Event}
 import toddy/ffi
 import toddy/node.{
@@ -1320,9 +1321,13 @@ fn execute_commands(
           state.opts.format,
         ),
       )
-      // Start a 30-second timeout timer for this effect
+      // Start a per-kind timeout timer for this effect
       let timeout_timer =
-        process.send_after(state.self, 30_000, EffectTimeout(request_id: id))
+        process.send_after(
+          state.self,
+          effects.default_timeout(kind),
+          EffectTimeout(request_id: id),
+        )
       LoopState(
         ..state,
         pending_effects: dict.insert(state.pending_effects, id, timeout_timer),
