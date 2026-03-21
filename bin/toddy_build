@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+#
+# Build the toddy binary from source.
+#
+# Usage:
+#   bin/toddy_build              # debug build
+#   bin/toddy_build --release    # optimized release build
+#   bin/toddy_build --verbose    # print cargo output on success
+#
+# Prerequisites:
+#   - Rust toolchain >= 1.92.0 (https://rustup.rs)
+#   - TODDY_SOURCE_PATH set to the toddy Rust source checkout
+#
+# The built binary is installed to priv/bin/toddy.
+
+set -euo pipefail
+
+MIN_RUST_MAJOR=1
+MIN_RUST_MINOR=92
+MIN_RUST_PATCH=0
+MIN_RUST_VERSION="${MIN_RUST_MAJOR}.${MIN_RUST_MINOR}.${MIN_RUST_PATCH}"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Parse flags
+RELEASE=false
+VERBOSE=false
+for arg in "$@"; do
+    case "$arg" in
+        --release) RELEASE=true ;;
+        --verbose) VERBOSE=true ;;
+    esac
+done
+
+# Check Rust toolchain
+check_rust_toolchain() {
+    if ! command -v rustc >/dev/null 2>&1; then
+        echo "Error: rustc not found. Install Rust ${MIN_RUST_VERSION}+ via https://rustup.rs" >&2
+        exit 1
+    fi
+
+    local version_output
+    version_output=$(rustc --version 2>&1)
+
+    local major minor patch
+    if [[ "$version_output" =~ rustc\ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+        major="${BASH_REMATCH[1]}"
+        minor="${BASH_REMATCH[2]}"
+        patch="${BASH_REMATCH[3]}"
+
+        # Compare versions
+        if [ "$major" -lt "$MIN_RUST_MAJOR" ] ||
+           { [ "$major" -eq "$MIN_RUST_MAJOR" ] && [ "$minor" -lt "$MIN_RUST_MINOR" ]; } ||
+           { [ "$major" -eq "$MIN_RUST_MAJOR" ] && [ "$minor" -eq "$MIN_RUST_MINOR" ] && [ "$patch" -lt "$MIN_RUST_PATCH" ]; }; then
+            echo "Warning: rustc ${major}.${minor}.${patch} detected, but toddy requires >= ${MIN_RUST_VERSION}." >&2
+            echo "Consider upgrading with 'rustup update'." >&2
+        fi
+    else
+        echo "Warning: could not parse rustc version from: $version_output" >&2
+    fi
+
+    if ! command -v cargo >/dev/null 2>&1; then
+        echo "Error: cargo not found. Install Rust ${MIN_RUST_VERSION}+ via https://rustup.rs" >&2
+        exit 1
+    fi
+}
+
+check_rust_toolchain
+
+# Resolve source path
+if [ -z "${TODDY_SOURCE_PATH:-}" ]; then
+    echo "Error: TODDY_SOURCE_PATH not set." >&2
+    echo "" >&2
+    echo "Set it to the toddy Rust source checkout:" >&2
+    echo "  export TODDY_SOURCE_PATH=/path/to/toddy" >&2
+    exit 1
+fi
+
+SOURCE_DIR="$TODDY_SOURCE_PATH"
+
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "Error: toddy source not found at $SOURCE_DIR" >&2
+    exit 1
+fi
+
+# Build
+CARGO_ARGS=(build -p toddy)
+if [ "$RELEASE" = true ]; then
+    CARGO_ARGS+=(--release)
+    echo "Building toddy (release)..."
+else
+    echo "Building toddy..."
+fi
+
+BUILD_OUTPUT=$(mktemp)
+trap 'rm -f "$BUILD_OUTPUT"' EXIT
+
+if cargo "${CARGO_ARGS[@]}" 2>&1 | tee "$BUILD_OUTPUT"; then
+    echo "Build succeeded."
+    if [ "$VERBOSE" = true ]; then
+        cat "$BUILD_OUTPUT"
+    fi
+else
+    echo "Build failed." >&2
+    exit 1
+fi
+
+# Install binary
+if [ "$RELEASE" = true ]; then
+    PROFILE="release"
+else
+    PROFILE="debug"
+fi
+
+SRC_BINARY="${SOURCE_DIR}/target/${PROFILE}/toddy"
+
+if [ ! -f "$SRC_BINARY" ]; then
+    echo "Error: build succeeded but binary not found at $SRC_BINARY" >&2
+    exit 1
+fi
+
+DEST_DIR="${PROJECT_DIR}/priv/bin"
+DEST_PATH="${DEST_DIR}/toddy"
+
+mkdir -p "$DEST_DIR"
+cp "$SRC_BINARY" "$DEST_PATH"
+chmod 755 "$DEST_PATH"
+
+echo "Installed to $DEST_PATH"
