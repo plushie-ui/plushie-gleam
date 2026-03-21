@@ -1,4 +1,5 @@
 import gleam/dict
+import gleam/list
 import gleam/option
 import gleeunit/should
 import toddy/node.{DictVal, NullVal, StringVal}
@@ -116,6 +117,52 @@ pub fn normalize_a11y_empty_scope_leaves_ref_alone_test() {
   let result = tree.normalize(n)
   let assert Ok(DictVal(resolved_a11y)) = dict.get(result.props, "a11y")
   should.equal(dict.get(resolved_a11y, "described_by"), Ok(StringVal("help")))
+}
+
+pub fn normalize_warns_on_slash_in_user_id_test() {
+  // A node with "/" in its user-provided ID should still normalize
+  // (we warn, not crash), but the ID ends up in the tree as-is.
+  let n = node.new("bad/id", "button")
+  let result = tree.normalize(n)
+  // Normalization continues despite the warning
+  should.equal(result.id, "bad/id")
+}
+
+pub fn normalize_no_warning_on_empty_id_test() {
+  // Empty IDs are auto-generated equivalents -- no slash warning.
+  let n = node.new("", "container")
+  let result = tree.normalize(n)
+  should.equal(result.id, "")
+}
+
+pub fn normalize_warns_on_duplicate_sibling_ids_test() {
+  // Two children with the same ID should still normalize but trigger a warning.
+  let a = node.new("dup", "text")
+  let b = node.new("dup", "text")
+  let root =
+    node.new("root", "container")
+    |> node.with_children([a, b])
+
+  let result = tree.normalize(root)
+  // Both children are present despite the warning
+  should.equal(
+    result.children |> list.map(fn(c) { c.id }),
+    ["root/dup", "root/dup"],
+  )
+}
+
+pub fn normalize_no_warning_on_unique_sibling_ids_test() {
+  let a = node.new("a", "text")
+  let b = node.new("b", "text")
+  let root =
+    node.new("root", "container")
+    |> node.with_children([a, b])
+
+  let result = tree.normalize(root)
+  should.equal(
+    result.children |> list.map(fn(c) { c.id }),
+    ["root/a", "root/b"],
+  )
 }
 
 // --- diff --------------------------------------------------------------------
@@ -336,6 +383,51 @@ pub fn find_nested_child_by_id_test() {
 pub fn find_returns_none_for_missing_id_test() {
   let root = node.new("root", "container")
   should.equal(tree.find(root, "nope"), option.None)
+}
+
+pub fn find_by_local_segment_fallback_test() {
+  // When the target has no "/" and no exact match, fall back to matching
+  // the local segment (part after last "/") of each node's ID.
+  let leaf = node.new("form/email", "text_input")
+  let root =
+    node.new("root", "container")
+    |> node.with_children([leaf])
+
+  should.equal(tree.find(root, "email"), option.Some(leaf))
+}
+
+pub fn find_local_segment_no_fallback_when_target_has_slash_test() {
+  // If the target itself contains "/", no local-segment fallback.
+  let leaf = node.new("form/email", "text_input")
+  let root =
+    node.new("root", "container")
+    |> node.with_children([leaf])
+
+  should.equal(tree.find(root, "x/email"), option.None)
+}
+
+pub fn find_exact_match_preferred_over_local_segment_test() {
+  // Exact match should win over local-segment match.
+  let exact = node.new("email", "text_input")
+  let scoped = node.new("form/email", "text_input")
+  let root =
+    node.new("root", "container")
+    |> node.with_children([scoped, exact])
+
+  should.equal(tree.find(root, "email"), option.Some(exact))
+}
+
+pub fn find_local_segment_deep_test() {
+  // Local-segment fallback works at any depth.
+  let deep = node.new("a/b/target", "text")
+  let mid =
+    node.new("mid", "container")
+    |> node.with_children([deep])
+  let root =
+    node.new("root", "container")
+    |> node.with_children([mid])
+
+  should.equal(tree.find(root, "target"), option.Some(deep))
 }
 
 pub fn exists_returns_true_test() {

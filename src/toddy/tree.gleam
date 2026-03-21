@@ -6,6 +6,7 @@
 //// the wire protocol.
 
 import gleam/dict.{type Dict}
+import gleam/io
 import gleam/list
 import gleam/option.{type Option}
 import gleam/set
@@ -30,6 +31,21 @@ pub fn normalize(node: Node) -> Node {
 }
 
 fn normalize_with_scope(node: Node, scope: String) -> Node {
+  // Validate: user-provided IDs (non-empty) must not contain "/"
+  case node.id {
+    "" -> Nil
+    id ->
+      case string.contains(id, "/") {
+        True ->
+          io.println(
+            "Warning: widget ID \""
+            <> id
+            <> "\" contains \"/\" -- scoped paths are built automatically by named containers",
+          )
+        False -> Nil
+      }
+  }
+
   let scoped_id = apply_scope(node.id, scope)
 
   // Windows reset scope; empty IDs don't create scope boundaries.
@@ -46,7 +62,35 @@ fn normalize_with_scope(node: Node, scope: String) -> Node {
       normalize_with_scope(child, child_scope)
     })
 
+  // Warn on duplicate sibling IDs
+  check_duplicate_sibling_ids(children)
+
   Node(id: scoped_id, kind: node.kind, props:, children:)
+}
+
+fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
+  let ids = list.map(children, fn(child) { child.id })
+  let unique = list.unique(ids)
+  case list.length(ids) != list.length(unique) {
+    False -> Nil
+    True -> {
+      let dupes =
+        ids
+        |> list.fold(#(set.new(), []), fn(acc, id) {
+          let #(seen, found) = acc
+          case set.contains(seen, id) {
+            True -> #(seen, [id, ..found])
+            False -> #(set.insert(seen, id), found)
+          }
+        })
+        |> fn(pair) { pair.1 }
+        |> list.unique
+      io.println(
+        "Warning: duplicate sibling IDs detected during normalize: "
+        <> string.inspect(dupes),
+      )
+    }
+  }
 }
 
 fn apply_scope(id: String, scope: String) -> String {
@@ -263,23 +307,70 @@ import gleam/order
 // --- Search ------------------------------------------------------------------
 
 /// Find a node by its ID (depth-first). Returns the first match.
+///
+/// Matches against the full ID first. If no match is found and the
+/// target does not contain "/", falls back to matching the local
+/// segment (the part after the last "/") of each node's ID.
 pub fn find(tree: Node, id: String) -> Option(Node) {
-  case tree.id == id {
-    True -> option.Some(tree)
-    False -> find_in_children(tree.children, id)
-  }
-}
-
-fn find_in_children(children: List(Node), id: String) -> Option(Node) {
-  case children {
-    [] -> option.None
-    [child, ..rest] ->
-      case find(child, id) {
-        option.Some(found) -> option.Some(found)
-        option.None -> find_in_children(rest, id)
+  case find_exact(tree, id) {
+    option.Some(_) as found -> found
+    option.None ->
+      case string.contains(id, "/") {
+        True -> option.None
+        False -> find_by_local(tree, id)
       }
   }
 }
+
+fn find_exact(tree: Node, id: String) -> Option(Node) {
+  case tree.id == id {
+    True -> option.Some(tree)
+    False -> find_exact_in_children(tree.children, id)
+  }
+}
+
+fn find_exact_in_children(
+  children: List(Node),
+  id: String,
+) -> Option(Node) {
+  case children {
+    [] -> option.None
+    [child, ..rest] ->
+      case find_exact(child, id) {
+        option.Some(found) -> option.Some(found)
+        option.None -> find_exact_in_children(rest, id)
+      }
+  }
+}
+
+fn find_by_local(tree: Node, target: String) -> Option(Node) {
+  let local = case string.split(tree.id, "/") {
+    [] -> tree.id
+    segments -> case list.last(segments) {
+      Ok(last) -> last
+      Error(_) -> tree.id
+    }
+  }
+  case local == target {
+    True -> option.Some(tree)
+    False -> find_by_local_in_children(tree.children, target)
+  }
+}
+
+fn find_by_local_in_children(
+  children: List(Node),
+  target: String,
+) -> Option(Node) {
+  case children {
+    [] -> option.None
+    [child, ..rest] ->
+      case find_by_local(child, target) {
+        option.Some(found) -> option.Some(found)
+        option.None -> find_by_local_in_children(rest, target)
+      }
+  }
+}
+
 
 /// Check whether a node with the given ID exists anywhere in the tree.
 pub fn exists(tree: Node, id: String) -> Bool {
