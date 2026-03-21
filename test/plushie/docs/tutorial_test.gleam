@@ -119,7 +119,7 @@ fn todo_row(t: Todo) -> Node {
 
 // -- Step 1: initial view -----------------------------------------------------
 
-fn step1_view(model: Model) -> Node {
+fn step1_view(_model: Model) -> Node {
   ui.window("main", [ui.title("Todos")], [
     ui.column(
       "app",

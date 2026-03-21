@@ -32,10 +32,10 @@ bin/plushie_build
 gleam build          # compile
 gleam test           # compile + run tests
 gleam format         # auto-format all .gleam files
-./preflight          # run all CI checks locally (format, compile, test)
+./bin/preflight       # run all CI checks locally (format, compile, test)
 ```
 
-Always run `./preflight` before pushing. It mirrors what CI does.
+Always run `./bin/preflight` before pushing. It mirrors what CI does.
 
 ## Code style
 
@@ -71,7 +71,7 @@ imperative mood ("Add feature" not "Added feature").
   should tell a story to the next person who reads them.
 - Keep PRs small and focused. If you find unrelated issues while
   working, note them for a separate PR rather than bundling.
-- Ensure `./preflight` passes before opening.
+- Ensure `./bin/preflight` passes before opening.
 
 ## Architecture
 

@@ -3,27 +3,29 @@
 //// Discovers .plushie script files, parses them, and executes them
 //// against the mock backend. Reports pass/fail results.
 ////
-//// This module is a structural placeholder -- full functionality
-//// depends on the renderer backend infrastructure (Batch 20).
-////
 //// ```gleam
 //// import plushie/cli/script
 ////
 //// pub fn main() {
-////   script.run(["test/scripts"])
+////   script.run(["test/scripts"], my_app.app())
 //// }
 //// ```
 
 import gleam/int
 import gleam/io
 import gleam/list
+import plushie/app.{type App}
+import plushie/event.{type Event}
+import plushie/testing/script as script_parser
+import plushie/testing/script/runner
+import plushie/testing/session
 
 /// Run .plushie test scripts from the given paths.
 ///
 /// If paths is empty, searches for .plushie files under test/scripts/.
-/// Parses each file and executes it against the mock backend.
+/// Parses each file and executes it against a fresh test session.
 /// Prints pass/fail results and exits with status 1 on any failure.
-pub fn run(paths: List(String)) -> Nil {
+pub fn run(paths: List(String), app: App(model, Event)) -> Nil {
   let script_paths = case paths {
     [] -> discover_scripts("test/scripts")
     given -> given
@@ -35,7 +37,7 @@ pub fn run(paths: List(String)) -> Nil {
       Nil
     }
     _ -> {
-      let results = list.map(script_paths, run_script)
+      let results = list.map(script_paths, run_script(_, app))
       let failures = list.count(results, fn(r) { r == Error(Nil) })
       let passes = list.count(results, fn(r) { r == Ok(Nil) })
 
@@ -55,17 +57,32 @@ pub fn run(paths: List(String)) -> Nil {
   }
 }
 
-fn run_script(path: String) -> Result(Nil, Nil) {
+fn run_script(path: String, app: App(model, Event)) -> Result(Nil, Nil) {
   io.println("Running " <> path <> "...")
-  // Placeholder: actual script parsing and execution depends on
-  // testing/script module (Batch 20 renderer backends).
-  io.println("  SKIP (script runner not yet available)")
-  Ok(Nil)
+  case script_parser.parse_file(path) {
+    Error(reason) -> {
+      io.println("  FAIL (parse error: " <> reason <> ")")
+      Error(Nil)
+    }
+    Ok(script_val) -> {
+      let sess = session.start(app)
+      case runner.run(script_val, sess) {
+        Ok(Nil) -> {
+          io.println("  PASS")
+          Ok(Nil)
+        }
+        Error(failures) -> {
+          list.each(failures, fn(f) { io.println("  FAIL: " <> f.reason) })
+          Error(Nil)
+        }
+      }
+    }
+  }
 }
 
 fn discover_scripts(_dir: String) -> List(String) {
-  // Placeholder: will use file system to find .plushie files once
-  // the testing/script module is available (Batch 20).
+  // TODO: use file system to find .plushie files recursively.
+  // For now, callers should pass explicit paths.
   []
 }
 

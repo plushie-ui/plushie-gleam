@@ -1,5 +1,5 @@
-name = "plushie"
-version = "0.1.0"
+name = "plushie_gleam"
+version = "0.4.0"
 target = "erlang"
 
 description = "Native desktop GUIs from Gleam, powered by iced"

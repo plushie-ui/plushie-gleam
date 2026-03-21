@@ -65,7 +65,7 @@ running and see changes instantly.
 Add plushie to your dependencies:
 
 ```sh
-gleam add plushie
+gleam add plushie_gleam
 ```
 
 Then:
@@ -190,7 +190,7 @@ still evolving:
 ## Documentation
 
 Guides are in [`docs/`](docs/) and will be on
-[hexdocs](https://hexdocs.pm/plushie) once published:
+[hexdocs](https://hexdocs.pm/plushie_gleam) once published:
 
 - [Getting started](docs/getting-started.md) -- setup, first app, CLI helpers, dev mode
 - [Tutorial](docs/tutorial.md) -- build a todo app step by step
@@ -209,7 +209,7 @@ Guides are in [`docs/`](docs/) and will be on
 ## Development
 
 ```bash
-./preflight                          # run all CI checks locally
+./bin/preflight                       # run all CI checks locally
 ```
 
 Mirrors CI and stops on first failure: format, compile, test.

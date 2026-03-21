@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.1.0] - 2026-03-21
+## [0.4.0] - 2026-03-22
 
-Initial release of the Gleam SDK for plushie.
+Initial public release.
 
 ### Added
 
@@ -20,6 +20,9 @@ Initial release of the Gleam SDK for plushie.
   slider, vertical_slider, pick_list, combo_box, table), and
   wrappers (tooltip, mouse_area, sensor, overlay, responsive, themer,
   keyed_column, space, floating, pin, window).
+- **Two-layer builder API** -- `plushie/ui` convenience functions with
+  `Attr` lists, and `plushie/widget/*` typed opaque builders with
+  chainable setters.
 - **22 built-in themes** -- light, dark, dracula, nord, solarized,
   gruvbox, catppuccin, tokyo night, kanagawa, moonfly, nightfly,
   oxocarbon, ferra. Custom palettes and per-widget style overrides
@@ -40,11 +43,15 @@ Initial release of the Gleam SDK for plushie.
   Sensor, Effect, System, Timer, Async, Stream, Modifiers events.
 - **Scoped widget IDs** -- containers namespace children's IDs
   automatically. Pattern match on local ID or scope chain.
+- **Three-backend test framework** -- mocked (fast, no display),
+  headless (real rendering via tiny-skia, screenshots), windowed
+  (real GPU windows). Same API across all three. Session pooling
+  for parallel test execution.
+- **`.plushie` script format** -- declarative test scripts with
+  parser, runner, and CLI entry points (`plushie/cli/script`,
+  `plushie/cli/replay`).
 - **Extension system** -- pure Gleam composite widgets or Rust-backed
   native widgets via `ExtensionDef` data-driven definitions.
-- **Two-layer builder API** -- `plushie/ui` convenience functions with
-  `Attr` lists, and `plushie/widget/*` typed opaque builders with
-  chainable setters.
 - **CLI entry points** -- `plushie/cli/gui` for local desktop apps,
   `plushie/cli/stdio` for exec/remote rendering mode.
 - **Bridge restart** -- automatic renderer restart with exponential
@@ -63,3 +70,5 @@ Initial release of the Gleam SDK for plushie.
   and caching.
 - **Wire protocol** -- MessagePack (default) and JSONL formats,
   version 1.
+- **8 example apps** -- Counter, Todo, Notes, Clock, Shortcuts,
+  AsyncFetch, ColorPicker, Catalog.

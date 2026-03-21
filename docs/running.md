@@ -414,7 +414,7 @@ See [Testing](testing.md) for the full guide. Quick summary:
 
 ```sh
 gleam test                                         # compile + run tests
-./preflight                                        # format check, compile, test
+./bin/preflight                                     # format check, compile, test
 PLUSHIE_TEST_BACKEND=headless gleam test             # real rendering, no display
 PLUSHIE_TEST_BACKEND=windowed gleam test             # real windows (needs display)
 ```

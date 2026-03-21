@@ -3,7 +3,7 @@
 # Run all CI checks locally. Exits on first failure.
 #
 # Usage:
-#   ./preflight
+#   ./bin/preflight
 #
 # What it runs:
 #   1. gleam format --check
