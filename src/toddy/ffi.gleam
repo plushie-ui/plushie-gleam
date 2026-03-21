@@ -5,8 +5,14 @@ import gleam/dynamic.{type Dynamic}
 import gleam/erlang/port.{type Port}
 
 /// Open a port to spawn an external process.
+/// Uses {spawn_executable, Path} with explicit args and environment.
 @external(erlang, "toddy_ffi", "open_port_spawn")
-pub fn open_port_spawn(path: String, options: Dynamic) -> Port
+pub fn open_port_spawn(
+  path: String,
+  args: List(String),
+  env: Dynamic,
+  options: Dynamic,
+) -> Port
 
 /// Send data to a port. Returns True on success.
 @external(erlang, "toddy_ffi", "port_command")
@@ -46,8 +52,20 @@ pub fn platform_string() -> String
 pub fn arch_string() -> String
 
 /// Extract data payload from an Erlang port message tuple.
+/// Works for {packet, N} mode where data is a plain binary.
 @external(erlang, "toddy_ffi", "extract_port_data")
 pub fn extract_port_data(msg: Dynamic) -> Result(Dynamic, Dynamic)
+
+/// Line data from {line, N} port mode: complete line or partial chunk.
+pub type LineData {
+  Eol(data: BitArray)
+  Noeol(data: BitArray)
+}
+
+/// Extract line data from a port message in {line, N} mode.
+/// Returns Eol for complete lines, Noeol for partial chunks.
+@external(erlang, "toddy_ffi", "extract_line_data")
+pub fn extract_line_data(msg: Dynamic) -> Result(LineData, Dynamic)
 
 /// Extract exit status from an Erlang port message tuple.
 @external(erlang, "toddy_ffi", "extract_exit_status")

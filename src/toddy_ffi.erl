@@ -1,6 +1,6 @@
 -module(toddy_ffi).
 -export([
-    open_port_spawn/2,
+    open_port_spawn/4,
     port_command/2,
     port_close/1,
     try_call/1,
@@ -11,15 +11,22 @@
     platform_string/0,
     arch_string/0,
     extract_port_data/1,
+    extract_line_data/1,
     extract_exit_status/1,
     get_env/1,
     set_env/2,
     unset_env/1
 ]).
 
-%% Open a port with {spawn, Path} command and given options.
-open_port_spawn(Path, Options) ->
-    erlang:open_port({spawn, binary_to_list(Path)}, Options).
+%% Open a port with {spawn_executable, Path} and given args, env, options.
+%% Args is a list of binaries, Env is an Erlang port env list (already
+%% converted by renderer_env_ffi), Options is the port driver options.
+open_port_spawn(Path, Args, Env, Options) ->
+    CharArgs = [binary_to_list(A) || A <- Args],
+    erlang:open_port(
+        {spawn_executable, binary_to_list(Path)},
+        [{args, CharArgs}, {env, Env} | Options]
+    ).
 
 %% Send data to a port.
 port_command(Port, Data) ->
@@ -75,8 +82,15 @@ arch_string() ->
     end.
 
 %% Extract data from a port message tuple {Port, {data, Data}}.
-extract_port_data({_Port, {data, Data}}) -> {ok, Data};
+%% For {packet, N} mode, Data is a plain binary.
+extract_port_data({_Port, {data, Data}}) when is_binary(Data) -> {ok, Data};
 extract_port_data(_) -> {error, not_data}.
+
+%% Extract line data from a port message in {line, N} mode.
+%% Returns {eol, Binary} for complete lines or {noeol, Binary} for partials.
+extract_line_data({_Port, {data, {eol, Line}}}) -> {ok, {eol, list_to_binary(Line)}};
+extract_line_data({_Port, {data, {noeol, Chunk}}}) -> {ok, {noeol, list_to_binary(Chunk)}};
+extract_line_data(_) -> {error, not_line_data}.
 
 %% Extract exit status from a port message tuple {Port, {exit_status, Status}}.
 extract_exit_status({_Port, {exit_status, Status}}) -> {ok, Status};
