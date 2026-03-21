@@ -7,6 +7,7 @@ Elm architecture: model, update, view.
 
 The simplest app uses `app.simple`, where `update` receives `Event` directly:
 
+<!-- test: app_behaviour_simple_constructor_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/app
 import toddy/command
@@ -28,6 +29,7 @@ where `init` receives `Dynamic` app options from the start call.
 
 Optional callbacks are added via pipeline:
 
+<!-- test: app_behaviour_pipeline_with_subscriptions_test -- keep this code block in sync with the test -->
 ```gleam
 let my_app =
   app.simple(init, update, view)
@@ -56,6 +58,7 @@ on_renderer_exit: fn(model, Dynamic) -> model
 Returns the initial model and command tuple. Called once when the
 runtime starts.
 
+<!-- test: app_behaviour_init_simple_test -- keep this code block in sync with the test -->
 ```gleam
 fn init() {
   #(
@@ -83,6 +86,7 @@ Receives the current model and an event, returns a tuple of the next model
 and a command. Always returns `#(model, command)` -- use `command.none()`
 when no side effects are needed.
 
+<!-- test: app_behaviour_update_add_todo_test, app_behaviour_update_submit_returns_focus_test, app_behaviour_update_unknown_event_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/event.{WidgetClick, WidgetInput, WidgetSubmit}
 
@@ -135,6 +139,7 @@ Events are constructors of the `Event` type in `toddy/event`. See
 
 Receives the current model, returns a UI tree.
 
+<!-- test: app_behaviour_view_basic_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/ui
 import toddy/prop/padding
@@ -204,6 +209,7 @@ Returns a list of active subscriptions based on the current model. Called
 after every `update`. The runtime diffs the list and starts/stops
 subscriptions automatically. Set via `app.with_subscriptions`.
 
+<!-- test: app_behaviour_subscribe_without_auto_refresh_test, app_behaviour_subscribe_with_auto_refresh_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/subscription
 
@@ -238,6 +244,7 @@ Called when windows are opened, including at startup and after renderer
 restart. Returns a dict of window property overrides.
 Set via `app.with_window_config`.
 
+<!-- test: app_behaviour_window_config_returns_empty_dict_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/dict
 
@@ -251,6 +258,7 @@ fn window_config(_model: Model) -> Dict(String, PropValue) {
 Called once at startup to provide application-level settings to the
 renderer. Returns a `Settings` record. Set via `app.with_settings`.
 
+<!-- test: app_behaviour_settings_test, app_behaviour_default_settings_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/app.{Settings}
 import gleam/option.{None, Some}
@@ -414,6 +422,7 @@ ui.window("main", [
 Properties are set when the window first appears. To change properties
 after creation, use window commands:
 
+<!-- test: app_behaviour_window_command_set_window_mode_test -- keep this code block in sync with the test -->
 ```gleam
 fn update(model: Model, event: Event) {
   case event {
@@ -534,6 +543,7 @@ unfocused windows, track the active window for keyboard shortcuts).
 
 ### Example: dialog window
 
+<!-- test: app_behaviour_dialog_window_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   let main =

@@ -8,6 +8,7 @@ on Linux, macOS, and Windows. Rendering is powered by
 [iced](https://github.com/iced-rs/iced), a cross-platform GUI library
 for Rust, which toddy drives as a precompiled binary behind the scenes.
 
+<!-- test: readme_counter_init_test, readme_counter_view_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
 import toddy/app

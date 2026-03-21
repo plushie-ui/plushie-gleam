@@ -44,6 +44,7 @@ fn update(model: Model, event: Event) {
 
 #### Async work
 
+<!-- test: commands_async_construct_test -- keep this code block in sync with the test -->
 ```gleam
 // Run a function asynchronously. Result is delivered as an AsyncResult event.
 command.async(work, tag)
@@ -86,6 +87,7 @@ The function receives an `emit` callback; each call to `emit` delivers a
 The function's final return value is delivered as
 `AsyncResult(tag: tag, result: Ok(value))`.
 
+<!-- test: commands_stream_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.stream(work, tag)
 
@@ -131,6 +133,7 @@ fn update(model: Model, event: Event) {
 tag. The runtime tracks running tasks by tag and terminates the
 associated process. If the task has already completed, this is a no-op.
 
+<!-- test: commands_cancel_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.cancel(tag)
 ```
@@ -146,6 +149,7 @@ WidgetClick(id: "cancel_import", ..) ->
 immediately dispatches `mapper(value)` through `update` without spawning
 a task. Useful for lifting a pure value into the command pipeline.
 
+<!-- test: commands_done_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.done(value, mapper)
 ```
@@ -159,6 +163,7 @@ WidgetClick(id: "reset", ..) ->
 
 `command.exit()` terminates the application.
 
+<!-- test: commands_exit_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.exit()
 ```
@@ -167,6 +172,7 @@ command.exit()
 
 ##### Focus
 
+<!-- test: commands_focus_construct_test, commands_focus_next_construct_test, commands_focus_previous_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.focus(widget_id)        // Focus a text input
 command.focus_next()            // Focus next focusable widget
@@ -182,6 +188,7 @@ WidgetClick(id: "new_todo", ..) ->
 
 ##### Text operations
 
+<!-- test: commands_select_all_construct_test, commands_select_range_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.select_all(widget_id)                    // Select all text
 command.MoveCursorToFront(widget_id: widget_id)  // Cursor to start
@@ -199,6 +206,7 @@ WidgetClick(id: "select_word", ..) ->
 
 ##### Scroll operations
 
+<!-- test: commands_snap_to_end_construct_test, commands_snap_to_construct_test, commands_scroll_by_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.ScrollTo(widget_id: id, offset: offset)    // Scroll to absolute position
 command.SnapTo(widget_id: id, x: x, y: y)          // Snap scroll to absolute offset
@@ -220,6 +228,7 @@ There is no `open_window` command. To open a window, add a `window` node to
 the tree returned by `view`. To close one, remove it or use
 `close_window`.
 
+<!-- test: commands_close_window_construct_test, commands_set_window_mode_construct_test, commands_set_window_level_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.close_window(window_id)                    // Close a window
 command.resize_window(window_id, width, height)    // Resize
@@ -272,6 +281,7 @@ where the tag is used.
 These go through the effect/window_op system. Results arrive in `update`
 as `EffectResponse(request_id: window_id, result: EffectOk(data))`.
 
+<!-- test: commands_get_window_size_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.GetWindowSize(window_id: id, tag: tag)
 // Result: EffectResponse(request_id: id, result: EffectOk(data))
@@ -314,6 +324,7 @@ of the data.
 System-level queries use a different transport path. Results arrive as
 dedicated event constructors where the **tag** identifies the response.
 
+<!-- test: commands_get_system_theme_construct_test, commands_system_theme_event_match_test -- keep this code block in sync with the test -->
 ```gleam
 command.GetSystemTheme(tag: tag)
 // Result: SystemTheme(tag: tag, theme: mode)
@@ -337,6 +348,7 @@ SystemTheme(tag: "theme_detected", theme: mode) ->
 In-memory images can be created, updated, and deleted at runtime. The
 `Image` widget references them via a handle string as its source.
 
+<!-- test: commands_create_image_construct_test, commands_delete_image_construct_test, commands_clear_images_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.create_image(handle, data)                     // From PNG/JPEG bytes (BitArray)
 command.CreateImageRgba(handle: h, width: w, height: h_, pixels: px) // From raw RGBA
@@ -368,6 +380,7 @@ AsyncResult(tag: "preview_loaded", result: Ok(value)) -> {
 
 Commands for manipulating panes in a `PaneGrid` widget.
 
+<!-- test: commands_pane_split_construct_test, commands_pane_close_construct_test, commands_pane_restore_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.PaneSplit(pane_grid_id: id, pane_id: pane, axis: "horizontal", new_pane_id: new_pane)
 command.PaneClose(pane_grid_id: id, pane_id: pane)
@@ -390,6 +403,7 @@ WidgetClick(id: "split_editor", ..) ->
 
 #### Timers
 
+<!-- test: commands_send_after_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.send_after(delay_ms, msg)  // Send msg to update after delay
 ```
@@ -406,6 +420,7 @@ WidgetClick(id: "flash_message", ..) -> {
 
 #### Batch
 
+<!-- test: commands_batch_construct_test -- keep this code block in sync with the test -->
 ```gleam
 command.batch([
   command.focus("name_input"),
@@ -423,6 +438,7 @@ Push data directly to a native Rust extension widget without triggering the
 view/diff/patch cycle. Used for high-frequency data like terminal output or
 streaming log lines.
 
+<!-- test: commands_extension_command_construct_test, commands_extension_commands_construct_test -- keep this code block in sync with the test -->
 ```gleam
 // Single command
 command.ExtensionCommand(node_id: "term-1", op: "write", payload: data)
@@ -440,6 +456,7 @@ widgets without an extension handler.
 
 #### No-op
 
+<!-- test: commands_none_test -- keep this code block in sync with the test -->
 ```gleam
 command.none()
 ```
@@ -562,6 +579,7 @@ it.
 
 #### Time
 
+<!-- test: commands_subscription_every_construct_test -- keep this code block in sync with the test -->
 ```gleam
 subscription.every(interval_ms, tag)
 // Delivers: TimerTick(tag: tag, timestamp: ts) every interval_ms
@@ -569,6 +587,7 @@ subscription.every(interval_ms, tag)
 
 #### Keyboard
 
+<!-- test: commands_subscription_on_key_press_construct_test -- keep this code block in sync with the test -->
 ```gleam
 subscription.on_key_press(tag)
 // Delivers: KeyPress(key: key, modifiers: mods, ..)
@@ -688,6 +707,7 @@ Supported on: `Slider`, `VerticalSlider`, `Canvas`, `MouseArea`, `Sensor`,
 
 Renderer subscriptions accept a `max_rate` via `set_max_rate`:
 
+<!-- test: commands_subscription_set_max_rate_test, commands_subscription_set_max_rate_zero_test, commands_subscription_on_animation_frame_test -- keep this code block in sync with the test -->
 ```gleam
 // Rate-limit mouse moves to 30 events per second:
 subscription.on_mouse_move("mouse")
@@ -779,6 +799,7 @@ commands and rendering:
   coalescable event types. `None` for unlimited (default). See
   [Event rate limiting](#event-rate-limiting).
 
+<!-- test: theming_settings_scale_and_vsync_test -- keep this code block in sync with the test -->
 ```gleam
 fn settings() -> Settings {
   Settings(

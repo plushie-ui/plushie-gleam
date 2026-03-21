@@ -25,6 +25,7 @@ fn view(model) {
 
 Or set the default theme in app settings:
 
+<!-- test: theming_settings_theme_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/app
 import toddy/prop/theme.{CatppuccinMocha}
@@ -72,6 +73,7 @@ Unknown names fall back to `dark`.
 
 Custom themes are defined by providing a palette via `theme.custom`:
 
+<!-- test: theming_custom_theme_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/prop/theme
 import toddy/node.{StringVal}
@@ -144,6 +146,7 @@ Each background key also supports a `_text` suffix (e.g.
 
 ### Example
 
+<!-- test: theming_custom_theme_shade_overrides_test -- keep this code block in sync with the test -->
 ```gleam
 let branded_theme = theme.custom("branded", dict.from_list([
   #("background", StringVal("#1a1a2e")),
@@ -199,6 +202,7 @@ writing Rust. They work on all 13 styleable widgets: button, container,
 text_input, text_editor, checkbox, radio, toggler, pick_list, progress_bar,
 rule, slider, vertical_slider, and tooltip.
 
+<!-- test: theming_style_map_basic_test, theming_style_map_with_border_test, theming_style_map_with_shadow_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/prop/style_map
 import toddy/prop/border
@@ -240,6 +244,7 @@ Style maps support interaction state overrides. Each override is a
 nested StyleMap that is merged on top of the base when the widget
 enters that state:
 
+<!-- test: theming_style_map_status_overrides_test -- keep this code block in sync with the test -->
 ```gleam
 let nav_item_style =
   style_map.new()
@@ -304,6 +309,7 @@ polished UI patterns with style maps.
 The simplest way to follow the OS light/dark preference is to set the
 theme to `SystemTheme`:
 
+<!-- test: theming_system_theme_setting_test -- keep this code block in sync with the test -->
 ```gleam
 let settings = app.Settings(..app.default_settings(), theme: Some(SystemTheme))
 ```

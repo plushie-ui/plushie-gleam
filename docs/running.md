@@ -10,6 +10,7 @@ to connect them.
 
 The simplest setup: the host spawns the renderer as a child process.
 
+<!-- test: running_gui_default_opts_test -- keep this code block in sync with the test -->
 ```gleam
 // src/my_app/main.gleam
 import toddy/cli/gui
@@ -35,6 +36,7 @@ custom renderer. You can also set `TODDY_BINARY_PATH` explicitly.
 Set `dev: True` in `GuiOpts` to enable live reload. Edit code, save,
 see the result instantly. The model state is preserved across reloads.
 
+<!-- test: running_gui_opts_with_dev_mode_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/cli/gui
 
@@ -179,6 +181,7 @@ When a new renderer connects (another SSH session), the host sends a
 snapshot of the current state. No restart, no state loss, no cold
 start.
 
+<!-- test: running_start_opts_stdio_daemon_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy
 import toddy/app
@@ -215,6 +218,7 @@ mouse move updates per second even on a fast machine.
 
 Set `default_event_rate` in your app's `settings` callback:
 
+<!-- test: running_settings_default_event_rate_test -- keep this code block in sync with the test -->
 ```gleam
 fn settings() -> app.Settings {
   app.Settings(..app.default_settings(), default_event_rate: Some(60))
@@ -224,6 +228,7 @@ fn settings() -> app.Settings {
 
 For a monitoring dashboard:
 
+<!-- test: running_settings_low_event_rate_test -- keep this code block in sync with the test -->
 ```gleam
 fn settings() -> app.Settings {
   app.Settings(..app.default_settings(), default_event_rate: Some(15))
@@ -234,6 +239,7 @@ fn settings() -> app.Settings {
 
 Override the global rate for specific event sources:
 
+<!-- test: running_subscription_mouse_move_with_rate_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/subscription
 

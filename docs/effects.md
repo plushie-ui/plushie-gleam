@@ -19,6 +19,7 @@ renderer (decide whether to execute it). Keep the renderer dumb.
 
 ### Gleam side
 
+<!-- test: effects_file_open_returns_effect_command_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/effects
 import toddy/event.{EffectOk, EffectError, EffectCancelled}

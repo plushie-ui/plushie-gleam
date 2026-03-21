@@ -16,6 +16,7 @@ An extension has two halves:
 2. **Rust side:** implement the `WidgetExtension` trait from `toddy-core`. This
    receives tree nodes from Gleam and returns `iced::Element`s for rendering.
 
+<!-- test: extensions_sparkline_def_validates_test, extensions_sparkline_build_creates_node_test -- keep this code block in sync with the test -->
 ```gleam
 // src/my_sparkline.gleam
 import toddy/extension.{
@@ -91,6 +92,7 @@ toddy::run(
 Use `ExtensionDef` with `rust_crate` and `rust_constructor` for widgets
 rendered by a Rust crate.
 
+<!-- test: extensions_hex_view_validates_test, extensions_hex_view_build_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/extension.{ExtensionDef, NumberProp, StringProp}
 
@@ -111,6 +113,7 @@ pub const hex_view_def = ExtensionDef(
 Composite widgets are simpler -- they're just functions that return
 Node trees. No registration or Rust code needed.
 
+<!-- test: extensions_composite_labeled_input_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/node.{type Node}
 import toddy/ui

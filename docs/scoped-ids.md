@@ -49,6 +49,7 @@ WidgetClick(id: "save", scope: ["form", "sidebar"])
 The `scope` list is in **reverse order** -- nearest parent first. This
 design optimises the common case of matching on the immediate parent:
 
+<!-- test: scoped_ids_match_local_id_test, scoped_ids_match_immediate_parent_test, scoped_ids_dynamic_list_bind_parent_test -- keep this code block in sync with the test -->
 ```gleam
 fn update(model, event) {
   case event {
@@ -105,6 +106,7 @@ When rendering a list of items, wrap each item in a named container
 a scope for the item's children, giving each instance unique IDs
 without manual prefixing.
 
+<!-- test: scoped_ids_dynamic_list_delete_test -- keep this code block in sync with the test -->
 ```gleam
 // View
 ui.column("todo_list", [], [
@@ -143,6 +145,7 @@ the tree.
 
 The reversed scope list is designed for ergonomic pattern matching:
 
+<!-- test: scoped_ids_depth_agnostic_test, scoped_ids_exact_depth_test, scoped_ids_no_scope_test -- keep this code block in sync with the test -->
 ```gleam
 case event {
   // Depth-agnostic: works whether "search" is at root or deeply nested

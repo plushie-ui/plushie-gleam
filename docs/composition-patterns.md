@@ -30,6 +30,7 @@ views.
 
 ### Code
 
+<!-- test: tab_bar_init_test, tab_bar_click_changes_active_tab_test, tab_bar_view_has_three_tab_buttons_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
 import gleam/list
@@ -138,6 +139,7 @@ that highlight on hover. The selected item has an accent background.
 
 ### Code
 
+<!-- test: sidebar_init_test, sidebar_click_changes_page_test, sidebar_view_has_nav_items_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
 import gleam/string
@@ -414,6 +416,7 @@ container that dims the background.
 
 ### Code
 
+<!-- test: modal_init_test, modal_open_test, modal_confirm_test, modal_view_has_overlay_when_open_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
 import toddy/app
@@ -565,6 +568,7 @@ styled container.
 
 ### Code
 
+<!-- test: card_helper_produces_correct_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
 import toddy/app
@@ -720,6 +724,7 @@ cursor to a horizontal resize indicator.
 
 ### Code
 
+<!-- test: split_panel_has_three_sections_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/app
 import toddy/command
@@ -819,6 +824,7 @@ location.
 
 ### Code
 
+<!-- test: breadcrumb_click_truncates_path_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
 import gleam/list
@@ -947,6 +953,7 @@ for tags, counts, status indicators, or filter chips.
 
 ### Code
 
+<!-- test: chip_toggle_on_test, chip_toggle_off_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
 import gleam/set.{type Set}
@@ -1569,6 +1576,7 @@ All helpers are pure data structures with no processes or side effects.
 
 Undo/redo stack for commands.
 
+<!-- test: state_helper_undo_apply_and_revert_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/undo
 import gleam/option.{None, Some}
@@ -1617,6 +1625,7 @@ apps where undo does not make sense (dashboards, monitoring).
 
 Selection state for lists and tables.
 
+<!-- test: state_helper_selection_multi_test, state_helper_selection_range_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/selection
 import gleam/set
@@ -1653,6 +1662,7 @@ selection modes correctly. Skip it for simple cases where a single
 
 Client-side routing for multi-view apps.
 
+<!-- test: state_helper_route_push_and_pop_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/route
 import gleam/dict
@@ -1681,6 +1691,7 @@ detail views, wizards). Skip it for single-screen apps.
 
 Query pipeline for in-memory record collections.
 
+<!-- test: state_helper_data_query_filter_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/data
 import gleam/string

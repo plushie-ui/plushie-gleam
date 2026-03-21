@@ -172,6 +172,7 @@ with `a11y.new()` and pipe through only the setters you need.
 
 With `toddy/ui` (convenience builder):
 
+<!-- test: a11y_heading_level_1_ui_builder_test, a11y_icon_button_label_test, a11y_landmark_region_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/ui
 import toddy/prop/a11y
@@ -229,6 +230,7 @@ ui.text_input("email", model.email, [
 
 With the typed widget builder API (`toddy/widget/*`):
 
+<!-- test: a11y_button_widget_builder_test, a11y_text_widget_builder_test, a11y_text_input_widget_builder_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/widget/button
 import toddy/widget/text
@@ -308,6 +310,7 @@ ui.button_("do_thing", "")
 Screen reader users navigate by headings. Use the `a11y` prop to mark
 section titles:
 
+<!-- test: a11y_heading_structure_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   ui.window("main", [ui.title("MyApp")], [
@@ -335,6 +338,7 @@ fn view(model: Model) -> Node {
 Landmarks let screen reader users jump between major sections. Wrap
 significant regions in containers with landmark roles:
 
+<!-- test: a11y_navigation_landmark_test, a11y_search_landmark_test -- keep this code block in sync with the test -->
 ```gleam
 ui.column("layout", [], [
   ui.container("nav", [
@@ -371,6 +375,7 @@ without the user navigating to it, use live regions:
   messages, save confirmations, non-urgent updates)
 - `"assertive"` -- interrupts current speech (errors, urgent alerts)
 
+<!-- test: a11y_live_polite_test, a11y_live_assertive_alert_test -- keep this code block in sync with the test -->
 ```gleam
 // Status bar that announces changes
 ui.text("status", model.status_message, [
@@ -446,6 +451,7 @@ another widget by ID using `labelled_by`, `described_by`, and
 `error_message`. The renderer resolves these to accesskit node
 references so the screen reader follows the relationship automatically.
 
+<!-- test: a11y_labelled_by_test -- keep this code block in sync with the test -->
 ```gleam
 ui.column("form", [ui.spacing(12)], [
   ui.text("form_heading", "Create account", [
@@ -490,6 +496,7 @@ label in sync if you change the visible text.
 
 Decorative elements that add no information should be hidden from AT:
 
+<!-- test: a11y_hidden_rule_test, a11y_decorative_image_hidden_test, a11y_space_hidden_test -- keep this code block in sync with the test -->
 ```gleam
 // Decorative dividers
 ui.rule("divider", [ui.a11y(a11y.new() |> a11y.hidden(True))])
@@ -515,6 +522,7 @@ ui.image("status_icon", icon_path, [ui.alt("Status: online")])
 Canvas draws arbitrary shapes -- accesskit can't infer anything from raw
 geometry. Always provide alternative text:
 
+<!-- test: a11y_canvas_with_role_and_label_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/widget/canvas
 import toddy/prop/length.{Fill}
@@ -599,6 +607,7 @@ When building custom widgets with canvas or other primitives, use `toggled`,
 Without these, screen readers have no way to know the state of a custom
 control drawn with raw shapes.
 
+<!-- test: a11y_canvas_switch_toggled_test, a11y_canvas_meter_with_value_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/widget/canvas
 import toddy/prop/length.{Px}
@@ -672,6 +681,7 @@ ui.row("tabs", [], list.index_map(model.tabs, fn(tab, idx) {
 Use `has_popup` to tell screen readers that activating a widget opens
 a popup of a specific type:
 
+<!-- test: a11y_has_popup_menu_test, a11y_has_popup_listbox_test -- keep this code block in sync with the test -->
 ```gleam
 // Dropdown button
 ui.button("menu_btn", "Options", [
@@ -696,6 +706,7 @@ Use `disabled` to override the disabled state for AT when a widget
 is visually disabled via custom styling but doesn't use the standard
 `disabled` prop:
 
+<!-- test: a11y_disabled_override_test -- keep this code block in sync with the test -->
 ```gleam
 ui.button("submit", "Submit", [
   ui.a11y(a11y.new() |> a11y.disabled(!model.form_valid)),
@@ -706,6 +717,7 @@ ui.button("submit", "Submit", [
 
 For disclosure widgets, toggleable panels, and dropdown menus:
 
+<!-- test: a11y_expanded_button_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   ui.column("layout", [], [
@@ -757,6 +769,7 @@ accesskit label from this prop.
 | `qr_code` | `alt` | `String` |
 | `canvas` | `alt` | `String` |
 
+<!-- test: a11y_image_alt_prop_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/widget/svg
 import toddy/widget/qr_code
@@ -786,6 +799,7 @@ label from this prop.
 | `vertical_slider` | `label` | `String` |
 | `progress_bar` | `label` | `String` |
 
+<!-- test: a11y_slider_label_prop_test, a11y_progress_bar_label_prop_test -- keep this code block in sync with the test -->
 ```gleam
 ui.slider("volume", #(0.0, 100.0), model.volume, [ui.label("Volume")])
 ui.vertical_slider("brightness", #(0.0, 100.0), model.brightness, [ui.label("Brightness")])
@@ -805,6 +819,7 @@ that doesn't fit in a short label.
 | `qr_code` | `description` | `String` |
 | `canvas` | `description` | `String` |
 
+<!-- test: a11y_image_description_prop_test -- keep this code block in sync with the test -->
 ```gleam
 ui.image("photo", path, [ui.alt("Team photo"), ui.description("The engineering team at the 2025 offsite")])
 ui.canvas("chart", [ui.alt("Sales chart"), ui.description("Q1 up 15%, Q2 flat, Q3 down 8%")])
@@ -822,6 +837,7 @@ builder would be `a11y.new() |> a11y.hidden(True)`.
 | `image` | `decorative` | `Bool` |
 | `svg` | `decorative` | `Bool` |
 
+<!-- test: a11y_image_decorative_prop_test -- keep this code block in sync with the test -->
 ```gleam
 ui.image("divider", "/images/decorative-line.png", [ui.decorative(True)])
 svg.new("flourish", "/icons/flourish.svg")

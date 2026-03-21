@@ -9,6 +9,7 @@ dynamic lists, scoped IDs, commands, and conditional rendering.
 Start with a model that tracks a list of todos and the current input
 text.
 
+<!-- test: tutorial_step1_init_test, tutorial_step1_view_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/list
 import toddy/app
@@ -65,6 +66,7 @@ up state, `view` renders it.
 Add a text input that updates the model on every keystroke, and a
 submit handler that creates a todo when the user presses Enter.
 
+<!-- test: tutorial_step2_input_updates_model_test, tutorial_step2_submit_creates_todo_test, tutorial_step2_empty_submit_does_nothing_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/event.{type Event, WidgetInput, WidgetSubmit}
 import gleam/int
@@ -103,6 +105,7 @@ fn update(model: Model, event: Event) {
 
 And the view:
 
+<!-- test: tutorial_step2_view_has_text_input_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   ui.window("main", [ui.title("Todos")], [
@@ -128,6 +131,7 @@ We wrap each item in a named container using the todo's ID. This
 creates a **scope** -- children get unique IDs automatically
 without manual prefixing.
 
+<!-- test: tutorial_step3_view_renders_todo_list_test, tutorial_step3_todo_row_structure_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   ui.window("main", [ui.title("Todos")], [
@@ -166,6 +170,7 @@ When the checkbox or delete button is clicked, the event carries the
 local `id` and a `scope` list with the todo's row ID as the
 immediate parent. Pattern match on both:
 
+<!-- test: tutorial_step4_toggle_test, tutorial_step4_delete_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
@@ -204,6 +209,7 @@ later move the list into a sidebar or tab, the pattern still works.
 After submitting a todo, the text input loses focus. Let's refocus
 it automatically using `command.focus`:
 
+<!-- test: tutorial_step2_submit_creates_todo_test -- keep this code block in sync with the test -->
 ```gleam
 WidgetSubmit(id: "new_todo", ..) ->
   case string.trim(model.input) {
@@ -236,6 +242,7 @@ always use the full scoped path.
 Add filter buttons that toggle between all, active, and completed
 todos.
 
+<!-- test: tutorial_step6_filter_all_test, tutorial_step6_filter_done_test -- keep this code block in sync with the test -->
 ```gleam
 WidgetClick(id: "filter_all", ..) -> #(
   Model(..model, filter: All),
@@ -253,6 +260,7 @@ WidgetClick(id: "filter_done", ..) -> #(
 
 Add the filter buttons and apply the filter in the view:
 
+<!-- test: tutorial_step6_view_has_filter_buttons_test, tutorial_step6_view_filters_todos_test, tutorial_step6_filtered_helper_test -- keep this code block in sync with the test -->
 ```gleam
 fn view(model: Model) -> Node {
   ui.window("main", [ui.title("Todos")], [

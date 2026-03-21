@@ -14,6 +14,7 @@ needed.
 
 ### Testing `update`
 
+<!-- test: testing_doc_adding_a_todo_appends_and_clears_input_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
 import toddy/event.{WidgetClick}
@@ -33,6 +34,7 @@ pub fn adding_a_todo_appends_to_list_and_clears_input_test() {
 Commands are `Command(msg)` union values. Pattern-match on the constructor to
 verify what `update` asked the runtime to do, without executing anything.
 
+<!-- test: testing_doc_submitting_todo_returns_focus_command_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
 import toddy/command
@@ -58,6 +60,7 @@ pub fn save_triggers_an_async_task_test() {
 
 ### Testing `view`
 
+<!-- test: testing_doc_view_shows_todo_count_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/option
 import toddy/tree
@@ -80,6 +83,7 @@ pub fn view_shows_todo_count_test() {
 
 ### Testing `init`
 
+<!-- test: testing_doc_init_returns_valid_initial_state_test -- keep this code block in sync with the test -->
 ```gleam
 pub fn init_returns_valid_initial_state_test() {
   let #(model, _cmd) = my_app.init(dynamic.nil())
@@ -93,6 +97,7 @@ pub fn init_returns_valid_initial_state_test() {
 
 `toddy/tree` provides helpers for querying view trees directly:
 
+<!-- test: testing_doc_tree_find_test, testing_doc_tree_ids_test, testing_doc_tree_find_all_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/tree
 import gleam/option
@@ -145,6 +150,7 @@ Unit tests cover logic. But they cannot click a button, verify a widget
 appears after an interaction, or catch a rendering regression when you bump
 iced. That is what the test framework is for.
 
+<!-- test: testing_doc_clicking_increment_updates_counter_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
 import gleam/option
@@ -186,6 +192,7 @@ test.find(session, "save_btn")
 `test.find` returns `Option(Element)`. The `Element` type wraps a `Node`
 with convenient accessors:
 
+<!-- test: testing_doc_element_id_and_kind_test -- keep this code block in sync with the test -->
 ```gleam
 import toddy/testing/element
 
@@ -223,6 +230,7 @@ State threading is explicit.
 
 ### Assertions
 
+<!-- test: testing_doc_text_content_assertion_test, testing_doc_existence_assertion_test, testing_doc_model_assertion_test -- keep this code block in sync with the test -->
 ```gleam
 import gleeunit/should
 import gleam/option
@@ -549,6 +557,7 @@ backends because the commands have already completed.
 
 ### Element not found
 
+<!-- test: testing_doc_find_nonexistent_returns_none_test -- keep this code block in sync with the test -->
 ```gleam
 test.find(session, "nonexistent")
 // => None
