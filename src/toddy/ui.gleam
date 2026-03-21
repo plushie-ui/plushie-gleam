@@ -10,6 +10,7 @@ import gleam/option.{type Option}
 import toddy/node.{
   type Node, type PropValue, BoolVal, DictVal, FloatVal, IntVal, Node, StringVal,
 }
+import toddy/prop/a11y.{type A11y}
 import toddy/prop/alignment.{type Alignment}
 import toddy/prop/border.{type Border}
 import toddy/prop/color.{type Color}
@@ -113,6 +114,30 @@ pub fn on_submit(enabled: Bool) -> Attr {
 
 pub fn secure(s: Bool) -> Attr {
   Attr("secure", BoolVal(s))
+}
+
+pub fn a11y(a: A11y) -> Attr {
+  Attr("a11y", a11y.to_prop_value(a))
+}
+
+pub fn alt(t: String) -> Attr {
+  Attr("alt", StringVal(t))
+}
+
+pub fn decorative(d: Bool) -> Attr {
+  Attr("decorative", BoolVal(d))
+}
+
+pub fn label(l: String) -> Attr {
+  Attr("label", StringVal(l))
+}
+
+pub fn description(d: String) -> Attr {
+  Attr("description", StringVal(d))
+}
+
+pub fn event_rate(r: Int) -> Attr {
+  Attr("event_rate", IntVal(r))
 }
 
 pub fn window_size(w: Float, h: Float) -> Attr {
