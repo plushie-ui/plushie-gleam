@@ -2,13 +2,15 @@
 ////
 //// Resolution order:
 //// 1. PLUSHIE_BINARY_PATH env var (error if set but file missing)
-//// 2. Precompiled at priv/bin/{platform}-{arch}/plushie
-//// 3. Custom build at _build/{env}/plushie/target/release/plushie
-//// 4. Common local paths (./plushie, ../plushie/target/release/plushie)
+//// 2. priv/bin/plushie (installed by bin/plushie.download or bin/plushie.build)
+//// 3. Precompiled at priv/bin/{platform}-{arch}/plushie
+//// 4. Custom build at _build/{env}/plushie/target/release/plushie
+//// 5. Common local paths (./plushie, ../plushie/target/release/plushie)
 ////
 //// Returns Result(String, BinaryError) with the path on success.
 
 import gleam/list
+import gleam/string
 import plushie/ffi
 
 /// Error when the plushie binary cannot be found.
@@ -40,15 +42,27 @@ fn find_in_standard_paths() -> Result(String, BinaryError) {
   }
 }
 
+/// Format a binary error as a human-readable string.
+pub fn error_to_string(err: BinaryError) -> String {
+  case err {
+    NotFound(searched:) ->
+      "not found (searched: " <> string.join(searched, ", ") <> ")"
+    EnvVarPointsToMissing(path:) ->
+      "PLUSHIE_BINARY_PATH points to missing file: " <> path
+  }
+}
+
 fn candidate_paths() -> List(String) {
   let platform = ffi.platform_string()
   let arch = ffi.arch_string()
   let name = "plushie"
   [
+    "priv/bin/" <> name,
     "priv/bin/" <> platform <> "-" <> arch <> "/" <> name,
     "_build/dev/plushie/target/release/" <> name,
     "_build/prod/plushie/target/release/" <> name,
     "./" <> name,
     "../plushie/target/release/" <> name,
+    "../plushie/target/debug/" <> name,
   ]
 }

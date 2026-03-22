@@ -109,6 +109,15 @@ pub type StartError {
   RuntimeStartFailed(runtime.StartError)
 }
 
+/// Format a start error as a human-readable string.
+pub fn start_error_to_string(err: StartError) -> String {
+  case err {
+    BinaryNotFound(binary_err) ->
+      "binary not found: " <> binary.error_to_string(binary_err)
+    RuntimeStartFailed(_) -> "runtime failed to start"
+  }
+}
+
 /// Start a plushie application.
 ///
 /// Resolves the binary path and launches the runtime process,

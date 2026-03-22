@@ -9,6 +9,7 @@ import examples/widgets/theme_toggle
 import gleam/erlang/process
 import gleam/float
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string
@@ -398,6 +399,11 @@ pub fn main() {
   let my_app =
     app.simple(init, update, view)
     |> app.with_subscriptions(subscribe)
-  let _ = plushie.start(my_app, plushie.default_start_opts())
-  process.sleep_forever()
+  case plushie.start(my_app, plushie.default_start_opts()) {
+    Ok(_) -> process.sleep_forever()
+    Error(err) ->
+      io.println_error(
+        "Failed to start: " <> plushie.start_error_to_string(err),
+      )
+  }
 }

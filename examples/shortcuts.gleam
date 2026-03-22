@@ -5,6 +5,7 @@
 
 import gleam/erlang/process
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option
 import gleam/string
@@ -133,6 +134,11 @@ pub fn app() {
 }
 
 pub fn main() {
-  let _ = plushie.start(app(), plushie.default_start_opts())
-  process.sleep_forever()
+  case plushie.start(app(), plushie.default_start_opts()) {
+    Ok(_) -> process.sleep_forever()
+    Error(err) ->
+      io.println_error(
+        "Failed to start: " <> plushie.start_error_to_string(err),
+      )
+  }
 }
