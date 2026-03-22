@@ -96,7 +96,7 @@ fi
 BUILD_OUTPUT=$(mktemp)
 trap 'rm -f "$BUILD_OUTPUT"' EXIT
 
-if cargo "${CARGO_ARGS[@]}" 2>&1 | tee "$BUILD_OUTPUT"; then
+if (cd "$SOURCE_DIR" && cargo "${CARGO_ARGS[@]}") 2>&1 | tee "$BUILD_OUTPUT"; then
     echo "Build succeeded."
     if [ "$VERBOSE" = true ]; then
         cat "$BUILD_OUTPUT"
