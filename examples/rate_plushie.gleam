@@ -400,7 +400,7 @@ pub fn main() {
     app.simple(init, update, view)
     |> app.with_subscriptions(subscribe)
   case plushie.start(my_app, plushie.default_start_opts()) {
-    Ok(_) -> process.sleep_forever()
+    Ok(rt) -> plushie.wait(rt)
     Error(err) ->
       io.println_error(
         "Failed to start: " <> plushie.start_error_to_string(err),

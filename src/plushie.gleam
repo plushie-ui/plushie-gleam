@@ -165,3 +165,26 @@ pub fn start(
 pub fn stop(rt: Subject(runtime.RuntimeMessage)) -> Nil {
   process.send(rt, runtime.Shutdown)
 }
+
+/// Block the caller until the plushie runtime exits.
+///
+/// This monitors the runtime process and returns when it stops.
+/// Use this instead of `process.sleep_forever()` so that the
+/// caller exits cleanly when the user closes all windows.
+///
+///     case plushie.start(app(), plushie.default_start_opts()) {
+///       Ok(rt) -> plushie.wait(rt)
+///       Error(err) -> io.println_error(plushie.start_error_to_string(err))
+///     }
+pub fn wait(rt: Subject(runtime.RuntimeMessage)) -> Nil {
+  case process.subject_owner(rt) {
+    Ok(pid) -> {
+      let _monitor = process.monitor(pid)
+      let selector =
+        process.new_selector()
+        |> process.select_monitors(fn(_down) { Nil })
+      process.selector_receive_forever(selector)
+    }
+    Error(_) -> Nil
+  }
+}
