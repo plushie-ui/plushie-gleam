@@ -2,11 +2,13 @@
 -export([
     download_binary/2,
     has_flag/1,
+    get_flag_value/1,
     ensure_dir/1,
     write_file/2,
     delete_file/1,
     chmod/2,
-    bytes_to_string/1
+    bytes_to_string/1,
+    extract_tarball/2
 ]).
 
 %% Download a URL following redirects. Returns {ok, Body} or {error, Reason}.
@@ -64,6 +66,20 @@ has_flag(Flag) ->
     FlagStr = binary_to_list(Flag),
     lists:member(FlagStr, init:get_plain_arguments()).
 
+%% Get the value following a flag in init:get_plain_arguments().
+%% Returns {ok, Value} or {error, nil}.
+get_flag_value(Flag) ->
+    FlagStr = binary_to_list(Flag),
+    Args = init:get_plain_arguments(),
+    find_flag_value(FlagStr, Args).
+
+find_flag_value(_Flag, []) ->
+    {error, nil};
+find_flag_value(Flag, [Flag, Value | _Rest]) ->
+    {ok, list_to_binary(Value)};
+find_flag_value(Flag, [_ | Rest]) ->
+    find_flag_value(Flag, Rest).
+
 %% Create directory (and parents) if it doesn't exist.
 ensure_dir(Path) ->
     filelib:ensure_dir(binary_to_list(Path) ++ "/dummy"),
@@ -89,3 +105,13 @@ bytes_to_string(Data) when is_binary(Data) ->
     Data;
 bytes_to_string(Data) when is_list(Data) ->
     list_to_binary(Data).
+
+%% Extract a compressed tarball to a destination directory.
+%% Uses :erl_tar.extract with :compressed and {:cwd, Dir}.
+extract_tarball(TarballPath, DestDir) ->
+    case erl_tar:extract(binary_to_list(TarballPath),
+                         [compressed, {cwd, binary_to_list(DestDir)}]) of
+        ok -> {ok, nil};
+        {error, Reason} ->
+            {error, list_to_binary(io_lib:format("~p", [Reason]))}
+    end.

@@ -7,7 +7,9 @@
     copy_file/2,
     chmod/2,
     dir_exists/1,
-    parse_int/1
+    parse_int/1,
+    check_wasm_pack/0,
+    wasm_pack_build/2
 ]).
 
 %% Get the rustc version as "MAJOR.MINOR.PATCH" string.
@@ -60,10 +62,6 @@ collect_port_output(Port, Acc) ->
             {error, Acc}
     end.
 
-%% Simple shell escaping for directory paths.
-shell_escape(Str) ->
-    "'" ++ lists:flatmap(fun($') -> "'\\''"; (C) -> [C] end, Str) ++ "'".
-
 %% Check if a flag is present in init:get_plain_arguments().
 has_flag(Flag) ->
     FlagStr = binary_to_list(Flag),
@@ -95,3 +93,36 @@ parse_int(Str) ->
     catch
         _:_ -> {error, nil}
     end.
+
+%% Check if wasm-pack is available. Returns {ok, nil} or {error, Message}.
+check_wasm_pack() ->
+    try
+        WasmPack = find_executable("wasm-pack"),
+        Port = erlang:open_port({spawn_executable, WasmPack}, [
+            {args, ["--version"]},
+            stream, binary, exit_status, use_stdio, stderr_to_stdout
+        ]),
+        case collect_port_output(Port, <<>>) of
+            {ok, _} -> {ok, nil};
+            {error, _} ->
+                {error, <<"wasm-pack not found. Install via https://rustwasm.github.io/wasm-pack/">>}
+        end
+    catch
+        _:_ ->
+            {error, <<"wasm-pack not found. Install via https://rustwasm.github.io/wasm-pack/">>}
+    end.
+
+%% Run wasm-pack build. Returns {ok, Output} on success, {error, Output} on failure.
+wasm_pack_build(CrateDir, Release) ->
+    CrateDirStr = binary_to_list(CrateDir),
+    WasmPack = find_executable("wasm-pack"),
+    Profile = case Release of
+        true -> "--release";
+        false -> "--dev"
+    end,
+    Port = erlang:open_port({spawn_executable, WasmPack}, [
+        {args, ["build", "--target", "web", Profile]},
+        {cd, CrateDirStr},
+        stream, binary, exit_status, use_stdio, stderr_to_stdout
+    ]),
+    collect_port_output(Port, <<>>).

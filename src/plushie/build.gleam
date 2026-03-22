@@ -1,16 +1,18 @@
-//// Build the plushie binary from source.
+//// Build the plushie binary and/or WASM renderer from source.
 ////
 //// Ships in the hex package. Users run:
 ////
 //// ```sh
-//// gleam run -m plushie/build
-//// gleam run -m plushie/build -- --release
-//// gleam run -m plushie/build -- --verbose
+//// gleam run -m plushie/build                    # native binary (default)
+//// gleam run -m plushie/build -- --release        # optimized build
+//// gleam run -m plushie/build -- --wasm           # WASM renderer only
+//// gleam run -m plushie/build -- --bin --wasm     # both
+//// gleam run -m plushie/build -- --verbose        # print cargo output
 //// ```
 ////
 //// Requires PLUSHIE_SOURCE_PATH env var pointing to the plushie Rust
 //// source checkout. Checks Rust toolchain version, runs cargo build,
-//// and installs the binary to priv/bin/.
+//// and installs the binary to priv/bin/. WASM files go to priv/wasm/.
 
 import gleam/io
 import gleam/string
@@ -20,10 +22,34 @@ const min_rust_version = "1.92.0"
 
 /// Entry point for `gleam run -m plushie/build`.
 pub fn main() -> Nil {
-  check_rust_toolchain()
-
   let release = has_flag("--release")
   let verbose = has_flag("--verbose")
+
+  let explicit_bin = has_flag("--bin")
+  let explicit_wasm = has_flag("--wasm")
+
+  // No explicit target = bin only (backward compatible)
+  let want_bin = case explicit_bin, explicit_wasm {
+    False, False -> True
+    _, _ -> explicit_bin
+  }
+  let want_wasm = explicit_wasm
+
+  case want_bin {
+    True -> build_bin(release, verbose)
+    False -> Nil
+  }
+
+  case want_wasm {
+    True -> build_wasm(release, verbose)
+    False -> Nil
+  }
+}
+
+// -- Native binary build ------------------------------------------------------
+
+fn build_bin(release: Bool, verbose: Bool) -> Nil {
+  check_rust_toolchain()
 
   let source_dir = case ffi.get_env("PLUSHIE_SOURCE_PATH") {
     Ok(path) -> path
@@ -69,6 +95,92 @@ pub fn main() -> Nil {
     }
   }
 }
+
+// -- WASM build ---------------------------------------------------------------
+
+fn build_wasm(release: Bool, verbose: Bool) -> Nil {
+  case check_wasm_pack() {
+    Error(msg) -> {
+      io.println_error(msg)
+      halt(1)
+    }
+    Ok(_) -> Nil
+  }
+
+  let source_dir = case ffi.get_env("PLUSHIE_SOURCE_PATH") {
+    Ok(path) -> path
+    Error(_) -> {
+      io.println_error("Error: PLUSHIE_SOURCE_PATH not set.")
+      io.println_error("")
+      io.println_error("Set it to the plushie Rust source checkout:")
+      io.println_error("  export PLUSHIE_SOURCE_PATH=/path/to/plushie")
+      halt(1)
+      panic as "unreachable"
+    }
+  }
+
+  let wasm_crate = source_dir <> "/plushie-wasm"
+
+  case dir_exists(wasm_crate) {
+    False -> {
+      io.println_error("plushie-wasm crate not found at " <> wasm_crate <> ".")
+      io.println_error("")
+      io.println_error(
+        "The WASM build requires the plushie source checkout to include",
+      )
+      io.println_error("the plushie-wasm crate directory.")
+      halt(1)
+    }
+    True -> Nil
+  }
+
+  let label = case release {
+    True -> "Building plushie-wasm (release)..."
+    False -> "Building plushie-wasm..."
+  }
+  io.println(label)
+
+  case wasm_pack_build(wasm_crate, release) {
+    Ok(output) -> {
+      io.println("WASM build succeeded.")
+      case verbose {
+        True -> io.println(output)
+        False -> Nil
+      }
+      install_wasm(wasm_crate)
+    }
+    Error(output) -> {
+      io.println_error("WASM build failed:")
+      io.println_error(output)
+      halt(1)
+    }
+  }
+}
+
+fn install_wasm(wasm_crate: String) -> Nil {
+  let pkg_dir = wasm_crate <> "/pkg"
+  let dest_dir = "priv/wasm"
+  ensure_dir(dest_dir)
+
+  copy_wasm_file(pkg_dir, dest_dir, "plushie_wasm.js")
+  copy_wasm_file(pkg_dir, dest_dir, "plushie_wasm_bg.wasm")
+
+  io.println("Installed WASM files to " <> dest_dir)
+}
+
+fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
+  let src = pkg_dir <> "/" <> name
+  let dest = dest_dir <> "/" <> name
+  case ffi.file_exists(src) {
+    True -> copy_file(src, dest)
+    False ->
+      io.println_error(
+        "Warning: expected " <> src <> " not found in wasm-pack output",
+      )
+  }
+}
+
+// -- Shared -------------------------------------------------------------------
 
 fn check_rust_toolchain() -> Nil {
   case rustc_version() {
@@ -178,6 +290,12 @@ fn dir_exists(path: String) -> Bool
 
 @external(erlang, "plushie_build_ffi", "parse_int")
 fn parse_int(s: String) -> Result(Int, Nil)
+
+@external(erlang, "plushie_build_ffi", "check_wasm_pack")
+fn check_wasm_pack() -> Result(Nil, String)
+
+@external(erlang, "plushie_build_ffi", "wasm_pack_build")
+fn wasm_pack_build(crate_dir: String, release: Bool) -> Result(String, String)
 
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
