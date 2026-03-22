@@ -131,7 +131,12 @@ pub fn start_error_to_string(err: StartError) -> String {
   case err {
     BinaryNotFound(binary_err) ->
       "binary not found: " <> binary.error_to_string(binary_err)
-    SupervisorStartFailed(_) -> "supervisor failed to start"
+    SupervisorStartFailed(actor.InitTimeout) ->
+      "supervisor failed to start: child init timed out"
+    SupervisorStartFailed(actor.InitFailed(reason)) ->
+      "supervisor failed to start: child init failed (" <> reason <> ")"
+    SupervisorStartFailed(actor.InitExited(_)) ->
+      "supervisor failed to start: child process exited during init"
   }
 }
 

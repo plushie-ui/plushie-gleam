@@ -1,7 +1,4 @@
 //// Integration tests for the Todo example.
-////
-//// Note: "todo" is a reserved keyword in Gleam, so the example is
-//// compiled under the name examples/todo_example for test import.
 
 import gleam/option
 import gleeunit/should
@@ -9,26 +6,26 @@ import plushie/node.{StringVal}
 import plushie/testing
 import plushie/testing/element
 
-import examples/todo_example
+import examples/todo_app
 
 pub fn starts_with_empty_todo_list_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let assert option.Some(el) = testing.find(session, "count")
   should.equal(element.text(el), option.Some("0 items"))
 }
 
 pub fn input_field_exists_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   should.be_true(option.is_some(testing.find(session, "new-todo")))
 }
 
 pub fn add_button_exists_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   should.be_true(option.is_some(testing.find(session, "add")))
 }
 
 pub fn submitting_adds_a_todo_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let session = testing.type_text(session, "new-todo", "Buy milk")
   let session = testing.submit(session, "new-todo")
   let assert option.Some(el) = testing.find(session, "count")
@@ -38,7 +35,7 @@ pub fn submitting_adds_a_todo_test() {
 }
 
 pub fn submitting_clears_input_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let session = testing.type_text(session, "new-todo", "Buy milk")
   let session = testing.submit(session, "new-todo")
   let assert option.Some(el) = testing.find(session, "new-todo")
@@ -46,7 +43,7 @@ pub fn submitting_clears_input_test() {
 }
 
 pub fn multiple_todos_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let session = testing.type_text(session, "new-todo", "First")
   let session = testing.submit(session, "new-todo")
   let session = testing.type_text(session, "new-todo", "Second")
@@ -60,7 +57,7 @@ pub fn multiple_todos_test() {
 }
 
 pub fn clear_all_removes_todos_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let session = testing.type_text(session, "new-todo", "First")
   let session = testing.submit(session, "new-todo")
   let session = testing.type_text(session, "new-todo", "Second")
@@ -72,7 +69,7 @@ pub fn clear_all_removes_todos_test() {
 }
 
 pub fn empty_input_does_not_add_todo_test() {
-  let session = testing.start(todo_example.app())
+  let session = testing.start(todo_app.app())
   let session = testing.submit(session, "new-todo")
   let assert option.Some(el) = testing.find(session, "count")
   should.equal(element.text(el), option.Some("0 items"))
