@@ -12,7 +12,6 @@
 import gleam/dict
 import gleam/float
 import gleam/int
-import gleam/string
 import plushie/canvas/shape
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/length

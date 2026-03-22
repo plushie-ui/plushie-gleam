@@ -101,7 +101,7 @@ pub fn render(id: String, hue: Float, saturation: Float, value: Float) -> Node {
 
 fn ring_layer() -> List(PropValue) {
   let deg_per_segment = 360.0 /. int.to_float(segments)
-  list.range(0, segments - 1)
+  range_list(0, segments - 1)
   |> list.map(fn(i) {
     let hue_deg = int.to_float(i) *. deg_per_segment
     let a1 = { hue_deg -. 90.0 } *. pi() /. 180.0
@@ -270,3 +270,8 @@ fn pi() -> Float
 
 @external(erlang, "math", "floor")
 fn float_floor(x: Float) -> Float
+
+fn range_list(from: Int, to: Int) -> List(Int) {
+  int.range(from: from, to: to, with: [], run: fn(acc, i) { [i, ..acc] })
+  |> list.reverse
+}

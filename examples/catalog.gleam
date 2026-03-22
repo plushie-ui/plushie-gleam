@@ -15,7 +15,7 @@ import plushie/event.{
   type Event, MouseAreaEnter, MouseAreaExit, SensorResize, WidgetClick,
   WidgetInput, WidgetSelect, WidgetSlide, WidgetToggle,
 }
-import plushie/node.{type Node, type PropValue, StringVal}
+import plushie/node.{type Node, StringVal}
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/prop/position

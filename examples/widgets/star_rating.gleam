@@ -40,10 +40,9 @@ pub fn render(
   opts: List(StarRatingOpt),
 ) -> Node {
   let dark =
-    list.fold(opts, False, fn(acc, opt) {
+    list.fold(opts, False, fn(_acc, opt) {
       case opt {
         Dark(d) -> d
-        _ -> acc
       }
     })
   let display = case hover_star {
@@ -69,7 +68,7 @@ fn build_stars(
   hover_star: Option(Int),
   dark: Bool,
 ) -> List(PropValue) {
-  list.range(0, 4)
+  range_list(0, 4)
   |> list.map(fn(i) {
     let cx = int.to_float(i * { size + gap } + size / 2)
     let cy = int.to_float(size / 2)
@@ -98,7 +97,7 @@ fn build_stars(
 
 fn star_commands() -> List(shape.PathCommand) {
   let points =
-    list.range(0, 9)
+    range_list(0, 9)
     |> list.map(fn(i) {
       let angle = int.to_float(i) *. pi() /. 5.0 -. pi() /. 2.0
       let r = case i % 2 == 0 {
@@ -137,3 +136,8 @@ fn sin(x: Float) -> Float
 
 @external(erlang, "math", "pi")
 fn pi() -> Float
+
+fn range_list(from: Int, to: Int) -> List(Int) {
+  int.range(from: from, to: to, with: [], run: fn(acc, i) { [i, ..acc] })
+  |> list.reverse
+}
