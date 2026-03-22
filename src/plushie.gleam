@@ -87,6 +87,9 @@ pub type StartOpts {
     /// When True, starts a file watcher that recompiles on source
     /// changes and triggers a force re-render without losing state.
     dev: Bool,
+    /// Authentication token for socket transport. Sent in the
+    /// settings message for renderer verification. Default: None.
+    token: Option(String),
   )
 }
 
@@ -101,6 +104,7 @@ pub fn default_start_opts() -> StartOpts {
     renderer_args: [],
     transport: Spawn,
     dev: False,
+    token: None,
   )
 }
 
@@ -165,6 +169,7 @@ pub fn start(
       daemon: opts.daemon,
       app_opts: opts.app_opts,
       renderer_args: opts.renderer_args,
+      token: opts.token,
     )
 
   // Generate unique names for bridge and runtime

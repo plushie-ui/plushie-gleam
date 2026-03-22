@@ -70,6 +70,39 @@ pub fn main() {
 The renderer controls the lifecycle. When the user closes the window,
 the renderer closes stdin, and the plushie process exits cleanly.
 
+### Connect mode
+
+Instead of the renderer spawning the host (exec/stdio), the host can
+connect to an already-running renderer via Unix socket or TCP. The
+renderer starts with `plushie --listen` and either spawns the host
+(setting `PLUSHIE_SOCKET` and `PLUSHIE_TOKEN` in the environment) or
+prints connection info for manual use.
+
+```gleam
+// src/my_app/connect_main.gleam
+import plushie/connect
+
+pub fn main() {
+  connect.run(my_app.app(), connect.default_opts())
+}
+```
+
+Socket address resolution:
+
+1. `--socket` CLI flag
+2. `PLUSHIE_SOCKET` environment variable
+3. Error
+
+Token resolution:
+
+1. `--token` CLI flag
+2. `PLUSHIE_TOKEN` environment variable
+3. JSON line from stdin (1 second timeout)
+4. No token (renderer decides)
+
+Address format: paths starting with `/` are Unix sockets, `:4567` is
+TCP localhost, `host:4567` is TCP on a specific host.
+
 ## Remote rendering
 
 Your host runs on a server. You want to see its UI on your laptop.

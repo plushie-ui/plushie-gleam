@@ -12,10 +12,12 @@
 ////
 //// Requires PLUSHIE_SOURCE_PATH env var pointing to the plushie Rust
 //// source checkout. Checks Rust toolchain version, runs cargo build,
-//// and installs the binary to priv/bin/. WASM files go to priv/wasm/.
+//// and installs the binary to build/plushie/bin/. Creates a
+//// bin/plushie symlink. WASM files go to priv/wasm/.
 
 import gleam/io
 import gleam/string
+import plushie/binary
 import plushie/ffi
 
 const min_rust_version = "1.92.0"
@@ -231,12 +233,26 @@ fn install_binary(source_dir: String, release: Bool) -> Nil {
     True -> Nil
   }
 
-  let dest_dir = "priv/bin"
+  let dest_dir = binary.download_dir()
   let dest = dest_dir <> "/" <> binary_name
   ensure_dir(dest_dir)
   copy_file(src, dest)
   chmod(dest, 0o755)
+  create_bin_symlink(dest)
   io.println("Installed to " <> dest)
+}
+
+fn create_bin_symlink(target_path: String) -> Nil {
+  let link_dir = "bin"
+  let link_path = link_dir <> "/plushie"
+  ensure_dir(link_dir)
+  // Remove existing symlink/file before creating
+  delete_file(link_path)
+  case make_symlink(target_path, link_path) {
+    Ok(_) ->
+      io.println("Created symlink " <> link_path <> " -> " <> target_path)
+    Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
+  }
 }
 
 fn compare_versions(actual: String, minimum: String) -> Result(Bool, Nil) {
@@ -287,6 +303,12 @@ fn chmod(path: String, mode: Int) -> Nil
 
 @external(erlang, "plushie_build_ffi", "dir_exists")
 fn dir_exists(path: String) -> Bool
+
+@external(erlang, "plushie_build_ffi", "delete_file")
+fn delete_file(path: String) -> Nil
+
+@external(erlang, "plushie_build_ffi", "make_symlink")
+fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
 @external(erlang, "plushie_build_ffi", "parse_int")
 fn parse_int(s: String) -> Result(Int, Nil)

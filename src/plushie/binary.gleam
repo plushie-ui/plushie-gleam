@@ -2,10 +2,12 @@
 ////
 //// Resolution order:
 //// 1. PLUSHIE_BINARY_PATH env var (error if set but file missing)
-//// 2. priv/bin/plushie (installed by `gleam run -m plushie/download` or `gleam run -m plushie/build`)
-//// 3. Precompiled at priv/bin/{platform}-{arch}/plushie
-//// 4. Custom build at _build/{env}/plushie/target/release/plushie
-//// 5. Common local paths (./plushie, ../plushie/target/release/plushie)
+//// 2. build/plushie/bin/plushie-{platform}-{arch} (downloaded binary)
+//// 3. build/plushie/bin/plushie (platform-generic fallback)
+//// 4. priv/bin/plushie-{platform}-{arch} (legacy location, backward compat)
+//// 5. priv/bin/plushie (legacy location, backward compat)
+//// 6. Custom build at _build/{env}/plushie/target/release/plushie
+//// 7. Common local paths (./plushie, ../plushie/target/release/plushie)
 ////
 //// Returns Result(String, BinaryError) with the path on success.
 
@@ -52,13 +54,26 @@ pub fn error_to_string(err: BinaryError) -> String {
   }
 }
 
+/// Returns the directory where downloaded binaries are stored.
+/// Shared across environments (the binary is platform-specific,
+/// not env-specific).
+pub fn download_dir() -> String {
+  "build/plushie/bin"
+}
+
 fn candidate_paths() -> List(String) {
   let platform = ffi.platform_string()
   let arch = ffi.arch_string()
   let name = "plushie"
+  let platform_name = name <> "-" <> platform <> "-" <> arch
   [
+    // Primary: downloaded binary in build/plushie/bin/
+    download_dir() <> "/" <> platform_name,
+    download_dir() <> "/" <> name,
+    // Legacy: priv/bin/ (backward compat)
+    "priv/bin/" <> platform_name,
     "priv/bin/" <> name,
-    "priv/bin/" <> platform <> "-" <> arch <> "/" <> name,
+    // Custom builds
     "_build/dev/plushie/target/release/" <> name,
     "_build/prod/plushie/target/release/" <> name,
     "./" <> name,

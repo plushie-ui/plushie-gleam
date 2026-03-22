@@ -7,6 +7,8 @@
     copy_file/2,
     chmod/2,
     dir_exists/1,
+    delete_file/1,
+    make_symlink/2,
     parse_int/1,
     check_wasm_pack/0,
     wasm_pack_build/2
@@ -81,6 +83,19 @@ copy_file(Src, Dest) ->
 chmod(Path, Mode) ->
     file:change_mode(binary_to_list(Path), Mode),
     nil.
+
+%% Delete a file (ignore errors).
+delete_file(Path) ->
+    file:delete(binary_to_list(Path)),
+    nil.
+
+%% Create a symbolic link. Returns {ok, nil} or {error, Reason}.
+make_symlink(Target, Link) ->
+    case file:make_symlink(binary_to_list(Target), binary_to_list(Link)) of
+        ok -> {ok, nil};
+        {error, Reason} ->
+            {error, list_to_binary(io_lib:format("~p", [Reason]))}
+    end.
 
 %% Check if a directory exists.
 dir_exists(Path) ->

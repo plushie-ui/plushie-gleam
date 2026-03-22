@@ -373,7 +373,7 @@ fn init_renderer(
     True -> {
       let settings = { app.get_settings(app) }()
       let assert Ok(data) =
-        proto_encode.encode_settings(settings, "", config.format)
+        proto_encode.encode_settings(settings, "", config.format, option.None)
       ffi.port_command(port, data)
       Nil
     }

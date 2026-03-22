@@ -29,6 +29,7 @@ pub fn custom_opts_test() {
       daemon: True,
       app_opts: dynamic.nil(),
       renderer_args: ["--headless"],
+      token: option.None,
     )
   assert opts.format == protocol.Json
   assert opts.session == "test-session"

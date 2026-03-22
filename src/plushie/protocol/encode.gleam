@@ -179,6 +179,7 @@ pub fn encode_settings(
   settings: Settings,
   session: String,
   format: Format,
+  token: option.Option(String),
 ) -> Result(BitArray, EncodeError) {
   let settings_fields = [
     #("protocol_version", IntVal(protocol.protocol_version)),
@@ -207,6 +208,10 @@ pub fn encode_settings(
       #("default_event_rate", IntVal(rate)),
       ..settings_fields
     ]
+    option.None -> settings_fields
+  }
+  let settings_fields = case token {
+    option.Some(t) -> [#("token", StringVal(t)), ..settings_fields]
     option.None -> settings_fields
   }
   let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]

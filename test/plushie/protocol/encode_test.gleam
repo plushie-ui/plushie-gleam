@@ -159,7 +159,8 @@ pub fn serialize_msgpack_round_trips_test() {
 
 pub fn encode_settings_json_wraps_in_settings_key_test() {
   let settings = app.default_settings()
-  let assert Ok(bytes) = encode.encode_settings(settings, "", protocol.Json)
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"settings\"")
   assert string.contains(s, "\"session\":\"\"")
@@ -172,7 +173,8 @@ pub fn encode_settings_json_wraps_in_settings_key_test() {
 
 pub fn encode_settings_without_theme_omits_theme_test() {
   let settings = app.default_settings()
-  let assert Ok(bytes) = encode.encode_settings(settings, "", protocol.Json)
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert !string.contains(s, "\"theme\"")
 }
@@ -180,7 +182,8 @@ pub fn encode_settings_without_theme_omits_theme_test() {
 pub fn encode_settings_with_theme_includes_theme_test() {
   let settings =
     app.Settings(..app.default_settings(), theme: option.Some(theme.Dark))
-  let assert Ok(bytes) = encode.encode_settings(settings, "", protocol.Json)
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"theme\":\"dark\"")
 }
@@ -188,7 +191,8 @@ pub fn encode_settings_with_theme_includes_theme_test() {
 pub fn encode_settings_with_fonts_includes_fonts_test() {
   let settings =
     app.Settings(..app.default_settings(), fonts: ["Fira Code", "Inter"])
-  let assert Ok(bytes) = encode.encode_settings(settings, "", protocol.Json)
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"fonts\"")
   assert string.contains(s, "\"Fira Code\"")
@@ -198,7 +202,7 @@ pub fn encode_settings_with_fonts_includes_fonts_test() {
 pub fn encode_settings_msgpack_has_nested_settings_test() {
   let settings = app.default_settings()
   let assert Ok(bytes) =
-    encode.encode_settings(settings, "s1", protocol.Msgpack)
+    encode.encode_settings(settings, "s1", protocol.Msgpack, option.None)
   let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
   let assert data.Map(m) = decoded
   should.equal(dict.get(m, data.String("type")), Ok(data.String("settings")))

@@ -70,6 +70,7 @@ pub type RuntimeOpts {
     daemon: Bool,
     app_opts: Dynamic,
     renderer_args: List(String),
+    token: Option(String),
   )
 }
 
@@ -81,6 +82,7 @@ pub fn default_opts() -> RuntimeOpts {
     daemon: False,
     app_opts: dynamic.nil(),
     renderer_args: [],
+    token: None,
   )
 }
 
@@ -268,7 +270,7 @@ fn run(
   let settings = app.get_settings(app)()
   send_encoded(
     bridge,
-    encode.encode_settings(settings, opts.session, opts.format),
+    encode.encode_settings(settings, opts.session, opts.format, opts.token),
   )
 
   // Render initial view
@@ -719,6 +721,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
               settings,
               state.opts.session,
               state.opts.format,
+              state.opts.token,
             ),
           )
 

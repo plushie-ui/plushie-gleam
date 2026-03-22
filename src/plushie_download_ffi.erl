@@ -8,7 +8,8 @@
     delete_file/1,
     chmod/2,
     bytes_to_string/1,
-    extract_tarball/2
+    extract_tarball/2,
+    make_symlink/2
 ]).
 
 %% Download a URL following redirects. Returns {ok, Body} or {error, Reason}.
@@ -105,6 +106,14 @@ bytes_to_string(Data) when is_binary(Data) ->
     Data;
 bytes_to_string(Data) when is_list(Data) ->
     list_to_binary(Data).
+
+%% Create a symbolic link. Returns {ok, nil} or {error, Reason}.
+make_symlink(Target, Link) ->
+    case file:make_symlink(binary_to_list(Target), binary_to_list(Link)) of
+        ok -> {ok, nil};
+        {error, Reason} ->
+            {error, list_to_binary(io_lib:format("~p", [Reason]))}
+    end.
 
 %% Extract a compressed tarball to a destination directory.
 %% Uses :erl_tar.extract with :compressed and {:cwd, Dir}.

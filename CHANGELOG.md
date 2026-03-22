@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **Socket transport** -- `plushie/connect` replaces `plushie/stdio`
+  for connecting to an already-running renderer via Unix socket or
+  TCP. `plushie/socket_adapter` bridges gen_tcp to the iostream
+  transport protocol. Token authentication is included in the
+  settings wire message when provided.
+- **WASM download/build support** -- `gleam run -m plushie/download`
+  and `gleam run -m plushie/build` support `--wasm` flag for
+  downloading or building the WASM renderer alongside or instead
+  of the native binary.
+
+### Changed
+
+- **Binary location** -- downloaded and built binaries now install
+  to `build/plushie/bin/` instead of `priv/bin/`. A `bin/plushie`
+  symlink is created pointing to the installed artifact. The old
+  `priv/bin/` location is still checked as a fallback for backward
+  compatibility.
+
 ## [0.4.0] - 2026-03-22
 
 Initial public release.

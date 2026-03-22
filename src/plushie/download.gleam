@@ -11,11 +11,14 @@
 //// gleam run -m plushie/download -- --wasm-dir PATH  # custom WASM dest
 //// ```
 ////
-//// Downloads the binary to priv/bin/ and/or WASM files to priv/wasm/
-//// with SHA256 verification. Skips if already present unless --force.
+//// Downloads the binary to build/plushie/bin/ and/or WASM files to
+//// priv/wasm/ with SHA256 verification. Creates a bin/plushie symlink
+//// pointing to the downloaded artifact. Skips if already present
+//// unless --force.
 
 import gleam/io
 import gleam/string
+import plushie/binary
 import plushie/ffi
 
 const binary_version = "0.4.1"
@@ -62,7 +65,7 @@ fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
   let url = release_url(name)
   let dest_path = case bin_file_override {
     Ok(path) -> path
-    Error(_) -> "priv/bin/" <> name
+    Error(_) -> binary.download_dir() <> "/" <> name
   }
   let dest_dir = dirname(dest_path)
 
@@ -83,6 +86,7 @@ fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
           write_file(dest_path, body)
           chmod(dest_path, 0o755)
           verify_checksum(dest_path, url <> ".sha256")
+          create_bin_symlink(dest_path)
           io.println("Installed native binary to " <> dest_path)
         }
         Error(reason) -> {
@@ -153,6 +157,19 @@ fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
         }
       }
     }
+  }
+}
+
+fn create_bin_symlink(target_path: String) -> Nil {
+  let link_dir = "bin"
+  let link_path = link_dir <> "/plushie"
+  ensure_dir(link_dir)
+  // Remove existing symlink/file before creating
+  delete_file(link_path)
+  case make_symlink(target_path, link_path) {
+    Ok(_) ->
+      io.println("Created symlink " <> link_path <> " -> " <> target_path)
+    Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 }
 
@@ -273,6 +290,9 @@ fn read_file(path: String) -> BitArray {
   let assert Ok(data) = do_read_file(path)
   data
 }
+
+@external(erlang, "plushie_download_ffi", "make_symlink")
+fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil

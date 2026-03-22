@@ -22,6 +22,7 @@ pub fn custom_start_opts_test() {
       renderer_args: ["--headless"],
       transport: plushie.Spawn,
       dev: False,
+      token: option.None,
     )
   assert opts.binary_path == option.Some("/usr/bin/plushie")
   assert opts.format == protocol.Json
