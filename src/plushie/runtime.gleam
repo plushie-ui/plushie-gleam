@@ -375,8 +375,8 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
 
       case status {
         0 -> {
-          // Clean exit (user closed window) -- stop the loop
-          io.println("plushie: renderer exited cleanly")
+          // Clean exit (user closed window) -- stop bridge and exit
+          process.send(state.bridge, bridge.Shutdown)
           Nil
         }
         _ -> {
@@ -830,6 +830,8 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
         }
         None -> Nil
       }
+      // Stop the bridge actor
+      process.send(state.bridge, bridge.Shutdown)
       Nil
     }
   }
