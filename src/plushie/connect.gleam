@@ -16,7 +16,7 @@
 ////
 //// ## Socket resolution (in order)
 ////
-//// 1. Second CLI argument (after module name)
+//// 1. `--socket` CLI flag
 //// 2. PLUSHIE_SOCKET environment variable
 //// 3. Error
 ////
