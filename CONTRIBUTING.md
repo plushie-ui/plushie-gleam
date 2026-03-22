@@ -75,11 +75,6 @@ imperative mood ("Add feature" not "Added feature").
 
 ## Architecture
 
-The project CLAUDE.md contains a detailed architecture overview
-covering the Elm loop, process model, encoding boundary, bridge
-restart, event coalescing, module organization, and design
-principles. Read it before making structural changes.
-
 Key invariants to be aware of:
 
 - **Subject ownership**: all Subjects must be created inside the

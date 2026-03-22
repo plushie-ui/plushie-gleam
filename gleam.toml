@@ -6,9 +6,23 @@ target = "erlang"
 description = "Native desktop GUI framework for Gleam, powered by Iced"
 licences = ["MIT"]
 repository = { type = "github", user = "plushie-ui", repo = "plushie-gleam" }
-links = [
-  { title = "Rust binary", href = "https://github.com/plushie-ui/plushie" },
-  { title = "Elixir SDK", href = "https://github.com/plushie-ui/plushie-elixir" },
+
+[documentation]
+pages = [
+  { title = "Getting Started", path = "getting-started.html", source = "./docs/getting-started.md" },
+  { title = "Tutorial", path = "tutorial.html", source = "./docs/tutorial.md" },
+  { title = "App & Callbacks", path = "app-behaviour.html", source = "./docs/app-behaviour.md" },
+  { title = "Layout", path = "layout.html", source = "./docs/layout.md" },
+  { title = "Events", path = "events.html", source = "./docs/events.md" },
+  { title = "Commands & Subscriptions", path = "commands.html", source = "./docs/commands.md" },
+  { title = "Effects", path = "effects.html", source = "./docs/effects.md" },
+  { title = "Theming", path = "theming.html", source = "./docs/theming.md" },
+  { title = "Composition Patterns", path = "composition-patterns.html", source = "./docs/composition-patterns.md" },
+  { title = "Scoped IDs", path = "scoped-ids.html", source = "./docs/scoped-ids.md" },
+  { title = "Testing", path = "testing.html", source = "./docs/testing.md" },
+  { title = "Accessibility", path = "accessibility.html", source = "./docs/accessibility.md" },
+  { title = "Extensions", path = "extensions.html", source = "./docs/extensions.md" },
+  { title = "Running & Deployment", path = "running.html", source = "./docs/running.md" },
 ]
 
 [dependencies]
