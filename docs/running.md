@@ -13,7 +13,7 @@ The simplest setup: the host spawns the renderer as a child process.
 <!-- test: running_gui_default_opts_test -- keep this code block in sync with the test -->
 ```gleam
 // src/my_app/main.gleam
-import plushie/cli/gui
+import plushie/gui
 
 pub fn main() {
   gui.run(my_app.app(), gui.default_opts())
@@ -27,8 +27,8 @@ gleam run -m my_app/main
 ```
 
 The renderer is resolved automatically. For most projects,
-`bin/plushie.download` fetches a precompiled renderer and you're done.
-If you have native Rust extensions, `bin/plushie.build` compiles a
+`gleam run -m plushie/download` fetches a precompiled renderer and you're done.
+If you have native Rust extensions, `gleam run -m plushie/build` compiles a
 custom renderer. You can also set `PLUSHIE_BINARY_PATH` explicitly.
 
 ### Dev mode
@@ -38,7 +38,7 @@ see the result instantly. The model state is preserved across reloads.
 
 <!-- test: running_gui_opts_with_dev_mode_test -- keep this code block in sync with the test -->
 ```gleam
-import plushie/cli/gui
+import plushie/gui
 
 pub fn main() {
   let opts = gui.GuiOpts(..gui.default_opts(), dev: True)
@@ -60,7 +60,7 @@ Where `stdio_main` uses stdio transport:
 
 ```gleam
 // src/my_app/stdio_main.gleam
-import plushie/cli/stdio
+import plushie/stdio
 
 pub fn main() {
   stdio.run(my_app.app(), stdio.default_opts())
@@ -129,9 +129,9 @@ not the server). How you get it there depends on your project:
 
 | Your project uses | Renderer needed | How to get it |
 |---|---|---|
-| Built-in widgets only | Precompiled | `bin/plushie.download` or GitHub release |
+| Built-in widgets only | Precompiled | `gleam run -m plushie/download` or GitHub release |
 | Pure Gleam extensions | Precompiled | Same -- composites don't need a custom build |
-| Native Rust extensions | Custom build | `bin/plushie.build` targeting your laptop's architecture |
+| Native Rust extensions | Custom build | `gleam run -m plushie/build` targeting your laptop's architecture |
 
 The server doesn't need the renderer at all. It only needs your
 Gleam project and its dependencies.

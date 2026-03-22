@@ -10,7 +10,7 @@
 //// without launching a full GUI.
 ////
 //// ```gleam
-//// import plushie/cli/inspect
+//// import plushie/inspect
 ////
 //// pub fn main() {
 ////   inspect.run(my_app.app())

@@ -8,7 +8,7 @@
 //// Users call `gui.run` from their own `main` function:
 ////
 //// ```gleam
-//// import plushie/cli/gui
+//// import plushie/gui
 ////
 //// pub fn main() {
 ////   gui.run(my_app.app(), gui.default_opts())
@@ -24,7 +24,7 @@ import gleam/io
 import gleam/option.{Some}
 import plushie
 import plushie/app.{type App}
-import plushie/cli/helpers
+import plushie/cli_helpers as helpers
 import plushie/event.{type Event}
 import plushie/protocol
 

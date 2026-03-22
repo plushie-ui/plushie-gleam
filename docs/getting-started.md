@@ -31,7 +31,7 @@ gleam add plushie
 ### 3. Fetch dependencies and build the renderer
 
 ```sh
-bin/plushie.build
+gleam run -m plushie/build
 ```
 
 The build step compiles the Rust renderer binary. First build takes a
@@ -45,7 +45,7 @@ Create `src/my_app.gleam`:
 ```gleam
 import gleam/int
 import plushie/app
-import plushie/cli/gui
+import plushie/gui
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
 import plushie/node.{type Node}
@@ -142,7 +142,7 @@ Plushie provides CLI modules for common tasks:
 
 ```gleam
 // src/my_app.gleam -- build and run
-import plushie/cli/gui
+import plushie/gui
 
 pub fn main() {
   gui.run(my_app(), gui.default_opts())
@@ -151,7 +151,7 @@ pub fn main() {
 
 ```gleam
 // src/inspect_app.gleam -- print UI tree as JSON
-import plushie/cli/inspect
+import plushie/inspect
 
 pub fn main() {
   inspect.run(my_app())
@@ -159,9 +159,9 @@ pub fn main() {
 ```
 
 ```bash
-bin/plushie.build                       # build renderer only
-bin/plushie.build --release             # release build
-bin/plushie.download                    # download precompiled binary
+gleam run -m plushie/build               # build renderer only
+gleam run -m plushie/build -- --release  # release build
+gleam run -m plushie/download            # download precompiled binary
 ```
 
 Use `GuiOpts` to configure the runner:

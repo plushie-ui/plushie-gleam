@@ -13,7 +13,7 @@ text.
 ```gleam
 import gleam/list
 import plushie/app
-import plushie/cli/gui
+import plushie/gui
 import plushie/command
 import plushie/event.{type Event}
 import plushie/node.{type Node}
@@ -321,7 +321,7 @@ import gleam/int
 import gleam/list
 import gleam/string
 import plushie/app
-import plushie/cli/gui
+import plushie/gui
 import plushie/command
 import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,

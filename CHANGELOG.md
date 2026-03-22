@@ -48,12 +48,12 @@ Initial public release.
   (real GPU windows). Same API across all three. Session pooling
   for parallel test execution.
 - **`.plushie` script format** -- declarative test scripts with
-  parser, runner, and CLI entry points (`plushie/cli/script`,
-  `plushie/cli/replay`).
+  parser, runner, and CLI entry points (`plushie/script`,
+  `plushie/replay`).
 - **Extension system** -- pure Gleam composite widgets or Rust-backed
   native widgets via `ExtensionDef` data-driven definitions.
-- **CLI entry points** -- `plushie/cli/gui` for local desktop apps,
-  `plushie/cli/stdio` for exec/remote rendering mode.
+- **CLI entry points** -- `plushie/gui` for local desktop apps,
+  `plushie/stdio` for exec/remote rendering mode.
 - **Bridge restart** -- automatic renderer restart with exponential
   backoff on crash (model state preserved).
 - **Event coalescing** -- high-frequency events (mouse moves, sensor

@@ -4,7 +4,7 @@
 //// against the mock backend. Reports pass/fail results.
 ////
 //// ```gleam
-//// import plushie/cli/script
+//// import plushie/script
 ////
 //// pub fn main() {
 ////   script.run(["test/scripts"], my_app.app())

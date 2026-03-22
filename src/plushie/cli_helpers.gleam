@@ -55,8 +55,8 @@ pub fn resolve_binary(opts: ResolveOpts) -> Result(String, ResolveError) {
 pub fn resolve_error_message(err: ResolveError) -> String {
   case err {
     BinaryNotFound(_) ->
-      "plushie binary not found. Run bin/plushie_download or bin/plushie_build, "
-      <> "or set PLUSHIE_BINARY_PATH."
+      "plushie binary not found. Run `gleam run -m plushie/download` or "
+      <> "`gleam run -m plushie/build`, or set PLUSHIE_BINARY_PATH."
     ExplicitPathMissing(path:) ->
       "plushie binary not found at explicit path: " <> path
   }

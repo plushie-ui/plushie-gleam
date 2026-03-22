@@ -12,7 +12,7 @@ for Rust, which plushie drives as a precompiled binary behind the scenes.
 ```gleam
 import gleam/int
 import plushie/app
-import plushie/cli/gui
+import plushie/gui
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
 import plushie/node.{type Node}
@@ -71,7 +71,7 @@ gleam add plushie_gleam
 Then:
 
 ```bash
-bin/plushie.download                    # download precompiled binary
+gleam run -m plushie/download         # download precompiled binary
 gleam run -m my_app                   # run your app
 ```
 
@@ -80,7 +80,7 @@ Pin to an exact version and read the
 
 The precompiled binary requires no Rust toolchain. To build from
 source instead, install [rustup](https://rustup.rs/) and run
-`bin/plushie.build`. See the
+`gleam run -m plushie/build`. See the
 [getting started guide](docs/getting-started.md) for the full
 walkthrough.
 
@@ -216,7 +216,7 @@ Mirrors CI and stops on first failure: format, compile, test.
 
 ## System requirements
 
-The precompiled binary (`bin/plushie.download`) has no additional
+The precompiled binary (`gleam run -m plushie/download`) has no additional
 dependencies. To build from source, install a Rust toolchain via
 [rustup](https://rustup.rs/) and the platform-specific libraries:
 

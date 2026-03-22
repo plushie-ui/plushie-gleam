@@ -4,7 +4,7 @@
 //// respecting wait timings for demos and debugging.
 ////
 //// ```gleam
-//// import plushie/cli/replay
+//// import plushie/replay
 ////
 //// pub fn main() {
 ////   replay.run("demo.plushie", my_app.app())

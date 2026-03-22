@@ -10,7 +10,7 @@
 //// that manages the renderer lifecycle externally.
 ////
 //// ```gleam
-//// import plushie/cli/stdio
+//// import plushie/stdio
 ////
 //// pub fn main() {
 ////   stdio.run(my_app.app(), stdio.default_opts())

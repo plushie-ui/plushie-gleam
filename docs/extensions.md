@@ -74,7 +74,7 @@ impl WidgetExtension for SparklineExtension {
 }
 ```
 
-Build with `bin/plushie.build` (extensions are registered in your build
+Build with `gleam run -m plushie/build` (extensions are registered in your build
 configuration) or run the renderer binary directly. The `PlushieAppBuilder`
 chains `.extension()` calls in the generated `main.rs`:
 
@@ -980,7 +980,7 @@ patterns.
 
 For integration tests that exercise the full wire protocol round-trip
 (including extension commands), build a custom renderer with
-`bin/plushie.build` and use the headless backend.
+`gleam run -m plushie/build` and use the headless backend.
 
 
 ## ExtensionCaches

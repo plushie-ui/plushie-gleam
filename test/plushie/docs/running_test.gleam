@@ -2,7 +2,7 @@ import gleam/option
 import gleeunit/should
 import plushie
 import plushie/app
-import plushie/cli/gui
+import plushie/gui
 import plushie/protocol
 import plushie/subscription
 

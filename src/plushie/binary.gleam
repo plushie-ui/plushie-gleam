@@ -2,7 +2,7 @@
 ////
 //// Resolution order:
 //// 1. PLUSHIE_BINARY_PATH env var (error if set but file missing)
-//// 2. priv/bin/plushie (installed by bin/plushie.download or bin/plushie.build)
+//// 2. priv/bin/plushie (installed by `gleam run -m plushie/download` or `gleam run -m plushie/build`)
 //// 3. Precompiled at priv/bin/{platform}-{arch}/plushie
 //// 4. Custom build at _build/{env}/plushie/target/release/plushie
 //// 5. Common local paths (./plushie, ../plushie/target/release/plushie)
