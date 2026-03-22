@@ -25,7 +25,7 @@ cd my_app
 ### 2. Add plushie as a dependency
 
 ```sh
-gleam add plushie
+gleam add plushie_gleam
 ```
 
 ### 3. Fetch dependencies and build the renderer
