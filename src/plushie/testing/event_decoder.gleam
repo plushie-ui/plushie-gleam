@@ -298,6 +298,61 @@ pub fn decode_test_event(
         delta_y: get_float(data, "delta_y", 0.0),
       ))
 
+    // -- Canvas shape events -------------------------------------------------
+    "canvas_shape_enter" ->
+      Ok(event.CanvasShapeEnter(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "canvas_shape_leave" ->
+      Ok(event.CanvasShapeLeave(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        captured: False,
+      ))
+    "canvas_shape_click" ->
+      Ok(event.CanvasShapeClick(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        button: get_string(data, "button", "left"),
+        captured: False,
+      ))
+    "canvas_shape_drag" ->
+      Ok(event.CanvasShapeDrag(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        delta_x: get_float(data, "delta_x", 0.0),
+        delta_y: get_float(data, "delta_y", 0.0),
+        captured: False,
+      ))
+    "canvas_shape_drag_end" ->
+      Ok(event.CanvasShapeDragEnd(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        x: get_float(data, "x", 0.0),
+        y: get_float(data, "y", 0.0),
+        captured: False,
+      ))
+    "canvas_shape_focused" ->
+      Ok(event.CanvasShapeFocused(
+        id: local,
+        scope:,
+        shape_id: get_string(data, "shape_id", ""),
+        captured: False,
+      ))
+
     // -- Pane events ---------------------------------------------------------
     "pane_resized" ->
       Ok(event.PaneResized(

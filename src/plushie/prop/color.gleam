@@ -77,6 +77,27 @@ pub fn from_rgb(r: Int, g: Int, b: Int) -> Color {
   Color(hex)
 }
 
+/// Create a color from float RGB values in the 0.0-1.0 range.
+/// Values are clamped to 0.0-1.0 and converted to the 0-255 range.
+pub fn from_rgb_float(r: Float, g: Float, b: Float) -> Color {
+  from_rgb(float_to_byte(r), float_to_byte(g), float_to_byte(b))
+}
+
+/// Create a color from float RGBA values in the 0.0-1.0 range.
+/// RGB values are clamped and converted to 0-255. Alpha stays as float (0.0-1.0).
+pub fn from_rgba_float(r: Float, g: Float, b: Float, a: Float) -> Color {
+  from_rgba(
+    float_to_byte(r),
+    float_to_byte(g),
+    float_to_byte(b),
+    float_clamp(a, 0.0, 1.0),
+  )
+}
+
+fn float_to_byte(f: Float) -> Int {
+  float_to_int(float_clamp(f, 0.0, 1.0) *. 255.0)
+}
+
 /// Create a color from RGBA components (0-255 for RGB, 0.0-1.0 for alpha).
 pub fn from_rgba(r: Int, g: Int, b: Int, a: Float) -> Color {
   let alpha = float_clamp(a, 0.0, 1.0)

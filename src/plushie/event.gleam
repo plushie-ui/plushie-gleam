@@ -331,6 +331,64 @@ pub type Event {
     delta_y: Float,
   )
 
+  // --- Canvas shape events ---
+  // Interactive shape events. These fire from shapes with an "interactive"
+  // field inside a canvas widget. The id is the canvas widget's ID;
+  // shape_id identifies which interactive shape.
+  /// Mouse entered an interactive canvas shape's bounds.
+  CanvasShapeEnter(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
+  /// Mouse left an interactive canvas shape's bounds.
+  CanvasShapeLeave(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    captured: Bool,
+  )
+  /// An interactive canvas shape was clicked.
+  CanvasShapeClick(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    x: Float,
+    y: Float,
+    button: String,
+    captured: Bool,
+  )
+  /// An interactive canvas shape is being dragged.
+  CanvasShapeDrag(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    x: Float,
+    y: Float,
+    delta_x: Float,
+    delta_y: Float,
+    captured: Bool,
+  )
+  /// Drag ended on an interactive canvas shape.
+  CanvasShapeDragEnd(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
+  /// An interactive canvas shape received keyboard focus.
+  CanvasShapeFocused(
+    id: String,
+    scope: List(String),
+    shape_id: String,
+    captured: Bool,
+  )
+
   // --- Pane events ---
   // Events from pane_grid widgets when panes are resized, dragged,
   // or clicked.

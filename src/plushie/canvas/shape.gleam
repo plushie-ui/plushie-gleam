@@ -24,7 +24,7 @@ pub type StrokeJoin {
   BevelJoin
 }
 
-/// Shape options for styling.
+/// Shape options for styling and positioning.
 pub type ShapeOpt {
   Fill(String)
   Stroke(stroke: PropValue)
@@ -36,6 +36,10 @@ pub type ShapeOpt {
   AlignX(String)
   AlignY(String)
   Rotation(Float)
+  /// Horizontal position offset (used by group shapes).
+  X(Float)
+  /// Vertical position offset (used by group shapes).
+  Y(Float)
 }
 
 /// Path commands for constructing freeform shapes.
@@ -194,6 +198,21 @@ pub fn path(commands: List(PathCommand), opts: List(ShapeOpt)) -> PropValue {
   let cmd_values = list.map(commands, path_command_to_prop_value)
   make_shape("path", [
     #("commands", ListVal(cmd_values)),
+    ..shape_opts_to_props(opts)
+  ])
+}
+
+// -- Group shape --------------------------------------------------------------
+
+/// Create a group of shapes, optionally positioned at (x, y).
+/// Groups allow composing multiple shapes into a unit that can be
+/// positioned, styled, and made interactive together.
+///
+/// Use `X(f)` and `Y(f)` shape opts to position the group.
+/// Use `interactive()` to make the group respond to events.
+pub fn group(children: List(PropValue), opts: List(ShapeOpt)) -> PropValue {
+  make_shape("group", [
+    #("children", ListVal(children)),
     ..shape_opts_to_props(opts)
   ])
 }
@@ -431,6 +450,8 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
       AlignX(a) -> [#("align_x", StringVal(a))]
       AlignY(a) -> [#("align_y", StringVal(a))]
       Rotation(r) -> [#("rotation", FloatVal(r))]
+      X(x) -> [#("x", FloatVal(x))]
+      Y(y) -> [#("y", FloatVal(y))]
     }
   })
 }

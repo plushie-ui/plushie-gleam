@@ -762,3 +762,180 @@ pub fn decode_button_pressed_json_test() {
     _ -> should.fail()
   }
 }
+
+// ---------------------------------------------------------------------------
+// Canvas shape events
+// ---------------------------------------------------------------------------
+
+pub fn decode_canvas_shape_enter_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_enter\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"star-1\",\"x\":10.0,\"y\":20.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeEnter(id:, scope:, shape_id:, x:, y:, captured:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "star-1")
+      should.equal(x, 10.0)
+      should.equal(y, 20.0)
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_leave_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_leave\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"star-1\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeLeave(id:, scope:, shape_id:, captured:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "star-1")
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_click_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_click\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"btn-0\",\"x\":5.0,\"y\":15.0,\"button\":\"left\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeClick(id:, scope:, shape_id:, x:, y:, button:, captured:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "btn-0")
+      should.equal(x, 5.0)
+      should.equal(y, 15.0)
+      should.equal(button, "left")
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_drag_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_drag\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"slider\",\"x\":50.0,\"y\":25.0,\"delta_x\":3.0,\"delta_y\":-1.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeDrag(
+      id:,
+      scope:,
+      shape_id:,
+      x:,
+      y:,
+      delta_x:,
+      delta_y:,
+      captured:,
+    ) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "slider")
+      should.equal(x, 50.0)
+      should.equal(y, 25.0)
+      should.equal(delta_x, 3.0)
+      should.equal(delta_y, -1.0)
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_drag_end_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_drag_end\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"slider\",\"x\":53.0,\"y\":24.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeDragEnd(id:, scope:, shape_id:, x:, y:, captured:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "slider")
+      should.equal(x, 53.0)
+      should.equal(y, 24.0)
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_focused_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_focused\",\"id\":\"my_canvas\",\"data\":{\"shape_id\":\"input-0\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeFocused(id:, scope:, shape_id:, captured:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(shape_id, "input-0")
+      should.equal(captured, False)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_enter_captured_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_enter\",\"id\":\"c\",\"captured\":true,\"data\":{\"shape_id\":\"s\",\"x\":0.0,\"y\":0.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeEnter(captured:, ..) -> should.equal(captured, True)
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_shape_click_scoped_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_shape_click\",\"id\":\"panel/my_canvas\",\"data\":{\"shape_id\":\"s\",\"x\":0.0,\"y\":0.0,\"button\":\"right\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasShapeClick(id:, scope:, button:, ..) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, ["panel"])
+      should.equal(button, "right")
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Canvas scroll uses x/y field names (not cursor_x/cursor_y)
+// ---------------------------------------------------------------------------
+
+pub fn decode_canvas_scroll_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_scroll\",\"id\":\"canvas1\",\"data\":{\"x\":100.0,\"y\":200.0,\"delta_x\":0.0,\"delta_y\":-3.0}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasScroll(id:, scope:, x:, y:, delta_x:, delta_y:) -> {
+      should.equal(id, "canvas1")
+      should.equal(scope, [])
+      should.equal(x, 100.0)
+      should.equal(y, 200.0)
+      should.equal(delta_x, 0.0)
+      should.equal(delta_y, -3.0)
+    }
+    _ -> should.fail()
+  }
+}

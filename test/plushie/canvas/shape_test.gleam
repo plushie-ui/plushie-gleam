@@ -407,6 +407,46 @@ pub fn interactive_with_drag_bounds_test() {
   assert dict.get(bounds, "max_x") == Ok(FloatVal(100.0))
 }
 
+// -- group --------------------------------------------------------------------
+
+pub fn group_with_children_test() {
+  let child1 = shape.rect(0.0, 0.0, 10.0, 10.0, [])
+  let child2 = shape.circle(5.0, 5.0, 3.0, [])
+  let s = shape.group([child1, child2], [])
+
+  assert get(s, "type") == Ok(StringVal("group"))
+  let assert Ok(ListVal(children)) = get(s, "children")
+  let assert [_, _] = children
+}
+
+pub fn group_with_position_test() {
+  let child = shape.rect(0.0, 0.0, 10.0, 10.0, [])
+  let s = shape.group([child], [shape.X(100.0), shape.Y(200.0)])
+
+  assert get(s, "type") == Ok(StringVal("group"))
+  assert get(s, "x") == Ok(FloatVal(100.0))
+  assert get(s, "y") == Ok(FloatVal(200.0))
+}
+
+pub fn group_empty_children_test() {
+  let s = shape.group([], [])
+
+  assert get(s, "type") == Ok(StringVal("group"))
+  assert get(s, "children") == Ok(ListVal([]))
+}
+
+pub fn group_interactive_test() {
+  let child = shape.circle(0.0, 0.0, 5.0, [])
+  let s =
+    shape.group([child], [shape.X(10.0)])
+    |> shape.interactive([shape.InteractiveId("grp"), shape.OnClick(True)])
+
+  let assert Ok(DictVal(interactive)) = get(s, "interactive")
+  assert dict.get(interactive, "id") == Ok(StringVal("grp"))
+  assert dict.get(interactive, "on_click") == Ok(BoolVal(True))
+  assert get(s, "x") == Ok(FloatVal(10.0))
+}
+
 pub fn interactive_with_hit_rect_test() {
   let s =
     shape.circle(50.0, 50.0, 5.0, [])
