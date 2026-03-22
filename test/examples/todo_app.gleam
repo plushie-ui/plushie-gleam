@@ -1,77 +1,159 @@
-//// To-do list example: text input, dynamic list, scoped events.
+//// To-do list with add, toggle, delete, and filter.
+////
+//// Demonstrates:
+//// - `text_input` with `on_submit` for keyboard-driven entry
+//// - Scoped IDs via container wrapping for dynamic list items
+//// - `command.focus` with scoped paths for refocusing
+//// - Filter buttons with conditional list rendering
 
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/string
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetSubmit}
+import plushie/event.{
+  type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
+}
 import plushie/node.{type Node}
+import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
 
+// -- Model --------------------------------------------------------------------
+
+pub type Todo {
+  Todo(id: String, text: String, done: Bool)
+}
+
+pub type Filter {
+  All
+  Active
+  Done
+}
+
 pub type Model {
-  Model(todos: List(String), input: String, next_id: Int)
+  Model(todos: List(Todo), input: String, filter: Filter, next_id: Int)
 }
 
 fn init() {
-  #(Model(todos: [], input: "", next_id: 1), command.none())
+  #(Model(todos: [], input: "", filter: All, next_id: 1), command.none())
 }
+
+// -- Update -------------------------------------------------------------------
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetInput(id: "new-todo", value:, ..) -> #(
-      Model(..model, input: value),
+    WidgetInput(id: "new_todo", value: val, ..) -> #(
+      Model(..model, input: val),
       command.none(),
     )
-    WidgetSubmit(id: "new-todo", ..) | WidgetClick(id: "add", ..) ->
-      case model.input {
-        "" -> #(model, command.none())
-        text -> #(
-          Model(
-            todos: list.append(model.todos, [text]),
-            input: "",
-            next_id: model.next_id + 1,
-          ),
-          command.focus("new-todo"),
-        )
-      }
-    WidgetClick(id: "clear", ..) -> #(
-      Model(..model, todos: [], next_id: 1),
+
+    WidgetSubmit(id: "new_todo", ..) -> add_todo(model)
+
+    WidgetToggle(id: "toggle", scope: [todo_id, ..], ..) -> {
+      let todos =
+        list.map(model.todos, fn(t) {
+          case t.id == todo_id {
+            True -> Todo(..t, done: !t.done)
+            False -> t
+          }
+        })
+      #(Model(..model, todos: todos), command.none())
+    }
+
+    WidgetClick(id: "delete", scope: [todo_id, ..]) -> {
+      let todos = list.filter(model.todos, fn(t) { t.id != todo_id })
+      #(Model(..model, todos: todos), command.none())
+    }
+
+    WidgetClick(id: "filter_all", ..) -> #(
+      Model(..model, filter: All),
       command.none(),
     )
+    WidgetClick(id: "filter_active", ..) -> #(
+      Model(..model, filter: Active),
+      command.none(),
+    )
+    WidgetClick(id: "filter_done", ..) -> #(
+      Model(..model, filter: Done),
+      command.none(),
+    )
+
     _ -> #(model, command.none())
   }
 }
 
+fn add_todo(model: Model) {
+  case string.trim(model.input) {
+    "" -> #(model, command.none())
+    _ -> {
+      let item =
+        Todo(
+          id: "todo_" <> int.to_string(model.next_id),
+          text: model.input,
+          done: False,
+        )
+      let new_model =
+        Model(
+          ..model,
+          todos: [item, ..model.todos],
+          input: "",
+          next_id: model.next_id + 1,
+        )
+      #(new_model, command.focus("app/new_todo"))
+    }
+  }
+}
+
+// -- View ---------------------------------------------------------------------
+
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("To-Do List")], [
-    ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(8)], [
-      ui.row("input-row", [ui.spacing(8)], [
-        ui.text_input("new-todo", model.input, [
+  ui.window("main", [ui.title("Todos")], [
+    ui.column(
+      "app",
+      [ui.padding(padding.all(20.0)), ui.spacing(12), ui.width(length.Fill)],
+      [
+        ui.text("title", "My Todos", [ui.font_size(24.0)]),
+        ui.text_input("new_todo", model.input, [
           ui.placeholder("What needs doing?"),
           ui.on_submit(True),
         ]),
-        ui.button_("add", "Add"),
-      ]),
-      ui.column(
-        "todo-list",
-        [ui.spacing(4)],
-        list.index_map(model.todos, fn(item, idx) {
-          ui.text_(
-            "todo-" <> int.to_string(idx),
-            int.to_string(idx + 1) <> ". " <> item,
-          )
-        }),
-      ),
-      ui.row("footer", [ui.spacing(8)], [
-        ui.text_("count", int.to_string(list.length(model.todos)) <> " items"),
-        ui.button_("clear", "Clear All"),
-      ]),
+        ui.row("filters", [ui.spacing(8)], [
+          ui.button_("filter_all", "All"),
+          ui.button_("filter_active", "Active"),
+          ui.button_("filter_done", "Done"),
+        ]),
+        ui.column(
+          "list",
+          [ui.spacing(4)],
+          filtered(model) |> list.map(todo_row),
+        ),
+      ],
+    ),
+  ])
+}
+
+fn filtered(model: Model) -> List(Todo) {
+  case model.filter {
+    All -> model.todos
+    Active -> list.filter(model.todos, fn(t) { !t.done })
+    Done -> list.filter(model.todos, fn(t) { t.done })
+  }
+}
+
+fn todo_row(entry: Todo) -> Node {
+  ui.container(entry.id, [], [
+    ui.row("row", [ui.spacing(8)], [
+      ui.checkbox("toggle", "", entry.done, []),
+      ui.text_("text", entry.text),
+      ui.button_("delete", "x"),
     ]),
   ])
 }
+
+// -- Entry point --------------------------------------------------------------
 
 pub fn app() {
   app.simple(init, update, view)

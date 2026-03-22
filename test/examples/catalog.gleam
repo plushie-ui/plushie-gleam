@@ -22,11 +22,13 @@ import plushie/prop/position
 import plushie/ui
 import plushie/widget/canvas
 import plushie/widget/combo_box
+import plushie/widget/floating
 import plushie/widget/grid
 import plushie/widget/markdown
 import plushie/widget/mouse_area
 import plushie/widget/pane_grid
 import plushie/widget/pick_list
+import plushie/widget/pin
 import plushie/widget/radio
 import plushie/widget/rich_text
 import plushie/widget/sensor
@@ -263,7 +265,45 @@ fn layout_tab() -> Node {
         ui.text_("grid_6", "Grid 6"),
       ])
       |> grid.build(),
-    // Space
+    // Pin - positioned element
+    pin.new("demo_pin")
+      |> pin.x(0.0)
+      |> pin.y(0.0)
+      |> pin.push(ui.text_("pin_text", "Pinned content"))
+      |> pin.build(),
+    // Float - floating overlay element with translation
+    floating.new("demo_float")
+      |> floating.translate_x(100.0)
+      |> floating.translate_y(10.0)
+      |> floating.push(ui.text_("float_text", "Floating element"))
+      |> floating.build(),
+    // Responsive layout
+    ui.responsive("demo_responsive", [], [
+      ui.column("responsive_col", [], [
+        ui.text_("responsive_text", "Responsive content adapts to width"),
+      ]),
+    ]),
+    // Keyed column - stable identity for children
+    ui.keyed_column("demo_keyed", [ui.spacing(4)], [
+      ui.text_("key_a", "Keyed item A"),
+      ui.text_("key_b", "Keyed item B"),
+      ui.text_("key_c", "Keyed item C"),
+    ]),
+    // Themer - overrides the theme for its subtree
+    ui.themer(
+      "demo_themer",
+      "{\"background\":\"#1a1a2e\",\"text\":\"#e0e0e0\",\"primary\":\"#0f3460\"}",
+      [],
+      [
+        ui.container("themed_box", [ui.padding(padding.all(12.0))], [
+          ui.column("themed_col", [ui.spacing(4)], [
+            ui.text_("themed_text", "Themed section with custom palette"),
+            ui.button_("themed_btn", "Themed Button"),
+          ]),
+        ]),
+      ],
+    ),
+    // Space - explicit gap
     ui.space("demo_space", [ui.height(length.Fixed(16.0))]),
   ])
 }

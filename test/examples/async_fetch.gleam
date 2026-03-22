@@ -10,6 +10,8 @@ import plushie/app
 import plushie/command
 import plushie/event.{type Event, AsyncResult, WidgetClick}
 import plushie/node.{type Node}
+import plushie/prop/color
+import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
 
@@ -56,21 +58,43 @@ fn fetch_data() -> dynamic.Dynamic {
 }
 
 fn view(model: Model) -> Node {
-  let status_text = case model.status {
-    Idle -> "Click Fetch to load data"
-    Loading -> "Loading..."
-    Loaded -> "Data: " <> model.data
-    Failed(reason) -> "Error: " <> reason
-  }
-
   ui.window("main", [ui.title("Async Fetch")], [
-    ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(12)], [
-      ui.text_("status", status_text),
-      ui.button("fetch", "Fetch Data", [
-        ui.disabled(model.status == Loading),
-      ]),
-    ]),
+    ui.column(
+      "content",
+      [
+        ui.padding(padding.all(24.0)),
+        ui.spacing(16),
+        ui.width(length.Fill),
+      ],
+      [
+        ui.text("header", "Async Command Demo", [ui.font_size(20.0)]),
+        ui.button_("fetch", "Fetch Data"),
+        status_message(model),
+      ],
+    ),
   ])
+}
+
+fn status_message(model: Model) -> Node {
+  case model.status {
+    Idle ->
+      ui.text("status", "Press the button to start", [
+        ui.text_color(hex("#888888")),
+      ])
+    Loading -> ui.text("status", "Loading...", [ui.text_color(hex("#cc8800"))])
+    Loaded ->
+      ui.column("result_col", [ui.spacing(4)], [
+        ui.text("label", "Result:", [ui.font_size(14.0)]),
+        ui.text("result", model.data, [ui.text_color(hex("#22aa44"))]),
+      ])
+    Failed(reason) ->
+      ui.text("error", "Error: " <> reason, [ui.text_color(hex("#cc2222"))])
+  }
+}
+
+fn hex(s: String) -> color.Color {
+  let assert Ok(c) = color.from_hex(s)
+  c
 }
 
 pub fn app() {

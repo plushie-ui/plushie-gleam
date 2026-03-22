@@ -16,8 +16,8 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, CanvasShapeClick, CanvasShapeEnter, CanvasShapeLeave, KeyPress,
-  TimerTick,
+  type Event, CanvasShapeClick, CanvasShapeEnter, CanvasShapeFocused,
+  CanvasShapeLeave, TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
 }
 import plushie/node.{type Node}
 import plushie/prop/alignment
@@ -27,14 +27,15 @@ import plushie/prop/length
 import plushie/prop/padding
 import plushie/subscription
 import plushie/ui
+import plushie/widget/text_editor
 
 // -- Review data --------------------------------------------------------------
 
-type Review {
+pub type Review {
   Review(stars: Int, user: String, time: String, text: String)
 }
 
-const reviews = [
+const initial_reviews = [
   Review(
     stars: 5,
     user: "gleam_fan_42",
@@ -43,7 +44,7 @@ const reviews = [
   ),
   Review(
     stars: 5,
-    user: "jose_v",
+    user: "beam_me_up",
     time: "3d ago",
     text: "The Elm architecture feels right at home here.",
   ),
@@ -69,57 +70,103 @@ const reviews = [
     stars: 1,
     user: "electron_mass",
     time: "2w ago",
-    text: "Only uses 12MB of RAM. How am I supposed to justify my hardware?",
+    text: "No browser engine. No JavaScript runtime. What am I even paying for?",
   ),
 ]
 
-// -- Theme --------------------------------------------------------------------
+// -- Theme interpolation ------------------------------------------------------
 
 type Theme {
   Theme(
     page_bg: String,
     card_bg: String,
     card_border: String,
-    separator: String,
     text: String,
     text_secondary: String,
     text_muted: String,
   )
 }
 
-fn theme(dark: Bool) -> Theme {
-  case dark {
-    True ->
-      Theme(
-        page_bg: "#13131f",
-        card_bg: "#1c1c32",
-        card_border: "#2a2a4a",
-        separator: "#2a2a4a",
-        text: "#f0f0f5",
-        text_secondary: "#9999bb",
-        text_muted: "#555577",
-      )
+fn theme(p: Float) -> Theme {
+  Theme(
+    page_bg: fade(#(248, 248, 250), #(19, 19, 31), p),
+    card_bg: fade(#(255, 255, 255), #(28, 28, 50), p),
+    card_border: fade(#(224, 224, 224), #(42, 42, 74), p),
+    text: fade(#(26, 26, 26), #(240, 240, 245), p),
+    text_secondary: fade(#(102, 102, 102), #(153, 153, 187), p),
+    text_muted: fade(#(170, 170, 170), #(85, 85, 119), p),
+  )
+}
+
+fn fade(c1: #(Int, Int, Int), c2: #(Int, Int, Int), t: Float) -> String {
+  let r = float.round(int.to_float(c1.0) +. int.to_float(c2.0 - c1.0) *. t)
+  let g = float.round(int.to_float(c1.1) +. int.to_float(c2.1 - c1.1) *. t)
+  let b = float.round(int.to_float(c1.2) +. int.to_float(c2.2 - c1.2) *. t)
+  "#" <> hex_byte(r) <> hex_byte(g) <> hex_byte(b)
+}
+
+fn smoothstep(t: Float) -> Float {
+  case t <=. 0.0 {
+    True -> 0.0
     False ->
-      Theme(
-        page_bg: "#f8f8fa",
-        card_bg: "#ffffff",
-        card_border: "#e0e0e0",
-        separator: "#eeeeee",
-        text: "#1a1a1a",
-        text_secondary: "#666666",
-        text_muted: "#aaaaaa",
-      )
+      case t >=. 1.0 {
+        True -> 1.0
+        False -> t *. t *. { 3.0 -. 2.0 *. t }
+      }
+  }
+}
+
+fn approach(current: Float, target: Float, step: Float) -> Float {
+  case current <. target {
+    True -> float.min(current +. step, target)
+    False ->
+      case current >. target {
+        True -> float.max(current -. step, target)
+        False -> current
+      }
+  }
+}
+
+fn hex_byte(n: Int) -> String {
+  let n = int.max(0, int.min(255, n))
+  let high = n / 16
+  let low = n % 16
+  hex_digit(high) <> hex_digit(low)
+}
+
+fn hex_digit(n: Int) -> String {
+  case n {
+    0 -> "0"
+    1 -> "1"
+    2 -> "2"
+    3 -> "3"
+    4 -> "4"
+    5 -> "5"
+    6 -> "6"
+    7 -> "7"
+    8 -> "8"
+    9 -> "9"
+    10 -> "a"
+    11 -> "b"
+    12 -> "c"
+    13 -> "d"
+    14 -> "e"
+    _ -> "f"
   }
 }
 
 // -- Model --------------------------------------------------------------------
 
-type Model {
+pub type Model {
   Model(
     rating: Int,
     hover_star: Option(Int),
+    focused_star: Option(Int),
     toggle_progress: Float,
     toggle_target: Float,
+    reviews: List(Review),
+    review_name: String,
+    review_comment: String,
   )
 }
 
@@ -128,8 +175,12 @@ fn init() {
     Model(
       rating: 0,
       hover_star: option.None,
+      focused_star: option.None,
       toggle_progress: 0.0,
       toggle_target: 0.0,
+      reviews: initial_reviews,
+      review_name: "",
+      review_comment: "",
     ),
     command.none(),
   )
@@ -139,6 +190,7 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
+    // Star rating interactions
     CanvasShapeClick(id: "stars", shape_id: shape_id, ..) ->
       case string.starts_with(shape_id, "star-") {
         True -> {
@@ -162,6 +214,16 @@ fn update(model: Model, event: Event) {
       command.none(),
     )
 
+    CanvasShapeFocused(id: "stars", shape_id: shape_id, ..) ->
+      case string.starts_with(shape_id, "star-") {
+        True -> {
+          let n = parse_star_index(shape_id)
+          #(Model(..model, focused_star: option.Some(n)), command.none())
+        }
+        False -> #(model, command.none())
+      }
+
+    // Theme toggle
     CanvasShapeClick(id: "theme-toggle", ..) -> {
       let target = case model.toggle_target == 0.0 {
         True -> 1.0
@@ -170,22 +232,54 @@ fn update(model: Model, event: Event) {
       #(Model(..model, toggle_target: target), command.none())
     }
 
+    // Review form
+    WidgetInput(id: "review-name", value: v, ..) -> #(
+      Model(..model, review_name: v),
+      command.none(),
+    )
+
+    WidgetInput(id: "review-comment", value: v, ..) -> #(
+      Model(..model, review_comment: v),
+      command.none(),
+    )
+
+    WidgetClick(id: "submit-review", ..) -> #(
+      submit_review(model),
+      command.none(),
+    )
+
+    WidgetSubmit(id: "review-name", ..) -> #(
+      submit_review(model),
+      command.none(),
+    )
+
+    // Animation
     TimerTick(tag: "animate", ..) -> {
       let progress = approach(model.toggle_progress, model.toggle_target, 0.06)
       #(Model(..model, toggle_progress: progress), command.none())
     }
 
-    KeyPress(key: "ArrowRight", ..) -> #(
-      Model(..model, rating: int.min(model.rating + 1, 5)),
-      command.none(),
-    )
-
-    KeyPress(key: "ArrowLeft", ..) -> #(
-      Model(..model, rating: int.max(model.rating - 1, 0)),
-      command.none(),
-    )
-
     _ -> #(model, command.none())
+  }
+}
+
+fn submit_review(model: Model) -> Model {
+  let name = string.trim(model.review_name)
+  let comment = string.trim(model.review_comment)
+
+  case name != "" && comment != "" && model.rating > 0 {
+    True -> {
+      let review =
+        Review(stars: model.rating, user: name, time: "just now", text: comment)
+      Model(
+        ..model,
+        reviews: [review, ..model.reviews],
+        review_name: "",
+        review_comment: "",
+        rating: 0,
+      )
+    }
+    False -> model
   }
 }
 
@@ -197,32 +291,20 @@ fn parse_star_index(shape_id: String) -> Int {
   }
 }
 
-fn approach(current: Float, target: Float, step: Float) -> Float {
-  case current <. target {
-    True -> float.min(current +. step, target)
-    False ->
-      case current >. target {
-        True -> float.max(current -. step, target)
-        False -> current
-      }
-  }
-}
-
 // -- Subscriptions ------------------------------------------------------------
 
 fn subscribe(model: Model) -> List(subscription.Subscription) {
-  let base = [subscription.on_key_press("key")]
   case model.toggle_progress != model.toggle_target {
-    True -> [subscription.every(16, "animate"), ..base]
-    False -> base
+    True -> [subscription.every(16, "animate")]
+    False -> []
   }
 }
 
 // -- View ---------------------------------------------------------------------
 
 fn view(model: Model) -> Node {
-  let dark = model.toggle_progress >=. 0.5
-  let t = theme(dark)
+  let p = smoothstep(model.toggle_progress)
+  let t = theme(p)
 
   ui.window("main", [ui.title("Rate Plushie")], [
     ui.container(
@@ -239,34 +321,26 @@ fn view(model: Model) -> Node {
         ui.height(length.Fill),
       ],
       [
-        ui.scrollable("scroll", [], [
-          ui.column(
-            "main-col",
-            [
-              ui.spacing(24),
-              ui.width(length.Fill),
-              ui.align_x(alignment.Center),
-            ],
-            [
-              ui.text("heading", "Rate Plushie", [
-                ui.font_size(28.0),
-                ui.text_color(hex(t.text)),
-              ]),
-              rating_card(model, dark, t),
-              ui.text("reviews-heading", "Reviews", [
-                ui.font_size(20.0),
-                ui.text_color(hex(t.text)),
-              ]),
-              reviews_card(t),
-            ],
-          ),
+        ui.column("main-col", [ui.spacing(24), ui.width(length.Fill)], [
+          ui.text("heading", "Rate Plushie", [
+            ui.font_size(28.0),
+            ui.text_color(hex(t.text)),
+          ]),
+          rating_card(model, p, t),
+          ui.text("reviews-heading", "Reviews", [
+            ui.font_size(20.0),
+            ui.text_color(hex(t.text)),
+          ]),
+          reviews_list(model.reviews, p, t),
         ]),
       ],
     ),
   ])
 }
 
-fn rating_card(model: Model, dark: Bool, t: Theme) -> Node {
+// -- View: rating card --------------------------------------------------------
+
+fn rating_card(model: Model, p: Float, t: Theme) -> Node {
   ui.container(
     "rating-card",
     [
@@ -286,105 +360,94 @@ fn rating_card(model: Model, dark: Bool, t: Theme) -> Node {
           ui.font_size(14.0),
           ui.text_color(hex(t.text_secondary)),
         ]),
-        star_rating.render("stars", model.rating, model.hover_star, [
-          star_rating.Dark(dark),
+        star_rating.render("stars", model.rating, [
+          star_rating.Hover(model.hover_star),
+          star_rating.Focused(model.focused_star),
+          star_rating.ThemeProgress(p),
         ]),
         ui.rule("divider", []),
-        ui.row("toggle-row", [ui.align_y(alignment.Center)], [
-          ui.text("toggle-label", "Dark humor", [
-            ui.text_color(hex(t.text_secondary)),
-          ]),
-          ui.space("toggle-spacer", [ui.width(length.Fill)]),
-          theme_toggle.render("theme-toggle", model.toggle_progress, []),
-        ]),
+        review_form(model),
+        theme_row(model, t),
       ]),
     ],
   )
 }
 
-fn reviews_card(t: Theme) -> Node {
-  ui.container(
+// -- View: review form --------------------------------------------------------
+
+fn review_form(model: Model) -> Node {
+  ui.column("review-form", [ui.spacing(12), ui.width(length.Fill)], [
+    ui.text_input("review-name", model.review_name, [
+      ui.placeholder("Your name"),
+    ]),
+    text_editor.new("review-comment", model.review_comment)
+      |> text_editor.placeholder("Write your review...")
+      |> text_editor.height(length.Fixed(80.0))
+      |> text_editor.build(),
+    ui.button_("submit-review", "Submit Review"),
+  ])
+}
+
+// -- View: theme toggle row ---------------------------------------------------
+
+fn theme_row(model: Model, t: Theme) -> Node {
+  ui.row("theme-row", [ui.align_y(alignment.Center)], [
+    ui.space("theme-spacer", [ui.width(length.Fill)]),
+    ui.text("toggle-label", "Dark humor", [
+      ui.text_color(hex(t.text_secondary)),
+    ]),
+    theme_toggle.render("theme-toggle", model.toggle_progress),
+  ])
+}
+
+// -- View: reviews list -------------------------------------------------------
+
+fn reviews_list(reviews: List(Review), p: Float, t: Theme) -> Node {
+  ui.column(
     "reviews",
-    [
-      ui.border(
-        border.new()
-        |> border.width(1.0)
-        |> border.color(hex(t.card_border))
-        |> border.radius(12.0),
-      ),
-      ui.background(hex(t.card_bg)),
-      ui.width(length.Fill),
-      ui.clip(True),
-    ],
-    [
-      ui.column(
-        "reviews-col",
-        [],
-        reviews
-          |> list.index_map(fn(review, i) {
-            case i > 0 {
-              True -> [
-                ui.container(
-                  "sep-" <> int.to_string(i),
-                  [
-                    ui.height(length.Fixed(1.0)),
-                    ui.width(length.Fill),
-                    ui.background(hex(t.separator)),
-                  ],
-                  [],
-                ),
-                review_row(review, t),
-              ]
-              False -> [review_row(review, t)]
-            }
-          })
-          |> list.flatten,
-      ),
-    ],
+    [ui.spacing(0), ui.width(length.Fill)],
+    reviews
+      |> list.index_map(fn(review, i) {
+        case i > 0 {
+          True -> [
+            ui.rule("sep-" <> int.to_string(i), []),
+            review_card(review, i, p, t),
+          ]
+          False -> [review_card(review, i, p, t)]
+        }
+      })
+      |> list.flatten,
   )
 }
 
-fn review_row(review: Review, t: Theme) -> Node {
-  ui.container(
-    "review-" <> review.user,
+fn review_card(review: Review, i: Int, p: Float, t: Theme) -> Node {
+  let idx = int.to_string(i)
+  ui.column(
+    "review-" <> idx,
+    [ui.spacing(4), ui.padding(padding.all(12.0)), ui.width(length.Fill)],
     [
-      ui.padding(padding.Padding(
-        top: 14.0,
-        bottom: 14.0,
-        left: 20.0,
-        right: 20.0,
-      )),
-      ui.width(length.Fill),
-    ],
-    [
-      ui.column(review.user <> "-body", [ui.spacing(6)], [
-        ui.row(review.user <> "-header", [ui.spacing(8)], [
-          ui.text(review.user <> "-stars", star_text(review.stars), [
-            ui.font_size(12.0),
-            ui.text_color(hex("#f59e0b")),
-          ]),
-          ui.text(review.user <> "-name", review.user, [
-            ui.font_size(12.0),
-            ui.text_color(hex(t.text_secondary)),
-          ]),
-          ui.space(review.user <> "-spacer", [ui.width(length.Fill)]),
-          ui.text(review.user <> "-time", review.time, [
-            ui.font_size(12.0),
-            ui.text_color(hex(t.text_muted)),
-          ]),
+      ui.row("rhdr-" <> idx, [ui.spacing(8), ui.align_y(alignment.Center)], [
+        star_rating.render("rstars-" <> idx, review.stars, [
+          star_rating.Readonly(True),
+          star_rating.Scale(0.4),
+          star_rating.ThemeProgress(p),
         ]),
-        ui.text(
-          review.user <> "-text",
-          "\u{201C}" <> review.text <> "\u{201D}",
-          [ui.font_size(14.0), ui.text_color(hex(t.text))],
-        ),
+        ui.text("rname-" <> idx, review.user, [
+          ui.font_size(12.0),
+          ui.text_color(hex(t.text_secondary)),
+        ]),
+        ui.space("rsp-" <> idx, [ui.width(length.Fill)]),
+        ui.text("rtime-" <> idx, review.time, [
+          ui.font_size(12.0),
+          ui.text_color(hex(t.text_muted)),
+        ]),
+      ]),
+      ui.text("rtext-" <> idx, "\u{201C}" <> review.text <> "\u{201D}", [
+        ui.font_size(14.0),
+        ui.text_color(hex(t.text)),
       ]),
     ],
   )
-}
-
-fn star_text(n: Int) -> String {
-  string.repeat("\u{2605}", n) <> string.repeat("\u{2606}", 5 - n)
 }
 
 fn hex(s: String) -> color.Color {
@@ -394,11 +457,13 @@ fn hex(s: String) -> color.Color {
 
 // -- Entry point --------------------------------------------------------------
 
+pub fn app() {
+  app.simple(init, update, view)
+  |> app.with_subscriptions(subscribe)
+}
+
 pub fn main() {
-  let my_app =
-    app.simple(init, update, view)
-    |> app.with_subscriptions(subscribe)
-  case plushie.start(my_app, plushie.default_start_opts()) {
+  case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)
     Error(err) ->
       io.println_error(

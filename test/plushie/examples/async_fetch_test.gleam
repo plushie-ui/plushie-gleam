@@ -10,7 +10,7 @@ import examples/async_fetch
 pub fn starts_in_idle_state_test() {
   let session = testing.start(async_fetch.app())
   let assert option.Some(el) = testing.find(session, "status")
-  should.equal(element.text(el), option.Some("Click Fetch to load data"))
+  should.equal(element.text(el), option.Some("Press the button to start"))
 }
 
 pub fn fetch_button_exists_test() {
@@ -23,9 +23,7 @@ pub fn clicking_fetch_triggers_async_and_produces_result_test() {
   // The test backend executes async commands synchronously, so
   // after click the status should already be "done" with data.
   let session = testing.click(session, "fetch")
-  let assert option.Some(el) = testing.find(session, "status")
+  let assert option.Some(el) = testing.find(session, "result")
   let assert option.Some(text) = element.text(el)
-  // The async work returns "Hello from the async world", displayed
-  // as "Data: Hello from the async world"
-  should.equal(text, "Data: Hello from the async world")
+  should.equal(text, "Hello from the async world")
 }
