@@ -31,7 +31,7 @@ gleam add plushie
 ### 3. Fetch dependencies and build the renderer
 
 ```sh
-bin/plushie_build
+bin/plushie.build
 ```
 
 The build step compiles the Rust renderer binary. First build takes a
@@ -159,9 +159,9 @@ pub fn main() {
 ```
 
 ```bash
-bin/plushie_build                       # build renderer only
-bin/plushie_build --release             # release build
-bin/plushie_download                    # download precompiled binary
+bin/plushie.build                       # build renderer only
+bin/plushie.build --release             # release build
+bin/plushie.download                    # download precompiled binary
 ```
 
 Use `GuiOpts` to configure the runner:

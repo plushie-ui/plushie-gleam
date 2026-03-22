@@ -3,9 +3,9 @@
 # Build the plushie binary from source.
 #
 # Usage:
-#   bin/plushie_build              # debug build
-#   bin/plushie_build --release    # optimized release build
-#   bin/plushie_build --verbose    # print cargo output on success
+#   bin/plushie.build              # debug build
+#   bin/plushie.build --release    # optimized release build
+#   bin/plushie.build --verbose    # print cargo output on success
 #
 # Prerequisites:
 #   - Rust toolchain >= 1.92.0 (https://rustup.rs)

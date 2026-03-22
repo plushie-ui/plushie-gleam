@@ -15,7 +15,7 @@ You need:
 For built-in widgets only (no Rust extensions):
 
 ```sh
-bin/plushie_download
+bin/plushie.download
 ```
 
 This fetches a precompiled renderer binary for your platform.
@@ -23,7 +23,7 @@ This fetches a precompiled renderer binary for your platform.
 To build from source (required for native extensions):
 
 ```sh
-bin/plushie_build
+bin/plushie.build
 ```
 
 ### Building and testing

@@ -992,7 +992,7 @@ pub fn todo_app_is_accessible_test() {
 ## Building
 
 Accessibility is included by default in both precompiled binaries
-(`bin/plushie_download`) and source builds (`bin/plushie_build`).
+(`bin/plushie.download`) and source builds (`bin/plushie.build`).
 
 The renderer uses an iced fork (`v0.14.0-a11y-accesskit` branch) that adds
 native accessibility support. The fork is referenced via `[patch.crates-io]`
@@ -1027,7 +1027,7 @@ To manually verify accessibility with a real screen reader:
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/plushie_build
+bin/plushie.build
 
 # Start Orca (usually Super+Alt+S, or from accessibility settings)
 orca &
@@ -1043,7 +1043,7 @@ Activate buttons with Enter or Space.
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/plushie_build
+bin/plushie.build
 
 # Toggle VoiceOver: Cmd+F5
 # Run your app
@@ -1057,7 +1057,7 @@ should announce each widget's role and label.
 
 ```bash
 # Build the renderer (a11y is included by default)
-bin/plushie_build
+bin/plushie.build
 
 # Start NVDA
 # Run your app

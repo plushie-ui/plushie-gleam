@@ -32,7 +32,7 @@ run_step "gleam format --check"
 # Binary check (warning only -- tests don't need the binary)
 if [ ! -f priv/bin/plushie ] && [ -z "${PLUSHIE_BINARY_PATH:-}" ]; then
     echo "Warning: plushie binary not found at priv/bin/plushie"
-    echo "Run bin/plushie_download or bin/plushie_build first"
+    echo "Run bin/plushie.download or bin/plushie.build first"
 fi
 
 run_step "gleam build"
