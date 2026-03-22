@@ -11,7 +11,7 @@ import plushie/prop/padding
 import plushie/subscription
 import plushie/ui
 
-type Model {
+pub type Model {
   Model(seconds: Int)
 }
 
@@ -54,10 +54,12 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
   [subscription.every(1000, "tick")]
 }
 
+pub fn app() {
+  app.simple(init, update, view)
+  |> app.with_subscriptions(subscribe)
+}
+
 pub fn main() {
-  let my_app =
-    app.simple(init, update, view)
-    |> app.with_subscriptions(subscribe)
-  let _ = plushie.start(my_app, plushie.default_start_opts())
+  let _ = plushie.start(app(), plushie.default_start_opts())
   process.sleep_forever()
 }

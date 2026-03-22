@@ -21,7 +21,7 @@ import plushie/ui
 
 const max_log_entries = 50
 
-type Model {
+pub type Model {
   Model(log: List(String), count: Int)
 }
 
@@ -127,10 +127,12 @@ fn view(model: Model) -> Node {
   ])
 }
 
+pub fn app() {
+  app.simple(init, update, view)
+  |> app.with_subscriptions(subscribe)
+}
+
 pub fn main() {
-  let my_app =
-    app.simple(init, update, view)
-    |> app.with_subscriptions(subscribe)
-  let _ = plushie.start(my_app, plushie.default_start_opts())
+  let _ = plushie.start(app(), plushie.default_start_opts())
   process.sleep_forever()
 }

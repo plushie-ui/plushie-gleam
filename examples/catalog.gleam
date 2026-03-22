@@ -36,7 +36,7 @@ import plushie/widget/toggler
 import plushie/widget/tooltip
 import plushie/widget/vertical_slider
 
-type Model {
+pub type Model {
   Model(
     active_tab: String,
     text_value: String,
@@ -516,8 +516,11 @@ fn composite_tab(model: Model) -> Node {
   )
 }
 
+pub fn app() {
+  app.simple(init, update, view)
+}
+
 pub fn main() {
-  let my_app = app.simple(init, update, view)
-  let _ = plushie.start(my_app, plushie.default_start_opts())
+  let _ = plushie.start(app(), plushie.default_start_opts())
   process.sleep_forever()
 }

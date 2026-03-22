@@ -1,0 +1,1 @@
+../../examples/notes.gleam

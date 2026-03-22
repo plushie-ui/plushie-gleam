@@ -10,7 +10,7 @@ import plushie/node.{type Node}
 import plushie/prop/padding
 import plushie/ui
 
-type Model {
+pub type Model {
   Model(count: Int)
 }
 
@@ -44,8 +44,11 @@ fn view(model: Model) -> Node {
   ])
 }
 
+pub fn app() {
+  app.simple(init, update, view)
+}
+
 pub fn main() {
-  let counter = app.simple(init, update, view)
-  let _ = plushie.start(counter, plushie.default_start_opts())
+  let _ = plushie.start(app(), plushie.default_start_opts())
   process.sleep_forever()
 }

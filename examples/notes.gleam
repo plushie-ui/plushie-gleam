@@ -23,15 +23,15 @@ import plushie/ui
 import plushie/undo
 import plushie/widget/text_editor
 
-type Note {
+pub type Note {
   Note(id: Int, title: String, body: String)
 }
 
-type EditState {
+pub type EditState {
   EditState(title: String, text: String)
 }
 
-type Model {
+pub type Model {
   Model(
     notes: List(Note),
     next_id: Int,
@@ -297,8 +297,11 @@ fn view_edit(model: Model) -> Node {
   ])
 }
 
+pub fn app() {
+  app.simple(init, update, view)
+}
+
 pub fn main() {
-  let my_app = app.simple(init, update, view)
-  let _ = plushie.start(my_app, plushie.default_start_opts())
+  let _ = plushie.start(app(), plushie.default_start_opts())
   process.sleep_forever()
 }
