@@ -1,9 +1,9 @@
 name = "plushie_gleam"
 version = "0.4.0"
-binary_version = "0.4.0"
+binary_version = "0.4.1"
 target = "erlang"
 
-description = "Native desktop GUI framework for Gleam, powered by iced"
+description = "Native desktop GUI framework for Gleam, powered by Iced"
 licences = ["MIT"]
 repository = { type = "github", user = "plushie-ui", repo = "plushie-gleam" }
 links = [

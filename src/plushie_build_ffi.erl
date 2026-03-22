@@ -29,18 +29,26 @@ rustc_version() ->
     end.
 
 %% Run cargo build. Returns {ok, Output} on success, {error, Output} on failure.
+%% Uses spawn_executable with cargo directly and {cd, Dir} for cross-platform support.
 cargo_build(SourceDir, Release) ->
     SourceDirStr = binary_to_list(SourceDir),
-    ReleaseFlag = case Release of
-        true -> " --release";
-        false -> ""
+    Cargo = find_executable("cargo"),
+    Args = case Release of
+        true -> ["-p", "plushie", "--release"];
+        false -> ["-p", "plushie"]
     end,
-    Cmd = "cd " ++ shell_escape(SourceDirStr) ++
-          " && cargo build -p plushie" ++ ReleaseFlag ++ " 2>&1",
-    Port = erlang:open_port({spawn, Cmd}, [
+    Port = erlang:open_port({spawn_executable, Cargo}, [
+        {args, ["build" | Args]},
+        {cd, SourceDirStr},
         stream, binary, exit_status, use_stdio, stderr_to_stdout
     ]),
     collect_port_output(Port, <<>>).
+
+find_executable(Name) ->
+    case os:find_executable(Name) of
+        false -> error({executable_not_found, Name});
+        Path -> Path
+    end.
 
 collect_port_output(Port, Acc) ->
     receive

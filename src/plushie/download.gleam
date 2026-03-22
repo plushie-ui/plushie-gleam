@@ -14,7 +14,7 @@ import gleam/io
 import gleam/string
 import plushie/ffi
 
-const binary_version = "0.4.0"
+const binary_version = "0.4.1"
 
 const base_url = "https://github.com/plushie-ui/plushie/releases/download"
 
