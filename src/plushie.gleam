@@ -38,8 +38,11 @@
 //// ```
 
 import gleam/dynamic.{type Dynamic}
-import gleam/erlang/process.{type Subject}
+import gleam/erlang/process.{type Pid, type Subject}
 import gleam/option.{type Option, None, Some}
+import gleam/otp/actor
+import gleam/otp/static_supervisor as supervisor
+import gleam/otp/supervision
 import gleam/result
 import plushie/app.{type App}
 import plushie/binary
@@ -101,12 +104,26 @@ pub fn default_start_opts() -> StartOpts {
   )
 }
 
+/// A running plushie application instance.
+///
+/// Wraps the supervisor pid. Use `wait` to block until the application
+/// exits, or `stop` to shut it down.
+pub opaque type Instance {
+  Instance(supervisor: Pid)
+}
+
+/// Get the supervisor pid from a running instance.
+/// Useful for linking, monitoring, or integration with other OTP code.
+pub fn supervisor_pid(instance: Instance) -> Pid {
+  instance.supervisor
+}
+
 /// Errors that can occur when starting a plushie application.
 pub type StartError {
   /// The plushie binary could not be found.
   BinaryNotFound(binary.BinaryError)
-  /// The runtime failed to start (bridge or init error).
-  RuntimeStartFailed(runtime.StartError)
+  /// The supervisor failed to start.
+  SupervisorStartFailed(actor.StartError)
 }
 
 /// Format a start error as a human-readable string.
@@ -114,30 +131,28 @@ pub fn start_error_to_string(err: StartError) -> String {
   case err {
     BinaryNotFound(binary_err) ->
       "binary not found: " <> binary.error_to_string(binary_err)
-    RuntimeStartFailed(_) -> "runtime failed to start"
+    SupervisorStartFailed(_) -> "supervisor failed to start"
   }
 }
 
-/// Start a plushie application.
+/// Start a plushie application under an OTP supervisor.
 ///
-/// Resolves the binary path and launches the runtime process,
-/// which internally starts the bridge actor and initializes the app.
-/// All Subjects are created inside the runtime process for correct
-/// message ownership.
+/// Creates a RestForOne supervisor with Bridge and Runtime as children.
+/// Bridge starts first and opens the port to the renderer binary.
+/// Runtime starts second, registers with the bridge, and enters the
+/// Elm update loop. If dev mode is enabled, a DevServer child is added.
 ///
-/// Returns the runtime's message subject, which can be used with
-/// `stop` to shut down the application.
+/// Returns an `Instance` that can be used with `wait` and `stop`.
 pub fn start(
   app: App(model, msg),
   opts: StartOpts,
-) -> Result(Subject(runtime.RuntimeMessage), StartError) {
+) -> Result(Instance, StartError) {
   // Resolve binary path
   use binary_path <- result.try(case opts.binary_path {
     Some(path) -> Ok(path)
     None -> binary.find() |> result.map_error(BinaryNotFound)
   })
 
-  // Start runtime (which starts bridge internally)
   let runtime_opts =
     runtime.RuntimeOpts(
       format: opts.format,
@@ -147,44 +162,101 @@ pub fn start(
       renderer_args: opts.renderer_args,
     )
 
-  let runtime_result =
-    runtime.start(app, binary_path, runtime_opts)
-    |> result.map_error(RuntimeStartFailed)
+  // Generate unique names for bridge and runtime
+  let bridge_name = process.new_name(prefix: "plushie.bridge")
+  let runtime_name = process.new_name(prefix: "plushie.runtime")
 
-  // Start the dev server if dev mode is enabled
-  case runtime_result, opts.dev {
-    Ok(runtime_subject), True -> {
-      dev_server.start(runtime_subject)
-      runtime_result
+  // Map transport to bridge transport type
+  let bridge_transport = case opts.transport {
+    Spawn -> bridge.TransportSpawn
+    Stdio -> bridge.TransportStdio
+    Iostream(adapter:) -> bridge.TransportIoStream(adapter:)
+  }
+
+  // Build supervisor children
+  let bridge_child =
+    supervision.worker(fn() {
+      bridge.start_supervised(
+        bridge_name,
+        binary_path,
+        opts.format,
+        opts.session,
+        opts.renderer_args,
+        bridge_transport,
+      )
+    })
+    |> supervision.restart(supervision.Transient)
+    |> supervision.significant(True)
+    |> supervision.timeout(ms: 2000)
+
+  let bridge_subject = process.named_subject(bridge_name)
+
+  let runtime_child =
+    supervision.worker(fn() {
+      runtime.start_supervised(
+        app,
+        bridge_subject,
+        runtime_opts,
+        binary_path,
+        runtime_name,
+      )
+    })
+    |> supervision.restart(supervision.Transient)
+    |> supervision.significant(True)
+    |> supervision.timeout(ms: 2000)
+
+  let sup_builder =
+    supervisor.new(supervisor.RestForOne)
+    |> supervisor.auto_shutdown(supervisor.AnySignificant)
+    |> supervisor.add(bridge_child)
+    |> supervisor.add(runtime_child)
+
+  // Add dev server if enabled
+  let sup_builder = case opts.dev {
+    True -> {
+      let runtime_subject = process.named_subject(runtime_name)
+      let dev_child =
+        supervision.worker(fn() { dev_server.start_supervised(runtime_subject) })
+        |> supervision.restart(supervision.Transient)
+      supervisor.add(sup_builder, dev_child)
     }
-    _, _ -> runtime_result
+    False -> sup_builder
+  }
+
+  case supervisor.start(sup_builder) {
+    Ok(started) -> Ok(Instance(supervisor: started.pid))
+    Error(err) -> Error(SupervisorStartFailed(err))
   }
 }
 
-/// Stop a running plushie application by sending Shutdown to the runtime.
-pub fn stop(rt: Subject(runtime.RuntimeMessage)) -> Nil {
-  process.send(rt, runtime.Shutdown)
+/// Stop a running plushie application.
+///
+/// Sends a shutdown exit to the supervisor, which terminates all
+/// children (bridge, runtime, dev server) in reverse start order.
+pub fn stop(instance: Instance) -> Nil {
+  // Send :shutdown exit to the supervisor -- the OTP-standard way
+  // to stop a supervisor. It will terminate children gracefully.
+  shutdown_pid(instance.supervisor)
+  Nil
 }
 
-/// Block the caller until the plushie runtime exits.
+@external(erlang, "plushie_ffi", "shutdown_pid")
+fn shutdown_pid(pid: Pid) -> Nil
+
+/// Block the caller until the plushie application exits.
 ///
-/// This monitors the runtime process and returns when it stops.
+/// Monitors the supervisor process and returns when it stops.
 /// Use this instead of `process.sleep_forever()` so that the
 /// caller exits cleanly when the user closes all windows.
 ///
 ///     case plushie.start(app(), plushie.default_start_opts()) {
-///       Ok(rt) -> plushie.wait(rt)
+///       Ok(instance) -> plushie.wait(instance)
 ///       Error(err) -> io.println_error(plushie.start_error_to_string(err))
 ///     }
-pub fn wait(rt: Subject(runtime.RuntimeMessage)) -> Nil {
-  case process.subject_owner(rt) {
-    Ok(pid) -> {
-      let _monitor = process.monitor(pid)
-      let selector =
-        process.new_selector()
-        |> process.select_monitors(fn(_down) { Nil })
-      process.selector_receive_forever(selector)
-    }
-    Error(_) -> Nil
-  }
+pub fn wait(instance: Instance) -> Nil {
+  let _monitor = process.monitor(instance.supervisor)
+  let selector =
+    process.new_selector()
+    |> process.select_monitors(fn(_down) { Nil })
+  process.selector_receive_forever(selector)
 }

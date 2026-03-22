@@ -144,6 +144,63 @@ pub fn start(
   }
 }
 
+/// Start the runtime under a supervisor with a registered name.
+///
+/// The bridge is already running. The runtime registers its notification
+/// subject with the bridge via `RegisterRuntime`, then initializes the
+/// app and enters the message loop.
+///
+/// Returns `Started(runtime_subject)` on success for the supervisor
+/// child spec, or a `StartError` mapped to `actor.StartError`.
+pub fn start_supervised(
+  app: App(model, msg),
+  bridge_subject: Subject(BridgeMessage),
+  opts: RuntimeOpts,
+  binary_path: String,
+  name: process.Name(RuntimeMessage),
+) -> Result(actor.Started(Subject(RuntimeMessage)), actor.StartError) {
+  // Channel for the spawned process to report back its Subject
+  let init_channel = process.new_subject()
+
+  let pid =
+    process.spawn(fn() {
+      // Register this process with the given name so other processes
+      // can find us via named_subject.
+      case process.register(process.self(), name) {
+        Ok(_) -> Nil
+        Error(_) -> Nil
+      }
+
+      // Create the named subject for receiving messages.
+      let runtime_subject = process.named_subject(name)
+      let notification_subject = process.new_subject()
+
+      // Register notification subject with the already-running bridge
+      process.send(bridge_subject, bridge.RegisterRuntime(notification_subject))
+
+      // Report success to parent
+      process.send(init_channel, Ok(runtime_subject))
+
+      // Run the app
+      run(
+        app,
+        bridge_subject,
+        runtime_subject,
+        notification_subject,
+        opts,
+        binary_path,
+      )
+    })
+
+  // Wait for the spawned process to report back (5s timeout)
+  case process.receive(init_channel, 5000) {
+    Ok(Ok(runtime_subject)) ->
+      Ok(actor.Started(pid: pid, data: runtime_subject))
+    Ok(Error(_)) -> Error(actor.InitFailed("runtime init failed"))
+    Error(Nil) -> Error(actor.InitTimeout)
+  }
+}
+
 /// Errors that can occur when starting the runtime.
 pub type StartError {
   /// The bridge actor failed to start.

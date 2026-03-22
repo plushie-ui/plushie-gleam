@@ -3,7 +3,6 @@
 //// Demonstrates on_key_press subscription, modifier inspection,
 //// and key module constants for pattern matching.
 
-import gleam/erlang/process
 import gleam/int
 import gleam/io
 import gleam/list

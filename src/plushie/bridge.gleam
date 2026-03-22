@@ -27,6 +27,7 @@ import gleam/erlang/port.{type Port}
 import gleam/erlang/process.{type Subject}
 import gleam/io
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/otp/actor
 import gleam/result
 import plushie/ffi
@@ -60,6 +61,10 @@ pub type BridgeMessage {
   IoStreamData(data: BitArray)
   /// The iostream adapter closed the transport.
   IoStreamClosed
+  /// Register the runtime's notification subject. Sent by the runtime
+  /// after it starts under the supervisor. Any events received before
+  /// this message are buffered and flushed on receipt.
+  RegisterRuntime(Subject(RuntimeNotification))
   /// Graceful shutdown request.
   Shutdown
 }
@@ -79,11 +84,14 @@ pub opaque type BridgeState {
   BridgeState(
     port: Port,
     format: protocol.Format,
-    runtime: Subject(RuntimeNotification),
+    runtime: option.Option(Subject(RuntimeNotification)),
     session: String,
     transport: Transport,
     /// Buffer for accumulating partial JSON lines (noeol chunks).
     json_buffer: BitArray,
+    /// Events received before the runtime registered. Stored in
+    /// reverse order and flushed on RegisterRuntime receipt.
+    event_buffer: List(RuntimeNotification),
   )
 }
 
@@ -150,6 +158,39 @@ pub fn start_with_transport(
   |> result.map(fn(started) { started.data })
 }
 
+/// Start the bridge under a supervisor with a registered name.
+///
+/// The runtime subject is not available yet -- the runtime will send
+/// a `RegisterRuntime` message after it starts. Events received before
+/// registration are buffered and flushed automatically.
+pub fn start_supervised(
+  name: process.Name(BridgeMessage),
+  binary_path: String,
+  format: protocol.Format,
+  session: String,
+  renderer_args: List(String),
+  transport: Transport,
+) -> Result(actor.Started(Subject(BridgeMessage)), actor.StartError) {
+  actor.new_with_initialiser(5000, fn(subject) {
+    case transport {
+      TransportSpawn ->
+        init_spawn_deferred(
+          subject,
+          binary_path,
+          format,
+          session,
+          renderer_args,
+        )
+      TransportStdio -> init_stdio_deferred(subject, format, session)
+      TransportIoStream(adapter:) ->
+        init_iostream_deferred(subject, adapter, format, session)
+    }
+  })
+  |> actor.on_message(handle_message)
+  |> actor.named(name)
+  |> actor.start
+}
+
 fn init_spawn(
   subject: Subject(BridgeMessage),
   binary_path: String,
@@ -183,10 +224,11 @@ fn init_spawn(
     BridgeState(
       port:,
       format:,
-      runtime:,
+      runtime: Some(runtime),
       session:,
       transport: TransportSpawn,
       json_buffer: <<>>,
+      event_buffer: [],
     )
 
   actor.initialised(state)
@@ -217,10 +259,11 @@ fn init_stdio(
     BridgeState(
       port:,
       format:,
-      runtime:,
+      runtime: Some(runtime),
       session:,
       transport: TransportStdio,
       json_buffer: <<>>,
+      event_buffer: [],
     )
 
   actor.initialised(state)
@@ -251,10 +294,125 @@ fn init_iostream(
     BridgeState(
       port:,
       format:,
-      runtime:,
+      runtime: Some(runtime),
       session:,
       transport: TransportIoStream(adapter:),
       json_buffer: <<>>,
+      event_buffer: [],
+    )
+
+  actor.initialised(state)
+  |> actor.selecting(selector)
+  |> actor.returning(subject)
+  |> Ok
+}
+
+// -- Deferred-runtime init variants (for supervised startup) -----------------
+// These are identical to the regular init functions except they set
+// runtime=None and event_buffer=[] since the runtime registers later.
+
+fn init_spawn_deferred(
+  subject: Subject(BridgeMessage),
+  binary_path: String,
+  format: protocol.Format,
+  session: String,
+  renderer_args: List(String),
+) {
+  let options = case format {
+    protocol.Msgpack -> ffi.msgpack_port_options()
+    protocol.Json -> ffi.json_port_options()
+  }
+
+  let format_args = case format {
+    protocol.Json -> ["--json"]
+    protocol.Msgpack -> []
+  }
+  let args = list.append(renderer_args, format_args)
+
+  let env_entries = renderer_env.build(renderer_env.default_opts())
+  let env = renderer_env.to_port_env(env_entries)
+
+  let port = ffi.open_port_spawn(binary_path, args, env, options)
+
+  let selector =
+    process.new_selector()
+    |> process.select(subject)
+    |> process.select_other(classify_port_message(format, _))
+
+  let state =
+    BridgeState(
+      port:,
+      format:,
+      runtime: None,
+      session:,
+      transport: TransportSpawn,
+      json_buffer: <<>>,
+      event_buffer: [],
+    )
+
+  actor.initialised(state)
+  |> actor.selecting(selector)
+  |> actor.returning(subject)
+  |> Ok
+}
+
+fn init_stdio_deferred(
+  subject: Subject(BridgeMessage),
+  format: protocol.Format,
+  session: String,
+) {
+  let options = case format {
+    protocol.Msgpack -> ffi.stdio_port_options_msgpack()
+    protocol.Json -> ffi.stdio_port_options_json()
+  }
+
+  let port = ffi.open_fd_port(0, 1, options)
+
+  let selector =
+    process.new_selector()
+    |> process.select(subject)
+    |> process.select_other(classify_port_message(format, _))
+
+  let state =
+    BridgeState(
+      port:,
+      format:,
+      runtime: None,
+      session:,
+      transport: TransportStdio,
+      json_buffer: <<>>,
+      event_buffer: [],
+    )
+
+  actor.initialised(state)
+  |> actor.selecting(selector)
+  |> actor.returning(subject)
+  |> Ok
+}
+
+fn init_iostream_deferred(
+  subject: Subject(BridgeMessage),
+  adapter: Subject(IoStreamMessage),
+  format: protocol.Format,
+  session: String,
+) {
+  process.send(adapter, IoStreamBridge(bridge: subject))
+
+  let selector =
+    process.new_selector()
+    |> process.select(subject)
+
+  let port = ffi.null_port()
+
+  let state =
+    BridgeState(
+      port:,
+      format:,
+      runtime: None,
+      session:,
+      transport: TransportIoStream(adapter:),
+      json_buffer: <<>>,
+      event_buffer: [],
     )
 
   actor.initialised(state)
@@ -288,7 +446,7 @@ fn handle_message(
         Ok(code) -> code
         Error(_) -> 1
       }
-      process.send(state.runtime, RendererExited(status: exit_code))
+      notify_runtime(state, RendererExited(status: exit_code))
       actor.stop()
     }
 
@@ -305,8 +463,19 @@ fn handle_message(
 
     IoStreamClosed -> {
       // Treat transport close as clean exit (status 0)
-      process.send(state.runtime, RendererExited(status: 0))
+      notify_runtime(state, RendererExited(status: 0))
       actor.stop()
+    }
+
+    RegisterRuntime(runtime_subject) -> {
+      // Flush any buffered events to the newly registered runtime
+      let buffered = list.reverse(state.event_buffer)
+      list.each(buffered, fn(notification) {
+        process.send(runtime_subject, notification)
+      })
+      actor.continue(
+        BridgeState(..state, runtime: Some(runtime_subject), event_buffer: []),
+      )
     }
 
     Shutdown -> {
@@ -402,13 +571,33 @@ fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState 
   }
 }
 
+/// Send a notification to the runtime if registered, otherwise buffer it.
+fn notify_runtime(state: BridgeState, notification: RuntimeNotification) -> Nil {
+  case state.runtime {
+    Some(runtime) -> process.send(runtime, notification)
+    None -> Nil
+  }
+}
+
+/// Buffer a notification when the runtime is not yet registered.
+fn buffer_or_send(
+  state: BridgeState,
+  notification: RuntimeNotification,
+) -> BridgeState {
+  case state.runtime {
+    Some(runtime) -> {
+      process.send(runtime, notification)
+      state
+    }
+    None ->
+      BridgeState(..state, event_buffer: [notification, ..state.event_buffer])
+  }
+}
+
 /// Decode a complete wire message and forward to the runtime.
 fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
   case decode.decode_message(bytes, state.format) {
-    Ok(msg) -> {
-      process.send(state.runtime, InboundEvent(msg))
-      state
-    }
+    Ok(msg) -> buffer_or_send(state, InboundEvent(msg))
     Error(err) -> {
       io.println(
         "plushie bridge: decode error: " <> protocol.decode_error_to_string(err),

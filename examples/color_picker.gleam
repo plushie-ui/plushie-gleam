@@ -6,7 +6,6 @@
 //// hit testing and coordinate math.
 
 import examples/widgets/color_picker_widget
-import gleam/erlang/process
 import gleam/float
 import gleam/int
 import gleam/io

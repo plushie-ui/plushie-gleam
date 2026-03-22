@@ -1,6 +1,5 @@
 //// Clock example: timer subscription, derived display.
 
-import gleam/erlang/process
 import gleam/int
 import gleam/io
 import plushie

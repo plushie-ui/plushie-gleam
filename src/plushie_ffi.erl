@@ -34,7 +34,8 @@
     file_watcher_subscribe/1,
     sha256_hex/1,
     crc32/1,
-    zlib_compress/1
+    zlib_compress/1,
+    shutdown_pid/1
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -277,3 +278,9 @@ crc32(Data) ->
 %% Zlib compress binary data.
 zlib_compress(Data) ->
     zlib:compress(Data).
+
+%% Gracefully stop a process with reason :shutdown.
+%% Used to stop supervisors in the OTP-standard way.
+shutdown_pid(Pid) ->
+    exit(Pid, shutdown),
+    nil.

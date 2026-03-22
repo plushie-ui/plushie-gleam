@@ -6,7 +6,6 @@
 
 import examples/widgets/star_rating
 import examples/widgets/theme_toggle
-import gleam/erlang/process
 import gleam/float
 import gleam/int
 import gleam/io

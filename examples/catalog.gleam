@@ -2,7 +2,6 @@
 //// and composite widget categories.
 
 import gleam/dict
-import gleam/erlang/process
 import gleam/float
 import gleam/int
 import gleam/io

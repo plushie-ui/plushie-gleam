@@ -3,7 +3,6 @@
 //// Demonstrates Route, UndoStack, Selection, and Data.query
 //// working together with typed Gleam records.
 
-import gleam/erlang/process
 import gleam/int
 import gleam/io
 import gleam/list

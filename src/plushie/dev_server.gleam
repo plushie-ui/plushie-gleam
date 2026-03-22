@@ -49,6 +49,31 @@ type DevState {
 
 /// Start the dev server actor, watching src/ for changes.
 pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
+  let _result = start_actor(runtime)
+  io.println("plushie dev: watching " <> string.join(default_watch_dirs, ", "))
+  Nil
+}
+
+/// Start the dev server under a supervisor.
+///
+/// Returns `Started` for use as a supervisor child spec.
+pub fn start_supervised(
+  runtime: Subject(runtime.RuntimeMessage),
+) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
+  case start_actor(runtime) {
+    Ok(started) -> {
+      io.println(
+        "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
+      )
+      Ok(started)
+    }
+    Error(err) -> Error(err)
+  }
+}
+
+fn start_actor(
+  runtime: Subject(runtime.RuntimeMessage),
+) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
   // Snapshot initial BEAM mtimes
   let initial_mtimes = ffi.list_beam_files(build_dir)
 
@@ -56,33 +81,30 @@ pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
   let watcher = ffi.start_file_watcher(default_watch_dirs)
   ffi.file_watcher_subscribe(watcher)
 
-  let _actor =
-    actor.new_with_initialiser(5000, fn(self: Subject(DevMessage)) {
-      let initial_state =
-        DevState(
-          runtime:,
-          watcher:,
-          debounce_pending: False,
-          last_mtimes: initial_mtimes,
-          self:,
-        )
+  actor.new_with_initialiser(5000, fn(self: Subject(DevMessage)) {
+    let initial_state =
+      DevState(
+        runtime:,
+        watcher:,
+        debounce_pending: False,
+        last_mtimes: initial_mtimes,
+        self:,
+      )
 
-      // Set up a selector that receives both our own messages
-      // and raw file events from the watcher process
-      let selector =
-        process.new_selector()
-        |> process.select(self)
-        |> process.select_other(fn(msg) { RawFileEvent(msg) })
+    // Set up a selector that receives both our own messages
+    // and raw file events from the watcher process
+    let selector =
+      process.new_selector()
+      |> process.select(self)
+      |> process.select_other(fn(msg) { RawFileEvent(msg) })
 
-      actor.initialised(initial_state)
-      |> actor.selecting(selector)
-      |> Ok
-    })
-    |> actor.on_message(handle_message)
-    |> actor.start()
-
-  io.println("plushie dev: watching " <> string.join(default_watch_dirs, ", "))
-  Nil
+    actor.initialised(initial_state)
+    |> actor.selecting(selector)
+    |> actor.returning(self)
+    |> Ok
+  })
+  |> actor.on_message(handle_message)
+  |> actor.start
 }
 
 // -- Actor loop --------------------------------------------------------------

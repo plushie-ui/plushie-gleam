@@ -1,6 +1,5 @@
 //// Counter example: demonstrates the basic plushie app pattern.
 
-import gleam/erlang/process
 import gleam/int
 import gleam/io
 import plushie
