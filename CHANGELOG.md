@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-23
+
 ### Added
 
 - **Socket transport** -- `plushie/connect` replaces `plushie/stdio`
@@ -17,6 +19,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   and `gleam run -m plushie/build` support `--wasm` flag for
   downloading or building the WASM renderer alongside or instead
   of the native binary.
+- **`--bin-file` and `--wasm-dir` flags for `plushie/build`** --
+  override the default binary destination or WASM output directory,
+  matching the flags already available in `plushie/download`.
+- **Canvas `FocusRingRadius`** -- new `InteractiveOpt` variant for
+  setting a custom border radius on interactive group focus rings.
+- **Canvas `role` and `arrow_mode` props** on the Canvas widget for
+  accessibility (e.g., `role: "radiogroup"` on star ratings).
+- **`Diagnostic` event variant** -- renderer diagnostic messages
+  (warnings, errors) are now decoded as `Diagnostic(level,
+  element_id, code, message)` events.
+- **Demo project links in docs** -- extensions, commands,
+  getting-started, and running docs now link to the plushie-demos
+  repository.
 
 ### Changed
 
@@ -25,6 +40,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   symlink is created pointing to the installed artifact. The old
   `priv/bin/` location is still checked as a fallback for backward
   compatibility.
+- **Renderer binary renamed** -- all references updated from
+  `plushie` to `plushie-renderer`. Download URLs now point to
+  `plushie-ui/plushie-renderer` releases. Rust crate references
+  updated from `plushie-core` to `plushie-ext`.
+- **Binary version** -- targets plushie-renderer 0.5.0.
+- **Canvas group redesign** -- groups now auto-wrap non-group shapes
+  in `interactive()` calls. Shape interactive options updated.
+
+### Fixed
+
+- **Star rating `focus_style`** -- corrected from flat
+  `{stroke: color}` to nested `{stroke: {color, width}}` matching
+  the renderer's `parse_canvas_stroke` format.
+- **Theme toggle focus ring** -- added padding for outset focus ring,
+  group offset, `FocusRingRadius` for pill shape, and `toggled`
+  a11y field for screen readers.
+- **Rate Plushie page theme** -- wrapped page in `themer` with
+  custom interpolated palette so built-in widgets animate with the
+  theme transition. Added `width: Fill` to card column.
 
 ## [0.4.0] - 2026-03-22
 
