@@ -25,7 +25,7 @@ const binary_version = "0.4.1"
 
 const base_url = "https://github.com/plushie-ui/plushie/releases/download"
 
-const wasm_archive = "plushie-wasm.tar.gz"
+const wasm_archive = "plushie-renderer-wasm.tar.gz"
 
 /// Entry point for `gleam run -m plushie/download`.
 pub fn main() -> Nil {
