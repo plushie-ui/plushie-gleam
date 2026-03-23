@@ -21,9 +21,9 @@ import gleam/string
 import plushie/binary
 import plushie/ffi
 
-const binary_version = "0.4.1"
+const binary_version = "0.5.0"
 
-const base_url = "https://github.com/plushie-ui/plushie/releases/download"
+const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
 
 const wasm_archive = "plushie-renderer-wasm.tar.gz"
 
