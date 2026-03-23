@@ -2,12 +2,12 @@
 ////
 //// Resolution order:
 //// 1. PLUSHIE_BINARY_PATH env var (error if set but file missing)
-//// 2. build/plushie/bin/plushie-{platform}-{arch} (downloaded binary)
-//// 3. build/plushie/bin/plushie (platform-generic fallback)
-//// 4. priv/bin/plushie-{platform}-{arch} (legacy location, backward compat)
-//// 5. priv/bin/plushie (legacy location, backward compat)
+//// 2. build/plushie/bin/plushie-renderer-{platform}-{arch} (downloaded binary)
+//// 3. build/plushie/bin/plushie-renderer (platform-generic fallback)
+//// 4. priv/bin/plushie-renderer-{platform}-{arch} (legacy location, backward compat)
+//// 5. priv/bin/plushie-renderer (legacy location, backward compat)
 //// 6. Custom build at _build/{env}/plushie-renderer/target/release/plushie-renderer
-//// 7. Common local paths (./plushie, ../plushie-renderer/target/release/plushie-renderer)
+//// 7. Common local paths (./plushie-renderer, ../plushie-renderer/target/release/plushie-renderer)
 ////
 //// Returns Result(String, BinaryError) with the path on success.
 
@@ -64,7 +64,7 @@ pub fn download_dir() -> String {
 fn candidate_paths() -> List(String) {
   let platform = ffi.platform_string()
   let arch = ffi.arch_string()
-  let name = "plushie"
+  let name = "plushie-renderer"
   let platform_name = name <> "-" <> platform <> "-" <> arch
   [
     // Primary: downloaded binary in build/plushie/bin/
@@ -77,7 +77,7 @@ fn candidate_paths() -> List(String) {
     "_build/dev/plushie-renderer/target/release/plushie-renderer",
     "_build/prod/plushie-renderer/target/release/plushie-renderer",
     "./" <> name,
-    "../plushie/target/release/" <> name,
-    "../plushie/target/debug/" <> name,
+    "../plushie-renderer/target/release/" <> name,
+    "../plushie-renderer/target/debug/" <> name,
   ]
 }
