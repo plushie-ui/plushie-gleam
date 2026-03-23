@@ -16,7 +16,7 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, CanvasElementClick, CanvasElementEnter, CanvasElementFocused,
+  type Event, CanvasElementClick, CanvasElementEnter,
   CanvasElementLeave, TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
 }
 import plushie/node.{type Node}
@@ -26,6 +26,7 @@ import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/subscription
+import plushie/prop/a11y
 import plushie/ui
 import plushie/widget/text_editor
 
@@ -161,7 +162,6 @@ pub type Model {
   Model(
     rating: Int,
     hover_star: Option(Int),
-    focused_star: Option(Int),
     toggle_progress: Float,
     toggle_target: Float,
     reviews: List(Review),
@@ -175,7 +175,6 @@ fn init() {
     Model(
       rating: 0,
       hover_star: option.None,
-      focused_star: option.None,
       toggle_progress: 0.0,
       toggle_target: 0.0,
       reviews: initial_reviews,
@@ -213,15 +212,6 @@ fn update(model: Model, event: Event) {
       Model(..model, hover_star: option.None),
       command.none(),
     )
-
-    CanvasElementFocused(id: "stars", element_id: element_id, ..) ->
-      case string.starts_with(element_id, "star-") {
-        True -> {
-          let n = parse_star_index(element_id)
-          #(Model(..model, focused_star: option.Some(n)), command.none())
-        }
-        False -> #(model, command.none())
-      }
 
     // Theme toggle
     CanvasElementClick(id: "theme-toggle", ..) -> {
@@ -325,11 +315,13 @@ fn view(model: Model) -> Node {
           ui.text("heading", "Rate Plushie", [
             ui.font_size(28.0),
             ui.text_color(hex(t.text)),
+            ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
           ]),
           rating_card(model, p, t),
           ui.text("reviews-heading", "Reviews", [
             ui.font_size(20.0),
             ui.text_color(hex(t.text)),
+            ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
           ]),
           reviews_list(model.reviews, p, t),
         ]),
@@ -362,7 +354,6 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
         ]),
         star_rating.render("stars", model.rating, [
           star_rating.Hover(model.hover_star),
-          star_rating.Focused(model.focused_star),
           star_rating.ThemeProgress(p),
         ]),
         ui.rule("divider", []),
@@ -379,10 +370,12 @@ fn review_form(model: Model) -> Node {
   ui.column("review-form", [ui.spacing(12), ui.width(length.Fill)], [
     ui.text_input("review-name", model.review_name, [
       ui.placeholder("Your name"),
+      ui.a11y(a11y.new() |> a11y.label("Your name")),
     ]),
     text_editor.new("review-comment", model.review_comment)
       |> text_editor.placeholder("Write your review...")
       |> text_editor.height(length.Fixed(80.0))
+      |> text_editor.a11y(a11y.new() |> a11y.label("Review text"))
       |> text_editor.build(),
     ui.button_("submit-review", "Submit Review"),
   ])

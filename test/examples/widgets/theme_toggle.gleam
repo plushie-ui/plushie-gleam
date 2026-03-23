@@ -93,6 +93,7 @@ pub fn render(id: String, progress: Float) -> Node {
     length.Fixed(int.to_float(track_w)),
     length.Fixed(int.to_float(track_h)),
   )
+  |> canvas.alt("Theme toggle")
   |> canvas.layers(dict.from_list([#("toggle", shapes)]))
   |> canvas.build()
 }
