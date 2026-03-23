@@ -347,17 +347,28 @@ pub fn linear_gradient(
 
 // -- Interactive elements -----------------------------------------------------
 
-/// Make a group interactive by adding an id and interactive fields
-/// at the group's top level. Only works on group shapes.
+/// Make a shape interactive by wrapping it in an interactive group.
 ///
-/// In the new wire format, interactive fields are top-level on the
-/// group (no nested "interactive" sub-object).
+/// If the shape is already a group, interactive fields are merged
+/// directly into it. If it's a leaf shape (rect, circle, etc.),
+/// it's automatically wrapped in a new group.
 pub fn interactive(
   shape: PropValue,
   id: String,
   opts: List(InteractiveOpt),
 ) -> PropValue {
   let assert DictVal(shape_dict) = shape
+  // Auto-wrap non-group shapes in a group.
+  let shape_dict = case dict.get(shape_dict, "type") {
+    Ok(StringVal("group")) -> shape_dict
+    _ -> {
+      // Wrap the shape as the sole child of a new group.
+      dict.from_list([
+        #("type", StringVal("group")),
+        #("children", ListVal([DictVal(shape_dict)])),
+      ])
+    }
+  }
   let props =
     list.fold(opts, [#("id", StringVal(id))], fn(acc, opt) {
       case opt {
