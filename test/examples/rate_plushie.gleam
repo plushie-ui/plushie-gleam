@@ -364,7 +364,7 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
       ui.background(hex(t.card_bg)),
     ],
     [
-      ui.column("card-col", [ui.spacing(20)], [
+      ui.column("card-col", [ui.spacing(20), ui.width(length.Fill)], [
         ui.text("prompt", "How would you rate Plushie?", [
           ui.font_size(14.0),
           ui.text_color(hex(t.text_secondary)),
