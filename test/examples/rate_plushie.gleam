@@ -6,6 +6,7 @@
 
 import examples/widgets/star_rating
 import examples/widgets/theme_toggle
+import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/io
@@ -19,16 +20,18 @@ import plushie/event.{
   type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave,
   TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
 }
-import plushie/node.{type Node}
+import plushie/node.{type Node, StringVal}
 import plushie/prop/a11y
 import plushie/prop/alignment
 import plushie/prop/border
 import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
+import plushie/prop/theme
 import plushie/subscription
 import plushie/ui
 import plushie/widget/text_editor
+import plushie/widget/themer
 
 // -- Review data --------------------------------------------------------------
 
@@ -296,37 +299,51 @@ fn view(model: Model) -> Node {
   let p = smoothstep(model.toggle_progress)
   let t = theme(p)
 
+  let page_theme =
+    theme.custom(
+      "rate-plushie",
+      dict.from_list([
+        #("background", StringVal(t.page_bg)),
+        #("text", StringVal(t.text)),
+        #("primary", StringVal(fade(#(59, 130, 246), #(139, 92, 246), p))),
+      ]),
+    )
+
   ui.window("main", [ui.title("Rate Plushie")], [
-    ui.container(
-      "page",
-      [
-        ui.padding(padding.Padding(
-          top: 32.0,
-          bottom: 32.0,
-          left: 24.0,
-          right: 24.0,
-        )),
-        ui.background(hex(t.page_bg)),
-        ui.width(length.Fill),
-        ui.height(length.Fill),
-      ],
-      [
-        ui.column("main-col", [ui.spacing(24), ui.width(length.Fill)], [
-          ui.text("heading", "Rate Plushie", [
-            ui.font_size(28.0),
-            ui.text_color(hex(t.text)),
-            ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
+    themer.new("page-theme", page_theme)
+    |> themer.extend([
+      ui.container(
+        "page",
+        [
+          ui.padding(padding.Padding(
+            top: 32.0,
+            bottom: 32.0,
+            left: 24.0,
+            right: 24.0,
+          )),
+          ui.background(hex(t.page_bg)),
+          ui.width(length.Fill),
+          ui.height(length.Fill),
+        ],
+        [
+          ui.column("main-col", [ui.spacing(24), ui.width(length.Fill)], [
+            ui.text("heading", "Rate Plushie", [
+              ui.font_size(28.0),
+              ui.text_color(hex(t.text)),
+              ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
+            ]),
+            rating_card(model, p, t),
+            ui.text("reviews-heading", "Reviews", [
+              ui.font_size(20.0),
+              ui.text_color(hex(t.text)),
+              ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
+            ]),
+            reviews_list(model.reviews, p, t),
           ]),
-          rating_card(model, p, t),
-          ui.text("reviews-heading", "Reviews", [
-            ui.font_size(20.0),
-            ui.text_color(hex(t.text)),
-            ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
-          ]),
-          reviews_list(model.reviews, p, t),
-        ]),
-      ],
-    ),
+        ],
+      ),
+    ])
+    |> themer.build(),
   ])
 }
 

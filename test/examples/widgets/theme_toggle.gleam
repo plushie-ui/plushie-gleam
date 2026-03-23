@@ -37,6 +37,9 @@ pub fn render(id: String, progress: Float) -> Node {
     False -> "#4c1d95"
   }
 
+  // Padding for the outset focus ring.
+  let ring_pad = 4
+
   let shapes = [
     shape.group(
       [
@@ -68,7 +71,7 @@ pub fn render(id: String, progress: Float) -> Node {
           ],
         ),
       ],
-      [],
+      [shape.X(int.to_float(ring_pad)), shape.Y(int.to_float(ring_pad))],
     )
     |> shape.interactive("switch", [
       shape.OnClick(True),
@@ -79,11 +82,13 @@ pub fn render(id: String, progress: Float) -> Node {
         w: int.to_float(track_w),
         h: int.to_float(track_h),
       ),
+      shape.FocusRingRadius(half_h +. int.to_float(ring_pad)),
       shape.A11y(
         node.DictVal(
           dict.from_list([
             #("role", node.StringVal("switch")),
             #("label", node.StringVal("Dark humor")),
+            #("toggled", node.BoolVal(progress >=. 0.5)),
           ]),
         ),
       ),
@@ -92,8 +97,8 @@ pub fn render(id: String, progress: Float) -> Node {
 
   canvas.new(
     id,
-    length.Fixed(int.to_float(track_w)),
-    length.Fixed(int.to_float(track_h)),
+    length.Fixed(int.to_float(track_w + ring_pad * 2)),
+    length.Fixed(int.to_float(track_h + ring_pad * 2)),
   )
   |> canvas.alt("Theme toggle")
   |> canvas.layers(dict.from_list([#("toggle", shapes)]))

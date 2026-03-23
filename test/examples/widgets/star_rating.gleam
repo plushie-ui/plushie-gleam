@@ -136,8 +136,15 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
                   shape.FocusStyle(
                     DictVal(
                       dict.from_list([
-                        #("stroke", StringVal("#3b82f6")),
-                        #("stroke_width", FloatVal(2.0 *. scale)),
+                        #(
+                          "stroke",
+                          DictVal(
+                            dict.from_list([
+                              #("color", StringVal("#3b82f6")),
+                              #("width", FloatVal(2.0 *. scale)),
+                            ]),
+                          ),
+                        ),
                       ]),
                     ),
                   ),
