@@ -713,12 +713,12 @@ pub fn view_produces_a_gauge_widget_test() {
 
 ### Rust-side: unit tests (no Gleam)
 
-The `plushie_core::testing` module provides `TestEnv` and node factories
+The `plushie_ext::testing` module provides `TestEnv` and node factories
 for testing `WidgetExtension::render()` in isolation:
 
 ```rust
-use plushie_core::testing::*;
-use plushie_core::prelude::*;
+use plushie_ext::testing::*;
+use plushie_ext::prelude::*;
 
 #[test]
 fn gauge_renders_without_panic() {
