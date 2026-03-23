@@ -418,9 +418,8 @@ pub fn interactive(
       }
     })
   // Merge interactive props directly into the group dict.
-  let merged = list.fold(props, shape_dict, fn(d, pair) {
-    dict.insert(d, pair.0, pair.1)
-  })
+  let merged =
+    list.fold(props, shape_dict, fn(d, pair) { dict.insert(d, pair.0, pair.1) })
   DictVal(merged)
 }
 

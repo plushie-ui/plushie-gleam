@@ -78,18 +78,18 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
           #(
             "stars",
             range(0, 4)
-            |> list.map(fn(i) {
-              let cx = int.to_float(i * { size + gap } + size / 2)
-              let cy = int.to_float(size / 2)
-              shape.group(
-                [
-                  shape.path(commands, [
-                    shape.Fill(star_color(i < rating, False, theme_progress)),
-                  ]),
-                ],
-                [shape.X(cx), shape.Y(cy)],
-              )
-            }),
+              |> list.map(fn(i) {
+                let cx = int.to_float(i * { size + gap } + size / 2)
+                let cy = int.to_float(size / 2)
+                shape.group(
+                  [
+                    shape.path(commands, [
+                      shape.Fill(star_color(i < rating, False, theme_progress)),
+                    ]),
+                  ],
+                  [shape.X(cx), shape.Y(cy)],
+                )
+              }),
           ),
         ]),
       )
@@ -108,58 +108,58 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
           #(
             "stars",
             range(0, 4)
-            |> list.map(fn(i) {
-              let cx = int.to_float(i * { size + gap } + size / 2)
-              let cy = int.to_float(size / 2)
-              let filled = i < display
-              let preview =
-                option.is_some(hover_star)
-                && {
-                  case hover_star {
-                    option.Some(h) -> i < h && i >= rating
-                    option.None -> False
+              |> list.map(fn(i) {
+                let cx = int.to_float(i * { size + gap } + size / 2)
+                let cy = int.to_float(size / 2)
+                let filled = i < display
+                let preview =
+                  option.is_some(hover_star)
+                  && {
+                    case hover_star {
+                      option.Some(h) -> i < h && i >= rating
+                      option.None -> False
+                    }
                   }
-                }
 
-              shape.group(
-                [
-                  shape.path(commands, [
-                    shape.Fill(star_color(filled, preview, theme_progress)),
-                  ]),
-                ],
-                [shape.X(cx), shape.Y(cy)],
-              )
-              |> shape.interactive("star-" <> int.to_string(i), [
-                shape.OnClick(True),
-                shape.OnHover(True),
-                shape.Cursor("pointer"),
-                shape.FocusStyle(
-                  DictVal(
-                    dict.from_list([
-                      #("stroke", StringVal("#3b82f6")),
-                      #("stroke_width", FloatVal(2.0 *. scale)),
+                shape.group(
+                  [
+                    shape.path(commands, [
+                      shape.Fill(star_color(filled, preview, theme_progress)),
                     ]),
+                  ],
+                  [shape.X(cx), shape.Y(cy)],
+                )
+                |> shape.interactive("star-" <> int.to_string(i), [
+                  shape.OnClick(True),
+                  shape.OnHover(True),
+                  shape.Cursor("pointer"),
+                  shape.FocusStyle(
+                    DictVal(
+                      dict.from_list([
+                        #("stroke", StringVal("#3b82f6")),
+                        #("stroke_width", FloatVal(2.0 *. scale)),
+                      ]),
+                    ),
                   ),
-                ),
-                shape.ShowFocusRing(False),
-                shape.A11y(
-                  a11y.new()
-                  |> a11y.role(a11y.RadioButton)
-                  |> a11y.label(
-                    int.to_string(i + 1)
-                    <> " star"
-                    <> case i {
-                      0 -> ""
-                      _ -> "s"
-                    },
-                  )
-                  |> a11y.selected(rating >= i + 1)
-                  |> a11y.position_in_set(i + 1)
-                  |> a11y.size_of_set(5)
-                  |> a11y.to_prop_value(),
-                ),
-              ])
-            }),
+                  shape.ShowFocusRing(False),
+                  shape.A11y(
+                    a11y.new()
+                    |> a11y.role(a11y.RadioButton)
+                    |> a11y.label(
+                      int.to_string(i + 1)
+                      <> " star"
+                      <> case i {
+                        0 -> ""
+                        _ -> "s"
+                      },
+                    )
+                    |> a11y.selected(rating >= i + 1)
+                    |> a11y.position_in_set(i + 1)
+                    |> a11y.size_of_set(5)
+                    |> a11y.to_prop_value(),
+                  ),
+                ])
+              }),
           ),
         ]),
       )
@@ -171,8 +171,7 @@ fn star_commands(outer_r: Float, inner_r: Float) -> List(shape.PathCommand) {
   let points =
     range(0, 9)
     |> list.map(fn(i) {
-      let angle =
-        int.to_float(i) *. { pi() /. 5.0 } -. { pi() /. 2.0 }
+      let angle = int.to_float(i) *. { pi() /. 5.0 } -. { pi() /. 2.0 }
       let r = case i % 2 == 0 {
         True -> outer_r
         False -> inner_r
@@ -182,10 +181,7 @@ fn star_commands(outer_r: Float, inner_r: Float) -> List(shape.PathCommand) {
 
   case points {
     [#(fx, fy), ..rest] ->
-      [
-        shape.MoveTo(fx, fy),
-        ..list.map(rest, fn(p) { shape.LineTo(p.0, p.1) })
-      ]
+      [shape.MoveTo(fx, fy), ..list.map(rest, fn(p) { shape.LineTo(p.0, p.1) })]
       |> list.append([shape.Close])
     [] -> []
   }

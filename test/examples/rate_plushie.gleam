@@ -16,17 +16,17 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, CanvasElementClick, CanvasElementEnter,
-  CanvasElementLeave, TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
+  type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave,
+  TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
 }
 import plushie/node.{type Node}
+import plushie/prop/a11y
 import plushie/prop/alignment
 import plushie/prop/border
 import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/subscription
-import plushie/prop/a11y
 import plushie/ui
 import plushie/widget/text_editor
 

@@ -60,10 +60,12 @@ pub fn render(id: String, progress: Float) -> Node {
               shape.Stroke(shape.stroke(face_color, 2.0, [])),
             ]),
           ],
-          [shape.Transforms([
-            shape.translate(thumb_x, half_h),
-            shape.rotate(rotation),
-          ])],
+          [
+            shape.Transforms([
+              shape.translate(thumb_x, half_h),
+              shape.rotate(rotation),
+            ]),
+          ],
         ),
       ],
       [],
