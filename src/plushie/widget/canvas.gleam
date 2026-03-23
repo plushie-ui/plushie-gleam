@@ -23,6 +23,8 @@ pub opaque type Canvas {
     on_scroll: Option(Bool),
     alt: Option(String),
     description: Option(String),
+    role: Option(String),
+    arrow_mode: Option(String),
     event_rate: Option(Int),
     a11y: Option(A11y),
   )
@@ -44,6 +46,8 @@ pub fn new(id: String, width: Length, height: Length) -> Canvas {
     on_scroll: None,
     alt: None,
     description: None,
+    role: None,
+    arrow_mode: None,
     event_rate: None,
     a11y: None,
   )
@@ -108,6 +112,16 @@ pub fn description(c: Canvas, d: String) -> Canvas {
   Canvas(..c, description: option.Some(d))
 }
 
+/// Set the accessible role (e.g. "radiogroup", "toolbar").
+pub fn role(c: Canvas, r: String) -> Canvas {
+  Canvas(..c, role: option.Some(r))
+}
+
+/// Set the arrow key navigation mode ("wrap", "clamp", "linear", "none").
+pub fn arrow_mode(c: Canvas, mode: String) -> Canvas {
+  Canvas(..c, arrow_mode: option.Some(mode))
+}
+
 /// Set the event throttle rate in milliseconds.
 pub fn event_rate(c: Canvas, rate: Int) -> Canvas {
   Canvas(..c, event_rate: option.Some(rate))
@@ -142,6 +156,8 @@ pub fn build(c: Canvas) -> Node {
     |> build.put_optional_bool("on_scroll", c.on_scroll)
     |> build.put_optional_string("alt", c.alt)
     |> build.put_optional_string("description", c.description)
+    |> build.put_optional_string("role", c.role)
+    |> build.put_optional_string("arrow_mode", c.arrow_mode)
     |> build.put_optional_int("event_rate", c.event_rate)
     |> build.put_optional("a11y", c.a11y, a11y.to_prop_value)
   Node(id: c.id, kind: "canvas", props:, children: [])
