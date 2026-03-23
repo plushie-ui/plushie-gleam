@@ -1215,6 +1215,19 @@ fn execute_commands(
       state
     }
 
+    command.FocusElement(canvas_id:, element_id:) -> {
+      send_widget_op(
+        state.bridge,
+        "focus_element",
+        [
+          #("target", StringVal(canvas_id)),
+          #("element_id", StringVal(element_id)),
+        ],
+        state.opts,
+      )
+      state
+    }
+
     command.FocusNext -> {
       send_widget_op(state.bridge, "focus_next", [], state.opts)
       state

@@ -352,6 +352,33 @@ pub fn decode_test_event(
         element_id: get_string(data, "element_id", ""),
         captured: False,
       ))
+    "canvas_element_blurred" ->
+      Ok(event.CanvasElementBlurred(
+        id: local,
+        scope:,
+        element_id: get_string(data, "element_id", ""),
+      ))
+    "canvas_focused" -> Ok(event.CanvasFocused(id: local, scope:))
+    "canvas_blurred" -> Ok(event.CanvasBlurred(id: local, scope:))
+    "canvas_group_focused" ->
+      Ok(event.CanvasGroupFocused(
+        id: local,
+        scope:,
+        group_id: get_string(data, "group_id", ""),
+      ))
+    "canvas_group_blurred" ->
+      Ok(event.CanvasGroupBlurred(
+        id: local,
+        scope:,
+        group_id: get_string(data, "group_id", ""),
+      ))
+    "diagnostic" ->
+      Ok(event.Diagnostic(
+        level: get_string(data, "level", ""),
+        element_id: get_string(data, "element_id", ""),
+        code: get_string(data, "code", ""),
+        message: get_string(data, "message", ""),
+      ))
 
     // -- Pane events ---------------------------------------------------------
     "pane_resized" ->

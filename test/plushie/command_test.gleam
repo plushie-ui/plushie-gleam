@@ -13,6 +13,11 @@ pub fn focus_creates_focus_variant_test() {
   assert command.focus("search") == command.Focus(widget_id: "search")
 }
 
+pub fn focus_element_creates_focus_element_variant_test() {
+  assert command.focus_element("my_canvas", "input-0")
+    == command.FocusElement(canvas_id: "my_canvas", element_id: "input-0")
+}
+
 pub fn focus_next_test() {
   assert command.focus_next() == command.FocusNext
 }

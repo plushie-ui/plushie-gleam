@@ -583,6 +583,14 @@ fn decode_event(
     "canvas_element_drag" -> decode_canvas_element_drag(map)
     "canvas_element_drag_end" -> decode_canvas_element_drag_end(map)
     "canvas_element_focused" -> decode_canvas_element_focused(map)
+    "canvas_element_blurred" -> decode_canvas_element_blurred(map)
+    "canvas_focused" -> decode_canvas_focused(map)
+    "canvas_blurred" -> decode_canvas_blurred(map)
+    "canvas_group_focused" -> decode_canvas_group_focused(map)
+    "canvas_group_blurred" -> decode_canvas_group_blurred(map)
+
+    // Diagnostic events
+    "diagnostic" -> decode_diagnostic(map)
 
     // Pane events
     "pane_resized" -> decode_pane_resized(map)
@@ -1159,7 +1167,12 @@ fn decode_canvas_element_leave(
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasElementLeave(id: local, scope:, element_id:, captured:)),
+    EventMessage(event.CanvasElementLeave(
+      id: local,
+      scope:,
+      element_id:,
+      captured:,
+    )),
   )
 }
 
@@ -1251,6 +1264,63 @@ fn decode_canvas_element_focused(
       captured:,
     )),
   )
+}
+
+fn decode_canvas_element_blurred(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let data = get_map(map, "data")
+  let element_id = get_string_or(data, "element_id", "")
+  let #(local, scope) = split_scoped_id(id)
+  Ok(EventMessage(event.CanvasElementBlurred(id: local, scope:, element_id:)))
+}
+
+fn decode_canvas_focused(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let #(local, scope) = split_scoped_id(id)
+  Ok(EventMessage(event.CanvasFocused(id: local, scope:)))
+}
+
+fn decode_canvas_blurred(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let #(local, scope) = split_scoped_id(id)
+  Ok(EventMessage(event.CanvasBlurred(id: local, scope:)))
+}
+
+fn decode_canvas_group_focused(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let data = get_map(map, "data")
+  let group_id = get_string_or(data, "group_id", "")
+  let #(local, scope) = split_scoped_id(id)
+  Ok(EventMessage(event.CanvasGroupFocused(id: local, scope:, group_id:)))
+}
+
+fn decode_canvas_group_blurred(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let data = get_map(map, "data")
+  let group_id = get_string_or(data, "group_id", "")
+  let #(local, scope) = split_scoped_id(id)
+  Ok(EventMessage(event.CanvasGroupBlurred(id: local, scope:, group_id:)))
+}
+
+fn decode_diagnostic(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let data = get_map(map, "data")
+  let level = get_string_or(data, "level", "")
+  let element_id = get_string_or(data, "element_id", "")
+  let code = get_string_or(data, "code", "")
+  let message = get_string_or(data, "message", "")
+  Ok(EventMessage(event.Diagnostic(level:, element_id:, code:, message:)))
 }
 
 // ---------------------------------------------------------------------------

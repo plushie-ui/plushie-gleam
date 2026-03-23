@@ -35,6 +35,8 @@ pub type Command(msg) {
 
   /// Move keyboard focus to the given widget.
   Focus(widget_id: String)
+  /// Focus a specific element within a canvas widget.
+  FocusElement(canvas_id: String, element_id: String)
   /// Move focus to the next focusable widget in tab order.
   FocusNext
   /// Move focus to the previous focusable widget in tab order.
@@ -267,6 +269,11 @@ pub fn exit() -> Command(msg) {
 /// Move keyboard focus to the given widget.
 pub fn focus(widget_id: String) -> Command(msg) {
   Focus(widget_id:)
+}
+
+/// Focus a specific element within a canvas widget.
+pub fn focus_element(canvas_id: String, element_id: String) -> Command(msg) {
+  FocusElement(canvas_id:, element_id:)
 }
 
 /// Move focus to the next focusable widget.

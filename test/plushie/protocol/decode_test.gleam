@@ -810,7 +810,15 @@ pub fn decode_canvas_element_click_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.CanvasElementClick(id:, scope:, element_id:, x:, y:, button:, captured:) -> {
+    event.CanvasElementClick(
+      id:,
+      scope:,
+      element_id:,
+      x:,
+      y:,
+      button:,
+      captured:,
+    ) -> {
       should.equal(id, "my_canvas")
       should.equal(scope, [])
       should.equal(element_id, "btn-0")
@@ -912,6 +920,105 @@ pub fn decode_canvas_element_click_scoped_json_test() {
       should.equal(id, "my_canvas")
       should.equal(scope, ["panel"])
       should.equal(button, "right")
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Canvas lifecycle events
+// ---------------------------------------------------------------------------
+
+pub fn decode_canvas_element_blurred_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_element_blurred\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"input-0\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasElementBlurred(id:, scope:, element_id:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(element_id, "input-0")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_focused_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_focused\",\"id\":\"my_canvas\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasFocused(id:, scope:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_blurred_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_blurred\",\"id\":\"my_canvas\"}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasBlurred(id:, scope:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_group_focused_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_group_focused\",\"id\":\"my_canvas\",\"data\":{\"group_id\":\"toolbar\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasGroupFocused(id:, scope:, group_id:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, [])
+      should.equal(group_id, "toolbar")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_group_blurred_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"canvas_group_blurred\",\"id\":\"panel/my_canvas\",\"data\":{\"group_id\":\"toolbar\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.CanvasGroupBlurred(id:, scope:, group_id:) -> {
+      should.equal(id, "my_canvas")
+      should.equal(scope, ["panel"])
+      should.equal(group_id, "toolbar")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_diagnostic_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"diagnostic\",\"data\":{\"level\":\"warning\",\"element_id\":\"btn-1\",\"code\":\"W001\",\"message\":\"overlapping hit regions\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Diagnostic(level:, element_id:, code:, message:) -> {
+      should.equal(level, "warning")
+      should.equal(element_id, "btn-1")
+      should.equal(code, "W001")
+      should.equal(message, "overlapping hit regions")
     }
     _ -> should.fail()
   }
