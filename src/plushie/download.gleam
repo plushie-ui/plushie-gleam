@@ -61,7 +61,7 @@ pub fn main() -> Nil {
 fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
   let platform = ffi.platform_string()
   let arch = ffi.arch_string()
-  let name = "plushie-" <> platform <> "-" <> arch
+  let name = "plushie-renderer-" <> platform <> "-" <> arch
   let url = release_url(name)
   let dest_path = case bin_file_override {
     Ok(path) -> path
