@@ -114,8 +114,8 @@ fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
   }
   let tarball_path = extract_dir <> "/" <> wasm_archive
 
-  let js_path = extract_dir <> "/plushie_wasm.js"
-  let wasm_path = extract_dir <> "/plushie_wasm_bg.wasm"
+  let js_path = extract_dir <> "/plushie_renderer_wasm.js"
+  let wasm_path = extract_dir <> "/plushie_renderer_wasm_bg.wasm"
 
   case ffi.file_exists(js_path) && ffi.file_exists(wasm_path) && !force {
     True -> {

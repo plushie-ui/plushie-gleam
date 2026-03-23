@@ -190,8 +190,8 @@ fn install_wasm(
   }
   ensure_dir(dest_dir)
 
-  copy_wasm_file(pkg_dir, dest_dir, "plushie_wasm.js")
-  copy_wasm_file(pkg_dir, dest_dir, "plushie_wasm_bg.wasm")
+  copy_wasm_file(pkg_dir, dest_dir, "plushie_renderer_wasm.js")
+  copy_wasm_file(pkg_dir, dest_dir, "plushie_renderer_wasm_bg.wasm")
 
   io.println("Installed WASM files to " <> dest_dir)
 }
