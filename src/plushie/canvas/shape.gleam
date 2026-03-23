@@ -89,6 +89,7 @@ pub type InteractiveOpt {
   PressedStyle(PropValue)
   FocusStyle(PropValue)
   ShowFocusRing(Bool)
+  FocusRingRadius(Float)
   Tooltip(String)
   A11y(PropValue)
   HitRect(x: Float, y: Float, w: Float, h: Float)
@@ -396,6 +397,7 @@ pub fn interactive(
         PressedStyle(s) -> [#("pressed_style", s), ..acc]
         FocusStyle(s) -> [#("focus_style", s), ..acc]
         ShowFocusRing(v) -> [#("show_focus_ring", BoolVal(v)), ..acc]
+        FocusRingRadius(v) -> [#("focus_ring_radius", FloatVal(v)), ..acc]
         Tooltip(t) -> [#("tooltip", StringVal(t)), ..acc]
         A11y(a) -> [#("a11y", a), ..acc]
         HitRect(x:, y:, w:, h:) -> [
