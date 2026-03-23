@@ -1,6 +1,6 @@
 name = "plushie_gleam"
 version = "0.5.0"
-binary_version = "0.5.0"
+binary_version = "0.5.1"
 target = "erlang"
 
 description = "Native desktop GUI framework for Gleam, powered by Iced"

@@ -44,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   `plushie` to `plushie-renderer`. Download URLs now point to
   `plushie-ui/plushie-renderer` releases. Rust crate references
   updated from `plushie-core` to `plushie-ext`.
-- **Binary version** -- targets plushie-renderer 0.5.0.
+- **Binary version** -- targets plushie-renderer 0.5.1.
 - **Canvas group redesign** -- groups now auto-wrap non-group shapes
   in `interactive()` calls. Shape interactive options updated.
 

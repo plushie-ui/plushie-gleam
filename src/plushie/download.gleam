@@ -23,7 +23,7 @@ import plushie/binary
 import plushie/config
 import plushie/ffi
 
-const binary_version = "0.5.0"
+const binary_version = "0.5.1"
 
 const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
 
