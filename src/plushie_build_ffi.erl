@@ -3,6 +3,7 @@
     rustc_version/0,
     cargo_build/2,
     has_flag/1,
+    get_flag_value/1,
     ensure_dir/1,
     copy_file/2,
     chmod/2,
@@ -68,6 +69,18 @@ collect_port_output(Port, Acc) ->
 has_flag(Flag) ->
     FlagStr = binary_to_list(Flag),
     lists:member(FlagStr, init:get_plain_arguments()).
+
+%% Get the value following a flag (e.g. --bin-file PATH).
+get_flag_value(Flag) ->
+    FlagStr = binary_to_list(Flag),
+    find_flag_value(FlagStr, init:get_plain_arguments()).
+
+find_flag_value(_Flag, []) ->
+    {error, nil};
+find_flag_value(Flag, [Flag, Value | _Rest]) ->
+    {ok, list_to_binary(Value)};
+find_flag_value(Flag, [_ | Rest]) ->
+    find_flag_value(Flag, Rest).
 
 %% Create directory (and parents) if it doesn't exist.
 ensure_dir(Path) ->

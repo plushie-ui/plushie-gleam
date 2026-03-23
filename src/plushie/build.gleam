@@ -3,17 +3,23 @@
 //// Ships in the hex package. Users run:
 ////
 //// ```sh
-//// gleam run -m plushie/build                    # native binary (default)
-//// gleam run -m plushie/build -- --release        # optimized build
-//// gleam run -m plushie/build -- --wasm           # WASM renderer only
-//// gleam run -m plushie/build -- --bin --wasm     # both
-//// gleam run -m plushie/build -- --verbose        # print cargo output
+//// gleam run -m plushie/build                        # native binary (default)
+//// gleam run -m plushie/build -- --release            # optimized build
+//// gleam run -m plushie/build -- --wasm               # WASM renderer only
+//// gleam run -m plushie/build -- --bin --wasm         # both
+//// gleam run -m plushie/build -- --verbose            # print cargo output
+//// gleam run -m plushie/build -- --bin-file PATH      # custom binary dest
+//// gleam run -m plushie/build -- --wasm-dir PATH      # custom WASM dest
 //// ```
 ////
 //// Requires PLUSHIE_SOURCE_PATH env var pointing to the plushie Rust
 //// source checkout. Checks Rust toolchain version, runs cargo build,
 //// and installs the binary to build/plushie/bin/. Creates a
 //// bin/plushie symlink. WASM files go to priv/wasm/.
+////
+//// `--bin-file` overrides the default binary destination. The parent
+//// directory is created automatically. `--wasm-dir` overrides the
+//// default WASM output directory (priv/wasm/).
 
 import gleam/io
 import gleam/string
@@ -27,8 +33,12 @@ pub fn main() -> Nil {
   let release = has_flag("--release")
   let verbose = has_flag("--verbose")
 
-  let explicit_bin = has_flag("--bin")
-  let explicit_wasm = has_flag("--wasm")
+  // Path flags imply their target
+  let bin_file = get_flag_value("--bin-file")
+  let wasm_dir = get_flag_value("--wasm-dir")
+
+  let explicit_bin = has_flag("--bin") || is_ok(bin_file)
+  let explicit_wasm = has_flag("--wasm") || is_ok(wasm_dir)
 
   // No explicit target = bin only (backward compatible)
   let want_bin = case explicit_bin, explicit_wasm {
@@ -38,19 +48,23 @@ pub fn main() -> Nil {
   let want_wasm = explicit_wasm
 
   case want_bin {
-    True -> build_bin(release, verbose)
+    True -> build_bin(release, verbose, bin_file)
     False -> Nil
   }
 
   case want_wasm {
-    True -> build_wasm(release, verbose)
+    True -> build_wasm(release, verbose, wasm_dir)
     False -> Nil
   }
 }
 
 // -- Native binary build ------------------------------------------------------
 
-fn build_bin(release: Bool, verbose: Bool) -> Nil {
+fn build_bin(
+  release: Bool,
+  verbose: Bool,
+  bin_file_override: Result(String, Nil),
+) -> Nil {
   check_rust_toolchain()
 
   let source_dir = case ffi.get_env("PLUSHIE_SOURCE_PATH") {
@@ -88,7 +102,7 @@ fn build_bin(release: Bool, verbose: Bool) -> Nil {
         True -> io.println(output)
         False -> Nil
       }
-      install_binary(source_dir, release)
+      install_binary(source_dir, release, bin_file_override)
     }
     Error(output) -> {
       io.println_error("Build failed:")
@@ -100,7 +114,11 @@ fn build_bin(release: Bool, verbose: Bool) -> Nil {
 
 // -- WASM build ---------------------------------------------------------------
 
-fn build_wasm(release: Bool, verbose: Bool) -> Nil {
+fn build_wasm(
+  release: Bool,
+  verbose: Bool,
+  wasm_dir_override: Result(String, Nil),
+) -> Nil {
   case check_wasm_pack() {
     Error(msg) -> {
       io.println_error(msg)
@@ -125,7 +143,9 @@ fn build_wasm(release: Bool, verbose: Bool) -> Nil {
 
   case dir_exists(wasm_crate) {
     False -> {
-      io.println_error("plushie-renderer-wasm crate not found at " <> wasm_crate <> ".")
+      io.println_error(
+        "plushie-renderer-wasm crate not found at " <> wasm_crate <> ".",
+      )
       io.println_error("")
       io.println_error(
         "The WASM build requires the plushie source checkout to include",
@@ -149,7 +169,7 @@ fn build_wasm(release: Bool, verbose: Bool) -> Nil {
         True -> io.println(output)
         False -> Nil
       }
-      install_wasm(wasm_crate)
+      install_wasm(wasm_crate, wasm_dir_override)
     }
     Error(output) -> {
       io.println_error("WASM build failed:")
@@ -159,9 +179,15 @@ fn build_wasm(release: Bool, verbose: Bool) -> Nil {
   }
 }
 
-fn install_wasm(wasm_crate: String) -> Nil {
+fn install_wasm(
+  wasm_crate: String,
+  wasm_dir_override: Result(String, Nil),
+) -> Nil {
   let pkg_dir = wasm_crate <> "/pkg"
-  let dest_dir = "priv/wasm"
+  let dest_dir = case wasm_dir_override {
+    Ok(dir) -> dir
+    Error(_) -> "priv/wasm"
+  }
   ensure_dir(dest_dir)
 
   copy_wasm_file(pkg_dir, dest_dir, "plushie_wasm.js")
@@ -215,7 +241,11 @@ fn check_rust_toolchain() -> Nil {
   }
 }
 
-fn install_binary(source_dir: String, release: Bool) -> Nil {
+fn install_binary(
+  source_dir: String,
+  release: Bool,
+  bin_file_override: Result(String, Nil),
+) -> Nil {
   let profile = case release {
     True -> "release"
     False -> "debug"
@@ -233,8 +263,11 @@ fn install_binary(source_dir: String, release: Bool) -> Nil {
     True -> Nil
   }
 
-  let dest_dir = binary.download_dir()
-  let dest = dest_dir <> "/" <> binary_name
+  let dest = case bin_file_override {
+    Ok(path) -> path
+    Error(_) -> binary.download_dir() <> "/" <> binary_name
+  }
+  let dest_dir = dirname(dest)
   ensure_dir(dest_dir)
   copy_file(src, dest)
   chmod(dest, 0o755)
@@ -292,6 +325,9 @@ fn cargo_build(source_dir: String, release: Bool) -> Result(String, String)
 @external(erlang, "plushie_build_ffi", "has_flag")
 fn has_flag(flag: String) -> Bool
 
+@external(erlang, "plushie_build_ffi", "get_flag_value")
+fn get_flag_value(flag: String) -> Result(String, Nil)
+
 @external(erlang, "plushie_build_ffi", "ensure_dir")
 fn ensure_dir(path: String) -> Nil
 
@@ -321,3 +357,36 @@ fn wasm_pack_build(crate_dir: String, release: Bool) -> Result(String, String)
 
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
+
+// -- Helpers ------------------------------------------------------------------
+
+fn is_ok(result: Result(a, b)) -> Bool {
+  case result {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+fn dirname(path: String) -> String {
+  case string.split(path, "/") {
+    [_] -> "."
+    parts -> {
+      let reversed = list_reverse(parts)
+      case reversed {
+        [_, ..parent] -> list_reverse(parent) |> string.join("/")
+        _ -> "."
+      }
+    }
+  }
+}
+
+fn list_reverse(items: List(a)) -> List(a) {
+  do_reverse(items, [])
+}
+
+fn do_reverse(items: List(a), acc: List(a)) -> List(a) {
+  case items {
+    [] -> acc
+    [first, ..rest] -> do_reverse(rest, [first, ..acc])
+  }
+}
