@@ -399,12 +399,6 @@ pub type Event {
   /// A focusable group lost group-level focus.
   CanvasGroupBlurred(id: String, scope: List(String), group_id: String)
 
-  // --- Diagnostic events ---
-  /// A diagnostic message from the renderer (warnings, errors, etc.).
-  /// The level is "warning", "error", etc. The code is a machine-readable
-  /// identifier and message is a human-readable description.
-  Diagnostic(level: String, element_id: String, code: String, message: String)
-
   // --- Pane events ---
   // Events from pane_grid widgets when panes are resized, dragged,
   // or clicked.
@@ -472,6 +466,9 @@ pub type Event {
   /// normalization. The details Dynamic contains a list of the
   /// offending IDs. Usually indicates a bug in the view function.
   DuplicateNodeIds(details: Dynamic)
+
+  /// Diagnostic message from the renderer (warnings, errors).
+  Diagnostic(level: String, element_id: String, code: String, message: String)
 
   // --- Effect response ---
   /// Response to a platform Effect command (file dialog, clipboard,
