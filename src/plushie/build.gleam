@@ -121,24 +121,24 @@ fn build_wasm(release: Bool, verbose: Bool) -> Nil {
     }
   }
 
-  let wasm_crate = source_dir <> "/plushie-wasm"
+  let wasm_crate = source_dir <> "/plushie-renderer-wasm"
 
   case dir_exists(wasm_crate) {
     False -> {
-      io.println_error("plushie-wasm crate not found at " <> wasm_crate <> ".")
+      io.println_error("plushie-renderer-wasm crate not found at " <> wasm_crate <> ".")
       io.println_error("")
       io.println_error(
         "The WASM build requires the plushie source checkout to include",
       )
-      io.println_error("the plushie-wasm crate directory.")
+      io.println_error("the plushie-renderer-wasm crate directory.")
       halt(1)
     }
     True -> Nil
   }
 
   let label = case release {
-    True -> "Building plushie-wasm (release)..."
-    False -> "Building plushie-wasm..."
+    True -> "Building plushie-renderer-wasm (release)..."
+    False -> "Building plushie-renderer-wasm..."
   }
   io.println(label)
 
