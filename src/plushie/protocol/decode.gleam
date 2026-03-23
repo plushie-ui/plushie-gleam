@@ -577,12 +577,12 @@ fn decode_event(
     "canvas_scroll" -> decode_canvas_scroll(map)
 
     // Canvas shape events
-    "canvas_shape_enter" -> decode_canvas_shape_enter(map)
-    "canvas_shape_leave" -> decode_canvas_shape_leave(map)
-    "canvas_shape_click" -> decode_canvas_shape_click(map)
-    "canvas_shape_drag" -> decode_canvas_shape_drag(map)
-    "canvas_shape_drag_end" -> decode_canvas_shape_drag_end(map)
-    "canvas_shape_focused" -> decode_canvas_shape_focused(map)
+    "canvas_element_enter" -> decode_canvas_element_enter(map)
+    "canvas_element_leave" -> decode_canvas_element_leave(map)
+    "canvas_element_click" -> decode_canvas_element_click(map)
+    "canvas_element_drag" -> decode_canvas_element_drag(map)
+    "canvas_element_drag_end" -> decode_canvas_element_drag_end(map)
+    "canvas_element_focused" -> decode_canvas_element_focused(map)
 
     // Pane events
     "pane_resized" -> decode_pane_resized(map)
@@ -1128,21 +1128,21 @@ fn decode_canvas_scroll(
 // Canvas shape event decoders
 // ---------------------------------------------------------------------------
 
-fn decode_canvas_shape_enter(
+fn decode_canvas_element_enter(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeEnter(
+    EventMessage(event.CanvasElementEnter(
       id: local,
       scope:,
-      shape_id:,
+      element_id:,
       x:,
       y:,
       captured:,
@@ -1150,35 +1150,35 @@ fn decode_canvas_shape_enter(
   )
 }
 
-fn decode_canvas_shape_leave(
+fn decode_canvas_element_leave(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeLeave(id: local, scope:, shape_id:, captured:)),
+    EventMessage(event.CanvasElementLeave(id: local, scope:, element_id:, captured:)),
   )
 }
 
-fn decode_canvas_shape_click(
+fn decode_canvas_element_click(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let button = get_string_or(data, "button", "left")
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeClick(
+    EventMessage(event.CanvasElementClick(
       id: local,
       scope:,
-      shape_id:,
+      element_id:,
       x:,
       y:,
       button:,
@@ -1187,12 +1187,12 @@ fn decode_canvas_shape_click(
   )
 }
 
-fn decode_canvas_shape_drag(
+fn decode_canvas_element_drag(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let delta_x = get_float_or(data, "delta_x", 0.0)
@@ -1200,10 +1200,10 @@ fn decode_canvas_shape_drag(
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeDrag(
+    EventMessage(event.CanvasElementDrag(
       id: local,
       scope:,
-      shape_id:,
+      element_id:,
       x:,
       y:,
       delta_x:,
@@ -1213,21 +1213,21 @@ fn decode_canvas_shape_drag(
   )
 }
 
-fn decode_canvas_shape_drag_end(
+fn decode_canvas_element_drag_end(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeDragEnd(
+    EventMessage(event.CanvasElementDragEnd(
       id: local,
       scope:,
-      shape_id:,
+      element_id:,
       x:,
       y:,
       captured:,
@@ -1235,19 +1235,19 @@ fn decode_canvas_shape_drag_end(
   )
 }
 
-fn decode_canvas_shape_focused(
+fn decode_canvas_element_focused(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   let data = get_map(map, "data")
-  let shape_id = get_string_or(data, "shape_id", "")
+  let element_id = get_string_or(data, "element_id", "")
   let captured = get_bool_or(map, "captured", False)
   let #(local, scope) = split_scoped_id(id)
   Ok(
-    EventMessage(event.CanvasShapeFocused(
+    EventMessage(event.CanvasElementFocused(
       id: local,
       scope:,
-      shape_id:,
+      element_id:,
       captured:,
     )),
   )

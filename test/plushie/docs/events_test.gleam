@@ -209,17 +209,17 @@ pub fn events_canvas_move_match_test() {
   }
 }
 
-pub fn events_canvas_shape_event_match_test() {
+pub fn events_canvas_element_event_match_test() {
   let event: Event =
     WidgetEvent(
-      kind: "canvas_shape_click",
+      kind: "canvas_element_click",
       id: "chart",
       scope: [],
       value: dynamic.nil(),
       data: dynamic.nil(),
     )
   case event {
-    WidgetEvent(kind: "canvas_shape_click", id: "chart", ..) ->
+    WidgetEvent(kind: "canvas_element_click", id: "chart", ..) ->
       should.be_true(True)
     _ -> should.fail()
   }

@@ -36,10 +36,14 @@ pub type ShapeOpt {
   AlignX(String)
   AlignY(String)
   Rotation(Float)
-  /// Horizontal position offset (used by group shapes).
+  /// Horizontal position offset (used by group shapes, desugared to translate).
   X(Float)
-  /// Vertical position offset (used by group shapes).
+  /// Vertical position offset (used by group shapes, desugared to translate).
   Y(Float)
+  /// Ordered list of transforms for a group (translate, rotate, scale).
+  Transforms(List(PropValue))
+  /// Clip rectangle for a group.
+  ClipRect(PropValue)
 }
 
 /// Path commands for constructing freeform shapes.
@@ -71,6 +75,8 @@ pub type PathCommand {
 }
 
 /// Interactive shape options for hit testing and event handling.
+/// Options for interactive groups (elements). These are top-level fields
+/// on the group, not nested in an "interactive" sub-object.
 pub type InteractiveOpt {
   InteractiveId(String)
   OnClick(Bool)
@@ -81,9 +87,12 @@ pub type InteractiveOpt {
   Cursor(String)
   HoverStyle(PropValue)
   PressedStyle(PropValue)
+  FocusStyle(PropValue)
+  ShowFocusRing(Bool)
   Tooltip(String)
   A11y(PropValue)
   HitRect(x: Float, y: Float, w: Float, h: Float)
+  Focusable(Bool)
 }
 
 // -- Stroke builder -----------------------------------------------------------
@@ -204,12 +213,12 @@ pub fn path(commands: List(PathCommand), opts: List(ShapeOpt)) -> PropValue {
 
 // -- Group shape --------------------------------------------------------------
 
-/// Create a group of shapes, optionally positioned at (x, y).
-/// Groups allow composing multiple shapes into a unit that can be
-/// positioned, styled, and made interactive together.
+/// Create a group of shapes. Groups are the only container and interactive
+/// unit in the canvas. A group with an `InteractiveId` becomes an
+/// interactive element.
 ///
-/// Use `X(f)` and `Y(f)` shape opts to position the group.
-/// Use `interactive()` to make the group respond to events.
+/// Use `X(f)` and `Y(f)` shape opts to position the group (desugared
+/// to a leading translate in the transforms array).
 pub fn group(children: List(PropValue), opts: List(ShapeOpt)) -> PropValue {
   make_shape("group", [
     #("children", ListVal(children)),
@@ -217,49 +226,69 @@ pub fn group(children: List(PropValue), opts: List(ShapeOpt)) -> PropValue {
   ])
 }
 
-// -- Transform commands -------------------------------------------------------
-
-/// Push (save) the current transform state onto the stack.
-pub fn push_transform() -> PropValue {
-  make_shape("push_transform", [])
+/// Create an interactive group with an id and options.
+/// Sugar for `group(children, []) |> interactive(id, opts)`.
+pub fn interactive_group(
+  id: String,
+  children: List(PropValue),
+  opts: List(InteractiveOpt),
+) -> PropValue {
+  group(children, []) |> interactive(id, opts)
 }
 
-/// Pop (restore) the previously saved transform state from the stack.
-pub fn pop_transform() -> PropValue {
-  make_shape("pop_transform", [])
-}
+// -- Transform values ---------------------------------------------------------
 
-/// Translate the canvas coordinate system.
+/// Create a translation transform for a group's transforms list.
 pub fn translate(x: Float, y: Float) -> PropValue {
-  make_shape("translate", [#("x", FloatVal(x)), #("y", FloatVal(y))])
+  DictVal(
+    dict.from_list([
+      #("type", StringVal("translate")),
+      #("x", FloatVal(x)),
+      #("y", FloatVal(y)),
+    ]),
+  )
 }
 
-/// Rotate the canvas coordinate system (angle in radians).
+/// Create a rotation transform (angle in radians).
 pub fn rotate(angle: Float) -> PropValue {
-  make_shape("rotate", [#("angle", FloatVal(angle))])
+  DictVal(
+    dict.from_list([#("type", StringVal("rotate")), #("angle", FloatVal(angle))]),
+  )
 }
 
-/// Scale the canvas coordinate system.
+/// Create a non-uniform scale transform.
 pub fn scale(x: Float, y: Float) -> PropValue {
-  make_shape("scale", [#("x", FloatVal(x)), #("y", FloatVal(y))])
+  DictVal(
+    dict.from_list([
+      #("type", StringVal("scale")),
+      #("x", FloatVal(x)),
+      #("y", FloatVal(y)),
+    ]),
+  )
 }
 
-// -- Clipping commands --------------------------------------------------------
-
-/// Push a clipping rectangle. All shapes until the matching pop_clip
-/// are clipped to this region. Clip regions nest via intersection.
-pub fn push_clip(x: Float, y: Float, w: Float, h: Float) -> PropValue {
-  make_shape("push_clip", [
-    #("x", FloatVal(x)),
-    #("y", FloatVal(y)),
-    #("w", FloatVal(w)),
-    #("h", FloatVal(h)),
-  ])
+/// Create a uniform scale transform.
+pub fn scale_uniform(factor: Float) -> PropValue {
+  DictVal(
+    dict.from_list([
+      #("type", StringVal("scale")),
+      #("factor", FloatVal(factor)),
+    ]),
+  )
 }
 
-/// Pop the most recent clipping rectangle.
-pub fn pop_clip() -> PropValue {
-  make_shape("pop_clip", [])
+// -- Clip value ---------------------------------------------------------------
+
+/// Create a clip rectangle for a group.
+pub fn clip(x: Float, y: Float, w: Float, h: Float) -> PropValue {
+  DictVal(
+    dict.from_list([
+      #("x", FloatVal(x)),
+      #("y", FloatVal(y)),
+      #("w", FloatVal(w)),
+      #("h", FloatVal(h)),
+    ]),
+  )
 }
 
 // -- Image / SVG on canvas ----------------------------------------------------
@@ -316,16 +345,23 @@ pub fn linear_gradient(
   )
 }
 
-// -- Interactive shapes -------------------------------------------------------
+// -- Interactive elements -----------------------------------------------------
 
-/// Mark a shape as interactive by adding an "interactive" field.
-/// The id option is required.
-pub fn interactive(shape: PropValue, opts: List(InteractiveOpt)) -> PropValue {
+/// Make a group interactive by adding an id and interactive fields
+/// at the group's top level. Only works on group shapes.
+///
+/// In the new wire format, interactive fields are top-level on the
+/// group (no nested "interactive" sub-object).
+pub fn interactive(
+  shape: PropValue,
+  id: String,
+  opts: List(InteractiveOpt),
+) -> PropValue {
   let assert DictVal(shape_dict) = shape
-  let interactive_props =
-    list.fold(opts, [], fn(acc, opt) {
+  let props =
+    list.fold(opts, [#("id", StringVal(id))], fn(acc, opt) {
       case opt {
-        InteractiveId(id) -> [#("id", StringVal(id)), ..acc]
+        InteractiveId(id2) -> [#("id", StringVal(id2)), ..acc]
         OnClick(v) -> [#("on_click", BoolVal(v)), ..acc]
         OnHover(v) -> [#("on_hover", BoolVal(v)), ..acc]
         Draggable(v) -> [#("draggable", BoolVal(v)), ..acc]
@@ -347,6 +383,8 @@ pub fn interactive(shape: PropValue, opts: List(InteractiveOpt)) -> PropValue {
         Cursor(c) -> [#("cursor", StringVal(c)), ..acc]
         HoverStyle(s) -> [#("hover_style", s), ..acc]
         PressedStyle(s) -> [#("pressed_style", s), ..acc]
+        FocusStyle(s) -> [#("focus_style", s), ..acc]
+        ShowFocusRing(v) -> [#("show_focus_ring", BoolVal(v)), ..acc]
         Tooltip(t) -> [#("tooltip", StringVal(t)), ..acc]
         A11y(a) -> [#("a11y", a), ..acc]
         HitRect(x:, y:, w:, h:) -> [
@@ -363,10 +401,14 @@ pub fn interactive(shape: PropValue, opts: List(InteractiveOpt)) -> PropValue {
           ),
           ..acc
         ]
+        Focusable(v) -> [#("focusable", BoolVal(v)), ..acc]
       }
     })
-  let interactive_val = DictVal(dict.from_list(interactive_props))
-  DictVal(dict.insert(shape_dict, "interactive", interactive_val))
+  // Merge interactive props directly into the group dict.
+  let merged = list.fold(props, shape_dict, fn(d, pair) {
+    dict.insert(d, pair.0, pair.1)
+  })
+  DictVal(merged)
 }
 
 // -- Path command encoding ----------------------------------------------------
@@ -452,6 +494,8 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
       Rotation(r) -> [#("rotation", FloatVal(r))]
       X(x) -> [#("x", FloatVal(x))]
       Y(y) -> [#("y", FloatVal(y))]
+      Transforms(ts) -> [#("transforms", ListVal(ts))]
+      ClipRect(c) -> [#("clip", c)]
     }
   })
 }

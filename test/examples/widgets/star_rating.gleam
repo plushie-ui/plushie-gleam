@@ -17,9 +17,9 @@
 ////       star_rating.ThemeProgress(p),
 ////     ])
 ////
-//// Events: `CanvasShapeClick` with shape_id "star-0" through "star-4".
-//// Hover: `CanvasShapeEnter`/`CanvasShapeLeave` with the same shape_ids.
-//// Focus: `CanvasShapeFocused` with shape_id for keyboard focus.
+//// Events: `CanvasElementClick` with element_id "star-0" through "star-4".
+//// Hover: `CanvasElementEnter`/`CanvasElementLeave` with the same element_ids.
+//// Focus: `CanvasElementFocused` with element_id for keyboard focus.
 
 import gleam/dict
 import gleam/float
@@ -164,8 +164,7 @@ fn build_stars(
           ]),
           [shape.X(cx), shape.Y(cy)],
         )
-        |> shape.interactive([
-          shape.InteractiveId("star-" <> int.to_string(i)),
+        |> shape.interactive("star-" <> int.to_string(i), [
           shape.OnClick(True),
           shape.OnHover(True),
           shape.Cursor("pointer"),

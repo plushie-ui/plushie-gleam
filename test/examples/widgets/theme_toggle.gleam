@@ -6,7 +6,7 @@
 ////
 ////     theme_toggle.render("my-toggle", model.toggle_progress)
 ////
-//// Events: `CanvasShapeClick` with shape_id "switch".
+//// Events: `CanvasElementClick` with element_id "switch".
 //// Drive `progress` from 0.0 (light) to 1.0 (dark) with a timer.
 
 import gleam/dict
@@ -48,24 +48,27 @@ pub fn render(id: String, progress: Float) -> Node {
           |> set_radius(half_h),
         // Thumb circle
         shape.circle(thumb_x, half_h, thumb_r, [shape.Fill("#ffffff")]),
-        // Face drawn with transforms (rotates during transition)
-        shape.push_transform(),
-        shape.translate(thumb_x, half_h),
-        shape.rotate(rotation),
-        // Left eye
-        shape.circle(-3.5, -3.0, 2.0, [shape.Fill(face_color)]),
-        // Right eye
-        shape.circle(3.5, -3.0, 2.0, [shape.Fill(face_color)]),
-        // Mouth (smile drawn as a path)
-        shape.path(smile_path(), [
-          shape.Stroke(shape.stroke(face_color, 2.0, [])),
-        ]),
-        shape.pop_transform(),
+        // Face drawn inside a transform group (rotates during transition)
+        shape.group(
+          [
+            // Left eye
+            shape.circle(-3.5, -3.0, 2.0, [shape.Fill(face_color)]),
+            // Right eye
+            shape.circle(3.5, -3.0, 2.0, [shape.Fill(face_color)]),
+            // Mouth (smile drawn as a path)
+            shape.path(smile_path(), [
+              shape.Stroke(shape.stroke(face_color, 2.0, [])),
+            ]),
+          ],
+          [shape.Transforms([
+            shape.translate(thumb_x, half_h),
+            shape.rotate(rotation),
+          ])],
+        ),
       ],
       [],
     )
-    |> shape.interactive([
-      shape.InteractiveId("switch"),
+    |> shape.interactive("switch", [
       shape.OnClick(True),
       shape.Cursor("pointer"),
       shape.HitRect(

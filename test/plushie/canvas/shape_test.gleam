@@ -261,17 +261,7 @@ pub fn stroke_with_dash_test() {
   assert dict.get(dash, "offset") == Ok(FloatVal(0.0))
 }
 
-// -- transforms ---------------------------------------------------------------
-
-pub fn push_transform_test() {
-  let s = shape.push_transform()
-  assert get(s, "type") == Ok(StringVal("push_transform"))
-}
-
-pub fn pop_transform_test() {
-  let s = shape.pop_transform()
-  assert get(s, "type") == Ok(StringVal("pop_transform"))
-}
+// -- transforms (now group-level values) --------------------------------------
 
 pub fn translate_test() {
   let s = shape.translate(100.0, 200.0)
@@ -293,20 +283,20 @@ pub fn scale_test() {
   assert get(s, "y") == Ok(FloatVal(3.0))
 }
 
-// -- clipping -----------------------------------------------------------------
+pub fn scale_uniform_test() {
+  let s = shape.scale_uniform(2.0)
+  assert get(s, "type") == Ok(StringVal("scale"))
+  assert get(s, "factor") == Ok(FloatVal(2.0))
+}
 
-pub fn push_clip_uses_w_h_keys_test() {
-  let s = shape.push_clip(10.0, 20.0, 100.0, 80.0)
-  assert get(s, "type") == Ok(StringVal("push_clip"))
+// -- clip (now a group-level value) -------------------------------------------
+
+pub fn clip_test() {
+  let s = shape.clip(10.0, 20.0, 100.0, 80.0)
   assert get(s, "x") == Ok(FloatVal(10.0))
   assert get(s, "y") == Ok(FloatVal(20.0))
   assert get(s, "w") == Ok(FloatVal(100.0))
   assert get(s, "h") == Ok(FloatVal(80.0))
-}
-
-pub fn pop_clip_test() {
-  let s = shape.pop_clip()
-  assert get(s, "type") == Ok(StringVal("pop_clip"))
 }
 
 // -- image / svg --------------------------------------------------------------
@@ -377,32 +367,29 @@ pub fn gradient_fill_on_rect_test() {
 pub fn interactive_adds_nested_field_test() {
   let s =
     shape.rect(0.0, 0.0, 50.0, 50.0, [shape.Fill("#f00")])
-    |> shape.interactive([
-      shape.InteractiveId("my-shape"),
+    |> shape.interactive("my-shape", [
       shape.OnClick(True),
       shape.Cursor("pointer"),
       shape.Tooltip("Click me"),
     ])
 
-  let assert Ok(DictVal(interactive)) = get(s, "interactive")
-  assert dict.get(interactive, "id") == Ok(StringVal("my-shape"))
-  assert dict.get(interactive, "on_click") == Ok(BoolVal(True))
-  assert dict.get(interactive, "cursor") == Ok(StringVal("pointer"))
-  assert dict.get(interactive, "tooltip") == Ok(StringVal("Click me"))
+  // Interactive fields are now top-level on the group (not nested).
+  assert get(s, "id") == Ok(StringVal("my-shape"))
+  assert get(s, "on_click") == Ok(BoolVal(True))
+  assert get(s, "cursor") == Ok(StringVal("pointer"))
+  assert get(s, "tooltip") == Ok(StringVal("Click me"))
 }
 
 pub fn interactive_with_drag_bounds_test() {
   let s =
     shape.circle(50.0, 50.0, 10.0, [])
-    |> shape.interactive([
-      shape.InteractiveId("drag-me"),
+    |> shape.interactive("drag-me", [
       shape.Draggable(True),
       shape.DragBounds(0.0, 100.0, 0.0, 100.0),
     ])
 
-  let assert Ok(DictVal(interactive)) = get(s, "interactive")
-  assert dict.get(interactive, "draggable") == Ok(BoolVal(True))
-  let assert Ok(DictVal(bounds)) = dict.get(interactive, "drag_bounds")
+  assert get(s, "draggable") == Ok(BoolVal(True))
+  let assert Ok(DictVal(bounds)) = get(s, "drag_bounds")
   assert dict.get(bounds, "min_x") == Ok(FloatVal(0.0))
   assert dict.get(bounds, "max_x") == Ok(FloatVal(100.0))
 }
@@ -439,24 +426,21 @@ pub fn group_interactive_test() {
   let child = shape.circle(0.0, 0.0, 5.0, [])
   let s =
     shape.group([child], [shape.X(10.0)])
-    |> shape.interactive([shape.InteractiveId("grp"), shape.OnClick(True)])
+    |> shape.interactive("grp", [shape.OnClick(True)])
 
-  let assert Ok(DictVal(interactive)) = get(s, "interactive")
-  assert dict.get(interactive, "id") == Ok(StringVal("grp"))
-  assert dict.get(interactive, "on_click") == Ok(BoolVal(True))
+  assert get(s, "id") == Ok(StringVal("grp"))
+  assert get(s, "on_click") == Ok(BoolVal(True))
   assert get(s, "x") == Ok(FloatVal(10.0))
 }
 
 pub fn interactive_with_hit_rect_test() {
   let s =
     shape.circle(50.0, 50.0, 5.0, [])
-    |> shape.interactive([
-      shape.InteractiveId("small"),
+    |> shape.interactive("small", [
       shape.HitRect(40.0, 40.0, 20.0, 20.0),
     ])
 
-  let assert Ok(DictVal(interactive)) = get(s, "interactive")
-  let assert Ok(DictVal(hr)) = dict.get(interactive, "hit_rect")
+  let assert Ok(DictVal(hr)) = get(s, "hit_rect")
   assert dict.get(hr, "x") == Ok(FloatVal(40.0))
   assert dict.get(hr, "w") == Ok(FloatVal(20.0))
 }

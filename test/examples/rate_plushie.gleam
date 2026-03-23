@@ -16,8 +16,8 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, CanvasShapeClick, CanvasShapeEnter, CanvasShapeFocused,
-  CanvasShapeLeave, TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
+  type Event, CanvasElementClick, CanvasElementEnter, CanvasElementFocused,
+  CanvasElementLeave, TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
 }
 import plushie/node.{type Node}
 import plushie/prop/alignment
@@ -191,40 +191,40 @@ fn init() {
 fn update(model: Model, event: Event) {
   case event {
     // Star rating interactions
-    CanvasShapeClick(id: "stars", shape_id: shape_id, ..) ->
-      case string.starts_with(shape_id, "star-") {
+    CanvasElementClick(id: "stars", element_id: element_id, ..) ->
+      case string.starts_with(element_id, "star-") {
         True -> {
-          let n = parse_star_index(shape_id)
+          let n = parse_star_index(element_id)
           #(Model(..model, rating: n + 1), command.none())
         }
         False -> #(model, command.none())
       }
 
-    CanvasShapeEnter(id: "stars", shape_id: shape_id, ..) ->
-      case string.starts_with(shape_id, "star-") {
+    CanvasElementEnter(id: "stars", element_id: element_id, ..) ->
+      case string.starts_with(element_id, "star-") {
         True -> {
-          let n = parse_star_index(shape_id)
+          let n = parse_star_index(element_id)
           #(Model(..model, hover_star: option.Some(n + 1)), command.none())
         }
         False -> #(model, command.none())
       }
 
-    CanvasShapeLeave(id: "stars", ..) -> #(
+    CanvasElementLeave(id: "stars", ..) -> #(
       Model(..model, hover_star: option.None),
       command.none(),
     )
 
-    CanvasShapeFocused(id: "stars", shape_id: shape_id, ..) ->
-      case string.starts_with(shape_id, "star-") {
+    CanvasElementFocused(id: "stars", element_id: element_id, ..) ->
+      case string.starts_with(element_id, "star-") {
         True -> {
-          let n = parse_star_index(shape_id)
+          let n = parse_star_index(element_id)
           #(Model(..model, focused_star: option.Some(n)), command.none())
         }
         False -> #(model, command.none())
       }
 
     // Theme toggle
-    CanvasShapeClick(id: "theme-toggle", ..) -> {
+    CanvasElementClick(id: "theme-toggle", ..) -> {
       let target = case model.toggle_target == 0.0 {
         True -> 1.0
         False -> 0.0
@@ -283,8 +283,8 @@ fn submit_review(model: Model) -> Model {
   }
 }
 
-fn parse_star_index(shape_id: String) -> Int {
-  let suffix = string.drop_start(shape_id, 5)
+fn parse_star_index(element_id: String) -> Int {
+  let suffix = string.drop_start(element_id, 5)
   case int.parse(suffix) {
     Ok(n) -> n
     Error(_) -> 0

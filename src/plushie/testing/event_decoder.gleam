@@ -299,57 +299,57 @@ pub fn decode_test_event(
       ))
 
     // -- Canvas shape events -------------------------------------------------
-    "canvas_shape_enter" ->
-      Ok(event.CanvasShapeEnter(
+    "canvas_element_enter" ->
+      Ok(event.CanvasElementEnter(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
         captured: False,
       ))
-    "canvas_shape_leave" ->
-      Ok(event.CanvasShapeLeave(
+    "canvas_element_leave" ->
+      Ok(event.CanvasElementLeave(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         captured: False,
       ))
-    "canvas_shape_click" ->
-      Ok(event.CanvasShapeClick(
+    "canvas_element_click" ->
+      Ok(event.CanvasElementClick(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
         button: get_string(data, "button", "left"),
         captured: False,
       ))
-    "canvas_shape_drag" ->
-      Ok(event.CanvasShapeDrag(
+    "canvas_element_drag" ->
+      Ok(event.CanvasElementDrag(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
         delta_x: get_float(data, "delta_x", 0.0),
         delta_y: get_float(data, "delta_y", 0.0),
         captured: False,
       ))
-    "canvas_shape_drag_end" ->
-      Ok(event.CanvasShapeDragEnd(
+    "canvas_element_drag_end" ->
+      Ok(event.CanvasElementDragEnd(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
         captured: False,
       ))
-    "canvas_shape_focused" ->
-      Ok(event.CanvasShapeFocused(
+    "canvas_element_focused" ->
+      Ok(event.CanvasElementFocused(
         id: local,
         scope:,
-        shape_id: get_string(data, "shape_id", ""),
+        element_id: get_string(data, "element_id", ""),
         captured: False,
       ))
 

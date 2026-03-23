@@ -334,38 +334,38 @@ pub type Event {
   // --- Canvas shape events ---
   // Interactive shape events. These fire from shapes with an "interactive"
   // field inside a canvas widget. The id is the canvas widget's ID;
-  // shape_id identifies which interactive shape.
+  // element_id identifies which interactive shape.
   /// Mouse entered an interactive canvas shape's bounds.
-  CanvasShapeEnter(
+  CanvasElementEnter(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     x: Float,
     y: Float,
     captured: Bool,
   )
   /// Mouse left an interactive canvas shape's bounds.
-  CanvasShapeLeave(
+  CanvasElementLeave(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     captured: Bool,
   )
   /// An interactive canvas shape was clicked.
-  CanvasShapeClick(
+  CanvasElementClick(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     x: Float,
     y: Float,
     button: String,
     captured: Bool,
   )
   /// An interactive canvas shape is being dragged.
-  CanvasShapeDrag(
+  CanvasElementDrag(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     x: Float,
     y: Float,
     delta_x: Float,
@@ -373,20 +373,42 @@ pub type Event {
     captured: Bool,
   )
   /// Drag ended on an interactive canvas shape.
-  CanvasShapeDragEnd(
+  CanvasElementDragEnd(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     x: Float,
     y: Float,
     captured: Bool,
   )
   /// An interactive canvas shape received keyboard focus.
-  CanvasShapeFocused(
+  CanvasElementFocused(
     id: String,
     scope: List(String),
-    shape_id: String,
+    element_id: String,
     captured: Bool,
+  )
+  /// An interactive element lost keyboard focus.
+  CanvasElementBlurred(
+    id: String,
+    scope: List(String),
+    element_id: String,
+  )
+  /// The canvas widget gained iced-level focus.
+  CanvasFocused(id: String, scope: List(String))
+  /// The canvas widget lost iced-level focus.
+  CanvasBlurred(id: String, scope: List(String))
+  /// A focusable group gained group-level focus.
+  CanvasGroupFocused(
+    id: String,
+    scope: List(String),
+    group_id: String,
+  )
+  /// A focusable group lost group-level focus.
+  CanvasGroupBlurred(
+    id: String,
+    scope: List(String),
+    group_id: String,
   )
 
   // --- Pane events ---
