@@ -17,8 +17,10 @@
 //// unless --force.
 
 import gleam/io
+import gleam/list
 import gleam/string
 import plushie/binary
+import plushie/config
 import plushie/ffi
 
 const binary_version = "0.5.0"
@@ -31,19 +33,18 @@ const wasm_archive = "plushie-renderer-wasm.tar.gz"
 pub fn main() -> Nil {
   let force = has_flag("--force")
 
-  // Path flags imply their target
-  let bin_file = get_flag_value("--bin-file")
-  let wasm_dir = get_flag_value("--wasm-dir")
+  // Resolve paths: CLI flag > gleam.toml [plushie] > default
+  let bin_file =
+    get_flag_value("--bin-file")
+    |> or_config("bin_file")
+  let wasm_dir =
+    get_flag_value("--wasm-dir")
+    |> or_config("wasm_dir")
 
-  let explicit_bin = has_flag("--bin") || is_ok(bin_file)
-  let explicit_wasm = has_flag("--wasm") || is_ok(wasm_dir)
-
-  // No explicit target = bin only (backward compatible)
-  let want_bin = case explicit_bin, explicit_wasm {
-    False, False -> True
-    _, _ -> explicit_bin
-  }
-  let want_wasm = explicit_wasm
+  // Only CLI flags (not config paths) imply artifact selection
+  let cli_bin_file = get_flag_value("--bin-file")
+  let cli_wasm_dir = get_flag_value("--wasm-dir")
+  let #(want_bin, want_wasm) = resolve_artifacts(cli_bin_file, cli_wasm_dir)
 
   case want_bin {
     True -> download_bin(bin_file, force)
@@ -296,3 +297,39 @@ fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
+
+// -- Config helpers -----------------------------------------------------------
+
+/// Resolve which artifacts to download.
+///
+/// CLI flags > gleam.toml [plushie] artifacts > default (bin only).
+fn resolve_artifacts(
+  bin_file: Result(String, Nil),
+  wasm_dir: Result(String, Nil),
+) -> #(Bool, Bool) {
+  let cli_bin = has_flag("--bin") || is_ok(bin_file)
+  let cli_wasm = has_flag("--wasm") || is_ok(wasm_dir)
+
+  case cli_bin || cli_wasm {
+    True -> #(cli_bin, cli_wasm)
+    False ->
+      case config.get_artifacts() {
+        Ok(artifacts) -> #(
+          list.contains(artifacts, "bin"),
+          list.contains(artifacts, "wasm"),
+        )
+        Error(_) -> #(True, False)
+      }
+  }
+}
+
+/// Use a gleam.toml config value as fallback when the CLI flag is absent.
+fn or_config(
+  flag_result: Result(String, Nil),
+  config_key: String,
+) -> Result(String, Nil) {
+  case flag_result {
+    Ok(_) -> flag_result
+    Error(_) -> config.get_string(config_key)
+  }
+}

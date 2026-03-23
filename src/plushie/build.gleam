@@ -22,8 +22,10 @@
 //// default WASM output directory (priv/wasm/).
 
 import gleam/io
+import gleam/list
 import gleam/string
 import plushie/binary
+import plushie/config
 import plushie/ffi
 
 const min_rust_version = "1.92.0"
@@ -33,19 +35,18 @@ pub fn main() -> Nil {
   let release = has_flag("--release")
   let verbose = has_flag("--verbose")
 
-  // Path flags imply their target
-  let bin_file = get_flag_value("--bin-file")
-  let wasm_dir = get_flag_value("--wasm-dir")
+  // Resolve paths: CLI flag > gleam.toml [plushie] > default
+  let bin_file =
+    get_flag_value("--bin-file")
+    |> or_config("bin_file")
+  let wasm_dir =
+    get_flag_value("--wasm-dir")
+    |> or_config("wasm_dir")
 
-  let explicit_bin = has_flag("--bin") || is_ok(bin_file)
-  let explicit_wasm = has_flag("--wasm") || is_ok(wasm_dir)
-
-  // No explicit target = bin only (backward compatible)
-  let want_bin = case explicit_bin, explicit_wasm {
-    False, False -> True
-    _, _ -> explicit_bin
-  }
-  let want_wasm = explicit_wasm
+  // Only CLI flags (not config paths) imply artifact selection
+  let cli_bin_file = get_flag_value("--bin-file")
+  let cli_wasm_dir = get_flag_value("--wasm-dir")
+  let #(want_bin, want_wasm) = resolve_artifacts(cli_bin_file, cli_wasm_dir)
 
   case want_bin {
     True -> build_bin(release, verbose, bin_file)
@@ -67,17 +68,7 @@ fn build_bin(
 ) -> Nil {
   check_rust_toolchain()
 
-  let source_dir = case ffi.get_env("PLUSHIE_SOURCE_PATH") {
-    Ok(path) -> path
-    Error(_) -> {
-      io.println_error("Error: PLUSHIE_SOURCE_PATH not set.")
-      io.println_error("")
-      io.println_error("Set it to the plushie Rust source checkout:")
-      io.println_error("  export PLUSHIE_SOURCE_PATH=/path/to/plushie")
-      halt(1)
-      panic as "unreachable"
-    }
-  }
+  let source_dir = resolve_source_path()
 
   case dir_exists(source_dir) {
     False -> {
@@ -127,17 +118,7 @@ fn build_wasm(
     Ok(_) -> Nil
   }
 
-  let source_dir = case ffi.get_env("PLUSHIE_SOURCE_PATH") {
-    Ok(path) -> path
-    Error(_) -> {
-      io.println_error("Error: PLUSHIE_SOURCE_PATH not set.")
-      io.println_error("")
-      io.println_error("Set it to the plushie Rust source checkout:")
-      io.println_error("  export PLUSHIE_SOURCE_PATH=/path/to/plushie")
-      halt(1)
-      panic as "unreachable"
-    }
-  }
+  let source_dir = resolve_source_path()
 
   let wasm_crate = source_dir <> "/plushie-renderer-wasm"
 
@@ -364,6 +345,68 @@ fn is_ok(result: Result(a, b)) -> Bool {
   case result {
     Ok(_) -> True
     Error(_) -> False
+  }
+}
+
+/// Resolve which artifacts to build.
+///
+/// CLI flags > gleam.toml [plushie] artifacts > default (bin only).
+fn resolve_artifacts(
+  bin_file: Result(String, Nil),
+  wasm_dir: Result(String, Nil),
+) -> #(Bool, Bool) {
+  let cli_bin = has_flag("--bin") || is_ok(bin_file)
+  let cli_wasm = has_flag("--wasm") || is_ok(wasm_dir)
+
+  case cli_bin || cli_wasm {
+    True -> #(cli_bin, cli_wasm)
+    False ->
+      // No CLI flags -- check gleam.toml config
+      case config.get_artifacts() {
+        Ok(artifacts) -> #(
+          list.contains(artifacts, "bin"),
+          list.contains(artifacts, "wasm"),
+        )
+        Error(_) -> #(True, False)
+      }
+  }
+}
+
+/// Resolve the plushie source path.
+///
+/// Resolution: PLUSHIE_SOURCE_PATH env > gleam.toml source_path > error.
+fn resolve_source_path() -> String {
+  case ffi.get_env("PLUSHIE_SOURCE_PATH") {
+    Ok(path) -> path
+    Error(_) ->
+      case config.get_string("source_path") {
+        Ok(path) -> path
+        Error(_) -> {
+          io.println_error("Error: plushie source path not configured.")
+          io.println_error("")
+          io.println_error("Set one of:")
+          io.println_error(
+            "  export PLUSHIE_SOURCE_PATH=/path/to/plushie-renderer",
+          )
+          io.println_error("")
+          io.println_error("  # or in gleam.toml:")
+          io.println_error("  [plushie]")
+          io.println_error("  source_path = \"/path/to/plushie-renderer\"")
+          halt(1)
+          panic as "unreachable"
+        }
+      }
+  }
+}
+
+/// Use a gleam.toml config value as fallback when the CLI flag is absent.
+fn or_config(
+  flag_result: Result(String, Nil),
+  config_key: String,
+) -> Result(String, Nil) {
+  case flag_result {
+    Ok(_) -> flag_result
+    Error(_) -> config.get_string(config_key)
   }
 }
 
