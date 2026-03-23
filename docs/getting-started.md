@@ -189,7 +189,10 @@ RUST_LOG=plushie=debug gleam run -m my_app
 
 If `update` or `view` raises, the runtime catches the exception,
 logs it, and continues with the previous state. The GUI does not
-crash. Fix the code and the next event works normally.
+crash. Fix the code and the next event works normally. See the
+[crash-lab](https://github.com/plushie-ui/plushie-demos/tree/main/gleam/crash-lab)
+demo for all three failure paths (Gleam panics and Rust extension
+panics) in action.
 
 ## Dev mode
 

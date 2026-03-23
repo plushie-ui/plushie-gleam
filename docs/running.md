@@ -200,6 +200,11 @@ After 100 consecutive errors, log output is suppressed to prevent
 flooding, with periodic reminders every 1000 errors. Telemetry
 events continue firing for monitoring.
 
+> The [crash-lab](https://github.com/plushie-ui/plushie-demos/tree/main/gleam/crash-lab)
+> demo shows all three failure paths in action: Rust extension panics,
+> Gleam update panics, and Gleam view panics -- with a counter that
+> proves the model survives every one.
+
 ### Network drops
 
 When an SSH connection drops, both sides detect the broken pipe:
