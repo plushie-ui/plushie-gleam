@@ -219,3 +219,4 @@ your view function and save. The window updates instantly.
 - [Events](events.md) -- complete event taxonomy
 - [Testing](testing.md) -- writing tests against your UI
 - [Theming](theming.md) -- custom themes and palettes
+- [Demo apps](https://github.com/plushie-ui/plushie-demos/tree/main/gleam) -- collab scratchpad, gauge extension, sparkline dashboard

@@ -1295,3 +1295,12 @@ Document these in your package README:
   continuity, keyboard focus, accessibility, or rendering internals.
 - **Overlay requires the overlay node type.** If your widget needs popover
   behaviour, it depends on the `overlay` node type being available.
+
+## Demo projects
+
+Complete working examples of native widget extensions:
+
+- [gauge-demo](https://github.com/plushie-ui/plushie-demos/tree/main/gleam/gauge-demo) -- extension with commands (`set_value`, `animate_to`), optimistic updates, typed builder API, and comprehensive test suite
+- [sparkline-dashboard](https://github.com/plushie-ui/plushie-demos/tree/main/gleam/sparkline-dashboard) -- render-only canvas extension with timer subscriptions and simulated live data
+
+The same demos exist in [TypeScript](https://github.com/plushie-ui/plushie-demos/tree/main/typescript), [Ruby](https://github.com/plushie-ui/plushie-demos/tree/main/ruby), and [Python](https://github.com/plushie-ui/plushie-demos/tree/main/python). The Rust extension code is identical across languages.

@@ -491,3 +491,4 @@ the wire. This matters when writing assertions: `build()` output has
 - [Commands and subscriptions](commands.md) -- event rate limiting details
 - [Testing](testing.md) -- test framework
 - [Extensions](extensions.md) -- custom widgets, CoalesceHint for throttling
+- [Collab demo](https://github.com/plushie-ui/plushie-demos/tree/main/gleam/collab) -- the same app running in 6 transport modes (native, stdio, WASM, WebSocket, SSH)
