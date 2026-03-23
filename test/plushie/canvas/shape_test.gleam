@@ -411,8 +411,11 @@ pub fn group_with_position_test() {
   let s = shape.group([child], [shape.X(100.0), shape.Y(200.0)])
 
   assert get(s, "type") == Ok(StringVal("group"))
-  assert get(s, "x") == Ok(FloatVal(100.0))
-  assert get(s, "y") == Ok(FloatVal(200.0))
+  // X/Y are desugared to a leading translate in the transforms array
+  let assert Ok(ListVal([DictVal(t)])) = get(s, "transforms")
+  assert dict.get(t, "type") == Ok(StringVal("translate"))
+  assert dict.get(t, "x") == Ok(FloatVal(100.0))
+  assert dict.get(t, "y") == Ok(FloatVal(200.0))
 }
 
 pub fn group_empty_children_test() {
@@ -430,7 +433,11 @@ pub fn group_interactive_test() {
 
   assert get(s, "id") == Ok(StringVal("grp"))
   assert get(s, "on_click") == Ok(BoolVal(True))
-  assert get(s, "x") == Ok(FloatVal(10.0))
+  // X is desugared to a leading translate in the transforms array
+  let assert Ok(ListVal([DictVal(t)])) = get(s, "transforms")
+  assert dict.get(t, "type") == Ok(StringVal("translate"))
+  assert dict.get(t, "x") == Ok(FloatVal(10.0))
+  assert dict.get(t, "y") == Ok(FloatVal(0.0))
 }
 
 pub fn interactive_with_hit_rect_test() {

@@ -6,6 +6,7 @@
 
 import gleam/dict
 import gleam/list
+import gleam/option.{type Option}
 import plushie/node.{
   type PropValue, BoolVal, DictVal, FloatVal, ListVal, StringVal,
 }
@@ -221,10 +222,18 @@ pub fn path(commands: List(PathCommand), opts: List(ShapeOpt)) -> PropValue {
 /// Use `X(f)` and `Y(f)` shape opts to position the group (desugared
 /// to a leading translate in the transforms array).
 pub fn group(children: List(PropValue), opts: List(ShapeOpt)) -> PropValue {
-  make_shape("group", [
-    #("children", ListVal(children)),
-    ..shape_opts_to_props(opts)
-  ])
+  // Extract X/Y from opts and desugar to a leading translate.
+  let #(x_val, y_val, remaining_opts) = extract_xy(opts)
+  let base_props = shape_opts_to_props(remaining_opts)
+
+  let props = case x_val, y_val {
+    option.Some(x), option.Some(y) -> prepend_translate(x, y, base_props)
+    option.Some(x), option.None -> prepend_translate(x, 0.0, base_props)
+    option.None, option.Some(y) -> prepend_translate(0.0, y, base_props)
+    option.None, option.None -> base_props
+  }
+
+  make_shape("group", [#("children", ListVal(children)), ..props])
 }
 
 /// Create an interactive group with an id and options.
@@ -504,6 +513,8 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
       AlignX(a) -> [#("align_x", StringVal(a))]
       AlignY(a) -> [#("align_y", StringVal(a))]
       Rotation(r) -> [#("rotation", FloatVal(r))]
+      // X and Y are handled by extract_xy in group(), not here.
+      // If they appear on non-group shapes, emit as flat props.
       X(x) -> [#("x", FloatVal(x))]
       Y(y) -> [#("y", FloatVal(y))]
       Transforms(ts) -> [#("transforms", ListVal(ts))]
@@ -533,4 +544,46 @@ fn make_shape(
   props: List(#(String, PropValue)),
 ) -> PropValue {
   DictVal(dict.from_list([#("type", StringVal(shape_type)), ..props]))
+}
+
+/// Extract X and Y opts from a ShapeOpt list, returning them separately
+/// from the remaining opts. Used by group() to desugar into transforms.
+fn extract_xy(
+  opts: List(ShapeOpt),
+) -> #(Option(Float), Option(Float), List(ShapeOpt)) {
+  list.fold(opts, #(option.None, option.None, []), fn(acc, opt) {
+    let #(x, y, rest) = acc
+    case opt {
+      X(v) -> #(option.Some(v), y, rest)
+      Y(v) -> #(x, option.Some(v), rest)
+      other -> #(x, y, [other, ..rest])
+    }
+  })
+  |> fn(result) {
+    let #(x, y, rest) = result
+    #(x, y, list.reverse(rest))
+  }
+}
+
+/// Prepend a translate transform to an existing props list.
+/// If there's already a "transforms" entry, prepend to it.
+/// Otherwise create a new "transforms" list.
+fn prepend_translate(
+  x: Float,
+  y: Float,
+  props: List(#(String, PropValue)),
+) -> List(#(String, PropValue)) {
+  let translate_val = translate(x, y)
+
+  // Check if transforms already exist in props
+  let #(existing_transforms, other_props) =
+    list.partition(props, fn(p) { p.0 == "transforms" })
+
+  case existing_transforms {
+    [#(_, ListVal(ts)), ..] -> [
+      #("transforms", ListVal([translate_val, ..ts])),
+      ..other_props
+    ]
+    _ -> [#("transforms", ListVal([translate_val])), ..other_props]
+  }
 }
