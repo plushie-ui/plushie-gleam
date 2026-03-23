@@ -6,8 +6,8 @@
 //// 3. build/plushie/bin/plushie (platform-generic fallback)
 //// 4. priv/bin/plushie-{platform}-{arch} (legacy location, backward compat)
 //// 5. priv/bin/plushie (legacy location, backward compat)
-//// 6. Custom build at _build/{env}/plushie/target/release/plushie
-//// 7. Common local paths (./plushie, ../plushie/target/release/plushie)
+//// 6. Custom build at _build/{env}/plushie-renderer/target/release/plushie-renderer
+//// 7. Common local paths (./plushie, ../plushie-renderer/target/release/plushie-renderer)
 ////
 //// Returns Result(String, BinaryError) with the path on success.
 
@@ -73,9 +73,9 @@ fn candidate_paths() -> List(String) {
     // Legacy: priv/bin/ (backward compat)
     "priv/bin/" <> platform_name,
     "priv/bin/" <> name,
-    // Custom builds
-    "_build/dev/plushie/target/release/" <> name,
-    "_build/prod/plushie/target/release/" <> name,
+    // Custom builds (plushie-renderer binary from cargo)
+    "_build/dev/plushie-renderer/target/release/plushie-renderer",
+    "_build/prod/plushie-renderer/target/release/plushie-renderer",
     "./" <> name,
     "../plushie/target/release/" <> name,
     "../plushie/target/debug/" <> name,
