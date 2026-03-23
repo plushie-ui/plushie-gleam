@@ -397,7 +397,7 @@ pub fn interactive(
         PressedStyle(s) -> [#("pressed_style", s), ..acc]
         FocusStyle(s) -> [#("focus_style", s), ..acc]
         ShowFocusRing(v) -> [#("show_focus_ring", BoolVal(v)), ..acc]
-        FocusRingRadius(v) -> [#("focus_ring_radius", FloatVal(v)), ..acc]
+        FocusRingRadius(r) -> [#("focus_ring_radius", FloatVal(r)), ..acc]
         Tooltip(t) -> [#("tooltip", StringVal(t)), ..acc]
         A11y(a) -> [#("a11y", a), ..acc]
         HitRect(x:, y:, w:, h:) -> [
