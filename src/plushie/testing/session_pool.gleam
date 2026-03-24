@@ -1,6 +1,6 @@
 //// Shared renderer process for concurrent test sessions.
 ////
-//// Owns a single `plushie --headless --max-sessions N` (or `--mock`)
+//// Owns a single `plushie-renderer --headless --max-sessions N` (or `--mock`)
 //// Port and multiplexes messages from multiple test sessions over it.
 //// Each session gets a unique session ID; responses are demuxed by the
 //// `session` field and forwarded to the owning process.
@@ -398,7 +398,10 @@ fn handle_unregister(
 
   let pending_key = session_id <> ":" <> req_id
   let pending_value =
-    PendingValue(response_type: "reset_response", reply: coerce_subject(reply))
+    PendingValue(
+      response_type: "reset_response",
+      reply: cast_reply_subject(reply),
+    )
   let pending = dict.insert(state.pending, pending_key, pending_value)
   let sessions = dict.delete(state.sessions, session_id)
   let pending_close = dict.insert(state.pending_close, session_id, True)
@@ -714,8 +717,10 @@ fn plushie_binary_find() -> Result(String, Nil) {
   }
 }
 
+/// Cast UnregisterReply subject to SendReply subject for the shared
+/// pending map. Both are processed through the same reply path.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce_subject(value: a) -> b
+fn cast_reply_subject(value: Subject(UnregisterReply)) -> Subject(SendReply)
 
 import plushie/binary
 

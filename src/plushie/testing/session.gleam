@@ -9,7 +9,7 @@ import gleam/dynamic.{type Dynamic}
 import gleam/option
 import plushie/app.{type App}
 import plushie/command.{type Command}
-import plushie/event
+import plushie/event.{type Event}
 import plushie/node.{type Node}
 import plushie/tree
 
@@ -143,7 +143,7 @@ fn dispatch_async_result(
     }
     option.None -> {
       // Simple app: msg = Event. Coerce at the Erlang level.
-      let msg = coerce(raw_event)
+      let msg = event_to_msg(raw_event)
       let update_fn = app.get_update(app)
       let #(new_model, new_commands) = update_fn(model, msg)
       do_process(app, new_model, new_commands, depth + 1)
@@ -167,7 +167,7 @@ fn dispatch_stream_value(
       do_process(app, new_model, new_commands, depth + 1)
     }
     option.None -> {
-      let msg = coerce(raw_event)
+      let msg = event_to_msg(raw_event)
       let update_fn = app.get_update(app)
       let #(new_model, new_commands) = update_fn(model, msg)
       do_process(app, new_model, new_commands, depth + 1)
@@ -198,7 +198,8 @@ fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)
 
-/// Identity coercion -- at the Erlang level, types are erased.
-/// Used when msg = Event for simple apps (no on_event mapping).
+/// Cast Event to msg for simple apps where msg = Event.
+/// The type system can't prove msg = Event when on_event is None,
+/// but this is guaranteed by the App constructor invariant.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce(value: a) -> b
+fn event_to_msg(value: Event) -> msg

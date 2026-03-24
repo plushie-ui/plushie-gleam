@@ -48,6 +48,8 @@ import plushie/app.{type App}
 import plushie/binary
 import plushie/bridge
 import plushie/dev_server
+import plushie/event.{type Event}
+import plushie/node
 import plushie/protocol
 import plushie/runtime
 
@@ -56,7 +58,7 @@ import plushie/runtime
 /// - `Spawn` (default): spawns the renderer binary as a child process
 ///   using an Erlang Port.
 /// - `Stdio`: reads/writes the BEAM's own stdin/stdout. Used when the
-///   renderer spawns the Gleam process (e.g. `plushie --exec`).
+///   renderer spawns the Gleam process (e.g. `plushie-renderer --exec`).
 /// - `Iostream`: sends and receives protocol messages via an external
 ///   process. Used for custom transports like SSH channels, TCP sockets,
 ///   or WebSockets where an adapter process handles the underlying I/O.
@@ -108,17 +110,19 @@ pub fn default_start_opts() -> StartOpts {
   )
 }
 
-/// A running plushie application instance.
+/// A running plushie application instance, parameterized over the
+/// application's model type.
 ///
-/// Wraps the supervisor pid. Use `wait` to block until the application
-/// exits, or `stop` to shut it down.
-pub opaque type Instance {
-  Instance(supervisor: Pid)
+/// The model type flows from the `App(model, msg)` passed to `start`.
+/// Use `get_model` to query state with full type safety, `stop` to
+/// shut down, or `wait` to block until exit.
+pub opaque type Instance(model) {
+  Instance(supervisor: Pid, runtime: Subject(runtime.RuntimeMessage))
 }
 
 /// Get the supervisor pid from a running instance.
 /// Useful for linking, monitoring, or integration with other OTP code.
-pub fn supervisor_pid(instance: Instance) -> Pid {
+pub fn supervisor_pid(instance: Instance(_)) -> Pid {
   instance.supervisor
 }
 
@@ -151,11 +155,12 @@ pub fn start_error_to_string(err: StartError) -> String {
 /// Runtime starts second, registers with the bridge, and enters the
 /// Elm update loop. If dev mode is enabled, a DevServer child is added.
 ///
-/// Returns an `Instance` that can be used with `wait` and `stop`.
+/// Returns an `Instance(model)` that can be used with `get_model`,
+/// `dispatch_event`, `wait`, and `stop`.
 pub fn start(
   app: App(model, msg),
   opts: StartOpts,
-) -> Result(Instance, StartError) {
+) -> Result(Instance(model), StartError) {
   // Resolve binary path
   use binary_path <- result.try(case opts.binary_path {
     Some(path) -> Ok(path)
@@ -233,8 +238,11 @@ pub fn start(
     False -> sup_builder
   }
 
+  let runtime_subject = process.named_subject(runtime_name)
+
   case supervisor.start(sup_builder) {
-    Ok(started) -> Ok(Instance(supervisor: started.pid))
+    Ok(started) ->
+      Ok(Instance(supervisor: started.pid, runtime: runtime_subject))
     Error(err) -> Error(SupervisorStartFailed(err))
   }
 }
@@ -243,7 +251,7 @@ pub fn start(
 ///
 /// Sends a shutdown exit to the supervisor, which terminates all
 /// children (bridge, runtime, dev server) in reverse start order.
-pub fn stop(instance: Instance) -> Nil {
+pub fn stop(instance: Instance(_)) -> Nil {
   // Send :shutdown exit to the supervisor -- the OTP-standard way
   // to stop a supervisor. It will terminate children gracefully.
   shutdown_pid(instance.supervisor)
@@ -252,6 +260,50 @@ pub fn stop(instance: Instance) -> Nil {
 
 @external(erlang, "plushie_ffi", "shutdown_pid")
 fn shutdown_pid(pid: Pid) -> Nil
+
+/// Narrow identity for the Dynamic -> model boundary in get_model.
+@external(erlang, "plushie_ffi", "identity")
+fn from_dynamic(value: Dynamic) -> a
+
+/// Query the current model from a running application.
+///
+/// Returns the model with full type safety -- the type parameter
+/// flows from the `App(model, msg)` passed to `start`.
+///
+/// The first call may block briefly if the runtime is still
+/// completing its init sequence (settings, snapshot, subscriptions).
+/// The reply always reflects the post-init model state.
+pub fn get_model(instance: Instance(model)) -> Result(model, Nil) {
+  let reply: Subject(Dynamic) = process.new_subject()
+  process.send(instance.runtime, runtime.GetModel(reply:))
+  case process.receive(reply, 5000) {
+    Ok(dyn) -> Ok(from_dynamic(dyn))
+    Error(Nil) -> Error(Nil)
+  }
+}
+
+/// Query the current normalized tree from a running application.
+///
+/// Returns `None` if the runtime hasn't rendered yet (shouldn't
+/// happen in practice -- the initial render runs before `start`
+/// returns).
+pub fn get_tree(instance: Instance(_)) -> Result(Option(node.Node), Nil) {
+  let reply = process.new_subject()
+  process.send(instance.runtime, runtime.GetTree(reply:))
+  process.receive(reply, 5000)
+}
+
+/// Dispatch an event directly to the runtime's message loop.
+///
+/// Bypasses the bridge/renderer -- the event is processed through
+/// the normal handle_event -> update -> view -> diff -> patch cycle
+/// as if it came from the renderer.
+///
+/// Useful for integration tests that need to trigger state changes
+/// (clicks, toggles, etc.) in a running application.
+pub fn dispatch_event(instance: Instance(_), event: Event) -> Nil {
+  process.send(instance.runtime, runtime.InternalEvent(event))
+}
 
 /// Block the caller until the plushie application exits.
 ///
@@ -263,7 +315,7 @@ fn shutdown_pid(pid: Pid) -> Nil
 ///       Ok(instance) -> plushie.wait(instance)
 ///       Error(err) -> io.println_error(plushie.start_error_to_string(err))
 ///     }
-pub fn wait(instance: Instance) -> Nil {
+pub fn wait(instance: Instance(_)) -> Nil {
   let _monitor = process.monitor(instance.supervisor)
   let selector =
     process.new_selector()

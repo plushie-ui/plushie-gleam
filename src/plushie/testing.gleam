@@ -1,17 +1,18 @@
 //// Test facade for plushie applications.
 ////
 //// Provides a unified test API that works across all backends:
-//// mock (pure Gleam), pooled_mock (shared renderer), headless
+//// mock (default, shared `plushie-renderer --mock` process), headless
 //// (software rendering), and windowed (GPU + display).
 ////
 //// ## Backend selection
 ////
 //// Set `PLUSHIE_TEST_BACKEND` to choose the backend:
 ////
-////     PLUSHIE_TEST_BACKEND=pooled_mock gleam test
 ////     PLUSHIE_TEST_BACKEND=headless gleam test
+////     PLUSHIE_TEST_BACKEND=inline gleam test
 ////
-//// Default: `mock` (pure Gleam, no renderer binary needed).
+//// Default: `mock` (real binary in `--mock` mode, sessions pooled).
+//// Use `inline` for pure-Gleam Elm loop execution without the binary.
 ////
 //// ## Usage
 ////
@@ -27,7 +28,7 @@ import plushie/event.{type Event}
 import plushie/ffi
 import plushie/node.{type Node, type PropValue}
 import plushie/testing/backend.{type TestBackend}
-import plushie/testing/backend/pooled
+import plushie/testing/backend/mock as mock_backend
 import plushie/testing/element.{type Element}
 import plushie/testing/helpers
 import plushie/testing/session.{type TestSession}
@@ -38,9 +39,9 @@ import plushie/testing/session_pool
 /// Start a test session for a simple app (msg = Event).
 ///
 /// The backend is selected via `PLUSHIE_TEST_BACKEND`:
-/// - (unset/`mock`): pure Gleam, no renderer binary
-/// - `pooled_mock`: shared `plushie --mock` process
-/// - `headless`: `plushie --headless` with software rendering
+/// - (unset/`mock`): real binary in `--mock` mode, sessions pooled
+/// - `headless`: `plushie-renderer --headless` with software rendering
+/// - `inline`: pure Gleam Elm loop, no binary
 pub fn start(app: App(model, Event)) -> TestSession(model, Event) {
   case resolve_backend() {
     option.Some(be) -> be.start(app)
@@ -185,12 +186,13 @@ pub fn element_children(el: Element) -> List(Element) {
 // -- Backend resolution ------------------------------------------------------
 
 /// Resolve the backend from PLUSHIE_TEST_BACKEND env var.
-/// Returns None for mock (use helpers directly), Some for pooled backends.
+/// Returns None for inline (pure Gleam session), Some for binary backends.
 fn resolve_backend() -> Option(TestBackend(model)) {
   case ffi.get_env("PLUSHIE_TEST_BACKEND") {
-    Ok("pooled_mock") -> option.Some(get_or_start_pooled(session_pool.Mock))
+    Ok("inline") -> option.None
     Ok("headless") -> option.Some(get_or_start_pooled(session_pool.Headless))
-    _ -> option.None
+    // Default: mock (real binary in --mock mode, sessions pooled)
+    _ -> option.Some(get_or_start_pooled(session_pool.Mock))
   }
 }
 
@@ -198,13 +200,13 @@ fn resolve_backend() -> Option(TestBackend(model)) {
 /// test run and cached in the process dictionary.
 fn get_or_start_pooled(mode: session_pool.PoolMode) -> TestBackend(model) {
   case get_pool() {
-    Ok(pool_subject) -> pooled.backend(pool_subject)
+    Ok(pool_subject) -> mock_backend.backend(pool_subject)
     Error(_) -> {
       let config =
         session_pool.PoolConfig(..session_pool.default_config(), mode:)
       let assert Ok(pool_subject) = session_pool.start(config)
       put_pool(pool_subject)
-      pooled.backend(pool_subject)
+      mock_backend.backend(pool_subject)
     }
   }
 }

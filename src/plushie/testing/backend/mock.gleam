@@ -24,6 +24,7 @@ import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
 import plushie/app.{type App}
 import plushie/event.{type Event}
 import plushie/node.{type Node, BoolVal, StringVal}
@@ -38,9 +39,10 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
   TestBackend(
     start: fn(app) { start_pooled(app, pool) },
     stop: fn(_sess) { stop_pooled(pool) },
-    find: fn(_sess, id) {
+    find: fn(sess, id) {
       let #(pool_ref, session_id) = require_pool_session()
-      let sel = encode_selector("#" <> id)
+      let resolved_id = resolve_scoped_id(session.current_tree(sess), id)
+      let sel = encode_selector("#" <> resolved_id)
       let msg =
         dict.from_list([
           #("type", node.StringVal("query")),
@@ -136,7 +138,19 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
 
       new_sess
     },
-    send_event: fn(sess, ev) { session.send_event(sess, ev) },
+    send_event: fn(sess, ev) {
+      let new_sess = session.send_event(sess, ev)
+      // Sync the updated tree to the renderer so subsequent
+      // find queries reflect the new state.
+      let #(pool_ref, session_id) = require_pool_session()
+      let snapshot =
+        dict.from_list([
+          #("type", node.StringVal("snapshot")),
+          #("tree", tree_to_prop_value(session.current_tree(new_sess))),
+        ])
+      session_pool.send_async(pool_ref, session_id, snapshot)
+      new_sess
+    },
   )
 }
 
@@ -146,8 +160,32 @@ fn start_pooled(
   app: App(model, Event),
   pool: PoolSubject,
 ) -> TestSession(model, Event) {
-  let session_id = session_pool.register(pool)
-  put_pool_session(pool, session_id)
+  // If there's already a session from an earlier test in the same
+  // process (eunit runs tests within a module in one process),
+  // send a reset to the renderer to clear its state. Then reuse
+  // the existing session ID rather than registering a new one.
+  let session_id = case get_pool_session() {
+    Ok(#(prev_pool, prev_id)) -> {
+      let reset_msg = dict.from_list([#("type", node.StringVal("reset"))])
+      case
+        session_pool.send_message(
+          prev_pool,
+          prev_id,
+          reset_msg,
+          "reset_response",
+        )
+      {
+        Ok(_) -> Nil
+        Error(_) -> Nil
+      }
+      prev_id
+    }
+    Error(_) -> {
+      let id = session_pool.register(pool)
+      put_pool_session(pool, id)
+      id
+    }
+  }
 
   let sess = session.start(app)
 
@@ -187,7 +225,10 @@ fn do_interact(
   payload: Dict(String, node.PropValue),
 ) -> TestSession(model, Event) {
   let #(pool_ref, session_id) = require_pool_session()
+  let current_tree = session.current_tree(sess)
   let sel = case selector {
+    Some("#" <> id) ->
+      encode_selector("#" <> resolve_scoped_id(current_tree, id))
     Some(s) -> encode_selector(s)
     None -> dict.new()
   }
@@ -223,7 +264,7 @@ fn dispatch_events(
         let event_dict = dyn_to_string_dict(event_data)
         case event_decoder.decode_test_event(family, id, event_dict) {
           Ok(event) -> {
-            let new_sess = session.send_event(acc, coerce(event))
+            let new_sess = session.send_event(acc, event_to_msg(event))
 
             // Send snapshot after each event (matches production behaviour)
             let #(pool_ref, session_id) = require_pool_session()
@@ -244,6 +285,20 @@ fn dispatch_events(
 }
 
 // -- Selector encoding --------------------------------------------------------
+
+/// Resolve a local ID (e.g. "count") to its full scoped path
+/// (e.g. "content/count") by searching the local tree. If the ID
+/// already contains "/" (already scoped) or isn't found, return as-is.
+fn resolve_scoped_id(current_tree: Node, id: String) -> String {
+  case string.contains(id, "/") {
+    True -> id
+    False ->
+      case tree.find(current_tree, id) {
+        Some(nd) -> nd.id
+        None -> id
+      }
+  }
+}
 
 fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
   case selector {
@@ -315,10 +370,75 @@ fn decode_find_data(raw: Dynamic) -> Option(element.Element) {
         False -> {
           let id = dyn_string_field(data, "id", "")
           let kind = dyn_string_field(data, "type", "")
-          Some(element.from_node(node.new(id, kind)))
+          let props = decode_props(data)
+          let children = decode_children(data)
+          Some(element.from_node(
+            node.new(id, kind)
+            |> node.with_props(dict.to_list(props))
+            |> node.with_children(children),
+          ))
         }
       }
     Error(_) -> None
+  }
+}
+
+fn decode_props(data: Dynamic) -> Dict(String, node.PropValue) {
+  case
+    dyn_decode.run(
+      data,
+      dyn_decode.at(
+        ["props"],
+        dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic),
+      ),
+    )
+  {
+    Ok(raw_dict) ->
+      dict.map_values(raw_dict, fn(_k, v) { decode_prop_value(v) })
+    Error(_) -> dict.new()
+  }
+}
+
+fn decode_prop_value(raw: Dynamic) -> node.PropValue {
+  case dyn_decode.run(raw, dyn_decode.string) {
+    Ok(s) -> node.StringVal(s)
+    Error(_) ->
+      case dyn_decode.run(raw, dyn_decode.float) {
+        Ok(f) -> node.FloatVal(f)
+        Error(_) ->
+          case dyn_decode.run(raw, dyn_decode.int) {
+            Ok(i) -> node.IntVal(i)
+            Error(_) ->
+              case dyn_decode.run(raw, dyn_decode.bool) {
+                Ok(b) -> node.BoolVal(b)
+                Error(_) -> node.StringVal("")
+              }
+          }
+      }
+  }
+}
+
+fn decode_children(data: Dynamic) -> List(Node) {
+  case
+    dyn_decode.run(
+      data,
+      dyn_decode.at(["children"], dyn_decode.list(dyn_decode.dynamic)),
+    )
+  {
+    Ok(children_list) ->
+      list.filter_map(children_list, fn(child) {
+        let id = dyn_string_field(child, "id", "")
+        let kind = dyn_string_field(child, "type", "")
+        case id {
+          "" -> Error(Nil)
+          _ ->
+            Ok(
+              node.new(id, kind)
+              |> node.with_props(dict.to_list(decode_props(child))),
+            )
+        }
+      })
+    Error(_) -> []
   }
 }
 
@@ -367,7 +487,8 @@ fn erase_pool_session() -> Nil
 @external(erlang, "plushie_test_pooled_ffi", "wait_for_interact_response")
 fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
 
+/// Cast Event to msg for simple apps where msg = Event.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce(value: a) -> b
+fn event_to_msg(value: Event) -> msg
 
 import plushie/testing/element

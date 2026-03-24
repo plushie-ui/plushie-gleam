@@ -432,7 +432,7 @@ fn handle_message(
     CallTreeHash(name:, reply:) -> handle_tree_hash(state, name, reply)
     CallScreenshot(name:, reply:) -> handle_screenshot(state, name, reply)
     CallModel(reply:) -> {
-      process.send(reply, ReplyModel(coerce(state.model)))
+      process.send(reply, ReplyModel(model_to_dynamic(state.model)))
       actor.continue(state)
     }
     CallReset(reply:) -> handle_reset(state, reply)
@@ -1056,6 +1056,8 @@ fn float_to_string(f: Float) -> String
 @external(erlang, "plushie_test_renderer_ffi", "send_exit")
 fn send_exit(pid: Pid) -> Nil
 
-/// Identity coercion -- types are erased at runtime.
+/// Widen the typed model to Dynamic for the RendererReply boundary.
+/// RendererMessage is not parameterized over model, so the reply
+/// carries Dynamic. See also from_dynamic in headless/windowed backends.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce(value: a) -> b
+fn model_to_dynamic(value: a) -> Dynamic

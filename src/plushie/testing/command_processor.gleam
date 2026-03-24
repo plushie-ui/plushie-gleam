@@ -134,7 +134,7 @@ fn dispatch_async_result(
       do_process(app, new_model, new_commands, depth + 1, max_depth, events)
     }
     option.None -> {
-      let msg = coerce(raw_event)
+      let msg = event_to_msg(raw_event)
       let update_fn = app.get_update(app)
       let #(new_model, new_commands) = update_fn(model, msg)
       do_process(app, new_model, new_commands, depth + 1, max_depth, events)
@@ -161,7 +161,7 @@ fn dispatch_stream_value(
       do_process(app, new_model, new_commands, depth + 1, max_depth, events)
     }
     option.None -> {
-      let msg = coerce(raw_event)
+      let msg = event_to_msg(raw_event)
       let update_fn = app.get_update(app)
       let #(new_model, new_commands) = update_fn(model, msg)
       do_process(app, new_model, new_commands, depth + 1, max_depth, events)
@@ -194,6 +194,6 @@ fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)
 
-/// Identity coercion for simple apps where msg = Event.
+/// Cast Event to msg for simple apps where msg = Event.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce(value: a) -> b
+fn event_to_msg(value: Event) -> msg

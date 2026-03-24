@@ -1,6 +1,6 @@
 //// Headless test backend using the Rust renderer with software rendering.
 ////
-//// Spawns `plushie --headless` as a Port and communicates via the negotiated
+//// Spawns `plushie-renderer --headless` as a Port and communicates via the negotiated
 //// wire format (msgpack by default, json opt-in). Provides structural tree
 //// snapshots and real widget rendering for regression testing. No display
 //// server required.
@@ -11,6 +11,7 @@
 //// - Effects (file dialogs, clipboard) return cancelled.
 //// - Subscriptions are tracked but not fired (no event loop).
 
+import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option, None, Some}
 import plushie/app.{type App}
 import plushie/event.{type Event}
@@ -95,12 +96,12 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
     },
     model: fn(_sess) {
       let subj = require_renderer()
-      coerce(renderer.model(subj))
+      from_dynamic(renderer.model(subj))
     },
     tree: fn(_sess) {
       let subj = require_renderer()
       case renderer.get_tree(subj) {
-        Some(data) -> coerce(data)
+        Some(data) -> from_dynamic(data)
         None -> node.new("", "empty")
       }
     },
@@ -155,5 +156,6 @@ fn get_renderer() -> Result(renderer.RendererSubject, Nil)
 @external(erlang, "plushie_test_renderer_ffi", "erase_renderer")
 fn erase_renderer() -> Nil
 
+/// Narrow Dynamic -> typed model from the renderer actor reply.
 @external(erlang, "plushie_test_ffi", "identity")
-fn coerce(value: a) -> b
+fn from_dynamic(value: Dynamic) -> a
