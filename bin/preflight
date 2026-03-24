@@ -7,8 +7,9 @@
 #
 # What it runs:
 #   1. gleam format --check
-#   2. gleam build (warnings are compile errors in Gleam)
-#   3. gleam test
+#   2. gleam build (BEAM target)
+#   3. gleam build --target=javascript (JS/WASM target)
+#   4. gleam test (BEAM)
 
 set -euo pipefail
 
@@ -36,6 +37,21 @@ if [ ! -f priv/bin/plushie-renderer ] && [ -z "${PLUSHIE_BINARY_PATH:-}" ]; then
 fi
 
 run_step "gleam build"
+
+# JS target: check that source modules compile. Test files may
+# have BEAM-only code (process.sleep, plushie.start, etc.) so we
+# only fail if errors come from src/ files.
+echo -e "${cyan}==> ${reset}gleam build --target=javascript (source only)"
+js_output=$(gleam build --target=javascript 2>&1 || true)
+js_src_errors=$(echo "$js_output" | grep '^ *┌─' | grep -v '/test/' || true)
+if [ -n "$js_src_errors" ]; then
+    echo "$js_output" | grep -v '/test/'
+    echo -e "${red}    FAIL${reset}"
+    exit 1
+else
+    echo -e "${green}    PASS${reset}"
+fi
+
 run_step "gleam test"
 
 echo -e "\n${green}All checks passed.${reset}"
