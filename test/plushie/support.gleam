@@ -99,6 +99,25 @@ pub fn dispatch_event(rt: TestApp(_), event: Event) -> Nil {
   plushie.dispatch_event(rt.instance, event)
 }
 
+/// Register an effect stub so the renderer returns a controlled
+/// response instead of executing the real effect.
+///
+/// Blocks until the renderer confirms the stub is stored.
+pub fn register_effect_stub(
+  rt: TestApp(_),
+  kind: String,
+  response: node.PropValue,
+) -> Result(Nil, Nil) {
+  plushie.register_effect_stub(rt.instance, kind, response)
+}
+
+/// Remove a previously registered effect stub.
+///
+/// Blocks until the renderer confirms the stub is removed.
+pub fn unregister_effect_stub(rt: TestApp(_), kind: String) -> Result(Nil, Nil) {
+  plushie.unregister_effect_stub(rt.instance, kind)
+}
+
 /// Stop the test application.
 ///
 /// Signals the owner process to shut down the supervisor.

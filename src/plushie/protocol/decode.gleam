@@ -44,6 +44,9 @@ pub type InboundMessage {
 
   /// A user interaction or system event.
   EventMessage(Event)
+
+  /// Acknowledgement that an effect stub was registered or unregistered.
+  EffectStubAck(kind: String)
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +396,10 @@ fn dispatch(
     "event" -> decode_event(map)
     "effect_response" -> decode_effect_response(map)
     "op_query_response" -> decode_op_query_response(map)
+    "effect_stub_registered" | "effect_stub_unregistered" -> {
+      use kind <- result.try(get_string(map, "kind"))
+      Ok(EffectStubAck(kind:))
+    }
     _ -> Error(protocol.UnknownMessageType(msg_type))
   }
 }
@@ -431,6 +438,7 @@ fn decode_effect_response(
       event.EffectOk(r)
     }
     "cancelled" -> event.EffectCancelled
+    "unsupported" -> event.EffectUnsupported
     "error" -> {
       let r = case dict.get(map, "error") {
         Ok(v) -> prop_to_dynamic(v)

@@ -26,7 +26,7 @@ import plushie/node.{
   type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
 }
 import plushie/protocol
-import plushie/protocol/decode.{EventMessage, Hello}
+import plushie/protocol/decode.{EffectStubAck, EventMessage, Hello}
 import plushie/protocol/encode
 import plushie/subscription.{type Subscription}
 import plushie/tree
@@ -63,6 +63,16 @@ pub type RuntimeMessage {
   GetModel(reply: Subject(Dynamic))
   /// Query the current tree (replies with the latest normalized tree).
   GetTree(reply: Subject(Option(Node)))
+  /// Register an effect stub with the renderer. The renderer sends
+  /// an ack after storing the stub; the reply Subject is notified.
+  RegisterEffectStub(
+    kind: String,
+    response: node.PropValue,
+    reply: Subject(Nil),
+  )
+  /// Remove a previously registered effect stub. The renderer sends
+  /// an ack after removing the stub; the reply Subject is notified.
+  UnregisterEffectStub(kind: String, reply: Subject(Nil))
 }
 
 /// Start options for the runtime.
@@ -239,6 +249,8 @@ type LoopState(model, msg) {
     pending_effects: Dict(String, process.Timer),
     // event key -> timer for SendAfter deduplication
     pending_timers: Dict(String, process.Timer),
+    // Pending effect stub ack replies, keyed by kind
+    pending_stub_acks: Dict(String, Subject(Nil)),
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -321,6 +333,7 @@ fn run(
       async_tasks: dict.new(),
       nonce_counter: 0,
       pending_effects: dict.new(),
+      pending_stub_acks: dict.new(),
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -422,6 +435,20 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           )
           Nil
         }
+      }
+    }
+
+    FromBridge(InboundEvent(EffectStubAck(kind:))) -> {
+      case dict.get(state.pending_stub_acks, kind) {
+        Ok(reply) -> {
+          process.send(reply, Nil)
+          LoopState(
+            ..state,
+            pending_stub_acks: dict.delete(state.pending_stub_acks, kind),
+          )
+          |> message_loop()
+        }
+        Error(_) -> message_loop(state)
       }
     }
 
@@ -702,6 +729,12 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           // Commands from the app's error handlers go to new_bridge.
           let state = flush_pending_effects_on_restart(state)
 
+          // Flush pending stub acks (old renderer is gone, stubs lost).
+          dict.each(state.pending_stub_acks, fn(_kind, reply) {
+            process.send(reply, Nil)
+          })
+          let state = LoopState(..state, pending_stub_acks: dict.new())
+
           // Stop old subscription timers (sync_subscriptions won't
           // see them since we pass dict.new() as current)
           dict.each(state.active_subs, fn(_key, entry) {
@@ -891,6 +924,10 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
         }
         None -> Nil
       }
+      // Flush pending stub acks
+      dict.each(state.pending_stub_acks, fn(_kind, reply) {
+        process.send(reply, Nil)
+      })
       // Stop the bridge actor
       process.send(state.bridge, bridge.Shutdown)
       Nil
@@ -904,6 +941,35 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
     GetTree(reply:) -> {
       process.send(reply, state.tree)
       message_loop(state)
+    }
+
+    RegisterEffectStub(kind:, response:, reply:) -> {
+      send_encoded(
+        state.bridge,
+        encode.encode_register_effect_stub(
+          kind,
+          response,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      let pending = dict.insert(state.pending_stub_acks, kind, reply)
+      LoopState(..state, pending_stub_acks: pending)
+      |> message_loop()
+    }
+
+    UnregisterEffectStub(kind:, reply:) -> {
+      send_encoded(
+        state.bridge,
+        encode.encode_unregister_effect_stub(
+          kind,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      let pending = dict.insert(state.pending_stub_acks, kind, reply)
+      LoopState(..state, pending_stub_acks: pending)
+      |> message_loop()
     }
   }
 }

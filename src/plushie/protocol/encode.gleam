@@ -349,3 +349,27 @@ pub fn encode_advance_frame(
   let fields = [#("timestamp", IntVal(timestamp))]
   serialize(message("advance_frame", session, fields), format)
 }
+
+/// Encode an effect stub registration.
+///
+/// The renderer will return the given response value immediately
+/// for any effect of this kind, without executing the real effect.
+pub fn encode_register_effect_stub(
+  kind: String,
+  response: PropValue,
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [#("kind", StringVal(kind)), #("response", response)]
+  serialize(message("register_effect_stub", session, fields), format)
+}
+
+/// Encode an effect stub removal.
+pub fn encode_unregister_effect_stub(
+  kind: String,
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [#("kind", StringVal(kind))]
+  serialize(message("unregister_effect_stub", session, fields), format)
+}

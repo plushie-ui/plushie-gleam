@@ -100,6 +100,11 @@ pub type EffectResult {
   EffectCancelled
   /// The effect failed (timeout, permission denied, etc.).
   EffectError(Dynamic)
+  /// The renderer backend doesn't support this effect kind.
+  /// Distinct from cancelled (user action) and error (execution
+  /// failure). The SDK checks for registered effect stubs when
+  /// this is received.
+  EffectUnsupported
 }
 
 /// All events from the plushie runtime.
