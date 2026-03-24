@@ -9,13 +9,6 @@
 //// is synchronous (no process boundaries). Event coalescing uses
 //// `queueMicrotask` to batch high-frequency events.
 ////
-//// ## Limitations
-////
-//// Not all command variants are handled yet. Core commands (None,
-//// Batch, Done, SendAfter, Async, Stream, Cancel, Exit) and common
-//// widget ops (Focus, ScrollTo, SelectAll) work. Remaining variants
-//// log a warning and are skipped.
-////
 //// ## Architecture
 ////
 //// The JS runtime reuses the same pure functions as the BEAM runtime:
@@ -573,60 +566,423 @@ fn execute_commands(
       cancel_async(handle, tag)
     }
 
+    // -- Widget ops (sent as widget_op wire messages) --
     command.Focus(widget_id:) ->
-      send_widget_op(
+      wop(handle, "focus", [#("target", sv(widget_id))], session)
+    command.FocusElement(canvas_id:, element_id:) ->
+      wop(
         handle,
-        "focus",
-        dict.from_list([#("target", node.StringVal(widget_id))]),
+        "focus_element",
+        [
+          #("target", sv(canvas_id)),
+          #("element_id", sv(element_id)),
+        ],
         session,
       )
-    command.FocusNext ->
-      send_widget_op(handle, "focus_next", dict.new(), session)
-    command.FocusPrevious ->
-      send_widget_op(handle, "focus_previous", dict.new(), session)
+    command.FocusNext -> wop(handle, "focus_next", [], session)
+    command.FocusPrevious -> wop(handle, "focus_previous", [], session)
     command.SelectAll(widget_id:) ->
-      send_widget_op(
+      wop(handle, "select_all", [#("target", sv(widget_id))], session)
+    command.MoveCursorToFront(widget_id:) ->
+      wop(handle, "move_cursor_to_front", [#("target", sv(widget_id))], session)
+    command.MoveCursorToEnd(widget_id:) ->
+      wop(handle, "move_cursor_to_end", [#("target", sv(widget_id))], session)
+    command.MoveCursorTo(widget_id:, position:) ->
+      wop(
         handle,
-        "select_all",
-        dict.from_list([#("target", node.StringVal(widget_id))]),
+        "move_cursor_to",
+        [
+          #("target", sv(widget_id)),
+          #("position", node.IntVal(position)),
+        ],
+        session,
+      )
+    command.SelectRange(widget_id:, start:, end:) ->
+      wop(
+        handle,
+        "select_range",
+        [
+          #("target", sv(widget_id)),
+          #("start", node.IntVal(start)),
+          #("end", node.IntVal(end)),
+        ],
         session,
       )
     command.ScrollTo(widget_id:, offset:) ->
-      send_widget_op(
+      wop(
         handle,
         "scroll_to",
-        dict.from_list([
-          #("target", node.StringVal(widget_id)),
+        [
+          #("target", sv(widget_id)),
           #("offset_y", dynamic_to_prop_value(offset)),
-        ]),
+        ],
         session,
       )
-
+    command.SnapTo(widget_id:, x:, y:) ->
+      wop(
+        handle,
+        "snap_to",
+        [
+          #("target", sv(widget_id)),
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+        ],
+        session,
+      )
+    command.SnapToEnd(widget_id:) ->
+      wop(handle, "snap_to_end", [#("target", sv(widget_id))], session)
+    command.ScrollBy(widget_id:, x:, y:) ->
+      wop(
+        handle,
+        "scroll_by",
+        [
+          #("target", sv(widget_id)),
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+        ],
+        session,
+      )
     command.CloseWindow(window_id:) ->
-      send_widget_op(
+      wop(
         handle,
         "close_window",
-        dict.from_list([#("window_id", node.StringVal(window_id))]),
+        [
+          #("window_id", sv(window_id)),
+        ],
+        session,
+      )
+    command.Announce(text:) ->
+      wop(handle, "announce", [#("text", sv(text))], session)
+    command.TreeHashQuery(tag:) ->
+      wop(handle, "tree_hash", [#("tag", sv(tag))], session)
+    command.FindFocused(tag:) ->
+      wop(handle, "find_focused", [#("tag", sv(tag))], session)
+    command.LoadFont(data:) ->
+      wop(
+        handle,
+        "load_font",
+        [
+          #("data", sv(bit_array.base64_encode(data, True))),
+        ],
+        session,
+      )
+    command.ListImages(tag:) ->
+      wop(handle, "list_images", [#("tag", sv(tag))], session)
+    command.ClearImages -> wop(handle, "clear_images", [], session)
+
+    // -- Pane grid ops (widget_op) --
+    command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) ->
+      wop(
+        handle,
+        "pane_split",
+        [
+          #("target", sv(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
+          #("axis", sv(axis)),
+          #("new_pane_id", dynamic_to_prop_value(new_pane_id)),
+        ],
+        session,
+      )
+    command.PaneClose(pane_grid_id:, pane_id:) ->
+      wop(
+        handle,
+        "pane_close",
+        [
+          #("target", sv(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
+        ],
+        session,
+      )
+    command.PaneSwap(pane_grid_id:, pane_a:, pane_b:) ->
+      wop(
+        handle,
+        "pane_swap",
+        [
+          #("target", sv(pane_grid_id)),
+          #("a", dynamic_to_prop_value(pane_a)),
+          #("b", dynamic_to_prop_value(pane_b)),
+        ],
+        session,
+      )
+    command.PaneMaximize(pane_grid_id:, pane_id:) ->
+      wop(
+        handle,
+        "pane_maximize",
+        [
+          #("target", sv(pane_grid_id)),
+          #("pane", dynamic_to_prop_value(pane_id)),
+        ],
+        session,
+      )
+    command.PaneRestore(pane_grid_id:) ->
+      wop(handle, "pane_restore", [#("target", sv(pane_grid_id))], session)
+
+    // -- Window ops (sent as window_op wire messages) --
+    command.ResizeWindow(window_id:, width:, height:) ->
+      winop(
+        handle,
+        "resize",
+        window_id,
+        [
+          #("width", node.FloatVal(width)),
+          #("height", node.FloatVal(height)),
+        ],
+        session,
+      )
+    command.MoveWindow(window_id:, x:, y:) ->
+      winop(
+        handle,
+        "move",
+        window_id,
+        [
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+        ],
+        session,
+      )
+    command.MaximizeWindow(window_id:, maximized:) ->
+      winop(
+        handle,
+        "maximize",
+        window_id,
+        [
+          #("maximized", node.BoolVal(maximized)),
+        ],
+        session,
+      )
+    command.MinimizeWindow(window_id:, minimized:) ->
+      winop(
+        handle,
+        "minimize",
+        window_id,
+        [
+          #("minimized", node.BoolVal(minimized)),
+        ],
+        session,
+      )
+    command.SetWindowMode(window_id:, mode:) ->
+      winop(handle, "set_mode", window_id, [#("mode", sv(mode))], session)
+    command.ToggleMaximize(window_id:) ->
+      winop(handle, "toggle_maximize", window_id, [], session)
+    command.ToggleDecorations(window_id:) ->
+      winop(handle, "toggle_decorations", window_id, [], session)
+    command.GainFocus(window_id:) ->
+      winop(handle, "gain_focus", window_id, [], session)
+    command.SetWindowLevel(window_id:, level:) ->
+      winop(
+        handle,
+        "set_level",
+        window_id,
+        [
+          #("level", sv(level)),
+        ],
+        session,
+      )
+    command.DragWindow(window_id:) ->
+      winop(handle, "drag", window_id, [], session)
+    command.DragResizeWindow(window_id:, direction:) ->
+      winop(
+        handle,
+        "drag_resize",
+        window_id,
+        [
+          #("direction", sv(direction)),
+        ],
+        session,
+      )
+    command.RequestUserAttention(window_id:, urgency:) -> {
+      let payload = case urgency {
+        Some(u) -> [#("urgency", sv(u))]
+        None -> []
+      }
+      winop(handle, "request_attention", window_id, payload, session)
+    }
+    command.Screenshot(window_id:, tag:) ->
+      winop(handle, "screenshot", window_id, [#("tag", sv(tag))], session)
+    command.SetResizable(window_id:, resizable:) ->
+      winop(
+        handle,
+        "set_resizable",
+        window_id,
+        [
+          #("resizable", node.BoolVal(resizable)),
+        ],
+        session,
+      )
+    command.SetMinSize(window_id:, width:, height:) ->
+      winop(
+        handle,
+        "set_min_size",
+        window_id,
+        [
+          #("width", node.FloatVal(width)),
+          #("height", node.FloatVal(height)),
+        ],
+        session,
+      )
+    command.SetMaxSize(window_id:, width:, height:) ->
+      winop(
+        handle,
+        "set_max_size",
+        window_id,
+        [
+          #("width", node.FloatVal(width)),
+          #("height", node.FloatVal(height)),
+        ],
+        session,
+      )
+    command.EnableMousePassthrough(window_id:) ->
+      winop(
+        handle,
+        "mouse_passthrough",
+        window_id,
+        [
+          #("enabled", node.BoolVal(True)),
+        ],
+        session,
+      )
+    command.DisableMousePassthrough(window_id:) ->
+      winop(
+        handle,
+        "mouse_passthrough",
+        window_id,
+        [
+          #("enabled", node.BoolVal(False)),
+        ],
+        session,
+      )
+    command.ShowSystemMenu(window_id:) ->
+      winop(handle, "show_system_menu", window_id, [], session)
+    command.SetResizeIncrements(window_id:, width:, height:) -> {
+      let payload = case width, height {
+        Some(w), Some(h) -> [
+          #("width", node.FloatVal(w)),
+          #("height", node.FloatVal(h)),
+        ]
+        Some(w), None -> [#("width", node.FloatVal(w))]
+        None, Some(h) -> [#("height", node.FloatVal(h))]
+        None, None -> []
+      }
+      winop(handle, "set_resize_increments", window_id, payload, session)
+    }
+    command.AllowAutomaticTabbing(enabled:) ->
+      winop(
+        handle,
+        "allow_automatic_tabbing",
+        "_global",
+        [
+          #("enabled", node.BoolVal(enabled)),
+        ],
+        session,
+      )
+    command.SetIcon(window_id:, rgba_data:, width:, height:) ->
+      winop(
+        handle,
+        "set_icon",
+        window_id,
+        [
+          #("data", sv(bit_array.base64_encode(rgba_data, True))),
+          #("width", node.IntVal(width)),
+          #("height", node.IntVal(height)),
+        ],
         session,
       )
 
+    // -- Window queries (sent as window_op with a tag) --
+    command.GetWindowSize(window_id:, tag:) ->
+      winquery(handle, "get_size", window_id, tag, session)
+    command.GetWindowPosition(window_id:, tag:) ->
+      winquery(handle, "get_position", window_id, tag, session)
+    command.IsMaximized(window_id:, tag:) ->
+      winquery(handle, "is_maximized", window_id, tag, session)
+    command.IsMinimized(window_id:, tag:) ->
+      winquery(handle, "is_minimized", window_id, tag, session)
+    command.GetMode(window_id:, tag:) ->
+      winquery(handle, "get_mode", window_id, tag, session)
+    command.GetScaleFactor(window_id:, tag:) ->
+      winquery(handle, "get_scale_factor", window_id, tag, session)
+    command.RawWindowId(window_id:, tag:) ->
+      winquery(handle, "raw_id", window_id, tag, session)
+    command.MonitorSize(window_id:, tag:) ->
+      winquery(handle, "monitor_size", window_id, tag, session)
+    command.GetSystemTheme(tag:) ->
+      winquery(handle, "get_system_theme", "_system", tag, session)
+    command.GetSystemInfo(tag:) ->
+      winquery(handle, "get_system_info", "_system", tag, session)
+
+    // -- Image ops --
+    command.CreateImage(handle: img_handle, data:) ->
+      imgop(
+        handle,
+        "create_image",
+        [
+          #("handle", sv(img_handle)),
+          #("data", node.BinaryVal(data)),
+        ],
+        session,
+      )
+    command.CreateImageRgba(handle: img_handle, width:, height:, pixels:) ->
+      imgop(
+        handle,
+        "create_image",
+        [
+          #("handle", sv(img_handle)),
+          #("width", node.IntVal(width)),
+          #("height", node.IntVal(height)),
+          #("pixels", node.BinaryVal(pixels)),
+        ],
+        session,
+      )
+    command.UpdateImage(handle: img_handle, data:) ->
+      imgop(
+        handle,
+        "update_image",
+        [
+          #("handle", sv(img_handle)),
+          #("data", node.BinaryVal(data)),
+        ],
+        session,
+      )
+    command.UpdateImageRgba(handle: img_handle, width:, height:, pixels:) ->
+      imgop(
+        handle,
+        "update_image",
+        [
+          #("handle", sv(img_handle)),
+          #("width", node.IntVal(width)),
+          #("height", node.IntVal(height)),
+          #("pixels", node.BinaryVal(pixels)),
+        ],
+        session,
+      )
+    command.DeleteImage(handle: img_handle) ->
+      imgop(handle, "delete_image", [#("handle", sv(img_handle))], session)
+
+    // -- Effect and extension --
     command.Effect(id:, kind:, payload:) -> {
       let assert Ok(bytes) =
         encode.encode_effect(id, kind, payload, session, Json)
       do_send(handle, bytes)
     }
-
     command.ExtensionCommand(node_id:, op:, payload:) -> {
       let assert Ok(bytes) =
         encode.encode_extension_command(node_id, op, payload, session, Json)
       do_send(handle, bytes)
     }
+    command.ExtensionCommands(commands:) -> {
+      list.each(commands, fn(cmd_tuple) {
+        let #(nid, o, p) = cmd_tuple
+        let assert Ok(bytes) =
+          encode.encode_extension_command(nid, o, p, session, Json)
+        do_send(handle, bytes)
+      })
+    }
 
-    // Other widget/window commands: encode and send
-    _ -> {
-      // Catch-all for remaining command variants that are just wire ops
-      platform.log_warning("plushie web: unhandled command variant, skipping")
-      Nil
+    // -- Advance frame (testing/headless) --
+    command.AdvanceFrame(timestamp:) -> {
+      let assert Ok(bytes) =
+        encode.encode_advance_frame(timestamp, session, Json)
+      do_send(handle, bytes)
     }
   }
 }
@@ -649,13 +1005,66 @@ fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
 }
 
 @target(javascript)
-fn send_widget_op(
+/// Shorthand for StringVal.
+fn sv(s: String) -> PropValue {
+  node.StringVal(s)
+}
+
+@target(javascript)
+/// Send a widget_op wire message.
+fn wop(
   handle: WebRuntimeHandle,
   op: String,
-  payload: Dict(String, PropValue),
+  payload: List(#(String, PropValue)),
   session: String,
 ) -> Nil {
-  let assert Ok(bytes) = encode.encode_widget_op(op, payload, session, Json)
+  let assert Ok(bytes) =
+    encode.encode_widget_op(op, dict.from_list(payload), session, Json)
+  do_send(handle, bytes)
+}
+
+@target(javascript)
+/// Send a window_op wire message.
+fn winop(
+  handle: WebRuntimeHandle,
+  op: String,
+  window_id: String,
+  settings: List(#(String, PropValue)),
+  session: String,
+) -> Nil {
+  let assert Ok(bytes) =
+    encode.encode_window_op(
+      op,
+      window_id,
+      dict.from_list(settings),
+      session,
+      Json,
+    )
+  do_send(handle, bytes)
+}
+
+@target(javascript)
+/// Send a window query (window_op with a tag).
+fn winquery(
+  handle: WebRuntimeHandle,
+  op: String,
+  window_id: String,
+  tag: String,
+  session: String,
+) -> Nil {
+  winop(handle, op, window_id, [#("tag", sv(tag))], session)
+}
+
+@target(javascript)
+/// Send an image_op wire message.
+fn imgop(
+  handle: WebRuntimeHandle,
+  op: String,
+  payload: List(#(String, PropValue)),
+  session: String,
+) -> Nil {
+  let assert Ok(bytes) =
+    encode.encode_image_op(op, dict.from_list(payload), session, Json)
   do_send(handle, bytes)
 }
 
