@@ -56,8 +56,8 @@ pub fn main() {
 gleam run -m examples/counter
 ```
 
-This is one of [8 examples](examples/) included in the repo, from a
-minimal counter to a full widget catalog. Edit them while the GUI is
+This is one of [7 examples](examples/) included in the repo, from a
+minimal counter to a color picker. Edit them while the GUI is
 running and see changes instantly.
 
 ## Getting started

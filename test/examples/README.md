@@ -12,7 +12,6 @@ Each example is a standalone plushie app with a `main()` entry point.
 - **rate_plushie** -- App rating page composing StarRating and ThemeToggle
   canvas widgets with styled containers, theme animation, and keyboard input.
 - **async_fetch** -- Async HTTP fetch with loading/error states.
-- **catalog** -- Widget catalog showing available UI components.
 - **notes** -- Multi-window note editor.
 - **shortcuts** -- Keyboard shortcut handling demo.
 
