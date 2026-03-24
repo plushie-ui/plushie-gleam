@@ -242,10 +242,11 @@ pub fn send_interact(
 fn init_pool(subject: PoolSubject, config: PoolConfig) {
   let renderer_path = case config.renderer_path {
     Some(p) -> p
-    None -> {
-      let assert Ok(p) = plushie_binary_find()
-      p
-    }
+    None ->
+      case plushie_binary_find() {
+        Ok(p) -> p
+        Error(_) -> panic as binary.not_found_message()
+      }
   }
 
   let mode_flag = case config.mode {

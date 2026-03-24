@@ -138,7 +138,6 @@ fn parse_viewport(str: String) -> #(Int, Int) {
 fn parse_backend(str: String) -> Backend {
   case str {
     "mock" -> MockBackend
-    "inline" -> MockBackend
     "headless" -> HeadlessBackend
     "windowed" -> WindowedBackend
     _ -> MockBackend

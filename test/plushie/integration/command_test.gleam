@@ -4,11 +4,13 @@
 //// These tests verify that commands issued from init and update are
 //// executed correctly through the full runtime: send_after fires
 //// after its delay, async tasks complete and deliver results, batch
-//// commands all execute, and streams emit intermediate values.
+//// commands all execute, streams emit intermediate values, and
+//// exceptions in update/view don't crash the runtime.
 
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/process
+import gleam/list
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event}
@@ -17,8 +19,10 @@ import plushie/support
 import plushie/ui
 
 // ---------------------------------------------------------------------------
-// send_after app: schedules a message in init
+// Test apps
 // ---------------------------------------------------------------------------
+
+// -- send_after: schedules a message in init --------------------------------
 
 type SendAfterModel {
   SendAfterModel(value: Int)
@@ -54,9 +58,7 @@ fn send_after_app() -> App(SendAfterModel, Event) {
   app.simple(send_after_init, send_after_update, send_after_view)
 }
 
-// ---------------------------------------------------------------------------
-// async app: fires async on click, delivers result through update
-// ---------------------------------------------------------------------------
+// -- async: fires on click, delivers result through update ------------------
 
 type AsyncModel {
   AsyncModel(result: Int)
@@ -84,18 +86,14 @@ fn async_update(
 }
 
 fn async_view(_model: AsyncModel) -> Node {
-  ui.window("main", [ui.title("Async Test")], [
-    ui.button_("go", "Go"),
-  ])
+  ui.window("main", [ui.title("Async Test")], [ui.button_("go", "Go")])
 }
 
 fn async_app() -> App(AsyncModel, Event) {
   app.simple(async_init, async_update, async_view)
 }
 
-// ---------------------------------------------------------------------------
-// batch app: multiple send_after commands in init
-// ---------------------------------------------------------------------------
+// -- batch: multiple send_after commands in init ----------------------------
 
 type BatchModel {
   BatchModel(a: Bool, b: Bool)
@@ -136,9 +134,57 @@ fn batch_app() -> App(BatchModel, Event) {
   app.simple(batch_init, batch_update, batch_view)
 }
 
-// ---------------------------------------------------------------------------
-// error recovery app: update raises on specific event
-// ---------------------------------------------------------------------------
+// -- stream: emits intermediate values, then completes ----------------------
+
+type StreamModel {
+  StreamModel(chunks: List(String), done: Bool)
+}
+
+fn stream_init() -> #(StreamModel, command.Command(Event)) {
+  #(StreamModel(chunks: [], done: False), command.none())
+}
+
+fn stream_update(
+  model: StreamModel,
+  event: Event,
+) -> #(StreamModel, command.Command(Event)) {
+  case event {
+    event.WidgetClick(id: "go", ..) -> #(
+      model,
+      command.stream(
+        fn(emit) {
+          emit(to_dynamic("a"))
+          emit(to_dynamic("b"))
+          emit(to_dynamic("c"))
+          to_dynamic("done")
+        },
+        "chunks",
+      ),
+    )
+    event.StreamValue(tag: "chunks", value:) -> {
+      let assert Ok(s) = dyn_decode.run(value, dyn_decode.string)
+      #(
+        StreamModel(..model, chunks: list.append(model.chunks, [s])),
+        command.none(),
+      )
+    }
+    event.AsyncResult(tag: "chunks", ..) -> #(
+      StreamModel(..model, done: True),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn stream_view(_model: StreamModel) -> Node {
+  ui.window("main", [ui.title("Stream Test")], [ui.button_("go", "Go")])
+}
+
+fn stream_app() -> App(StreamModel, Event) {
+  app.simple(stream_init, stream_update, stream_view)
+}
+
+// -- error recovery: update/view raise on specific events -------------------
 
 type ErrorModel {
   ErrorModel(count: Int)
@@ -173,6 +219,54 @@ fn error_app() -> App(ErrorModel, Event) {
   app.simple(error_init, error_update, error_view)
 }
 
+type ViewCrashModel {
+  ViewCrashModel(crash_view: Bool, count: Int)
+}
+
+fn view_crash_init() -> #(ViewCrashModel, command.Command(Event)) {
+  #(ViewCrashModel(crash_view: False, count: 0), command.none())
+}
+
+fn view_crash_update(
+  model: ViewCrashModel,
+  event: Event,
+) -> #(ViewCrashModel, command.Command(Event)) {
+  case event {
+    event.WidgetClick(id: "crash_view", ..) -> #(
+      ViewCrashModel(..model, crash_view: True),
+      command.none(),
+    )
+    event.WidgetClick(id: "fix_view", ..) -> #(
+      ViewCrashModel(crash_view: False, count: model.count + 1),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn view_crash_view(model: ViewCrashModel) -> Node {
+  case model.crash_view {
+    True -> panic as "intentional view crash"
+    False ->
+      ui.window("main", [ui.title("View Crash Test")], [
+        ui.button_("crash_view", "Crash View"),
+        ui.button_("fix_view", "Fix View"),
+      ])
+  }
+}
+
+fn view_crash_app() -> App(ViewCrashModel, Event) {
+  app.simple(view_crash_init, view_crash_update, view_crash_view)
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Widen a value to Dynamic for async/stream command payloads.
+@external(erlang, "plushie_test_ffi", "identity")
+fn to_dynamic(value: a) -> Dynamic
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -189,7 +283,6 @@ pub fn send_after_fires_from_init_test() -> Nil {
 /// Async command completes and result is dispatched through update.
 pub fn async_completes_and_dispatches_result_test() -> Nil {
   let rt = support.start(async_app(), [])
-  // Trigger the async command via a click
   support.dispatch_event(rt, event.WidgetClick(id: "go", scope: []))
   let result = support.await(rt, fn(m) { m.result == 42 }, 500)
   support.stop(rt)
@@ -206,21 +299,40 @@ pub fn batch_commands_all_execute_test() -> Nil {
   Nil
 }
 
-/// Widen a value to Dynamic for async command payloads.
-@external(erlang, "plushie_test_ffi", "identity")
-fn to_dynamic(value: a) -> Dynamic
+/// Stream command emits intermediate values through update, then
+/// completes with an AsyncResult.
+pub fn stream_emits_intermediate_values_test() -> Nil {
+  let rt = support.start(stream_app(), [])
+  support.dispatch_event(rt, event.WidgetClick(id: "go", scope: []))
+  let result =
+    support.await(rt, fn(m) { m.done && list.length(m.chunks) >= 3 }, 500)
+  support.stop(rt)
+  let assert Ok(model) = result
+  let assert ["a", "b", "c"] = model.chunks
+  Nil
+}
 
 /// Exception in update doesn't crash the runtime. The runtime
 /// survives and can process subsequent events normally.
 pub fn update_exception_does_not_crash_runtime_test() -> Nil {
   let rt = support.start(error_app(), [])
-
-  // Send the crashing event
   support.dispatch_event(rt, event.WidgetClick(id: "crash", scope: []))
   process.sleep(50)
-
-  // Runtime should still be alive -- send a normal event
   support.dispatch_event(rt, event.WidgetClick(id: "inc", scope: []))
+  let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
+  support.stop(rt)
+  let assert Ok(_) = result
+  Nil
+}
+
+/// Exception in view doesn't crash the runtime. The runtime
+/// preserves the previous tree and can recover on the next
+/// successful view render.
+pub fn view_exception_does_not_crash_runtime_test() -> Nil {
+  let rt = support.start(view_crash_app(), [])
+  support.dispatch_event(rt, event.WidgetClick(id: "crash_view", scope: []))
+  process.sleep(50)
+  support.dispatch_event(rt, event.WidgetClick(id: "fix_view", scope: []))
   let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
   support.stop(rt)
   let assert Ok(_) = result

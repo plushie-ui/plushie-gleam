@@ -1,18 +1,16 @@
 //// Test facade for plushie applications.
 ////
-//// Provides a unified test API that works across all backends:
-//// mock (default, shared `plushie-renderer --mock` process), headless
-//// (software rendering), and windowed (GPU + display).
+//// Provides a unified test API across all backends. Tests always
+//// run against the real plushie-renderer binary.
 ////
 //// ## Backend selection
 ////
 //// Set `PLUSHIE_TEST_BACKEND` to choose the backend:
 ////
-////     PLUSHIE_TEST_BACKEND=headless gleam test
-////     PLUSHIE_TEST_BACKEND=inline gleam test
+////     gleam test                                  # default: mock
+////     PLUSHIE_TEST_BACKEND=headless gleam test    # software rendering
 ////
 //// Default: `mock` (real binary in `--mock` mode, sessions pooled).
-//// Use `inline` for pure-Gleam Elm loop execution without the binary.
 ////
 //// ## Usage
 ////
@@ -30,7 +28,6 @@ import plushie/node.{type Node, type PropValue}
 import plushie/testing/backend.{type TestBackend}
 import plushie/testing/backend/mock as mock_backend
 import plushie/testing/element.{type Element}
-import plushie/testing/helpers
 import plushie/testing/session.{type TestSession}
 import plushie/testing/session_pool
 
@@ -38,42 +35,29 @@ import plushie/testing/session_pool
 
 /// Start a test session for a simple app (msg = Event).
 ///
-/// The backend is selected via `PLUSHIE_TEST_BACKEND`:
-/// - (unset/`mock`): real binary in `--mock` mode, sessions pooled
-/// - `headless`: `plushie-renderer --headless` with software rendering
-/// - `inline`: pure Gleam Elm loop, no binary
+/// Requires the plushie-renderer binary. Panics with setup
+/// instructions if not found.
 pub fn start(app: App(model, Event)) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.start(app)
-    option.None -> session.start(app)
-  }
+  let be = resolve_backend()
+  be.start(app)
 }
 
 /// Stop the test session and release resources.
-///
-/// No-op for mock backend. Releases the renderer session for
-/// pooled and headless backends.
 pub fn stop(session: TestSession(model, Event)) -> Nil {
-  case resolve_backend() {
-    option.Some(be) -> be.stop(session)
-    option.None -> Nil
-  }
+  let be = resolve_backend()
+  be.stop(session)
 }
 
 /// Return the current model from the session.
 pub fn model(session: TestSession(model, Event)) -> model {
-  case resolve_backend() {
-    option.Some(be) -> be.model(session)
-    option.None -> session.model(session)
-  }
+  let be = resolve_backend()
+  be.model(session)
 }
 
 /// Return the current normalized tree from the session.
 pub fn tree(session: TestSession(model, Event)) -> Node {
-  case resolve_backend() {
-    option.Some(be) -> be.tree(session)
-    option.None -> session.current_tree(session)
-  }
+  let be = resolve_backend()
+  be.tree(session)
 }
 
 /// Dispatch a raw event through the update cycle.
@@ -81,10 +65,8 @@ pub fn send_event(
   session: TestSession(model, Event),
   event: Event,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.send_event(session, event)
-    option.None -> session.send_event(session, event)
-  }
+  let be = resolve_backend()
+  be.send_event(session, event)
 }
 
 // -- Interaction helpers -----------------------------------------------------
@@ -94,10 +76,8 @@ pub fn click(
   session: TestSession(model, Event),
   id: String,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.click(session, id)
-    option.None -> helpers.click(session, id)
-  }
+  let be = resolve_backend()
+  be.click(session, id)
 }
 
 /// Simulate text input on a widget by ID.
@@ -106,10 +86,8 @@ pub fn type_text(
   id: String,
   text: String,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.type_text(session, id, text)
-    option.None -> helpers.type_text(session, id, text)
-  }
+  let be = resolve_backend()
+  be.type_text(session, id, text)
 }
 
 /// Simulate a checkbox/toggler toggle by ID.
@@ -117,10 +95,8 @@ pub fn toggle(
   session: TestSession(model, Event),
   id: String,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.toggle(session, id)
-    option.None -> helpers.toggle(session, id)
-  }
+  let be = resolve_backend()
+  be.toggle(session, id)
 }
 
 /// Simulate form submission on a widget by ID.
@@ -128,10 +104,8 @@ pub fn submit(
   session: TestSession(model, Event),
   id: String,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.submit(session, id)
-    option.None -> helpers.submit(session, id)
-  }
+  let be = resolve_backend()
+  be.submit(session, id)
 }
 
 /// Simulate a slider change by ID.
@@ -140,10 +114,8 @@ pub fn slide(
   id: String,
   value: Float,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.slide(session, id, value)
-    option.None -> helpers.slide(session, id, value)
-  }
+  let be = resolve_backend()
+  be.slide(session, id, value)
 }
 
 /// Simulate selection on a widget by ID.
@@ -152,20 +124,16 @@ pub fn select(
   id: String,
   value: String,
 ) -> TestSession(model, Event) {
-  case resolve_backend() {
-    option.Some(be) -> be.select(session, id, value)
-    option.None -> helpers.select(session, id, value)
-  }
+  let be = resolve_backend()
+  be.select(session, id, value)
 }
 
 // -- Element queries ---------------------------------------------------------
 
 /// Find an element by ID in the session's current tree.
 pub fn find(session: TestSession(model, Event), id: String) -> Option(Element) {
-  case resolve_backend() {
-    option.Some(be) -> be.find(session, id)
-    option.None -> element.find(in: session.current_tree(session), id:)
-  }
+  let be = resolve_backend()
+  be.find(session, id)
 }
 
 /// Extract text content from an element.
@@ -185,14 +153,13 @@ pub fn element_children(el: Element) -> List(Element) {
 
 // -- Backend resolution ------------------------------------------------------
 
-/// Resolve the backend from PLUSHIE_TEST_BACKEND env var.
-/// Returns None for inline (pure Gleam session), Some for binary backends.
-fn resolve_backend() -> Option(TestBackend(model)) {
+/// Resolve the test backend from PLUSHIE_TEST_BACKEND env var.
+/// Always returns a backend that talks to the real binary.
+fn resolve_backend() -> TestBackend(model) {
   case ffi.get_env("PLUSHIE_TEST_BACKEND") {
-    Ok("inline") -> option.None
-    Ok("headless") -> option.Some(get_or_start_pooled(session_pool.Headless))
+    Ok("headless") -> get_or_start_pooled(session_pool.Headless)
     // Default: mock (real binary in --mock mode, sessions pooled)
-    _ -> option.Some(get_or_start_pooled(session_pool.Mock))
+    _ -> get_or_start_pooled(session_pool.Mock)
   }
 }
 

@@ -54,6 +54,23 @@ pub fn error_to_string(err: BinaryError) -> String {
   }
 }
 
+/// Standard instructions for resolving a missing plushie-renderer binary.
+///
+/// Used by the test infrastructure and error messages to provide
+/// consistent guidance.
+pub fn not_found_message() -> String {
+  "plushie-renderer binary not found.
+
+To download a precompiled binary:
+  gleam run -m plushie/download
+
+To build from source:
+  gleam run -m plushie/build
+
+To use an existing binary:
+  export PLUSHIE_BINARY_PATH=/path/to/plushie-renderer"
+}
+
 /// Returns the directory where downloaded binaries are stored.
 /// Shared across environments (the binary is platform-specific,
 /// not env-specific).
