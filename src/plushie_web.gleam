@@ -129,14 +129,21 @@ pub fn start(
     encode.encode_settings(settings, opts.session, Json, None)
   let assert Ok(settings_json) = bit_array.to_string(settings_bytes)
 
-  // Create the WASM bridge -- the settings JSON is passed to the
-  // PlushieApp constructor. Event callback is a placeholder until
-  // the JS->Gleam callback bridge is wired up.
+  // Create the WASM bridge with a no-op event callback (the runtime
+  // doesn't exist yet). After starting the runtime, we rewire the
+  // callback to decode events and dispatch them into the update loop.
   case bridge_web.create(settings_json, fn(_event_json) { Nil }) {
     Error(reason) -> Error(WasmInitFailed(reason))
     Ok(transport) -> {
       let runtime =
         runtime_web.start(app, transport, opts.session, opts.app_opts)
+
+      // Wire renderer events to the runtime. The callback decodes
+      // each JSON event string and dispatches it.
+      bridge_web.set_on_event(transport, fn(event_json) {
+        runtime_web.handle_bridge_event(runtime, event_json)
+      })
+
       Ok(WebInstance(runtime:))
     }
   }

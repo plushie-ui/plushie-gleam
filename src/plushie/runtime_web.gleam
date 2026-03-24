@@ -35,6 +35,8 @@
 //// setTimeout/setInterval for async work.
 
 @target(javascript)
+import gleam/bit_array
+@target(javascript)
 import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
@@ -60,6 +62,8 @@ import plushie/node.{type Node, type PropValue}
 import plushie/platform
 @target(javascript)
 import plushie/protocol.{Json}
+@target(javascript)
+import plushie/protocol/decode
 @target(javascript)
 import plushie/protocol/encode
 @target(javascript)
@@ -109,6 +113,28 @@ pub fn start(
   let handle =
     create_handle(model, app, transport, session, dict.new(), set.new())
 
+  // Register callbacks so JS timers, async completions, and
+  // renderer events can call back into the Gleam update loop.
+  // Each callback constructs the appropriate Gleam event type
+  // and feeds it through handle_event.
+  //
+  // Two dispatch paths:
+  // - dispatch: goes through handle_event (checks coalescing)
+  // - dispatch_direct: goes straight to dispatch_update (for
+  //   flushed coalesced events that must not be re-coalesced)
+  let dispatch = fn(event) { handle_event(handle, app, event) }
+  let dispatch_direct = fn(event) { dispatch_update(handle, app, event) }
+  register_dispatch(handle, dispatch, dispatch_direct)
+  register_timer_callback(handle, fn(tag) {
+    dispatch(event.TimerTick(tag:, timestamp: platform.monotonic_time_ms()))
+  })
+  register_async_callback(handle, fn(tag, result) {
+    dispatch(event.AsyncResult(tag:, result:))
+  })
+  register_stream_callback(handle, fn(tag, value) {
+    dispatch(event.StreamValue(tag:, value:))
+  })
+
   // First render (always snapshot)
   render_and_sync(handle, app, True)
 
@@ -116,6 +142,32 @@ pub fn start(
   execute_commands(handle, app, init_commands)
 
   WebRuntime(handle:)
+}
+
+@target(javascript)
+/// Handle a JSON event string from the WASM renderer.
+///
+/// Decodes the JSON as a wire protocol event message and dispatches
+/// it through the normal update cycle. Called by the bridge's
+/// on_event callback.
+pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
+  case bit_array.from_string(json) |> decode.decode_message(Json) {
+    Ok(decode.EventMessage(event)) ->
+      handle_event(runtime.handle, do_get_app(runtime.handle), event)
+    Ok(decode.Hello(..)) -> {
+      // Hello handshake -- acknowledged, no dispatch needed
+      Nil
+    }
+    Ok(decode.EffectStubAck(..)) -> {
+      // Effect stub ack -- not yet implemented on JS
+      Nil
+    }
+    Ok(_) -> Nil
+    Error(_err) -> {
+      platform.log_warning("plushie web: failed to decode renderer event")
+      Nil
+    }
+  }
 }
 
 @target(javascript)
@@ -500,6 +552,46 @@ fn send_widget_op(
 
 // -- FFI declarations --------------------------------------------------------
 // These are implemented in plushie_runtime_web_ffi.mjs
+
+@target(javascript)
+/// Register the dispatch callbacks on the handle.
+///
+/// `dispatch` goes through handle_event (coalesce checks).
+/// `dispatch_direct` goes straight to dispatch_update (used
+/// by flushCoalesced to avoid re-coalescing flushed events).
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "registerDispatch")
+fn register_dispatch(
+  handle: WebRuntimeHandle,
+  dispatch: fn(Event) -> Nil,
+  dispatch_direct: fn(Event) -> Nil,
+) -> Nil
+
+@target(javascript)
+/// Register the timer tick callback.
+/// Called by setInterval handlers with the subscription tag.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "registerTimerCallback")
+fn register_timer_callback(
+  handle: WebRuntimeHandle,
+  callback: fn(String) -> Nil,
+) -> Nil
+
+@target(javascript)
+/// Register the async completion callback.
+/// Called when a Promise resolves or rejects.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "registerAsyncCallback")
+fn register_async_callback(
+  handle: WebRuntimeHandle,
+  callback: fn(String, Result(Dynamic, Dynamic)) -> Nil,
+) -> Nil
+
+@target(javascript)
+/// Register the stream emission callback.
+/// Called for each value emitted by a stream task.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "registerStreamCallback")
+fn register_stream_callback(
+  handle: WebRuntimeHandle,
+  callback: fn(String, Dynamic) -> Nil,
+) -> Nil
 
 @target(javascript)
 /// Create the mutable runtime state container.

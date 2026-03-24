@@ -53,6 +53,15 @@ pub fn create(
 pub fn send(transport: WebTransport, json: String) -> Nil
 
 @target(javascript)
+/// Replace the event callback on an existing transport.
+///
+/// Used to wire the renderer's event stream to the runtime after
+/// both the transport and runtime are initialized (breaking the
+/// chicken-and-egg dependency).
+@external(javascript, "../plushie_bridge_web_ffi.mjs", "setOnEvent")
+pub fn set_on_event(transport: WebTransport, on_event: fn(String) -> Nil) -> Nil
+
+@target(javascript)
 /// Close the transport and release the WASM renderer.
 @external(javascript, "../plushie_bridge_web_ffi.mjs", "close")
 pub fn close(transport: WebTransport) -> Nil

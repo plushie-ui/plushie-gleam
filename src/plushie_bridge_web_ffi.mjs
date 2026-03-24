@@ -26,9 +26,9 @@ export function setPlushieAppConstructor(ctor) {
 /**
  * Create a WebTransport by instantiating PlushieApp.
  *
- * @param {string} settingsJson - Serialized settings message
- * @param {function} onEvent - Callback receiving JSON event strings
- * @returns {Ok|Error} Ok(transport) or Error(reason)
+ * The on_event callback is stored mutably on the transport object
+ * so it can be replaced later via setOnEvent (needed because the
+ * runtime doesn't exist yet when the transport is created).
  */
 export function create(settingsJson, onEvent) {
   if (!PlushieAppCtor) {
@@ -38,13 +38,24 @@ export function create(settingsJson, onEvent) {
     );
   }
   try {
+    // The transport holds a mutable event handler. The PlushieApp
+    // callback forwards to it, allowing setOnEvent to rewire.
+    const transport = { app: null, onEvent };
     const app = new PlushieAppCtor(settingsJson, (eventJson) => {
-      onEvent(eventJson);
+      transport.onEvent(eventJson);
     });
-    return new Ok({ app });
+    transport.app = app;
+    return new Ok(transport);
   } catch (e) {
     return new Error(`WASM init failed: ${e}`);
   }
+}
+
+/**
+ * Replace the event callback on an existing transport.
+ */
+export function setOnEvent(transport, onEvent) {
+  transport.onEvent = onEvent;
 }
 
 /**

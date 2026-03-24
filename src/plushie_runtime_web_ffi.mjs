@@ -4,7 +4,7 @@
 // Gleam code passes it around opaquely; only the functions in this
 // module read/write its fields.
 
-import { Some, None } from "./gleam.mjs";
+import { Ok, Error, Some, None } from "./gleam.mjs";
 
 // -- Handle (mutable state container) ----------------------------------------
 
@@ -31,7 +31,33 @@ export function createHandle(
     pendingCoalesce: new Map(), // key -> Gleam Event
     coalescePending: false,
     stopped: false,
+    // Gleam callbacks -- registered after handle creation
+    dispatch: null, // fn(Event) -> Nil -- goes through handle_event
+    dispatchDirect: null, // fn(Event) -> Nil -- goes straight to dispatch_update
+    onTimerFired: null, // fn(String) -> Nil
+    onAsyncComplete: null, // fn(String, Result(Dynamic, Dynamic)) -> Nil
+    onStreamEmit: null, // fn(String, Dynamic) -> Nil
   };
+}
+
+// -- Callback registration ---------------------------------------------------
+// Called once after createHandle, before any events are processed.
+
+export function registerDispatch(handle, dispatch, dispatchDirect) {
+  handle.dispatch = dispatch;
+  handle.dispatchDirect = dispatchDirect;
+}
+
+export function registerTimerCallback(handle, callback) {
+  handle.onTimerFired = callback;
+}
+
+export function registerAsyncCallback(handle, callback) {
+  handle.onAsyncComplete = callback;
+}
+
+export function registerStreamCallback(handle, callback) {
+  handle.onStreamEmit = callback;
 }
 
 // -- Model access ------------------------------------------------------------
@@ -91,7 +117,6 @@ export function sendToTransport(handle, data) {
   // Convert BitArray to string for WASM transport (JSON only)
   const decoder = new TextDecoder();
   const json = decoder.decode(data.buffer);
-  // The bridge_web.send expects a JSON string
   handle.transport.app?.send_message(json);
 }
 
@@ -129,26 +154,31 @@ export function setCoalesce(handle, key, event) {
   handle.pendingCoalesce.set(key, event);
 }
 
-export function scheduleCoalesceFlush(handle, app) {
+export function scheduleCoalesceFlush(handle, _app) {
   if (handle.coalescePending) return;
   handle.coalescePending = true;
   queueMicrotask(() => {
     if (handle.stopped) return;
-    flushCoalesced(handle, app);
+    // Drain pending events and dispatch each directly (bypassing
+    // coalesce checks to avoid re-coalescing flushed events).
+    handle.coalescePending = false;
+    const events = [...handle.pendingCoalesce.values()];
+    handle.pendingCoalesce.clear();
+    for (const event of events) {
+      handle.dispatchDirect?.(event);
+    }
   });
 }
 
-export function flushCoalesced(handle, app) {
+// flushCoalesced is called synchronously from the Gleam side when
+// a non-coalescable event arrives. It drains and dispatches pending
+// coalesced events immediately, bypassing coalesce checks.
+export function flushCoalesced(handle, _app) {
   handle.coalescePending = false;
   const events = [...handle.pendingCoalesce.values()];
   handle.pendingCoalesce.clear();
-  // Import the dispatch_update from the Gleam module at call time
-  // to avoid circular dependency. We call handle_event instead.
   for (const event of events) {
-    // We need to call the Gleam dispatch_update, but we don't have
-    // direct access to it from JS. Instead, the Gleam-side
-    // flush_coalesced calls dispatch_update for each event.
-    // This FFI version just returns the events.
+    handle.dispatchDirect?.(event);
   }
 }
 
@@ -160,7 +190,7 @@ export function defer(f) {
 
 // -- Timer subscriptions -----------------------------------------------------
 
-export function startTimerSub(handle, app, key, intervalMs, tag) {
+export function startTimerSub(handle, _app, key, intervalMs, _tag) {
   // Clear existing if any
   if (handle.timerSubs.has(key)) {
     clearInterval(handle.timerSubs.get(key));
@@ -168,10 +198,9 @@ export function startTimerSub(handle, app, key, intervalMs, tag) {
 
   const id = setInterval(() => {
     if (handle.stopped) return;
-    // Create a TimerFired event and dispatch it
-    // We need to call back into Gleam's handle_event
-    // This is stored and called back from the Gleam side
-    handle._onTimerFired?.(handle, app, tag);
+    // Call the Gleam-side timer callback which constructs a
+    // TimerTick event and dispatches it through handle_event.
+    handle.onTimerFired?.(_tag);
   }, intervalMs);
 
   handle.timerSubs.set(key, id);
@@ -187,7 +216,7 @@ export function clearTimerSub(handle, key) {
 
 // -- SendAfter ---------------------------------------------------------------
 
-export function setSendAfter(handle, app, key, delayMs, msg) {
+export function setSendAfter(handle, _app, key, delayMs, msg) {
   // Cancel existing timer for same key
   const existing = handle.sendAfterTimers.get(key);
   if (existing !== undefined) {
@@ -197,7 +226,8 @@ export function setSendAfter(handle, app, key, delayMs, msg) {
   const id = setTimeout(() => {
     if (handle.stopped) return;
     handle.sendAfterTimers.delete(key);
-    handle._onSendAfter?.(handle, app, msg);
+    // msg is already a Gleam Event -- dispatch it directly
+    handle.dispatch?.(msg);
   }, delayMs);
 
   handle.sendAfterTimers.set(key, id);
@@ -205,7 +235,7 @@ export function setSendAfter(handle, app, key, delayMs, msg) {
 
 // -- Async tasks -------------------------------------------------------------
 
-export function startAsync(handle, app, tag, work) {
+export function startAsync(handle, _app, tag, work) {
   // Cancel existing task with same tag
   cancelAsync(handle, tag);
 
@@ -218,10 +248,8 @@ export function startAsync(handle, app, tag, work) {
 
   handle.asyncTasks.set(tag, { nonce, cancel });
 
-  // Run work asynchronously
+  // Run work -- might return a Promise or a plain value
   try {
-    // work() might return a Promise (if the user's function is async)
-    // or a plain value. Handle both.
     const result = work();
 
     if (result && typeof result.then === "function") {
@@ -232,17 +260,14 @@ export function startAsync(handle, app, tag, work) {
           const current = handle.asyncTasks.get(tag);
           if (!current || current.nonce !== nonce) return;
           handle.asyncTasks.delete(tag);
-          handle._onAsyncComplete?.(handle, app, tag, { ok: true, value });
+          handle.onAsyncComplete?.(tag, new Ok(value));
         },
         (error) => {
           if (cancelled || handle.stopped) return;
           const current = handle.asyncTasks.get(tag);
           if (!current || current.nonce !== nonce) return;
           handle.asyncTasks.delete(tag);
-          handle._onAsyncComplete?.(handle, app, tag, {
-            ok: false,
-            value: error,
-          });
+          handle.onAsyncComplete?.(tag, new Error(error));
         },
       );
     } else {
@@ -252,18 +277,18 @@ export function startAsync(handle, app, tag, work) {
         const current = handle.asyncTasks.get(tag);
         if (!current || current.nonce !== nonce) return;
         handle.asyncTasks.delete(tag);
-        handle._onAsyncComplete?.(handle, app, tag, { ok: true, value: result });
+        handle.onAsyncComplete?.(tag, new Ok(result));
       });
     }
   } catch (error) {
     if (!cancelled && !handle.stopped) {
       handle.asyncTasks.delete(tag);
-      handle._onAsyncComplete?.(handle, app, tag, { ok: false, value: error });
+      handle.onAsyncComplete?.(tag, new Error(error));
     }
   }
 }
 
-export function startStream(handle, app, tag, work) {
+export function startStream(handle, _app, tag, work) {
   cancelAsync(handle, tag);
 
   const nonce = ++handle.nextNonce;
@@ -279,7 +304,7 @@ export function startStream(handle, app, tag, work) {
     if (cancelled || handle.stopped) return;
     const current = handle.asyncTasks.get(tag);
     if (!current || current.nonce !== nonce) return;
-    handle._onStreamEmit?.(handle, app, tag, value);
+    handle.onStreamEmit?.(tag, value);
   };
 
   try {
@@ -287,7 +312,7 @@ export function startStream(handle, app, tag, work) {
   } catch (error) {
     if (!cancelled && !handle.stopped) {
       handle.asyncTasks.delete(tag);
-      handle._onAsyncComplete?.(handle, app, tag, { ok: false, value: error });
+      handle.onAsyncComplete?.(tag, new Error(error));
     }
   }
 }
