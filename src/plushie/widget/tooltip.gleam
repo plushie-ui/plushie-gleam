@@ -85,6 +85,32 @@ pub fn a11y(tt: Tooltip, a: A11y) -> Tooltip {
   Tooltip(..tt, a11y: option.Some(a))
 }
 
+/// Option type for tooltip properties.
+pub type Opt {
+  Position(Position)
+  Gap(Float)
+  Padding(Padding)
+  SnapWithinViewport(Bool)
+  Delay(Int)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a tooltip builder.
+pub fn with_opts(tt: Tooltip, opts: List(Opt)) -> Tooltip {
+  list.fold(opts, tt, fn(t, opt) {
+    case opt {
+      Position(p) -> position(t, p)
+      Gap(g) -> gap(t, g)
+      Padding(p) -> padding(t, p)
+      SnapWithinViewport(v) -> snap_within_viewport(t, v)
+      Delay(d) -> delay(t, d)
+      Style(s) -> style(t, s)
+      A11y(a) -> a11y(t, a)
+    }
+  })
+}
+
 /// Build the tooltip into a renderable Node.
 pub fn build(tt: Tooltip) -> Node {
   let props =

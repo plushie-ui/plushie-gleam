@@ -5,6 +5,7 @@ import plushie/command
 import plushie/extension
 import plushie/node.{type Node, FloatVal, StringVal}
 import plushie/ui
+import plushie/widget/column
 
 // -- ExtensionDef matching the extensions.md quick start example --------------
 
@@ -95,7 +96,7 @@ pub fn extensions_hex_view_no_commands_test() {
 // -- Composite widget from the "Composite widgets" section --------------------
 
 fn labeled_input(id: String, label: String, value: String) -> Node {
-  ui.column(id, [ui.spacing(4)], [
+  ui.column(id, [column.Spacing(4)], [
     ui.text_(id <> "-label", label),
     ui.text_input(id <> "-input", value, []),
   ])

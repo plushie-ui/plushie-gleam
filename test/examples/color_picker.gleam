@@ -18,6 +18,11 @@ import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/window
 
 // -- Model --------------------------------------------------------------------
 
@@ -198,12 +203,12 @@ fn view(model: Model) -> Node {
   let s_pct = float.round(model.saturation *. 100.0)
   let v_pct = float.round(model.value *. 100.0)
 
-  ui.window("color_picker", [ui.title("Color Picker")], [
+  ui.window("color_picker", [window.Title("Color Picker")], [
     ui.column(
       "content",
       [
-        ui.padding(padding.all(20.0)),
-        ui.spacing(16),
+        column.Padding(padding.all(20.0)),
+        column.Spacing(16),
       ],
       [
         color_picker_widget.render(
@@ -212,18 +217,18 @@ fn view(model: Model) -> Node {
           model.saturation,
           model.value,
         ),
-        ui.row("info", [ui.spacing(16)], [
+        ui.row("info", [row.Spacing(16)], [
           ui.container(
             "swatch",
             [
-              ui.width(length.Fixed(48.0)),
-              ui.height(length.Fixed(48.0)),
-              ui.background(unsafe_color(hex)),
+              container.Width(length.Fixed(48.0)),
+              container.Height(length.Fixed(48.0)),
+              container.BgColor(unsafe_color(hex)),
             ],
             [],
           ),
-          ui.column("color_info", [ui.spacing(4)], [
-            ui.text("hex_display", hex, [ui.font_size(18.0)]),
+          ui.column("color_info", [column.Spacing(4)], [
+            ui.text("hex_display", hex, [text.Size(18.0)]),
             ui.text_(
               "hsv_display",
               "H: "

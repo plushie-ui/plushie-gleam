@@ -104,6 +104,38 @@ pub fn a11y(g: Grid, a: A11y) -> Grid {
   Grid(..g, a11y: option.Some(a))
 }
 
+/// Option type for grid properties.
+pub type Opt {
+  Columns(Int)
+  ColumnCount(Int)
+  Spacing(Int)
+  Padding(Padding)
+  Width(Length)
+  Height(Length)
+  ColumnWidth(Length)
+  RowHeight(Length)
+  Fluid(Float)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a grid builder.
+pub fn with_opts(g: Grid, opts: List(Opt)) -> Grid {
+  list.fold(opts, g, fn(gr, opt) {
+    case opt {
+      Columns(n) -> columns(gr, n)
+      ColumnCount(n) -> column_count(gr, n)
+      Spacing(s) -> spacing(gr, s)
+      Padding(p) -> padding(gr, p)
+      Width(w) -> width(gr, w)
+      Height(h) -> height(gr, h)
+      ColumnWidth(w) -> column_width(gr, w)
+      RowHeight(h) -> row_height(gr, h)
+      Fluid(v) -> fluid(gr, v)
+      A11y(a) -> a11y(gr, a)
+    }
+  })
+}
+
 /// Build the grid into a renderable Node.
 pub fn build(g: Grid) -> Node {
   let props =

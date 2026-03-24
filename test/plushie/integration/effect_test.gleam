@@ -14,6 +14,7 @@ import plushie/event.{type Event}
 import plushie/node.{type Node, StringVal}
 import plushie/support
 import plushie/ui
+import plushie/widget/window
 
 // ---------------------------------------------------------------------------
 // Effect app: clipboard read on click, model captures the result
@@ -49,7 +50,7 @@ fn effect_update(
 }
 
 fn effect_view(_model: EffectModel) -> Node {
-  ui.window("main", [ui.title("Effect Test")], [
+  ui.window("main", [window.Title("Effect Test")], [
     ui.button_("read", "Read Clipboard"),
   ])
 }

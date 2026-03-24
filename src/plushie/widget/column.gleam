@@ -98,6 +98,36 @@ pub fn a11y(col: Column, a: A11y) -> Column {
   Column(..col, a11y: option.Some(a))
 }
 
+/// Option type for column properties.
+pub type Opt {
+  Spacing(Int)
+  Padding(Padding)
+  Width(Length)
+  Height(Length)
+  MaxWidth(Float)
+  AlignX(Alignment)
+  Clip(Bool)
+  Wrap(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a column builder.
+pub fn with_opts(col: Column, opts: List(Opt)) -> Column {
+  list.fold(opts, col, fn(c, opt) {
+    case opt {
+      Spacing(s) -> spacing(c, s)
+      Padding(p) -> padding(c, p)
+      Width(w) -> width(c, w)
+      Height(h) -> height(c, h)
+      MaxWidth(m) -> max_width(c, m)
+      AlignX(a) -> align_x(c, a)
+      Clip(v) -> clip(c, v)
+      Wrap(v) -> wrap(c, v)
+      A11y(a) -> a11y(c, a)
+    }
+  })
+}
+
 /// Build the column into a renderable Node.
 pub fn build(col: Column) -> Node {
   let props =

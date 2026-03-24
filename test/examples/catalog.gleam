@@ -22,9 +22,13 @@ import plushie/prop/position
 import plushie/prop/theme
 import plushie/ui
 import plushie/widget/canvas
+import plushie/widget/column
 import plushie/widget/combo_box
+import plushie/widget/container
 import plushie/widget/floating
 import plushie/widget/grid
+import plushie/widget/image
+import plushie/widget/keyed_column
 import plushie/widget/markdown
 import plushie/widget/mouse_area
 import plushie/widget/pane_grid
@@ -32,12 +36,17 @@ import plushie/widget/pick_list
 import plushie/widget/pin
 import plushie/widget/radio
 import plushie/widget/rich_text
+import plushie/widget/row
 import plushie/widget/sensor
+import plushie/widget/space
 import plushie/widget/table
+import plushie/widget/text
 import plushie/widget/text_editor
+import plushie/widget/text_input
 import plushie/widget/toggler
 import plushie/widget/tooltip
 import plushie/widget/vertical_slider
+import plushie/widget/window
 
 pub type Model {
   Model(
@@ -196,11 +205,11 @@ fn update(model: Model, event: Event) {
 }
 
 fn view(model: Model) -> Node {
-  ui.window("catalog", [ui.title("Widget Catalog")], [
-    ui.column("root", [ui.spacing(12), ui.padding(padding.all(16.0))], [
-      ui.text("catalog_title", "Plushie Widget Catalog", [ui.font_size(24.0)]),
+  ui.window("catalog", [window.Title("Widget Catalog")], [
+    ui.column("root", [column.Spacing(12), column.Padding(padding.all(16.0))], [
+      ui.text("catalog_title", "Plushie Widget Catalog", [text.Size(24.0)]),
       ui.rule("divider1", []),
-      ui.row("tabs", [ui.spacing(8)], [
+      ui.row("tabs", [row.Spacing(8)], [
         ui.button_("tab_layout", "Layout"),
         ui.button_("tab_input", "Input"),
         ui.button_("tab_display", "Display"),
@@ -221,26 +230,26 @@ fn view(model: Model) -> Node {
 // -- Layout tab ---------------------------------------------------------------
 
 fn layout_tab() -> Node {
-  ui.column("layout_content", [ui.spacing(8)], [
-    ui.text("layout_heading", "Layout Widgets", [ui.font_size(18.0)]),
+  ui.column("layout_content", [column.Spacing(8)], [
+    ui.text("layout_heading", "Layout Widgets", [text.Size(18.0)]),
     // Row
-    ui.row("demo_row", [ui.spacing(8)], [
+    ui.row("demo_row", [row.Spacing(8)], [
       ui.text_("row_1", "Row child 1"),
       ui.text_("row_2", "Row child 2"),
       ui.text_("row_3", "Row child 3"),
     ]),
     // Nested column
-    ui.column("nested_col", [ui.spacing(4)], [
+    ui.column("nested_col", [column.Spacing(4)], [
       ui.text_("ncol_1", "Nested column child 1"),
       ui.text_("ncol_2", "Nested column child 2"),
     ]),
     // Container
-    ui.container("demo_container", [ui.padding(padding.all(12.0))], [
+    ui.container("demo_container", [container.Padding(padding.all(12.0))], [
       ui.text_("container_text", "Inside a container"),
     ]),
     // Scrollable
     ui.scrollable("demo_scrollable", [], [
-      ui.column("scroll_col", [ui.spacing(4)], [
+      ui.column("scroll_col", [column.Spacing(4)], [
         ui.text_("scroll_1", "Scrollable item 1"),
         ui.text_("scroll_2", "Scrollable item 2"),
         ui.text_("scroll_3", "Scrollable item 3"),
@@ -285,7 +294,7 @@ fn layout_tab() -> Node {
       ]),
     ]),
     // Keyed column - stable identity for children
-    ui.keyed_column("demo_keyed", [ui.spacing(4)], [
+    ui.keyed_column("demo_keyed", [keyed_column.Spacing(4)], [
       ui.text_("key_a", "Keyed item A"),
       ui.text_("key_b", "Keyed item B"),
       ui.text_("key_c", "Keyed item C"),
@@ -303,8 +312,8 @@ fn layout_tab() -> Node {
       ),
       [],
       [
-        ui.container("themed_box", [ui.padding(padding.all(12.0))], [
-          ui.column("themed_col", [ui.spacing(4)], [
+        ui.container("themed_box", [container.Padding(padding.all(12.0))], [
+          ui.column("themed_col", [column.Spacing(4)], [
             ui.text_("themed_text", "Themed section with custom palette"),
             ui.button_("themed_btn", "Themed Button"),
           ]),
@@ -312,18 +321,18 @@ fn layout_tab() -> Node {
       ],
     ),
     // Space - explicit gap
-    ui.space("demo_space", [ui.height(length.Fixed(16.0))]),
+    ui.space("demo_space", [space.Height(length.Fixed(16.0))]),
   ])
 }
 
 // -- Input tab ----------------------------------------------------------------
 
 fn input_tab(model: Model) -> Node {
-  ui.column("input_content", [ui.spacing(8)], [
-    ui.text("input_heading", "Input Widgets", [ui.font_size(18.0)]),
+  ui.column("input_content", [column.Spacing(8)], [
+    ui.text("input_heading", "Input Widgets", [text.Size(18.0)]),
     // Text input
     ui.text_input("demo_input", model.text_value, [
-      ui.placeholder("Type here..."),
+      text_input.Placeholder("Type here..."),
     ]),
     // Button
     ui.button_("demo_button", "A Button"),
@@ -333,7 +342,7 @@ fn input_tab(model: Model) -> Node {
     toggler.new("demo_toggler", "Toggle me", model.toggler_on)
       |> toggler.build(),
     // Radio group
-    ui.row("radio_row", [ui.spacing(8)], [
+    ui.row("radio_row", [row.Spacing(8)], [
       radio.new("demo_radio_a", "a", Some(model.radio_selected), "Option A")
         |> radio.group("demo_radio")
         |> radio.build(),
@@ -372,14 +381,14 @@ fn input_tab(model: Model) -> Node {
 // -- Display tab --------------------------------------------------------------
 
 fn display_tab(model: Model) -> Node {
-  ui.column("display_content", [ui.spacing(8)], [
-    ui.text("display_heading", "Display Widgets", [ui.font_size(18.0)]),
+  ui.column("display_content", [column.Spacing(8)], [
+    ui.text("display_heading", "Display Widgets", [text.Size(18.0)]),
     // Plain text
     ui.text_("plain_text", "Plain text label"),
     // Rule
     ui.rule("display_rule", []),
     // Progress bar
-    ui.row("progress_row", [ui.spacing(8)], [
+    ui.row("progress_row", [row.Spacing(8)], [
       ui.progress_bar("demo_progress", #(0.0, 100.0), model.progress, []),
       ui.button_("inc_progress", "+5%"),
     ]),
@@ -390,8 +399,8 @@ fn display_tab(model: Model) -> Node {
       |> tooltip.build(),
     // Image
     ui.image("demo_image", "/assets/placeholder.png", [
-      ui.width(length.Fixed(120.0)),
-      ui.height(length.Fixed(80.0)),
+      image.Width(length.Fixed(120.0)),
+      image.Height(length.Fixed(80.0)),
     ]),
     // Markdown
     markdown.new(
@@ -431,8 +440,8 @@ fn display_tab(model: Model) -> Node {
 fn composite_tab(model: Model) -> Node {
   let modal_children = case model.modal_visible {
     True -> [
-      ui.container("demo_modal", [ui.padding(padding.all(16.0))], [
-        ui.column("modal_col", [ui.spacing(8)], [
+      ui.container("demo_modal", [container.Padding(padding.all(16.0))], [
+        ui.column("modal_col", [column.Spacing(8)], [
           ui.text_("modal_text", "Modal Content"),
           ui.button_("hide_modal", "Close"),
         ]),
@@ -444,7 +453,7 @@ fn composite_tab(model: Model) -> Node {
   let panel_children = case model.panel_collapsed {
     True -> []
     False -> [
-      ui.container("panel_content", [ui.padding(padding.all(8.0))], [
+      ui.container("panel_content", [container.Padding(padding.all(8.0))], [
         ui.text_("panel_text", "Panel content that can be collapsed"),
       ]),
     ]
@@ -462,34 +471,41 @@ fn composite_tab(model: Model) -> Node {
 
   ui.column(
     "composite_content",
-    [ui.spacing(8)],
+    [column.Spacing(8)],
     list.flatten([
       [
         ui.text("composite_heading", "Interactive & Composite Widgets", [
-          ui.font_size(18.0),
+          text.Size(18.0),
         ]),
         // Mouse area
         mouse_area.new("demo_mouse_area")
           |> mouse_area.on_enter(True)
           |> mouse_area.on_exit(True)
           |> mouse_area.push(
-            ui.container("mouse_area_box", [ui.padding(padding.all(12.0))], [
-              ui.text_("mouse_text", "Mouse area: " <> model.mouse_area_status),
-            ]),
+            ui.container(
+              "mouse_area_box",
+              [container.Padding(padding.all(12.0))],
+              [
+                ui.text_(
+                  "mouse_text",
+                  "Mouse area: " <> model.mouse_area_status,
+                ),
+              ],
+            ),
           )
           |> mouse_area.build(),
         // Sensor
         sensor.new("demo_sensor")
           |> sensor.push(
-            ui.container("sensor_box", [ui.padding(padding.all(12.0))], [
+            ui.container("sensor_box", [container.Padding(padding.all(12.0))], [
               ui.text_("sensor_text", "Sensor: " <> model.sensor_status),
             ]),
           )
           |> sensor.build(),
         // Simulated tabs
         ui.container("demo_tabs", [], [
-          ui.column("tabs_col", [ui.spacing(4)], [
-            ui.row("tabs_row", [ui.spacing(4)], [
+          ui.column("tabs_col", [column.Spacing(4)], [
+            ui.row("tabs_row", [row.Spacing(4)], [
               ui.button_("tab_one", "Tab One"),
               ui.button_("tab_two", "Tab Two"),
             ]),
@@ -507,7 +523,7 @@ fn composite_tab(model: Model) -> Node {
       panel_children,
       [
         // Counter
-        ui.row("counter_row", [ui.spacing(8)], [
+        ui.row("counter_row", [row.Spacing(8)], [
           ui.button_("counter_btn", "Click me"),
           ui.text_(
             "click_text",
@@ -518,7 +534,7 @@ fn composite_tab(model: Model) -> Node {
         pane_grid.new("demo_panes")
           |> pane_grid.spacing(2)
           |> pane_grid.push(
-            ui.container("pane_left", [ui.padding(padding.all(8.0))], [
+            ui.container("pane_left", [container.Padding(padding.all(8.0))], [
               ui.column("pane_left_col", [], [
                 ui.text_("pl_1", "Left pane"),
                 ui.text_("pl_2", "Navigation or file tree"),
@@ -526,7 +542,7 @@ fn composite_tab(model: Model) -> Node {
             ]),
           )
           |> pane_grid.push(
-            ui.container("pane_right", [ui.padding(padding.all(8.0))], [
+            ui.container("pane_right", [container.Padding(padding.all(8.0))], [
               ui.column("pane_right_col", [], [
                 ui.text_("pr_1", "Right pane"),
                 ui.text_("pr_2", "Main editor area"),

@@ -13,6 +13,7 @@ import plushie/node.{type Node}
 import plushie/subscription
 import plushie/support
 import plushie/ui
+import plushie/widget/window
 
 // ---------------------------------------------------------------------------
 // Test apps
@@ -40,7 +41,7 @@ fn tick_update(
 }
 
 fn tick_view(_model: TickModel) -> Node {
-  ui.window("main", [ui.title("Tick Test")], [ui.text_("hi", "hello")])
+  ui.window("main", [window.Title("Tick Test")], [ui.text_("hi", "hello")])
 }
 
 fn tick_app() -> App(TickModel, Event) {
@@ -76,7 +77,7 @@ fn toggle_update(
 }
 
 fn toggle_view(_model: ToggleModel) -> Node {
-  ui.window("main", [ui.title("Toggle Test")], [
+  ui.window("main", [window.Title("Toggle Test")], [
     ui.button_("stop", "Stop"),
   ])
 }
@@ -121,7 +122,7 @@ fn multi_update(
 }
 
 fn multi_view(_model: MultiModel) -> Node {
-  ui.window("main", [ui.title("Multi Test")], [ui.text_("hi", "hello")])
+  ui.window("main", [window.Title("Multi Test")], [ui.text_("hi", "hello")])
 }
 
 fn multi_app() -> App(MultiModel, Event) {

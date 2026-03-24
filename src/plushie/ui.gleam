@@ -1,296 +1,148 @@
 //// Ergonomic UI builder functions.
 ////
 //// Provides convenience functions for building UI trees without
-//// importing individual widget modules. Uses an opaque Attr type
-//// for widget properties.
+//// importing individual widget modules. Each widget function accepts
+//// a `List(widget.Opt)` of typed options specific to that widget,
+//// giving compile-time validation of property names and types.
 
-import gleam/dict
-import gleam/list
 import gleam/option.{type Option}
-import plushie/node.{
-  type Node, type PropValue, BoolVal, DictVal, FloatVal, IntVal, Node, StringVal,
-}
-import plushie/prop/a11y.{type A11y}
-import plushie/prop/alignment.{type Alignment}
-import plushie/prop/border.{type Border}
-import plushie/prop/color.{type Color}
+import plushie/node.{type Node}
 import plushie/prop/length.{type Length}
-import plushie/prop/padding.{type Padding}
-import plushie/prop/shadow.{type Shadow}
 import plushie/prop/theme.{type Theme}
 import plushie/tree
-import plushie/widget/button as button_mod
-import plushie/widget/canvas as canvas_mod
-import plushie/widget/checkbox as checkbox_mod
-import plushie/widget/column as column_mod
-import plushie/widget/container as container_mod
-import plushie/widget/floating as floating_mod
-import plushie/widget/grid as grid_mod
-import plushie/widget/image as image_mod
-import plushie/widget/keyed_column as keyed_column_mod
-import plushie/widget/markdown as markdown_mod
-import plushie/widget/mouse_area as mouse_area_mod
-import plushie/widget/overlay as overlay_mod
-import plushie/widget/pane_grid as pane_grid_mod
-import plushie/widget/pin as pin_mod
-import plushie/widget/progress_bar as progress_bar_mod
-import plushie/widget/responsive as responsive_mod
-import plushie/widget/row as row_mod
-import plushie/widget/rule as rule_mod
-import plushie/widget/scrollable as scrollable_mod
-import plushie/widget/sensor as sensor_mod
-import plushie/widget/slider as slider_mod
-import plushie/widget/space as space_mod
-import plushie/widget/stack as stack_mod
-import plushie/widget/table as table_mod
-import plushie/widget/text as text_mod
-import plushie/widget/text_input as text_input_mod
-import plushie/widget/themer as themer_mod
-import plushie/widget/tooltip as tooltip_mod
-import plushie/widget/window as window_mod
-
-// --- Attr type ---------------------------------------------------------------
-
-/// An opaque attribute for widget properties.
-pub opaque type Attr {
-  Attr(key: String, value: PropValue)
-}
-
-// --- Attribute constructors --------------------------------------------------
-
-/// Set the window title.
-pub fn title(t: String) -> Attr {
-  Attr("title", StringVal(t))
-}
-
-/// Set padding around the widget content.
-pub fn padding(p: Padding) -> Attr {
-  Attr("padding", padding.to_prop_value(p))
-}
-
-/// Set spacing between child widgets in pixels.
-pub fn spacing(s: Int) -> Attr {
-  Attr("spacing", IntVal(s))
-}
-
-/// Set the widget width.
-pub fn width(w: Length) -> Attr {
-  Attr("width", length.to_prop_value(w))
-}
-
-/// Set the widget height.
-pub fn height(h: Length) -> Attr {
-  Attr("height", length.to_prop_value(h))
-}
-
-/// Set the maximum width in logical pixels.
-pub fn max_width(w: Float) -> Attr {
-  Attr("max_width", FloatVal(w))
-}
-
-/// Set the maximum height in logical pixels.
-pub fn max_height(h: Float) -> Attr {
-  Attr("max_height", FloatVal(h))
-}
-
-/// Set horizontal alignment of the widget or its content.
-pub fn align_x(a: Alignment) -> Attr {
-  Attr("align_x", alignment.to_prop_value(a))
-}
-
-/// Set vertical alignment of the widget or its content.
-pub fn align_y(a: Alignment) -> Attr {
-  Attr("align_y", alignment.to_prop_value(a))
-}
-
-/// Set the widget background color.
-pub fn background(c: Color) -> Attr {
-  Attr("background", color.to_prop_value(c))
-}
-
-/// Set the text color.
-pub fn text_color(c: Color) -> Attr {
-  Attr("color", color.to_prop_value(c))
-}
-
-/// Set the widget border.
-pub fn border(b: Border) -> Attr {
-  Attr("border", border.to_prop_value(b))
-}
-
-/// Set the widget drop shadow.
-pub fn shadow(s: Shadow) -> Attr {
-  Attr("shadow", shadow.to_prop_value(s))
-}
-
-/// Enable or disable content clipping at the widget boundary.
-pub fn clip(enabled: Bool) -> Attr {
-  Attr("clip", BoolVal(enabled))
-}
-
-/// Disable or enable the widget for user interaction.
-pub fn disabled(d: Bool) -> Attr {
-  Attr("disabled", BoolVal(d))
-}
-
-/// Set the widget style class name.
-pub fn style(s: String) -> Attr {
-  Attr("style", StringVal(s))
-}
-
-/// Set the text font size in logical pixels.
-pub fn font_size(s: Float) -> Attr {
-  Attr("size", FloatVal(s))
-}
-
-/// Set whether the application exits when this window is closed.
-pub fn exit_on_close(e: Bool) -> Attr {
-  Attr("exit_on_close_request", BoolVal(e))
-}
-
-/// Set the current value of an input widget.
-pub fn value(v: String) -> Attr {
-  Attr("value", StringVal(v))
-}
-
-/// Set the placeholder text shown when the input is empty.
-pub fn placeholder(p: String) -> Attr {
-  Attr("placeholder", StringVal(p))
-}
-
-/// Enable or disable the on_submit event for text input widgets.
-pub fn on_submit(enabled: Bool) -> Attr {
-  Attr("on_submit", BoolVal(enabled))
-}
-
-/// Enable secure (password) mode for text input, hiding characters.
-pub fn secure(s: Bool) -> Attr {
-  Attr("secure", BoolVal(s))
-}
-
-/// Set accessibility properties on the widget.
-pub fn a11y(a: A11y) -> Attr {
-  Attr("a11y", a11y.to_prop_value(a))
-}
-
-/// Set alt text for an image widget (used by screen readers).
-pub fn alt(t: String) -> Attr {
-  Attr("alt", StringVal(t))
-}
-
-/// Mark an image as decorative (hidden from screen readers).
-pub fn decorative(d: Bool) -> Attr {
-  Attr("decorative", BoolVal(d))
-}
-
-/// Set the label text for a widget.
-pub fn label(l: String) -> Attr {
-  Attr("label", StringVal(l))
-}
-
-/// Set a description for accessibility purposes.
-pub fn description(d: String) -> Attr {
-  Attr("description", StringVal(d))
-}
-
-/// Set the per-widget event rate limit (events per second).
-pub fn event_rate(r: Int) -> Attr {
-  Attr("event_rate", IntVal(r))
-}
-
-/// Set the initial window size in logical pixels.
-pub fn window_size(w: Float, h: Float) -> Attr {
-  Attr(
-    "size",
-    DictVal(dict.from_list([#("width", FloatVal(w)), #("height", FloatVal(h))])),
-  )
-}
+import plushie/widget/button
+import plushie/widget/canvas
+import plushie/widget/checkbox
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/floating
+import plushie/widget/grid
+import plushie/widget/image
+import plushie/widget/keyed_column
+import plushie/widget/markdown
+import plushie/widget/mouse_area
+import plushie/widget/overlay
+import plushie/widget/pane_grid
+import plushie/widget/pin
+import plushie/widget/progress_bar
+import plushie/widget/responsive
+import plushie/widget/row
+import plushie/widget/rule
+import plushie/widget/scrollable
+import plushie/widget/sensor
+import plushie/widget/slider
+import plushie/widget/space
+import plushie/widget/stack
+import plushie/widget/table
+import plushie/widget/text
+import plushie/widget/text_input
+import plushie/widget/themer
+import plushie/widget/tooltip
+import plushie/widget/window
 
 // --- Container widgets -------------------------------------------------------
 
 /// Create a window node. Only detected at the root or as a direct child
 /// of the root node.
-pub fn window(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  window_mod.new(id)
-  |> window_mod.extend(children)
-  |> window_mod.build()
-  |> merge_attrs(attrs)
+pub fn window(id: String, opts: List(window.Opt), children: List(Node)) -> Node {
+  window.new(id)
+  |> window.with_opts(opts)
+  |> window.extend(children)
+  |> window.build()
 }
 
 /// Create a vertical column layout widget.
-pub fn column(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  column_mod.new(id)
-  |> column_mod.extend(children)
-  |> column_mod.build()
-  |> merge_attrs(attrs)
+pub fn column(id: String, opts: List(column.Opt), children: List(Node)) -> Node {
+  column.new(id)
+  |> column.with_opts(opts)
+  |> column.extend(children)
+  |> column.build()
 }
 
 /// Create a horizontal row layout widget.
-pub fn row(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  row_mod.new(id)
-  |> row_mod.extend(children)
-  |> row_mod.build()
-  |> merge_attrs(attrs)
+pub fn row(id: String, opts: List(row.Opt), children: List(Node)) -> Node {
+  row.new(id)
+  |> row.with_opts(opts)
+  |> row.extend(children)
+  |> row.build()
 }
 
 /// Create a container widget that wraps its children with optional
 /// padding, alignment, and sizing.
-pub fn container(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  container_mod.new(id)
-  |> container_mod.extend(children)
-  |> container_mod.build()
-  |> merge_attrs(attrs)
+pub fn container(
+  id: String,
+  opts: List(container.Opt),
+  children: List(Node),
+) -> Node {
+  container.new(id)
+  |> container.with_opts(opts)
+  |> container.extend(children)
+  |> container.build()
 }
 
 /// Create a scrollable container widget.
-pub fn scrollable(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  scrollable_mod.new(id)
-  |> scrollable_mod.extend(children)
-  |> scrollable_mod.build()
-  |> merge_attrs(attrs)
+pub fn scrollable(
+  id: String,
+  opts: List(scrollable.Opt),
+  children: List(Node),
+) -> Node {
+  scrollable.new(id)
+  |> scrollable.with_opts(opts)
+  |> scrollable.extend(children)
+  |> scrollable.build()
 }
 
 /// Create a stack widget that layers children on top of each other.
-pub fn stack(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  stack_mod.new(id)
-  |> stack_mod.extend(children)
-  |> stack_mod.build()
-  |> merge_attrs(attrs)
+pub fn stack(id: String, opts: List(stack.Opt), children: List(Node)) -> Node {
+  stack.new(id)
+  |> stack.with_opts(opts)
+  |> stack.extend(children)
+  |> stack.build()
 }
 
 /// Create an overlay widget for popover-style content.
-pub fn overlay(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  overlay_mod.new(id)
-  |> overlay_mod.extend(children)
-  |> overlay_mod.build()
-  |> merge_attrs(attrs)
+pub fn overlay(
+  id: String,
+  opts: List(overlay.Opt),
+  children: List(Node),
+) -> Node {
+  overlay.new(id)
+  |> overlay.with_opts(opts)
+  |> overlay.extend(children)
+  |> overlay.build()
 }
 
 // --- Leaf widgets ------------------------------------------------------------
 
 /// Create a text widget displaying the given content string.
-pub fn text(id: String, content: String, attrs: List(Attr)) -> Node {
-  text_mod.new(id, content) |> text_mod.build() |> merge_attrs(attrs)
+pub fn text(id: String, content: String, opts: List(text.Opt)) -> Node {
+  text.new(id, content)
+  |> text.with_opts(opts)
+  |> text.build()
 }
 
-/// Text with no attrs.
+/// Text with no opts.
 pub fn text_(id: String, content: String) -> Node {
   text(id, content, [])
 }
 
 /// Create a button widget with the given label text.
-pub fn button(id: String, label: String, attrs: List(Attr)) -> Node {
-  button_mod.new(id, label) |> button_mod.build() |> merge_attrs(attrs)
+pub fn button(id: String, label: String, opts: List(button.Opt)) -> Node {
+  button.new(id, label)
+  |> button.with_opts(opts)
+  |> button.build()
 }
 
-/// Button with no attrs.
+/// Button with no opts.
 pub fn button_(id: String, label: String) -> Node {
   button(id, label, [])
 }
 
 /// Create a single-line text input widget with the given value.
-pub fn text_input(id: String, val: String, attrs: List(Attr)) -> Node {
-  text_input_mod.new(id, val) |> text_input_mod.build() |> merge_attrs(attrs)
+pub fn text_input(id: String, val: String, opts: List(text_input.Opt)) -> Node {
+  text_input.new(id, val)
+  |> text_input.with_opts(opts)
+  |> text_input.build()
 }
 
 /// Create a checkbox widget with the given label and checked state.
@@ -298,11 +150,11 @@ pub fn checkbox(
   id: String,
   label: String,
   checked: Bool,
-  attrs: List(Attr),
+  opts: List(checkbox.Opt),
 ) -> Node {
-  checkbox_mod.new(id, label, checked)
-  |> checkbox_mod.build()
-  |> merge_attrs(attrs)
+  checkbox.new(id, label, checked)
+  |> checkbox.with_opts(opts)
+  |> checkbox.build()
 }
 
 /// Create a slider widget with the given min/max range and current value.
@@ -310,14 +162,18 @@ pub fn slider(
   id: String,
   range: #(Float, Float),
   val: Float,
-  attrs: List(Attr),
+  opts: List(slider.Opt),
 ) -> Node {
-  slider_mod.new(id, range, val) |> slider_mod.build() |> merge_attrs(attrs)
+  slider.new(id, range, val)
+  |> slider.with_opts(opts)
+  |> slider.build()
 }
 
 /// Create an image widget from a source path or handle.
-pub fn image(id: String, source: String, attrs: List(Attr)) -> Node {
-  image_mod.new(id, source) |> image_mod.build() |> merge_attrs(attrs)
+pub fn image(id: String, source: String, opts: List(image.Opt)) -> Node {
+  image.new(id, source)
+  |> image.with_opts(opts)
+  |> image.build()
 }
 
 /// Create a progress bar with the given min/max range and current value.
@@ -325,83 +181,103 @@ pub fn progress_bar(
   id: String,
   range: #(Float, Float),
   val: Float,
-  attrs: List(Attr),
+  opts: List(progress_bar.Opt),
 ) -> Node {
-  progress_bar_mod.new(id, range, val)
-  |> progress_bar_mod.build()
-  |> merge_attrs(attrs)
+  progress_bar.new(id, range, val)
+  |> progress_bar.with_opts(opts)
+  |> progress_bar.build()
 }
 
 /// Flexible space widget.
-pub fn space(id: String, attrs: List(Attr)) -> Node {
-  space_mod.new(id) |> space_mod.build() |> merge_attrs(attrs)
+pub fn space(id: String, opts: List(space.Opt)) -> Node {
+  space.new(id)
+  |> space.with_opts(opts)
+  |> space.build()
 }
 
 /// Horizontal or vertical rule (divider).
-pub fn rule(id: String, attrs: List(Attr)) -> Node {
-  rule_mod.new(id) |> rule_mod.build() |> merge_attrs(attrs)
+pub fn rule(id: String, opts: List(rule.Opt)) -> Node {
+  rule.new(id)
+  |> rule.with_opts(opts)
+  |> rule.build()
 }
 
 // --- Grid / keyed layout widgets ---------------------------------------------
 
 /// Create a grid layout widget.
-pub fn grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  grid_mod.new(id)
-  |> grid_mod.extend(children)
-  |> grid_mod.build()
-  |> merge_attrs(attrs)
+pub fn grid(id: String, opts: List(grid.Opt), children: List(Node)) -> Node {
+  grid.new(id)
+  |> grid.with_opts(opts)
+  |> grid.extend(children)
+  |> grid.build()
 }
 
 /// Create a keyed column layout for efficient child reconciliation.
-pub fn keyed_column(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  keyed_column_mod.new(id)
-  |> keyed_column_mod.extend(children)
-  |> keyed_column_mod.build()
-  |> merge_attrs(attrs)
+pub fn keyed_column(
+  id: String,
+  opts: List(keyed_column.Opt),
+  children: List(Node),
+) -> Node {
+  keyed_column.new(id)
+  |> keyed_column.with_opts(opts)
+  |> keyed_column.extend(children)
+  |> keyed_column.build()
 }
 
 // --- Responsive / positional wrappers ----------------------------------------
 
 /// Create a responsive layout widget that adapts to available space.
-pub fn responsive(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  responsive_mod.new(id)
-  |> responsive_mod.extend(children)
-  |> responsive_mod.build()
-  |> merge_attrs(attrs)
+pub fn responsive(
+  id: String,
+  opts: List(responsive.Opt),
+  children: List(Node),
+) -> Node {
+  responsive.new(id)
+  |> responsive.with_opts(opts)
+  |> responsive.extend(children)
+  |> responsive.build()
 }
 
 /// Create a pin widget for positioning a child at an absolute offset.
-pub fn pin(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  pin_mod.new(id)
-  |> pin_mod.extend(children)
-  |> pin_mod.build()
-  |> merge_attrs(attrs)
+pub fn pin(id: String, opts: List(pin.Opt), children: List(Node)) -> Node {
+  pin.new(id)
+  |> pin.with_opts(opts)
+  |> pin.extend(children)
+  |> pin.build()
 }
 
 /// Create a floating widget for content that hovers above other widgets.
-pub fn floating(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  floating_mod.new(id)
-  |> floating_mod.extend(children)
-  |> floating_mod.build()
-  |> merge_attrs(attrs)
+pub fn floating(
+  id: String,
+  opts: List(floating.Opt),
+  children: List(Node),
+) -> Node {
+  floating.new(id)
+  |> floating.with_opts(opts)
+  |> floating.extend(children)
+  |> floating.build()
 }
 
 // --- Interaction wrappers ----------------------------------------------------
 
 /// Create a mouse area widget that captures mouse events on its children.
-pub fn mouse_area(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  mouse_area_mod.new(id)
-  |> mouse_area_mod.extend(children)
-  |> mouse_area_mod.build()
-  |> merge_attrs(attrs)
+pub fn mouse_area(
+  id: String,
+  opts: List(mouse_area.Opt),
+  children: List(Node),
+) -> Node {
+  mouse_area.new(id)
+  |> mouse_area.with_opts(opts)
+  |> mouse_area.extend(children)
+  |> mouse_area.build()
 }
 
 /// Create a sensor widget that reports its size and position changes.
-pub fn sensor(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  sensor_mod.new(id)
-  |> sensor_mod.extend(children)
-  |> sensor_mod.build()
-  |> merge_attrs(attrs)
+pub fn sensor(id: String, opts: List(sensor.Opt), children: List(Node)) -> Node {
+  sensor.new(id)
+  |> sensor.with_opts(opts)
+  |> sensor.extend(children)
+  |> sensor.build()
 }
 
 // --- Theme / pane layout -----------------------------------------------------
@@ -410,21 +286,25 @@ pub fn sensor(id: String, attrs: List(Attr), children: List(Node)) -> Node {
 pub fn themer(
   id: String,
   t: Theme,
-  attrs: List(Attr),
+  opts: List(themer.Opt),
   children: List(Node),
 ) -> Node {
-  themer_mod.new(id, t)
-  |> themer_mod.extend(children)
-  |> themer_mod.build()
-  |> merge_attrs(attrs)
+  themer.new(id, t)
+  |> themer.with_opts(opts)
+  |> themer.extend(children)
+  |> themer.build()
 }
 
 /// Create a pane grid layout with resizable, splittable panes.
-pub fn pane_grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
-  pane_grid_mod.new(id)
-  |> pane_grid_mod.extend(children)
-  |> pane_grid_mod.build()
-  |> merge_attrs(attrs)
+pub fn pane_grid(
+  id: String,
+  opts: List(pane_grid.Opt),
+  children: List(Node),
+) -> Node {
+  pane_grid.new(id)
+  |> pane_grid.with_opts(opts)
+  |> pane_grid.extend(children)
+  |> pane_grid.build()
 }
 
 // --- Tooltip -----------------------------------------------------------------
@@ -433,34 +313,36 @@ pub fn pane_grid(id: String, attrs: List(Attr), children: List(Node)) -> Node {
 pub fn tooltip(
   id: String,
   tip: String,
-  attrs: List(Attr),
+  opts: List(tooltip.Opt),
   children: List(Node),
 ) -> Node {
-  tooltip_mod.new(id, tip)
-  |> tooltip_mod.extend(children)
-  |> tooltip_mod.build()
-  |> merge_attrs(attrs)
+  tooltip.new(id, tip)
+  |> tooltip.with_opts(opts)
+  |> tooltip.extend(children)
+  |> tooltip.build()
 }
 
 // --- Data / canvas / content widgets -----------------------------------------
 
 /// Create a data table widget.
-pub fn table(id: String, attrs: List(Attr)) -> Node {
-  table_mod.new(id) |> table_mod.build() |> merge_attrs(attrs)
+pub fn table(id: String, opts: List(table.Opt)) -> Node {
+  table.new(id)
+  |> table.with_opts(opts)
+  |> table.build()
 }
 
 /// Create a canvas widget for custom drawing with shapes and paths.
-pub fn canvas(id: String, attrs: List(Attr)) -> Node {
-  canvas_mod.new(id, length.Shrink, length.Shrink)
-  |> canvas_mod.build()
-  |> merge_attrs(attrs)
+pub fn canvas(id: String, w: Length, h: Length, opts: List(canvas.Opt)) -> Node {
+  canvas.new(id, w, h)
+  |> canvas.with_opts(opts)
+  |> canvas.build()
 }
 
 /// Create a markdown widget that renders the given markdown content.
-pub fn markdown(id: String, content: String, attrs: List(Attr)) -> Node {
-  markdown_mod.new(id, content)
-  |> markdown_mod.build()
-  |> merge_attrs(attrs)
+pub fn markdown(id: String, content: String, opts: List(markdown.Opt)) -> Node {
+  markdown.new(id, content)
+  |> markdown.with_opts(opts)
+  |> markdown.build()
 }
 
 // --- Tree query delegates ----------------------------------------------------
@@ -473,22 +355,4 @@ pub fn find(tree_node: Node, id: String) -> Option(Node) {
 /// Check whether a node with the given ID exists in the tree.
 pub fn exists(tree_node: Node, id: String) -> Bool {
   tree.exists(tree_node, id)
-}
-
-// --- Internal ----------------------------------------------------------------
-
-/// Merge additional attrs onto a node built by a typed builder.
-/// Used when a convenience function delegates to a builder for
-/// structural props and then applies user-provided optional attrs.
-fn merge_attrs(base: Node, attrs: List(Attr)) -> Node {
-  case attrs {
-    [] -> base
-    _ -> {
-      let extra =
-        list.fold(attrs, dict.new(), fn(acc, attr) {
-          dict.insert(acc, attr.key, attr.value)
-        })
-      Node(..base, props: dict.merge(base.props, extra))
-    }
-  }
 }

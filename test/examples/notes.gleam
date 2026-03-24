@@ -21,7 +21,13 @@ import plushie/route
 import plushie/selection
 import plushie/ui
 import plushie/undo
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/scrollable
+import plushie/widget/text
 import plushie/widget/text_editor
+import plushie/widget/text_input
+import plushie/widget/window
 
 pub type Note {
   Note(id: Int, title: String, body: String)
@@ -228,19 +234,23 @@ fn view_list(model: Model) -> Node {
     }
   }
 
-  ui.window("main", [ui.title("Notes")], [
+  ui.window("main", [window.Title("Notes")], [
     ui.column(
       "content",
-      [ui.padding(padding.all(16.0)), ui.spacing(12), ui.width(length.Fill)],
       [
-        ui.text("heading", "Notes", [ui.font_size(24.0)]),
+        column.Padding(padding.all(16.0)),
+        column.Spacing(12),
+        column.Width(length.Fill),
+      ],
+      [
+        ui.text("heading", "Notes", [text.Size(24.0)]),
         ui.text_input("search", model.search_query, [
-          ui.placeholder("Search notes..."),
+          text_input.Placeholder("Search notes..."),
         ]),
-        ui.scrollable("notes_list", [ui.height(length.Fill)], [
+        ui.scrollable("notes_list", [scrollable.Height(length.Fill)], [
           ui.column(
             "notes_col",
-            [ui.spacing(4), ui.width(length.Fill)],
+            [column.Spacing(4), column.Width(length.Fill)],
             list.map(filtered, fn(note) {
               let id_str = int.to_string(note.id)
               let display_title = case note.title {
@@ -249,7 +259,7 @@ fn view_list(model: Model) -> Node {
               }
               ui.row(
                 "note_row:" <> id_str,
-                [ui.spacing(8), ui.width(length.Fill)],
+                [row.Spacing(8), row.Width(length.Fill)],
                 [
                   ui.checkbox(
                     "note_select:" <> id_str,
@@ -263,7 +273,7 @@ fn view_list(model: Model) -> Node {
             }),
           ),
         ]),
-        ui.row("actions", [ui.spacing(8)], [
+        ui.row("actions", [row.Spacing(8)], [
           ui.button_("new_note", "New Note"),
           ui.button_("delete_selected", "Delete Selected"),
         ]),
@@ -275,18 +285,22 @@ fn view_list(model: Model) -> Node {
 fn view_edit(model: Model) -> Node {
   let current = undo.current(model.undo_stack)
 
-  ui.window("main", [ui.title("Edit Note")], [
+  ui.window("main", [window.Title("Edit Note")], [
     ui.column(
       "content",
-      [ui.padding(padding.all(16.0)), ui.spacing(12), ui.width(length.Fill)],
       [
-        ui.row("toolbar", [ui.spacing(8)], [
+        column.Padding(padding.all(16.0)),
+        column.Spacing(12),
+        column.Width(length.Fill),
+      ],
+      [
+        ui.row("toolbar", [row.Spacing(8)], [
           ui.button_("back", "Back"),
           ui.button_("undo", "Undo"),
           ui.button_("redo", "Redo"),
         ]),
         ui.text_input("title", current.title, [
-          ui.placeholder("Note title"),
+          text_input.Placeholder("Note title"),
         ]),
         text_editor.new("body", current.text)
           |> text_editor.width(length.Fill)

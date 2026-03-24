@@ -20,6 +20,11 @@ import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/text_input
+import plushie/widget/window
 
 // -- Model --------------------------------------------------------------------
 
@@ -110,24 +115,28 @@ fn add_todo(model: Model) {
 // -- View ---------------------------------------------------------------------
 
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Todos")], [
+  ui.window("main", [window.Title("Todos")], [
     ui.column(
       "app",
-      [ui.padding(padding.all(20.0)), ui.spacing(12), ui.width(length.Fill)],
       [
-        ui.text("title", "My Todos", [ui.font_size(24.0)]),
+        column.Padding(padding.all(20.0)),
+        column.Spacing(12),
+        column.Width(length.Fill),
+      ],
+      [
+        ui.text("title", "My Todos", [text.Size(24.0)]),
         ui.text_input("new_todo", model.input, [
-          ui.placeholder("What needs doing?"),
-          ui.on_submit(True),
+          text_input.Placeholder("What needs doing?"),
+          text_input.OnSubmit(True),
         ]),
-        ui.row("filters", [ui.spacing(8)], [
+        ui.row("filters", [row.Spacing(8)], [
           ui.button_("filter_all", "All"),
           ui.button_("filter_active", "Active"),
           ui.button_("filter_done", "Done"),
         ]),
         ui.column(
           "list",
-          [ui.spacing(4)],
+          [column.Spacing(4)],
           filtered(model) |> list.map(todo_row),
         ),
       ],
@@ -145,7 +154,7 @@ fn filtered(model: Model) -> List(Todo) {
 
 fn todo_row(entry: Todo) -> Node {
   ui.container(entry.id, [], [
-    ui.row("row", [ui.spacing(8)], [
+    ui.row("row", [row.Spacing(8)], [
       ui.checkbox("toggle", "", entry.done, []),
       ui.text_("text", entry.text),
       ui.button_("delete", "x"),

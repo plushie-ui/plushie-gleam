@@ -11,6 +11,7 @@ import plushie/prop/padding
 import plushie/testing
 import plushie/testing/element
 import plushie/ui
+import plushie/widget/column
 
 // -- Counter app for testing --------------------------------------------------
 
@@ -37,7 +38,7 @@ fn counter_update(model: CounterModel, event: Event) {
 }
 
 fn counter_view(model: CounterModel) -> Node {
-  ui.column("root", [ui.padding(padding.all(16.0))], [
+  ui.column("root", [column.Padding(padding.all(16.0))], [
     ui.text_("label", "Count: " <> int.to_string(model.count)),
     ui.button_("inc", "+"),
     ui.button_("dec", "-"),

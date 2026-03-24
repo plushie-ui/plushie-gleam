@@ -1,6 +1,7 @@
 //// Text widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
@@ -125,6 +126,44 @@ pub fn style(text: Text, s: TextStyle) -> Text {
 /// Set accessibility properties for this widget.
 pub fn a11y(text: Text, a: A11y) -> Text {
   Text(..text, a11y: option.Some(a))
+}
+
+/// Option type for text properties.
+pub type Opt {
+  Size(Float)
+  Color(Color)
+  Font(Font)
+  Width(Length)
+  Height(Length)
+  LineHeight(Float)
+  AlignX(Alignment)
+  AlignY(Alignment)
+  Wrapping(Wrapping)
+  Ellipsis(String)
+  Shaping(Shaping)
+  Style(TextStyle)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a text builder.
+pub fn with_opts(text: Text, opts: List(Opt)) -> Text {
+  list.fold(opts, text, fn(t, opt) {
+    case opt {
+      Size(s) -> size(t, s)
+      Color(c) -> color(t, c)
+      Font(f) -> font(t, f)
+      Width(w) -> width(t, w)
+      Height(h) -> height(t, h)
+      LineHeight(h) -> line_height(t, h)
+      AlignX(a) -> align_x(t, a)
+      AlignY(a) -> align_y(t, a)
+      Wrapping(w) -> wrapping(t, w)
+      Ellipsis(e) -> ellipsis(t, e)
+      Shaping(s) -> shaping(t, s)
+      Style(s) -> style(t, s)
+      A11y(a) -> a11y(t, a)
+    }
+  })
 }
 
 fn style_to_string(s: TextStyle) -> String {

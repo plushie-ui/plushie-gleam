@@ -127,6 +127,44 @@ pub fn a11y(s: Scrollable, a: A11y) -> Scrollable {
   Scrollable(..s, a11y: option.Some(a))
 }
 
+/// Option type for scrollable properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  Direction(Direction)
+  Spacing(Int)
+  ScrollbarWidth(Float)
+  ScrollbarMargin(Float)
+  ScrollerWidth(Float)
+  Anchor(Anchor)
+  OnScroll(Bool)
+  AutoScroll(Bool)
+  ScrollbarColor(Color)
+  ScrollerColor(Color)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a scrollable builder.
+pub fn with_opts(s: Scrollable, opts: List(Opt)) -> Scrollable {
+  list.fold(opts, s, fn(sc, opt) {
+    case opt {
+      Width(w) -> width(sc, w)
+      Height(h) -> height(sc, h)
+      Direction(d) -> direction(sc, d)
+      Spacing(sp) -> spacing(sc, sp)
+      ScrollbarWidth(w) -> scrollbar_width(sc, w)
+      ScrollbarMargin(m) -> scrollbar_margin(sc, m)
+      ScrollerWidth(w) -> scroller_width(sc, w)
+      Anchor(a) -> anchor(sc, a)
+      OnScroll(v) -> on_scroll(sc, v)
+      AutoScroll(v) -> auto_scroll(sc, v)
+      ScrollbarColor(c) -> scrollbar_color(sc, c)
+      ScrollerColor(c) -> scroller_color(sc, c)
+      A11y(a) -> a11y(sc, a)
+    }
+  })
+}
+
 /// Build the scrollable into a renderable Node.
 pub fn build(s: Scrollable) -> Node {
   let props =

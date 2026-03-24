@@ -1,6 +1,7 @@
 //// Text editor widget builder (multi-line text editing).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -150,6 +151,54 @@ pub fn selection_color(te: TextEditor, c: Color) -> TextEditor {
 /// Set accessibility properties for this widget.
 pub fn a11y(te: TextEditor, a: A11y) -> TextEditor {
   TextEditor(..te, a11y: option.Some(a))
+}
+
+/// Option type for text editor properties.
+pub type Opt {
+  Placeholder(String)
+  Width(Length)
+  Height(Length)
+  MinHeight(Float)
+  MaxHeight(Float)
+  Padding(Padding)
+  Font(Font)
+  Size(Float)
+  LineHeight(Float)
+  Wrapping(Wrapping)
+  ImePurpose(String)
+  HighlightSyntax(String)
+  HighlightTheme(String)
+  Style(String)
+  KeyBindings(List(PropValue))
+  PlaceholderColor(Color)
+  SelectionColor(Color)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a text editor builder.
+pub fn with_opts(te: TextEditor, opts: List(Opt)) -> TextEditor {
+  list.fold(opts, te, fn(t, opt) {
+    case opt {
+      Placeholder(p) -> placeholder(t, p)
+      Width(w) -> width(t, w)
+      Height(h) -> height(t, h)
+      MinHeight(h) -> min_height(t, h)
+      MaxHeight(h) -> max_height(t, h)
+      Padding(p) -> padding(t, p)
+      Font(f) -> font(t, f)
+      Size(s) -> size(t, s)
+      LineHeight(h) -> line_height(t, h)
+      Wrapping(w) -> wrapping(t, w)
+      ImePurpose(p) -> ime_purpose(t, p)
+      HighlightSyntax(lang) -> highlight_syntax(t, lang)
+      HighlightTheme(theme) -> highlight_theme(t, theme)
+      Style(s) -> style(t, s)
+      KeyBindings(kb) -> key_bindings(t, kb)
+      PlaceholderColor(c) -> placeholder_color(t, c)
+      SelectionColor(c) -> selection_color(t, c)
+      A11y(a) -> a11y(t, a)
+    }
+  })
 }
 
 /// Build the text editor into a renderable Node.

@@ -1,6 +1,7 @@
 //// SVG display widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -92,6 +93,38 @@ pub fn decorative(s: Svg, d: Bool) -> Svg {
 /// Set accessibility properties for this widget.
 pub fn a11y(s: Svg, a: A11y) -> Svg {
   Svg(..s, a11y: option.Some(a))
+}
+
+/// Option type for svg properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  ContentFit(ContentFit)
+  Rotation(Float)
+  Opacity(Float)
+  Color(Color)
+  Alt(String)
+  Description(String)
+  Decorative(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to an svg builder.
+pub fn with_opts(s: Svg, opts: List(Opt)) -> Svg {
+  list.fold(opts, s, fn(sv, opt) {
+    case opt {
+      Width(w) -> width(sv, w)
+      Height(h) -> height(sv, h)
+      ContentFit(cf) -> content_fit(sv, cf)
+      Rotation(r) -> rotation(sv, r)
+      Opacity(o) -> opacity(sv, o)
+      Color(c) -> color(sv, c)
+      Alt(a) -> alt(sv, a)
+      Description(d) -> description(sv, d)
+      Decorative(d) -> decorative(sv, d)
+      A11y(a) -> a11y(sv, a)
+    }
+  })
 }
 
 /// Build the svg into a renderable Node.

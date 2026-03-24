@@ -68,6 +68,28 @@ pub fn a11y(p: Pin, a: A11y) -> Pin {
   Pin(..p, a11y: option.Some(a))
 }
 
+/// Option type for pin properties.
+pub type Opt {
+  X(Float)
+  Y(Float)
+  Width(Length)
+  Height(Length)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a pin builder.
+pub fn with_opts(p: Pin, opts: List(Opt)) -> Pin {
+  list.fold(opts, p, fn(pn, opt) {
+    case opt {
+      X(v) -> x(pn, v)
+      Y(v) -> y(pn, v)
+      Width(w) -> width(pn, w)
+      Height(h) -> height(pn, h)
+      A11y(a) -> a11y(pn, a)
+    }
+  })
+}
+
 /// Build the pin into a renderable Node.
 pub fn build(p: Pin) -> Node {
   let props =

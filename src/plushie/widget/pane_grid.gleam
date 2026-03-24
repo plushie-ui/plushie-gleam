@@ -107,6 +107,38 @@ pub fn a11y(pg: PaneGrid, a: A11y) -> PaneGrid {
   PaneGrid(..pg, a11y: option.Some(a))
 }
 
+/// Option type for pane grid properties.
+pub type Opt {
+  Panes(List(String))
+  Spacing(Int)
+  Width(Length)
+  Height(Length)
+  MinSize(Float)
+  DividerColor(String)
+  DividerWidth(Float)
+  Leeway(Float)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a pane grid builder.
+pub fn with_opts(pg: PaneGrid, opts: List(Opt)) -> PaneGrid {
+  list.fold(opts, pg, fn(p, opt) {
+    case opt {
+      Panes(v) -> panes(p, v)
+      Spacing(s) -> spacing(p, s)
+      Width(w) -> width(p, w)
+      Height(h) -> height(p, h)
+      MinSize(s) -> min_size(p, s)
+      DividerColor(c) -> divider_color(p, c)
+      DividerWidth(w) -> divider_width(p, w)
+      Leeway(l) -> leeway(p, l)
+      EventRate(r) -> event_rate(p, r)
+      A11y(a) -> a11y(p, a)
+    }
+  })
+}
+
 /// Build the pane grid into a renderable Node.
 pub fn build(pg: PaneGrid) -> Node {
   let props =

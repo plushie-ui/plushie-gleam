@@ -10,6 +10,11 @@ import plushie/node.{type Node, BoolVal, FloatVal, IntVal, StringVal}
 import plushie/prop/length.{Fill}
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/text_input
+import plushie/widget/window
 
 // -- Types (reproduced from tutorial doc) -------------------------------------
 
@@ -109,7 +114,7 @@ fn filtered(model: Model) -> List(Todo) {
 
 fn todo_row(t: Todo) -> Node {
   ui.container(t.id, [], [
-    ui.row("row", [ui.spacing(8)], [
+    ui.row("row", [row.Spacing(8)], [
       ui.checkbox("toggle", "", t.done, []),
       ui.text_("text", t.text),
       ui.button_("delete", "x"),
@@ -120,12 +125,16 @@ fn todo_row(t: Todo) -> Node {
 // -- Step 1: initial view -----------------------------------------------------
 
 fn step1_view(_model: Model) -> Node {
-  ui.window("main", [ui.title("Todos")], [
+  ui.window("main", [window.Title("Todos")], [
     ui.column(
       "app",
-      [ui.padding(padding.all(20.0)), ui.spacing(12), ui.width(Fill)],
       [
-        ui.text("title", "My Todos", [ui.font_size(24.0)]),
+        column.Padding(padding.all(20.0)),
+        column.Spacing(12),
+        column.Width(Fill),
+      ],
+      [
+        ui.text("title", "My Todos", [text.Size(24.0)]),
         ui.text_("empty", "No todos yet"),
       ],
     ),
@@ -135,22 +144,26 @@ fn step1_view(_model: Model) -> Node {
 // -- Step 3: view with list ---------------------------------------------------
 
 fn step3_view(model: Model) -> Node {
-  ui.window("main", [ui.title("Todos")], [
+  ui.window("main", [window.Title("Todos")], [
     ui.column(
       "app",
-      [ui.padding(padding.all(20.0)), ui.spacing(12), ui.width(Fill)],
       [
-        ui.text("title", "My Todos", [ui.font_size(24.0)]),
+        column.Padding(padding.all(20.0)),
+        column.Spacing(12),
+        column.Width(Fill),
+      ],
+      [
+        ui.text("title", "My Todos", [text.Size(24.0)]),
         ui.text_input("new_todo", model.input, [
-          ui.placeholder("What needs doing?"),
-          ui.on_submit(True),
+          text_input.Placeholder("What needs doing?"),
+          text_input.OnSubmit(True),
         ]),
         ui.column(
           "list",
-          [ui.spacing(4)],
+          [column.Spacing(4)],
           list.map(model.todos, fn(t) {
             ui.container(t.id, [], [
-              ui.row("row", [ui.spacing(8)], [
+              ui.row("row", [row.Spacing(8)], [
                 ui.checkbox("toggle", "", t.done, []),
                 ui.text_("text", t.text),
                 ui.button_("delete", "x"),
@@ -166,24 +179,28 @@ fn step3_view(model: Model) -> Node {
 // -- Step 6: full view --------------------------------------------------------
 
 fn full_view(model: Model) -> Node {
-  ui.window("main", [ui.title("Todos")], [
+  ui.window("main", [window.Title("Todos")], [
     ui.column(
       "app",
-      [ui.padding(padding.all(20.0)), ui.spacing(12), ui.width(Fill)],
       [
-        ui.text("title", "My Todos", [ui.font_size(24.0)]),
+        column.Padding(padding.all(20.0)),
+        column.Spacing(12),
+        column.Width(Fill),
+      ],
+      [
+        ui.text("title", "My Todos", [text.Size(24.0)]),
         ui.text_input("new_todo", model.input, [
-          ui.placeholder("What needs doing?"),
-          ui.on_submit(True),
+          text_input.Placeholder("What needs doing?"),
+          text_input.OnSubmit(True),
         ]),
-        ui.row("filters", [ui.spacing(8)], [
+        ui.row("filters", [row.Spacing(8)], [
           ui.button_("filter_all", "All"),
           ui.button_("filter_active", "Active"),
           ui.button_("filter_done", "Done"),
         ]),
         ui.column(
           "list",
-          [ui.spacing(4)],
+          [column.Spacing(4)],
           list.map(filtered(model), fn(t) { todo_row(t) }),
         ),
       ],

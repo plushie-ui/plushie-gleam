@@ -102,6 +102,34 @@ pub fn a11y(o: Overlay, a: A11y) -> Overlay {
   Overlay(..o, a11y: option.Some(a))
 }
 
+/// Option type for overlay properties.
+pub type Opt {
+  Position(OverlayPosition)
+  Gap(Float)
+  OffsetX(Float)
+  OffsetY(Float)
+  Flip(Bool)
+  Align(OverlayAlign)
+  Width(Length)
+  A11y(A11y)
+}
+
+/// Apply a list of options to an overlay builder.
+pub fn with_opts(o: Overlay, opts: List(Opt)) -> Overlay {
+  list.fold(opts, o, fn(ov, opt) {
+    case opt {
+      Position(p) -> position(ov, p)
+      Gap(g) -> gap(ov, g)
+      OffsetX(x) -> offset_x(ov, x)
+      OffsetY(y) -> offset_y(ov, y)
+      Flip(f) -> flip(ov, f)
+      Align(a) -> align(ov, a)
+      Width(w) -> width(ov, w)
+      A11y(a) -> a11y(ov, a)
+    }
+  })
+}
+
 fn position_to_string(p: OverlayPosition) -> String {
   case p {
     Below -> "below"

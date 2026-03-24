@@ -13,6 +13,13 @@ import plushie/prop/length.{Fill, Fixed}
 import plushie/prop/padding
 import plushie/tree
 import plushie/ui
+import plushie/widget/button
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/row
+import plushie/widget/stack
+import plushie/widget/text
+import plushie/widget/window
 
 // ============================================================================
 // Tab bar (section 1)
@@ -39,14 +46,14 @@ fn tab_update(model: TabModel, event: Event) {
 }
 
 fn tab_view(model: TabModel) -> Node {
-  ui.window("main", [ui.title("Tab Demo")], [
-    ui.column("tabs_layout", [ui.width(Fill)], [
+  ui.window("main", [window.Title("Tab Demo")], [
+    ui.column("tabs_layout", [column.Width(Fill)], [
       ui.row(
         "tab_row",
-        [ui.spacing(0)],
+        [row.Spacing(0)],
         list.map(tabs, fn(tab) {
           ui.button("tab:" <> tab, string.capitalise(tab), [
-            ui.padding(padding.xy(10.0, 20.0)),
+            button.Padding(padding.xy(10.0, 20.0)),
           ])
         }),
       ),
@@ -54,9 +61,9 @@ fn tab_view(model: TabModel) -> Node {
       ui.container(
         "content",
         [
-          ui.padding(padding.all(20.0)),
-          ui.width(Fill),
-          ui.height(Fill),
+          container.Padding(padding.all(20.0)),
+          container.Width(Fill),
+          container.Height(Fill),
         ],
         [ui.text_("tab_content", "Content for " <> model.active_tab)],
       ),
@@ -125,19 +132,23 @@ fn sidebar_update(model: SidebarModel, event: Event) {
 }
 
 fn sidebar_view(model: SidebarModel) -> Node {
-  ui.window("main", [ui.title("Sidebar Demo")], [
-    ui.row("layout", [ui.width(Fill), ui.height(Fill)], [
-      ui.container("sidebar", [ui.width(Fixed(200.0)), ui.height(Fill)], [
-        ui.column(
-          "nav",
-          [ui.spacing(4), ui.width(Fill)],
-          list.map(nav_items, fn(item) {
-            let #(id, label) = item
-            ui.button("nav:" <> id, label, [ui.width(Fill)])
-          }),
-        ),
-      ]),
-      ui.container("main", [ui.width(Fill), ui.height(Fill)], [
+  ui.window("main", [window.Title("Sidebar Demo")], [
+    ui.row("layout", [row.Width(Fill), row.Height(Fill)], [
+      ui.container(
+        "sidebar",
+        [container.Width(Fixed(200.0)), container.Height(Fill)],
+        [
+          ui.column(
+            "nav",
+            [column.Spacing(4), column.Width(Fill)],
+            list.map(nav_items, fn(item) {
+              let #(id, label) = item
+              ui.button("nav:" <> id, label, [button.Width(Fill)])
+            }),
+          ),
+        ],
+      ),
+      ui.container("main", [container.Width(Fill), container.Height(Fill)], [
         ui.text_("page_title", string.capitalise(model.page) <> " page"),
       ]),
     ]),
@@ -207,21 +218,25 @@ fn modal_update(model: ModalModel, event: Event) {
 
 fn modal_view(model: ModalModel) -> Node {
   let main_content =
-    ui.container("main", [ui.width(Fill), ui.height(Fill)], [
+    ui.container("main", [container.Width(Fill), container.Height(Fill)], [
       ui.column(
         "main_col",
-        [ui.spacing(12)],
+        [column.Spacing(12)],
         list.flatten([
           [
             ui.text("main_content", "Main application content", [
-              ui.font_size(20.0),
+              text.Size(20.0),
             ]),
           ],
           case model.confirmed {
             True -> [ui.text_("confirmed_msg", "Action confirmed.")]
             False -> []
           },
-          [ui.button("open_modal", "Open Dialog", [ui.style("primary")])],
+          [
+            ui.button("open_modal", "Open Dialog", [
+              button.Style(button.Primary),
+            ]),
+          ],
         ]),
       ),
     ])
@@ -231,22 +246,22 @@ fn modal_view(model: ModalModel) -> Node {
       ui.container(
         "overlay",
         [
-          ui.width(Fill),
-          ui.height(Fill),
-          ui.align_x(alignment.Center),
-          ui.align_y(alignment.Center),
+          container.Width(Fill),
+          container.Height(Fill),
+          container.AlignX(alignment.Center),
+          container.AlignY(alignment.Center),
         ],
         [
-          ui.container("dialog", [ui.max_width(400.0)], [
-            ui.column("dialog_col", [ui.spacing(16)], [
+          ui.container("dialog", [container.MaxWidth(400.0)], [
+            ui.column("dialog_col", [column.Spacing(16)], [
               ui.text_("dialog_title", "Confirm action"),
               ui.text_(
                 "dialog_body",
                 "Are you sure you want to proceed? This cannot be undone.",
               ),
-              ui.row("dialog_actions", [ui.spacing(8)], [
-                ui.button("cancel", "Cancel", [ui.style("secondary")]),
-                ui.button("confirm", "Confirm", [ui.style("primary")]),
+              ui.row("dialog_actions", [row.Spacing(8)], [
+                ui.button("cancel", "Cancel", [button.Style(button.Secondary)]),
+                ui.button("confirm", "Confirm", [button.Style(button.Primary)]),
               ]),
             ]),
           ]),
@@ -256,8 +271,8 @@ fn modal_view(model: ModalModel) -> Node {
     False -> []
   }
 
-  ui.window("main", [ui.title("Modal Demo")], [
-    ui.stack("modal_stack", [ui.width(Fill), ui.height(Fill)], [
+  ui.window("main", [window.Title("Modal Demo")], [
+    ui.stack("modal_stack", [stack.Width(Fill), stack.Height(Fill)], [
       main_content,
       ..modal_layer
     ]),
@@ -326,13 +341,13 @@ pub fn modal_view_shows_confirmed_message_test() {
 // ============================================================================
 
 fn card(id: String, title: String, body: List(Node)) -> Node {
-  ui.container(id, [ui.width(Fill)], [
+  ui.container(id, [container.Width(Fill)], [
     ui.column(
       id <> "_col",
-      [ui.spacing(8)],
+      [column.Spacing(8)],
       list.flatten([
         [
-          ui.text("card_title", title, [ui.font_size(16.0)]),
+          ui.text("card_title", title, [text.Size(16.0)]),
           ui.rule(id <> "_rule", []),
         ],
         body,
@@ -371,24 +386,32 @@ type SplitModel {
 }
 
 fn split_view(model: SplitModel) -> Node {
-  ui.window("main", [ui.title("Split Panel Demo")], [
-    ui.row("split", [ui.width(Fill), ui.height(Fill)], [
+  ui.window("main", [window.Title("Split Panel Demo")], [
+    ui.row("split", [row.Width(Fill), row.Height(Fill)], [
       ui.container(
         "left_panel",
         [
-          ui.width(Fixed(model.left_width)),
-          ui.height(Fill),
+          container.Width(Fixed(model.left_width)),
+          container.Height(Fill),
         ],
         [ui.text_("left_title", "Left panel")],
       ),
       ui.mouse_area("divider", [], [
-        ui.container("divider_track", [ui.width(Fixed(5.0)), ui.height(Fill)], [
-          ui.rule("divider_rule", []),
-        ]),
+        ui.container(
+          "divider_track",
+          [container.Width(Fixed(5.0)), container.Height(Fill)],
+          [
+            ui.rule("divider_rule", []),
+          ],
+        ),
       ]),
-      ui.container("right_panel", [ui.width(Fill), ui.height(Fill)], [
-        ui.text_("right_title", "Right panel"),
-      ]),
+      ui.container(
+        "right_panel",
+        [container.Width(Fill), container.Height(Fill)],
+        [
+          ui.text_("right_title", "Right panel"),
+        ],
+      ),
     ]),
   ])
 }

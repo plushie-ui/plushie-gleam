@@ -69,6 +69,28 @@ pub fn a11y(s: Stack, a: A11y) -> Stack {
   Stack(..s, a11y: option.Some(a))
 }
 
+/// Option type for stack properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  Padding(Padding)
+  Clip(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a stack builder.
+pub fn with_opts(s: Stack, opts: List(Opt)) -> Stack {
+  list.fold(opts, s, fn(st, opt) {
+    case opt {
+      Width(w) -> width(st, w)
+      Height(h) -> height(st, h)
+      Padding(p) -> padding(st, p)
+      Clip(v) -> clip(st, v)
+      A11y(a) -> a11y(st, a)
+    }
+  })
+}
+
 /// Build the stack into a renderable Node.
 pub fn build(s: Stack) -> Node {
   let props =

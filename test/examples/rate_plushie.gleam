@@ -30,8 +30,15 @@ import plushie/prop/padding
 import plushie/prop/theme
 import plushie/subscription
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/row
+import plushie/widget/space
+import plushie/widget/text
 import plushie/widget/text_editor
+import plushie/widget/text_input
 import plushie/widget/themer
+import plushie/widget/window
 
 // -- Review data --------------------------------------------------------------
 
@@ -309,37 +316,45 @@ fn view(model: Model) -> Node {
       ]),
     )
 
-  ui.window("main", [ui.title("Rate Plushie")], [
+  ui.window("main", [window.Title("Rate Plushie")], [
     themer.new("page-theme", page_theme)
     |> themer.extend([
       ui.container(
         "page",
         [
-          ui.padding(padding.Padding(
+          container.Padding(padding.Padding(
             top: 32.0,
             bottom: 32.0,
             left: 24.0,
             right: 24.0,
           )),
-          ui.background(hex(t.page_bg)),
-          ui.width(length.Fill),
-          ui.height(length.Fill),
+          container.BgColor(hex(t.page_bg)),
+          container.Width(length.Fill),
+          container.Height(length.Fill),
         ],
         [
-          ui.column("main-col", [ui.spacing(24), ui.width(length.Fill)], [
-            ui.text("heading", "Rate Plushie", [
-              ui.font_size(28.0),
-              ui.text_color(hex(t.text)),
-              ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
-            ]),
-            rating_card(model, p, t),
-            ui.text("reviews-heading", "Reviews", [
-              ui.font_size(20.0),
-              ui.text_color(hex(t.text)),
-              ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
-            ]),
-            reviews_list(model.reviews, p, t),
-          ]),
+          ui.column(
+            "main-col",
+            [column.Spacing(24), column.Width(length.Fill)],
+            [
+              ui.text("heading", "Rate Plushie", [
+                text.Size(28.0),
+                text.Color(hex(t.text)),
+                text.A11y(
+                  a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1),
+                ),
+              ]),
+              rating_card(model, p, t),
+              ui.text("reviews-heading", "Reviews", [
+                text.Size(20.0),
+                text.Color(hex(t.text)),
+                text.A11y(
+                  a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2),
+                ),
+              ]),
+              reviews_list(model.reviews, p, t),
+            ],
+          ),
         ],
       ),
     ])
@@ -353,21 +368,21 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
   ui.container(
     "rating-card",
     [
-      ui.padding(padding.all(24.0)),
-      ui.width(length.Fill),
-      ui.border(
+      container.Padding(padding.all(24.0)),
+      container.Width(length.Fill),
+      container.Border(
         border.new()
         |> border.width(1.0)
         |> border.color(hex(t.card_border))
         |> border.radius(12.0),
       ),
-      ui.background(hex(t.card_bg)),
+      container.BgColor(hex(t.card_bg)),
     ],
     [
-      ui.column("card-col", [ui.spacing(20), ui.width(length.Fill)], [
+      ui.column("card-col", [column.Spacing(20), column.Width(length.Fill)], [
         ui.text("prompt", "How would you rate Plushie?", [
-          ui.font_size(14.0),
-          ui.text_color(hex(t.text_secondary)),
+          text.Size(14.0),
+          text.Color(hex(t.text_secondary)),
         ]),
         star_rating.render("stars", model.rating, [
           star_rating.Hover(model.hover_star),
@@ -384,10 +399,10 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
 // -- View: review form --------------------------------------------------------
 
 fn review_form(model: Model) -> Node {
-  ui.column("review-form", [ui.spacing(12), ui.width(length.Fill)], [
+  ui.column("review-form", [column.Spacing(12), column.Width(length.Fill)], [
     ui.text_input("review-name", model.review_name, [
-      ui.placeholder("Your name"),
-      ui.a11y(a11y.new() |> a11y.label("Your name")),
+      text_input.Placeholder("Your name"),
+      text_input.A11y(a11y.new() |> a11y.label("Your name")),
     ]),
     text_editor.new("review-comment", model.review_comment)
       |> text_editor.placeholder("Write your review...")
@@ -401,10 +416,10 @@ fn review_form(model: Model) -> Node {
 // -- View: theme toggle row ---------------------------------------------------
 
 fn theme_row(model: Model, t: Theme) -> Node {
-  ui.row("theme-row", [ui.align_y(alignment.Center)], [
-    ui.space("theme-spacer", [ui.width(length.Fill)]),
+  ui.row("theme-row", [row.AlignY(alignment.Center)], [
+    ui.space("theme-spacer", [space.Width(length.Fill)]),
     ui.text("toggle-label", "Dark humor", [
-      ui.text_color(hex(t.text_secondary)),
+      text.Color(hex(t.text_secondary)),
     ]),
     theme_toggle.render("theme-toggle", model.toggle_progress),
   ])
@@ -415,7 +430,7 @@ fn theme_row(model: Model, t: Theme) -> Node {
 fn reviews_list(reviews: List(Review), p: Float, t: Theme) -> Node {
   ui.column(
     "reviews",
-    [ui.spacing(0), ui.width(length.Fill)],
+    [column.Spacing(0), column.Width(length.Fill)],
     reviews
       |> list.index_map(fn(review, i) {
         case i > 0 {
@@ -434,27 +449,31 @@ fn review_card(review: Review, i: Int, p: Float, t: Theme) -> Node {
   let idx = int.to_string(i)
   ui.column(
     "review-" <> idx,
-    [ui.spacing(4), ui.padding(padding.all(12.0)), ui.width(length.Fill)],
     [
-      ui.row("rhdr-" <> idx, [ui.spacing(8), ui.align_y(alignment.Center)], [
+      column.Spacing(4),
+      column.Padding(padding.all(12.0)),
+      column.Width(length.Fill),
+    ],
+    [
+      ui.row("rhdr-" <> idx, [row.Spacing(8), row.AlignY(alignment.Center)], [
         star_rating.render("rstars-" <> idx, review.stars, [
           star_rating.Readonly(True),
           star_rating.Scale(0.4),
           star_rating.ThemeProgress(p),
         ]),
         ui.text("rname-" <> idx, review.user, [
-          ui.font_size(12.0),
-          ui.text_color(hex(t.text_secondary)),
+          text.Size(12.0),
+          text.Color(hex(t.text_secondary)),
         ]),
-        ui.space("rsp-" <> idx, [ui.width(length.Fill)]),
+        ui.space("rsp-" <> idx, [space.Width(length.Fill)]),
         ui.text("rtime-" <> idx, review.time, [
-          ui.font_size(12.0),
-          ui.text_color(hex(t.text_muted)),
+          text.Size(12.0),
+          text.Color(hex(t.text_muted)),
         ]),
       ]),
       ui.text("rtext-" <> idx, "\u{201C}" <> review.text <> "\u{201D}", [
-        ui.font_size(14.0),
-        ui.text_color(hex(t.text)),
+        text.Size(14.0),
+        text.Color(hex(t.text)),
       ]),
     ],
   )

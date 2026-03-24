@@ -72,7 +72,7 @@
 ////   value: String,
 ////   children: List(Node),
 //// ) -> Node {
-////   ui.column(id, [ui.spacing(4)], [
+////   ui.column(id, [column.Spacing(4)], [
 ////     ui.text_(id <> "-label", label),
 ////     ui.text_input(id <> "-input", value, []),
 ////     ..children

@@ -105,6 +105,38 @@ pub fn a11y(row: Row, a: A11y) -> Row {
   Row(..row, a11y: option.Some(a))
 }
 
+/// Option type for row properties.
+pub type Opt {
+  Spacing(Int)
+  Padding(Padding)
+  Width(Length)
+  Height(Length)
+  MaxWidth(Float)
+  MaxHeight(Float)
+  AlignY(Alignment)
+  Clip(Bool)
+  Wrap(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a row builder.
+pub fn with_opts(row: Row, opts: List(Opt)) -> Row {
+  list.fold(opts, row, fn(r, opt) {
+    case opt {
+      Spacing(s) -> spacing(r, s)
+      Padding(p) -> padding(r, p)
+      Width(w) -> width(r, w)
+      Height(h) -> height(r, h)
+      MaxWidth(m) -> max_width(r, m)
+      MaxHeight(m) -> max_height(r, m)
+      AlignY(a) -> align_y(r, a)
+      Clip(v) -> clip(r, v)
+      Wrap(v) -> wrap(r, v)
+      A11y(a) -> a11y(r, a)
+    }
+  })
+}
+
 /// Build the row into a renderable Node.
 pub fn build(row: Row) -> Node {
   let props =

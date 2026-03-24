@@ -1,6 +1,7 @@
 //// Canvas widget builder. Layers are managed via extension commands.
 
 import gleam/dict.{type Dict}
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, DictVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -130,6 +131,48 @@ pub fn event_rate(c: Canvas, rate: Int) -> Canvas {
 /// Set accessibility properties for this widget.
 pub fn a11y(c: Canvas, a: A11y) -> Canvas {
   Canvas(..c, a11y: option.Some(a))
+}
+
+/// Option type for canvas properties.
+pub type Opt {
+  Layers(Dict(String, List(PropValue)))
+  Shapes(List(PropValue))
+  Layer(String, List(PropValue))
+  Background(Color)
+  Interactive(Bool)
+  OnPress(Bool)
+  OnRelease(Bool)
+  OnMove(Bool)
+  OnScroll(Bool)
+  Alt(String)
+  Description(String)
+  Role(String)
+  ArrowMode(String)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a canvas builder.
+pub fn with_opts(c: Canvas, opts: List(Opt)) -> Canvas {
+  list.fold(opts, c, fn(cv, opt) {
+    case opt {
+      Layers(l) -> layers(cv, l)
+      Shapes(s) -> shapes(cv, s)
+      Layer(name, s) -> layer(cv, name, s)
+      Background(col) -> background(cv, col)
+      Interactive(v) -> interactive(cv, v)
+      OnPress(v) -> on_press(cv, v)
+      OnRelease(v) -> on_release(cv, v)
+      OnMove(v) -> on_move(cv, v)
+      OnScroll(v) -> on_scroll(cv, v)
+      Alt(a) -> alt(cv, a)
+      Description(d) -> description(cv, d)
+      Role(r) -> role(cv, r)
+      ArrowMode(m) -> arrow_mode(cv, m)
+      EventRate(r) -> event_rate(cv, r)
+      A11y(a) -> a11y(cv, a)
+    }
+  })
 }
 
 fn layers_to_prop_value(l: Dict(String, List(PropValue))) -> PropValue {

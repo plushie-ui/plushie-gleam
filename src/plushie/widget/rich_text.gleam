@@ -276,6 +276,38 @@ pub fn a11y(rt: RichText, a: A11y) -> RichText {
   RichText(..rt, a11y: Some(a))
 }
 
+/// Option type for rich text properties.
+pub type Opt {
+  Spans(List(Span))
+  Width(Length)
+  Height(Length)
+  Size(Float)
+  Font(Font)
+  Color(Color)
+  LineHeight(Float)
+  Wrapping(Wrapping)
+  Ellipsis(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a rich text builder.
+pub fn with_opts(rt: RichText, opts: List(Opt)) -> RichText {
+  list.fold(opts, rt, fn(r, opt) {
+    case opt {
+      Spans(s) -> spans(r, s)
+      Width(w) -> width(r, w)
+      Height(h) -> height(r, h)
+      Size(s) -> size(r, s)
+      Font(f) -> font(r, f)
+      Color(c) -> color(r, c)
+      LineHeight(lh) -> line_height(r, lh)
+      Wrapping(w) -> wrapping(r, w)
+      Ellipsis(e) -> ellipsis(r, e)
+      A11y(a) -> a11y(r, a)
+    }
+  })
+}
+
 /// Build the rich text into a renderable Node.
 pub fn build(rt: RichText) -> Node {
   let props =

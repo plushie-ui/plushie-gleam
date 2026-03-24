@@ -1,6 +1,7 @@
 //// Rule widget builder (horizontal/vertical divider).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
@@ -46,6 +47,28 @@ pub fn style(r: Rule, s: String) -> Rule {
 /// Set accessibility properties for this widget.
 pub fn a11y(r: Rule, a: A11y) -> Rule {
   Rule(..r, a11y: option.Some(a))
+}
+
+/// Option type for rule properties.
+pub type Opt {
+  Height(Float)
+  Width(Float)
+  Direction(Direction)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a rule builder.
+pub fn with_opts(r: Rule, opts: List(Opt)) -> Rule {
+  list.fold(opts, r, fn(rl, opt) {
+    case opt {
+      Height(h) -> height(rl, h)
+      Width(w) -> width(rl, w)
+      Direction(d) -> direction(rl, d)
+      Style(s) -> style(rl, s)
+      A11y(a) -> a11y(rl, a)
+    }
+  })
 }
 
 /// Build the rule into a renderable Node.

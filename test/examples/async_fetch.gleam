@@ -14,6 +14,9 @@ import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/text
+import plushie/widget/window
 
 pub type Model {
   Model(status: Status, data: String)
@@ -58,16 +61,16 @@ fn fetch_data() -> dynamic.Dynamic {
 }
 
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Async Fetch")], [
+  ui.window("main", [window.Title("Async Fetch")], [
     ui.column(
       "content",
       [
-        ui.padding(padding.all(24.0)),
-        ui.spacing(16),
-        ui.width(length.Fill),
+        column.Padding(padding.all(24.0)),
+        column.Spacing(16),
+        column.Width(length.Fill),
       ],
       [
-        ui.text("header", "Async Command Demo", [ui.font_size(20.0)]),
+        ui.text("header", "Async Command Demo", [text.Size(20.0)]),
         ui.button_("fetch", "Fetch Data"),
         status_message(model),
       ],
@@ -79,16 +82,16 @@ fn status_message(model: Model) -> Node {
   case model.status {
     Idle ->
       ui.text("status", "Press the button to start", [
-        ui.text_color(hex("#888888")),
+        text.Color(hex("#888888")),
       ])
-    Loading -> ui.text("status", "Loading...", [ui.text_color(hex("#cc8800"))])
+    Loading -> ui.text("status", "Loading...", [text.Color(hex("#cc8800"))])
     Loaded ->
-      ui.column("result_col", [ui.spacing(4)], [
-        ui.text("label", "Result:", [ui.font_size(14.0)]),
-        ui.text("result", model.data, [ui.text_color(hex("#22aa44"))]),
+      ui.column("result_col", [column.Spacing(4)], [
+        ui.text("label", "Result:", [text.Size(14.0)]),
+        ui.text("result", model.data, [text.Color(hex("#22aa44"))]),
       ])
     Failed(reason) ->
-      ui.text("error", "Error: " <> reason, [ui.text_color(hex("#cc2222"))])
+      ui.text("error", "Error: " <> reason, [text.Color(hex("#cc2222"))])
   }
 }
 

@@ -67,6 +67,28 @@ pub fn a11y(s: Sensor, a: A11y) -> Sensor {
   Sensor(..s, a11y: option.Some(a))
 }
 
+/// Option type for sensor properties.
+pub type Opt {
+  Delay(Int)
+  Anticipate(Float)
+  OnResize(String)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a sensor builder.
+pub fn with_opts(s: Sensor, opts: List(Opt)) -> Sensor {
+  list.fold(opts, s, fn(sn, opt) {
+    case opt {
+      Delay(d) -> delay(sn, d)
+      Anticipate(a) -> anticipate(sn, a)
+      OnResize(tag) -> on_resize(sn, tag)
+      EventRate(r) -> event_rate(sn, r)
+      A11y(a) -> a11y(sn, a)
+    }
+  })
+}
+
 /// Build the sensor into a renderable Node.
 pub fn build(s: Sensor) -> Node {
   let props =

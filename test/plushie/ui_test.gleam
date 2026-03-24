@@ -5,9 +5,16 @@ import plushie/prop/alignment
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/button
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/text_input
+import plushie/widget/window
 
 pub fn window_creates_window_node_test() {
-  let node = ui.window("main", [ui.title("App")], [])
+  let node = ui.window("main", [window.Title("App")], [])
 
   assert node.id == "main"
   assert node.kind == "window"
@@ -16,7 +23,7 @@ pub fn window_creates_window_node_test() {
 }
 
 pub fn column_creates_column_node_test() {
-  let node = ui.column("col", [ui.spacing(8)], [])
+  let node = ui.column("col", [column.Spacing(8)], [])
 
   assert node.id == "col"
   assert node.kind == "column"
@@ -24,7 +31,7 @@ pub fn column_creates_column_node_test() {
 }
 
 pub fn row_creates_row_node_test() {
-  let node = ui.row("r", [ui.spacing(4)], [])
+  let node = ui.row("r", [row.Spacing(4)], [])
 
   assert node.id == "r"
   assert node.kind == "row"
@@ -41,7 +48,7 @@ pub fn text_underscore_creates_text_node_test() {
 }
 
 pub fn text_with_attrs_test() {
-  let node = ui.text("lbl", "Hello", [ui.font_size(24.0)])
+  let node = ui.text("lbl", "Hello", [text.Size(24.0)])
 
   assert dict.get(node.props, "content") == Ok(StringVal("Hello"))
   assert dict.get(node.props, "size") == Ok(FloatVal(24.0))
@@ -57,7 +64,8 @@ pub fn button_underscore_creates_button_node_test() {
 }
 
 pub fn button_with_attrs_test() {
-  let node = ui.button("ok", "OK", [ui.disabled(True), ui.style("primary")])
+  let node =
+    ui.button("ok", "OK", [button.Disabled(True), button.Style(button.Primary)])
 
   assert dict.get(node.props, "label") == Ok(StringVal("OK"))
   assert dict.get(node.props, "disabled") == Ok(BoolVal(True))
@@ -66,7 +74,9 @@ pub fn button_with_attrs_test() {
 
 pub fn text_input_creates_text_input_node_test() {
   let node =
-    ui.text_input("email", "user@example.com", [ui.placeholder("Email")])
+    ui.text_input("email", "user@example.com", [
+      text_input.Placeholder("Email"),
+    ])
 
   assert node.id == "email"
   assert node.kind == "text_input"
@@ -96,8 +106,8 @@ pub fn width_and_height_attrs_test() {
     ui.column(
       "col",
       [
-        ui.width(length.Fill),
-        ui.height(length.Fixed(200.0)),
+        column.Width(length.Fill),
+        column.Height(length.Fixed(200.0)),
       ],
       [],
     )
@@ -109,7 +119,7 @@ pub fn width_and_height_attrs_test() {
 
 pub fn padding_attr_test() {
   let p = padding.all(16.0)
-  let node = ui.column("col", [ui.padding(p)], [])
+  let node = ui.column("col", [column.Padding(p)], [])
 
   assert dict.get(node.props, "padding") == Ok(padding.to_prop_value(p))
 }
@@ -119,24 +129,21 @@ pub fn align_attrs_test() {
     ui.column(
       "col",
       [
-        ui.align_x(alignment.Center),
-        ui.align_y(alignment.Top),
+        column.AlignX(alignment.Center),
       ],
       [],
     )
 
   assert dict.get(node.props, "align_x")
     == Ok(alignment.to_prop_value(alignment.Center))
-  assert dict.get(node.props, "align_y")
-    == Ok(alignment.to_prop_value(alignment.Top))
 }
 
 pub fn nested_tree_test() {
   let tree =
-    ui.window("main", [ui.title("Counter")], [
-      ui.column("body", [ui.spacing(8)], [
+    ui.window("main", [window.Title("Counter")], [
+      ui.column("body", [column.Spacing(8)], [
         ui.text_("count", "0"),
-        ui.row("buttons", [ui.spacing(4)], [
+        ui.row("buttons", [row.Spacing(4)], [
           ui.button_("inc", "+"),
           ui.button_("dec", "-"),
         ]),
@@ -185,7 +192,7 @@ pub fn exists_delegates_to_tree_test() {
 }
 
 pub fn container_creates_container_node_test() {
-  let node = ui.container("c", [ui.clip(True)], [])
+  let node = ui.container("c", [container.Clip(True)], [])
 
   assert node.id == "c"
   assert node.kind == "container"

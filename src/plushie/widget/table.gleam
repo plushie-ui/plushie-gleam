@@ -218,6 +218,50 @@ pub fn a11y(t: Table, a: A11y) -> Table {
   Table(..t, a11y: Some(a))
 }
 
+/// Option type for table properties.
+pub type Opt {
+  Columns(List(Column))
+  Rows(List(Dict(String, PropValue)))
+  Header(Bool)
+  Separator(Bool)
+  Width(Length)
+  Height(Length)
+  Padding(Padding)
+  SortBy(String)
+  SortOrder(SortOrder)
+  HeaderTextSize(Float)
+  RowTextSize(Float)
+  CellSpacing(Float)
+  RowSpacing(Float)
+  SeparatorThickness(Float)
+  SeparatorColor(Color)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a table builder.
+pub fn with_opts(t: Table, opts: List(Opt)) -> Table {
+  list.fold(opts, t, fn(tb, opt) {
+    case opt {
+      Columns(cols) -> columns(tb, cols)
+      Rows(r) -> rows(tb, r)
+      Header(h) -> header(tb, h)
+      Separator(s) -> separator(tb, s)
+      Width(w) -> width(tb, w)
+      Height(h) -> height(tb, h)
+      Padding(p) -> padding(tb, p)
+      SortBy(key) -> sort_by(tb, key)
+      SortOrder(order) -> sort_order(tb, order)
+      HeaderTextSize(s) -> header_text_size(tb, s)
+      RowTextSize(s) -> row_text_size(tb, s)
+      CellSpacing(s) -> cell_spacing(tb, s)
+      RowSpacing(s) -> row_spacing(tb, s)
+      SeparatorThickness(s) -> separator_thickness(tb, s)
+      SeparatorColor(c) -> separator_color(tb, c)
+      A11y(a) -> a11y(tb, a)
+    }
+  })
+}
+
 /// Build the table into a renderable Node.
 pub fn build(t: Table) -> Node {
   let props =

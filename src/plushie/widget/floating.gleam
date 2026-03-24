@@ -75,6 +75,30 @@ pub fn a11y(f: Floating, a: A11y) -> Floating {
   Floating(..f, a11y: option.Some(a))
 }
 
+/// Option type for floating properties.
+pub type Opt {
+  TranslateX(Float)
+  TranslateY(Float)
+  Scale(Float)
+  Width(Length)
+  Height(Length)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a floating builder.
+pub fn with_opts(f: Floating, opts: List(Opt)) -> Floating {
+  list.fold(opts, f, fn(fl, opt) {
+    case opt {
+      TranslateX(x) -> translate_x(fl, x)
+      TranslateY(y) -> translate_y(fl, y)
+      Scale(s) -> scale(fl, s)
+      Width(w) -> width(fl, w)
+      Height(h) -> height(fl, h)
+      A11y(a) -> a11y(fl, a)
+    }
+  })
+}
+
 /// Build the floating into a renderable Node.
 pub fn build(f: Floating) -> Node {
   let props =

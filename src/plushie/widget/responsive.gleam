@@ -48,6 +48,24 @@ pub fn a11y(r: Responsive, a: A11y) -> Responsive {
   Responsive(..r, a11y: option.Some(a))
 }
 
+/// Option type for responsive properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a responsive builder.
+pub fn with_opts(r: Responsive, opts: List(Opt)) -> Responsive {
+  list.fold(opts, r, fn(rs, opt) {
+    case opt {
+      Width(w) -> width(rs, w)
+      Height(h) -> height(rs, h)
+      A11y(a) -> a11y(rs, a)
+    }
+  })
+}
+
 /// Build the responsive into a renderable Node.
 pub fn build(r: Responsive) -> Node {
   let props =

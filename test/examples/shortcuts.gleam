@@ -18,6 +18,10 @@ import plushie/prop/length
 import plushie/prop/padding
 import plushie/subscription
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/scrollable
+import plushie/widget/text
+import plushie/widget/window
 
 const max_log_entries = 50
 
@@ -103,21 +107,25 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
 }
 
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Keyboard Shortcuts")], [
+  ui.window("main", [window.Title("Keyboard Shortcuts")], [
     ui.column(
       "content",
-      [ui.padding(padding.all(16.0)), ui.spacing(12), ui.width(length.Fill)],
       [
-        ui.text("header", "Press any key", [ui.font_size(20.0)]),
+        column.Padding(padding.all(16.0)),
+        column.Spacing(12),
+        column.Width(length.Fill),
+      ],
+      [
+        ui.text("header", "Press any key", [text.Size(20.0)]),
         ui.text_("count", int.to_string(model.count) <> " key events captured"),
         ui.rule("divider", []),
-        ui.scrollable("log", [ui.height(length.Fill)], [
+        ui.scrollable("log", [scrollable.Height(length.Fill)], [
           ui.column(
             "log-entries",
-            [ui.spacing(2), ui.width(length.Fill)],
+            [column.Spacing(2), column.Width(length.Fill)],
             list.index_map(model.log, fn(entry, idx) {
               ui.text("log_" <> int.to_string(idx), entry, [
-                ui.font_size(13.0),
+                text.Size(13.0),
               ])
             }),
           ),

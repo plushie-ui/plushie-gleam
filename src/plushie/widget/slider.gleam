@@ -1,6 +1,7 @@
 //// Slider widget builder (numeric range selection).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -111,6 +112,42 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
 /// Set accessibility properties for this widget.
 pub fn a11y(slider: Slider, a: A11y) -> Slider {
   Slider(..slider, a11y: option.Some(a))
+}
+
+/// Option type for slider properties.
+pub type Opt {
+  Step(Float)
+  ShiftStep(Float)
+  DefaultValue(Float)
+  Width(Length)
+  Height(Float)
+  CircularHandle(Bool)
+  RailColor(Color)
+  RailWidth(Float)
+  Style(String)
+  Label(String)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a slider builder.
+pub fn with_opts(slider: Slider, opts: List(Opt)) -> Slider {
+  list.fold(opts, slider, fn(s, opt) {
+    case opt {
+      Step(v) -> step(s, v)
+      ShiftStep(v) -> shift_step(s, v)
+      DefaultValue(v) -> default_value(s, v)
+      Width(w) -> width(s, w)
+      Height(h) -> height(s, h)
+      CircularHandle(v) -> circular_handle(s, v)
+      RailColor(c) -> rail_color(s, c)
+      RailWidth(w) -> rail_width(s, w)
+      Style(v) -> style(s, v)
+      Label(l) -> label(s, l)
+      EventRate(r) -> event_rate(s, r)
+      A11y(a) -> a11y(s, a)
+    }
+  })
 }
 
 /// Build the slider into a renderable Node.

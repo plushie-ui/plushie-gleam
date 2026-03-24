@@ -13,6 +13,7 @@ import plushie/event.{type Event}
 import plushie/node.{type Node}
 import plushie/support
 import plushie/ui
+import plushie/widget/window
 
 // ---------------------------------------------------------------------------
 // Window app: main window always present, secondary toggled by event
@@ -42,16 +43,16 @@ fn window_update(
 fn window_view(model: WindowModel) -> Node {
   case model.show_secondary {
     False ->
-      ui.window("main", [ui.title("Main Window")], [
+      ui.window("main", [window.Title("Main Window")], [
         ui.button_("toggle", "Open Secondary"),
       ])
     True ->
       node.new("root", "container")
       |> node.with_children([
-        ui.window("main", [ui.title("Main Window")], [
+        ui.window("main", [window.Title("Main Window")], [
           ui.button_("toggle", "Close Secondary"),
         ]),
-        ui.window("secondary", [ui.title("Secondary")], [
+        ui.window("secondary", [window.Title("Secondary")], [
           ui.text_("info", "Second window"),
         ]),
       ])

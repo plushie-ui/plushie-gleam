@@ -1,6 +1,7 @@
 //// Space widget builder (flexible space for layout).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -34,6 +35,24 @@ pub fn height(s: Space, h: Length) -> Space {
 /// Set accessibility properties for this widget.
 pub fn a11y(s: Space, a: A11y) -> Space {
   Space(..s, a11y: option.Some(a))
+}
+
+/// Option type for space properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a space builder.
+pub fn with_opts(s: Space, opts: List(Opt)) -> Space {
+  list.fold(opts, s, fn(sp, opt) {
+    case opt {
+      Width(w) -> width(sp, w)
+      Height(h) -> height(sp, h)
+      A11y(a) -> a11y(sp, a)
+    }
+  })
 }
 
 /// Build the space into a renderable Node.

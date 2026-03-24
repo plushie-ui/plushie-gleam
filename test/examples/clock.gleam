@@ -18,6 +18,9 @@ import plushie/prop/length
 import plushie/prop/padding
 import plushie/subscription
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/text
+import plushie/widget/window
 
 pub type Model {
   Model(time: String)
@@ -37,20 +40,20 @@ fn update(model: Model, event: Event) {
 fn view(model: Model) -> Node {
   let assert Ok(muted) = color.from_hex("#888888")
 
-  ui.window("main", [ui.title("Clock")], [
+  ui.window("main", [window.Title("Clock")], [
     ui.column(
       "content",
       [
-        ui.padding(padding.all(24.0)),
-        ui.spacing(16),
-        ui.width(length.Fill),
-        ui.align_x(alignment.Center),
+        column.Padding(padding.all(24.0)),
+        column.Spacing(16),
+        column.Width(length.Fill),
+        column.AlignX(alignment.Center),
       ],
       [
-        ui.text("clock_display", model.time, [ui.font_size(48.0)]),
+        ui.text("clock_display", model.time, [text.Size(48.0)]),
         ui.text("subtitle", "Updates every second", [
-          ui.font_size(12.0),
-          ui.text_color(muted),
+          text.Size(12.0),
+          text.Color(muted),
         ]),
       ],
     ),

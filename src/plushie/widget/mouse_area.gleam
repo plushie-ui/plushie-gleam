@@ -157,6 +157,46 @@ pub fn a11y(ma: MouseArea, a: A11y) -> MouseArea {
   MouseArea(..ma, a11y: option.Some(a))
 }
 
+/// Option type for mouse area properties.
+pub type Opt {
+  Cursor(Cursor)
+  OnPress(String)
+  OnRelease(String)
+  OnRightPress(Bool)
+  OnRightRelease(Bool)
+  OnMiddlePress(Bool)
+  OnMiddleRelease(Bool)
+  OnDoubleClick(Bool)
+  OnEnter(Bool)
+  OnExit(Bool)
+  OnMove(Bool)
+  OnScroll(Bool)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a mouse area builder.
+pub fn with_opts(ma: MouseArea, opts: List(Opt)) -> MouseArea {
+  list.fold(opts, ma, fn(m, opt) {
+    case opt {
+      Cursor(c) -> cursor(m, c)
+      OnPress(tag) -> on_press(m, tag)
+      OnRelease(tag) -> on_release(m, tag)
+      OnRightPress(v) -> on_right_press(m, v)
+      OnRightRelease(v) -> on_right_release(m, v)
+      OnMiddlePress(v) -> on_middle_press(m, v)
+      OnMiddleRelease(v) -> on_middle_release(m, v)
+      OnDoubleClick(v) -> on_double_click(m, v)
+      OnEnter(v) -> on_enter(m, v)
+      OnExit(v) -> on_exit(m, v)
+      OnMove(v) -> on_move(m, v)
+      OnScroll(v) -> on_scroll(m, v)
+      EventRate(r) -> event_rate(m, r)
+      A11y(a) -> a11y(m, a)
+    }
+  })
+}
+
 fn cursor_to_string(c: Cursor) -> String {
   case c {
     Pointer -> "pointer"

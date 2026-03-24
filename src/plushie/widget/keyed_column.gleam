@@ -84,6 +84,32 @@ pub fn a11y(kc: KeyedColumn, a: A11y) -> KeyedColumn {
   KeyedColumn(..kc, a11y: option.Some(a))
 }
 
+/// Option type for keyed column properties.
+pub type Opt {
+  Spacing(Int)
+  Padding(Padding)
+  Width(Length)
+  Height(Length)
+  MaxWidth(Float)
+  AlignX(Alignment)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a keyed column builder.
+pub fn with_opts(kc: KeyedColumn, opts: List(Opt)) -> KeyedColumn {
+  list.fold(opts, kc, fn(k, opt) {
+    case opt {
+      Spacing(s) -> spacing(k, s)
+      Padding(p) -> padding(k, p)
+      Width(w) -> width(k, w)
+      Height(h) -> height(k, h)
+      MaxWidth(m) -> max_width(k, m)
+      AlignX(a) -> align_x(k, a)
+      A11y(a) -> a11y(k, a)
+    }
+  })
+}
+
 /// Build the keyed column into a renderable Node.
 pub fn build(kc: KeyedColumn) -> Node {
   let props =

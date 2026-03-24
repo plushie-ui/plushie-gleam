@@ -5,6 +5,10 @@ import plushie/event.{type Event, WidgetClick}
 import plushie/node.{type Node, FloatVal, IntVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/window
 
 // -- Types (reproduced from the getting-started doc) --------------------------
 
@@ -31,16 +35,20 @@ fn update(model: Model, event: Event) {
 }
 
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Counter")], [
-    ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(8)], [
-      ui.text("count", "Count: " <> int.to_string(model.count), [
-        ui.font_size(20.0),
-      ]),
-      ui.row("buttons", [ui.spacing(8)], [
-        ui.button_("increment", "+"),
-        ui.button_("decrement", "-"),
-      ]),
-    ]),
+  ui.window("main", [window.Title("Counter")], [
+    ui.column(
+      "content",
+      [column.Padding(padding.all(16.0)), column.Spacing(8)],
+      [
+        ui.text("count", "Count: " <> int.to_string(model.count), [
+          text.Size(20.0),
+        ]),
+        ui.row("buttons", [row.Spacing(8)], [
+          ui.button_("increment", "+"),
+          ui.button_("decrement", "-"),
+        ]),
+      ],
+    ),
   ])
 }
 

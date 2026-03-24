@@ -1,6 +1,7 @@
 //// Markdown display widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -98,6 +99,40 @@ pub fn style(md: Markdown, s: String) -> Markdown {
 /// Set accessibility properties for this widget.
 pub fn a11y(md: Markdown, a: A11y) -> Markdown {
   Markdown(..md, a11y: option.Some(a))
+}
+
+/// Option type for markdown properties.
+pub type Opt {
+  Width(Length)
+  TextSize(Float)
+  H1Size(Float)
+  H2Size(Float)
+  H3Size(Float)
+  CodeSize(Float)
+  Spacing(Float)
+  LinkColor(Color)
+  CodeTheme(String)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a markdown builder.
+pub fn with_opts(md: Markdown, opts: List(Opt)) -> Markdown {
+  list.fold(opts, md, fn(m, opt) {
+    case opt {
+      Width(w) -> width(m, w)
+      TextSize(s) -> text_size(m, s)
+      H1Size(s) -> h1_size(m, s)
+      H2Size(s) -> h2_size(m, s)
+      H3Size(s) -> h3_size(m, s)
+      CodeSize(s) -> code_size(m, s)
+      Spacing(s) -> spacing(m, s)
+      LinkColor(c) -> link_color(m, c)
+      CodeTheme(t) -> code_theme(m, t)
+      Style(s) -> style(m, s)
+      A11y(a) -> a11y(m, a)
+    }
+  })
 }
 
 /// Build the markdown into a renderable Node.

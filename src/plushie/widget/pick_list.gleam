@@ -137,6 +137,48 @@ pub fn a11y(pl: PickList, a: A11y) -> PickList {
   PickList(..pl, a11y: option.Some(a))
 }
 
+/// Option type for pick list properties.
+pub type Opt {
+  Placeholder(String)
+  Width(Length)
+  Padding(Padding)
+  TextSize(Float)
+  Font(Font)
+  LineHeight(Float)
+  MenuHeight(Float)
+  Shaping(Shaping)
+  Handle(PropValue)
+  Ellipsis(String)
+  MenuStyle(PropValue)
+  OnOpen(Bool)
+  OnClose(Bool)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a pick list builder.
+pub fn with_opts(pl: PickList, opts: List(Opt)) -> PickList {
+  list.fold(opts, pl, fn(p, opt) {
+    case opt {
+      Placeholder(v) -> placeholder(p, v)
+      Width(w) -> width(p, w)
+      Padding(v) -> padding(p, v)
+      TextSize(s) -> text_size(p, s)
+      Font(f) -> font(p, f)
+      LineHeight(h) -> line_height(p, h)
+      MenuHeight(h) -> menu_height(p, h)
+      Shaping(s) -> shaping(p, s)
+      Handle(h) -> handle(p, h)
+      Ellipsis(e) -> ellipsis(p, e)
+      MenuStyle(ms) -> menu_style(p, ms)
+      OnOpen(v) -> on_open(p, v)
+      OnClose(v) -> on_close(p, v)
+      Style(s) -> style(p, s)
+      A11y(a) -> a11y(p, a)
+    }
+  })
+}
+
 /// Build the pick list into a renderable Node.
 pub fn build(pl: PickList) -> Node {
   let props =

@@ -7,15 +7,22 @@ import plushie/prop/length.{Fill, Fixed}
 import plushie/ui
 import plushie/widget/button
 import plushie/widget/canvas
+import plushie/widget/container
+import plushie/widget/image
+import plushie/widget/progress_bar
+import plushie/widget/rule
+import plushie/widget/slider
+import plushie/widget/space
 import plushie/widget/text as text_widget
 import plushie/widget/text_input as text_input_widget
+import plushie/widget/window
 
 // -- Headings with a11y prop (from "Using the a11y prop" section) -------------
 
 pub fn a11y_heading_level_1_ui_builder_test() {
   let node =
     ui.text("title", "Welcome to MyApp", [
-      ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
+      text_widget.A11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
     ])
   should.equal(node.kind, "text")
   should.equal(
@@ -30,7 +37,7 @@ pub fn a11y_heading_level_1_ui_builder_test() {
 pub fn a11y_heading_level_2_ui_builder_test() {
   let node =
     ui.text("settings_heading", "Settings", [
-      ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
+      text_widget.A11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "role"), Ok(StringVal("heading")))
@@ -42,7 +49,7 @@ pub fn a11y_heading_level_2_ui_builder_test() {
 pub fn a11y_icon_button_label_test() {
   let node =
     ui.button("close", "X", [
-      ui.a11y(a11y.new() |> a11y.label("Close dialog")),
+      button.A11y(a11y.new() |> a11y.label("Close dialog")),
     ])
   should.equal(node.kind, "button")
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
@@ -56,7 +63,7 @@ pub fn a11y_landmark_region_test() {
     ui.container(
       "search_results",
       [
-        ui.a11y(
+        container.A11y(
           a11y.new()
           |> a11y.role(a11y.Region)
           |> a11y.label("Search results"),
@@ -75,7 +82,7 @@ pub fn a11y_landmark_region_test() {
 pub fn a11y_live_polite_test() {
   let node =
     ui.text("save_status", "5 items saved", [
-      ui.a11y(a11y.new() |> a11y.live("polite")),
+      text_widget.A11y(a11y.new() |> a11y.live("polite")),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "live"), Ok(StringVal("polite")))
@@ -84,7 +91,7 @@ pub fn a11y_live_polite_test() {
 // -- Hidden decorative elements -----------------------------------------------
 
 pub fn a11y_hidden_rule_test() {
-  let node = ui.rule("divider", [ui.a11y(a11y.new() |> a11y.hidden(True))])
+  let node = ui.rule("divider", [rule.A11y(a11y.new() |> a11y.hidden(True))])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "hidden"), Ok(BoolVal(True)))
 }
@@ -96,7 +103,7 @@ pub fn a11y_expanded_container_test() {
     ui.container(
       "details",
       [
-        ui.a11y(
+        container.A11y(
           a11y.new()
           |> a11y.expanded(True)
           |> a11y.role(a11y.Group)
@@ -116,7 +123,9 @@ pub fn a11y_expanded_container_test() {
 pub fn a11y_required_text_input_test() {
   let node =
     ui.text_input("email", "", [
-      ui.a11y(a11y.new() |> a11y.required(True) |> a11y.label("Email address")),
+      text_input_widget.A11y(
+        a11y.new() |> a11y.required(True) |> a11y.label("Email address"),
+      ),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "required"), Ok(BoolVal(True)))
@@ -162,16 +171,22 @@ pub fn a11y_text_input_widget_builder_test() {
 
 pub fn a11y_heading_structure_test() {
   let tree =
-    ui.window("main", [ui.title("MyApp")], [
+    ui.window("main", [window.Title("MyApp")], [
       ui.column("content", [], [
         ui.text("page_title", "Dashboard", [
-          ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1)),
+          text_widget.A11y(
+            a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1),
+          ),
         ]),
         ui.text("h_recent", "Recent activity", [
-          ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
+          text_widget.A11y(
+            a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2),
+          ),
         ]),
         ui.text("h_actions", "Quick actions", [
-          ui.a11y(a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2)),
+          text_widget.A11y(
+            a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2),
+          ),
         ]),
       ]),
     ])
@@ -195,7 +210,7 @@ pub fn a11y_navigation_landmark_test() {
     ui.container(
       "nav",
       [
-        ui.a11y(
+        container.A11y(
           a11y.new()
           |> a11y.role(a11y.Navigation)
           |> a11y.label("Main navigation"),
@@ -220,10 +235,12 @@ pub fn a11y_search_landmark_test() {
     ui.container(
       "search_area",
       [
-        ui.a11y(a11y.new() |> a11y.role(a11y.Search) |> a11y.label("Search")),
+        container.A11y(
+          a11y.new() |> a11y.role(a11y.Search) |> a11y.label("Search"),
+        ),
       ],
       [
-        ui.text_input("query", "", [ui.placeholder("Search...")]),
+        ui.text_input("query", "", [text_input_widget.Placeholder("Search...")]),
         ui.button_("go", "Search"),
       ],
     )
@@ -237,7 +254,9 @@ pub fn a11y_search_landmark_test() {
 pub fn a11y_live_assertive_alert_test() {
   let node =
     ui.text("error", "Something went wrong", [
-      ui.a11y(a11y.new() |> a11y.live("assertive") |> a11y.role(a11y.Alert)),
+      text_widget.A11y(
+        a11y.new() |> a11y.live("assertive") |> a11y.role(a11y.Alert),
+      ),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "live"), Ok(StringVal("assertive")))
@@ -249,7 +268,7 @@ pub fn a11y_live_assertive_alert_test() {
 pub fn a11y_labelled_by_test() {
   let node =
     ui.text_input("email", "", [
-      ui.a11y(
+      text_input_widget.A11y(
         a11y.new()
         |> a11y.labelled_by("email-label")
         |> a11y.described_by("email-help")
@@ -270,14 +289,14 @@ pub fn a11y_labelled_by_test() {
 pub fn a11y_decorative_image_hidden_test() {
   let node =
     ui.image("hero", "/images/banner.png", [
-      ui.a11y(a11y.new() |> a11y.hidden(True)),
+      image.A11y(a11y.new() |> a11y.hidden(True)),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "hidden"), Ok(BoolVal(True)))
 }
 
 pub fn a11y_space_hidden_test() {
-  let node = ui.space("gap", [ui.a11y(a11y.new() |> a11y.hidden(True))])
+  let node = ui.space("gap", [space.A11y(a11y.new() |> a11y.hidden(True))])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "hidden"), Ok(BoolVal(True)))
 }
@@ -345,7 +364,7 @@ pub fn a11y_canvas_meter_with_value_test() {
 pub fn a11y_has_popup_menu_test() {
   let node =
     ui.button("menu_btn", "Options", [
-      ui.a11y(
+      button.A11y(
         a11y.new()
         |> a11y.has_popup(a11y.MenuPopup)
         |> a11y.expanded(False),
@@ -359,7 +378,7 @@ pub fn a11y_has_popup_menu_test() {
 pub fn a11y_has_popup_listbox_test() {
   let node =
     ui.text_input("search", "", [
-      ui.a11y(
+      text_input_widget.A11y(
         a11y.new()
         |> a11y.has_popup(a11y.ListboxPopup)
         |> a11y.expanded(True),
@@ -375,7 +394,7 @@ pub fn a11y_has_popup_listbox_test() {
 pub fn a11y_disabled_override_test() {
   let node =
     ui.button("submit", "Submit", [
-      ui.a11y(a11y.new() |> a11y.disabled(True)),
+      button.A11y(a11y.new() |> a11y.disabled(True)),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "disabled"), Ok(BoolVal(True)))
@@ -386,7 +405,7 @@ pub fn a11y_disabled_override_test() {
 pub fn a11y_expanded_button_test() {
   let node =
     ui.button("toggle_details", "Show details", [
-      ui.a11y(a11y.new() |> a11y.expanded(False)),
+      button.A11y(a11y.new() |> a11y.expanded(False)),
     ])
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "expanded"), Ok(BoolVal(False)))
@@ -395,25 +414,25 @@ pub fn a11y_expanded_button_test() {
 // -- Widget-specific a11y props: alt, label, description, decorative ----------
 
 pub fn a11y_image_alt_prop_test() {
-  let node = ui.image("logo", "/images/logo.png", [ui.alt("Company logo")])
+  let node = ui.image("logo", "/images/logo.png", [image.Alt("Company logo")])
   should.equal(dict.get(node.props, "alt"), Ok(StringVal("Company logo")))
 }
 
 pub fn a11y_image_decorative_prop_test() {
   let node =
-    ui.image("divider", "/images/decorative-line.png", [ui.decorative(True)])
+    ui.image("divider", "/images/decorative-line.png", [image.Decorative(True)])
   should.equal(dict.get(node.props, "decorative"), Ok(BoolVal(True)))
 }
 
 pub fn a11y_slider_label_prop_test() {
-  let node = ui.slider("volume", #(0.0, 100.0), 50.0, [ui.label("Volume")])
+  let node = ui.slider("volume", #(0.0, 100.0), 50.0, [slider.Label("Volume")])
   should.equal(dict.get(node.props, "label"), Ok(StringVal("Volume")))
 }
 
 pub fn a11y_progress_bar_label_prop_test() {
   let node =
     ui.progress_bar("upload", #(0.0, 100.0), 50.0, [
-      ui.label("Upload progress"),
+      progress_bar.Label("Upload progress"),
     ])
   should.equal(dict.get(node.props, "label"), Ok(StringVal("Upload progress")))
 }
@@ -421,8 +440,8 @@ pub fn a11y_progress_bar_label_prop_test() {
 pub fn a11y_image_description_prop_test() {
   let node =
     ui.image("photo", "/photo.jpg", [
-      ui.alt("Team photo"),
-      ui.description("The engineering team at the 2025 offsite"),
+      image.Alt("Team photo"),
+      image.Description("The engineering team at the 2025 offsite"),
     ])
   should.equal(dict.get(node.props, "alt"), Ok(StringVal("Team photo")))
   should.equal(
@@ -454,7 +473,7 @@ pub fn a11y_selected_state_test() {
 pub fn a11y_tab_role_selected_test() {
   let node =
     ui.button("tab_home", "Home", [
-      ui.a11y(
+      button.A11y(
         a11y.new()
         |> a11y.role(a11y.Tab)
         |> a11y.selected(True)

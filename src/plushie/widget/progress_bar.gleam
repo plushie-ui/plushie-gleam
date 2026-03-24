@@ -1,6 +1,7 @@
 //// ProgressBar widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -68,6 +69,30 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
 /// Set accessibility properties for this widget.
 pub fn a11y(pb: ProgressBar, a: A11y) -> ProgressBar {
   ProgressBar(..pb, a11y: option.Some(a))
+}
+
+/// Option type for progress bar properties.
+pub type Opt {
+  Width(Length)
+  Height(Float)
+  Style(String)
+  Vertical(Bool)
+  Label(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a progress bar builder.
+pub fn with_opts(pb: ProgressBar, opts: List(Opt)) -> ProgressBar {
+  list.fold(opts, pb, fn(p, opt) {
+    case opt {
+      Width(w) -> width(p, w)
+      Height(h) -> height(p, h)
+      Style(s) -> style(p, s)
+      Vertical(v) -> vertical(p, v)
+      Label(l) -> label(p, l)
+      A11y(a) -> a11y(p, a)
+    }
+  })
 }
 
 /// Build the progress bar into a renderable Node.

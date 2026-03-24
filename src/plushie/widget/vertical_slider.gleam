@@ -1,6 +1,7 @@
 //// Vertical slider widget builder (numeric range selection, vertical axis).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -104,6 +105,40 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
 /// Set accessibility properties for this widget.
 pub fn a11y(vs: VerticalSlider, a: A11y) -> VerticalSlider {
   VerticalSlider(..vs, a11y: option.Some(a))
+}
+
+/// Option type for vertical slider properties.
+pub type Opt {
+  Step(Float)
+  ShiftStep(Float)
+  DefaultValue(Float)
+  Width(Length)
+  Height(Float)
+  RailColor(Color)
+  RailWidth(Float)
+  Style(String)
+  Label(String)
+  EventRate(Int)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a vertical slider builder.
+pub fn with_opts(vs: VerticalSlider, opts: List(Opt)) -> VerticalSlider {
+  list.fold(opts, vs, fn(s, opt) {
+    case opt {
+      Step(v) -> step(s, v)
+      ShiftStep(v) -> shift_step(s, v)
+      DefaultValue(v) -> default_value(s, v)
+      Width(w) -> width(s, w)
+      Height(h) -> height(s, h)
+      RailColor(c) -> rail_color(s, c)
+      RailWidth(w) -> rail_width(s, w)
+      Style(v) -> style(s, v)
+      Label(l) -> label(s, l)
+      EventRate(r) -> event_rate(s, r)
+      A11y(a) -> a11y(s, a)
+    }
+  })
 }
 
 /// Build the vertical slider into a renderable Node.

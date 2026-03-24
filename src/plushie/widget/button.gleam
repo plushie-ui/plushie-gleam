@@ -1,6 +1,7 @@
 //// Button widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
@@ -81,6 +82,32 @@ pub fn disabled(button: Button, d: Bool) -> Button {
 /// Set accessibility properties for this button.
 pub fn a11y(button: Button, a: A11y) -> Button {
   Button(..button, a11y: option.Some(a))
+}
+
+/// Option type for button properties.
+pub type Opt {
+  Style(ButtonStyle)
+  Width(Length)
+  Height(Length)
+  Padding(Padding)
+  Clip(Bool)
+  Disabled(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a button builder.
+pub fn with_opts(button: Button, opts: List(Opt)) -> Button {
+  list.fold(opts, button, fn(b, opt) {
+    case opt {
+      Style(s) -> style(b, s)
+      Width(w) -> width(b, w)
+      Height(h) -> height(b, h)
+      Padding(p) -> padding(b, p)
+      Clip(v) -> clip(b, v)
+      Disabled(v) -> disabled(b, v)
+      A11y(a) -> a11y(b, a)
+    }
+  })
 }
 
 /// Build the button into a renderable Node.

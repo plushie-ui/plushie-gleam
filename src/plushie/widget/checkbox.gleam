@@ -1,6 +1,7 @@
 //// Checkbox widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, DictVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -120,6 +121,42 @@ pub fn disabled(cb: Checkbox, d: Bool) -> Checkbox {
 /// Set accessibility properties for this widget.
 pub fn a11y(cb: Checkbox, a: A11y) -> Checkbox {
   Checkbox(..cb, a11y: option.Some(a))
+}
+
+/// Option type for checkbox properties.
+pub type Opt {
+  Spacing(Int)
+  Width(Length)
+  Size(Float)
+  TextSize(Float)
+  Font(Font)
+  LineHeight(Float)
+  Shaping(Shaping)
+  Wrapping(Wrapping)
+  Style(String)
+  Icon(CheckboxIcon)
+  Disabled(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a checkbox builder.
+pub fn with_opts(cb: Checkbox, opts: List(Opt)) -> Checkbox {
+  list.fold(opts, cb, fn(c, opt) {
+    case opt {
+      Spacing(s) -> spacing(c, s)
+      Width(w) -> width(c, w)
+      Size(s) -> size(c, s)
+      TextSize(s) -> text_size(c, s)
+      Font(f) -> font(c, f)
+      LineHeight(h) -> line_height(c, h)
+      Shaping(s) -> shaping(c, s)
+      Wrapping(w) -> wrapping(c, w)
+      Style(s) -> style(c, s)
+      Icon(i) -> icon(c, i)
+      Disabled(d) -> disabled(c, d)
+      A11y(a) -> a11y(c, a)
+    }
+  })
 }
 
 fn icon_to_prop_value(i: CheckboxIcon) -> PropValue {

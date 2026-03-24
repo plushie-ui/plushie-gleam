@@ -1,6 +1,7 @@
 //// Image widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, DictVal, IntVal, Node}
 import plushie/prop/a11y.{type A11y}
@@ -125,6 +126,46 @@ pub fn decorative(img: Image, d: Bool) -> Image {
 /// Set accessibility properties for this widget.
 pub fn a11y(img: Image, a: A11y) -> Image {
   Image(..img, a11y: option.Some(a))
+}
+
+/// Option type for image properties.
+pub type Opt {
+  Width(Length)
+  Height(Length)
+  ContentFit(ContentFit)
+  Rotation(Float)
+  Opacity(Float)
+  BorderRadius(Float)
+  FilterMethod(FilterMethod)
+  Expand(Bool)
+  Scale(Float)
+  CropOpt(Crop)
+  Alt(String)
+  Description(String)
+  Decorative(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to an image builder.
+pub fn with_opts(img: Image, opts: List(Opt)) -> Image {
+  list.fold(opts, img, fn(i, opt) {
+    case opt {
+      Width(w) -> width(i, w)
+      Height(h) -> height(i, h)
+      ContentFit(cf) -> content_fit(i, cf)
+      Rotation(r) -> rotation(i, r)
+      Opacity(o) -> opacity(i, o)
+      BorderRadius(r) -> border_radius(i, r)
+      FilterMethod(f) -> filter_method(i, f)
+      Expand(e) -> expand(i, e)
+      Scale(s) -> scale(i, s)
+      CropOpt(c) -> crop(i, c)
+      Alt(a) -> alt(i, a)
+      Description(d) -> description(i, d)
+      Decorative(d) -> decorative(i, d)
+      A11y(a) -> a11y(i, a)
+    }
+  })
 }
 
 fn crop_to_prop_value(c: Crop) -> PropValue {

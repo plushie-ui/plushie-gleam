@@ -6,6 +6,9 @@ import plushie/event.{type Event, WidgetClick}
 import plushie/node.{type Node, IntVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/window
 
 // -- Types matching the README counter example --------------------------------
 
@@ -32,14 +35,18 @@ fn update(model: Model, event: Event) {
 }
 
 fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Counter")], [
-    ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(8)], [
-      ui.text_("count", "Count: " <> int.to_string(model.count)),
-      ui.row("buttons", [ui.spacing(8)], [
-        ui.button_("inc", "+"),
-        ui.button_("dec", "-"),
-      ]),
-    ]),
+  ui.window("main", [window.Title("Counter")], [
+    ui.column(
+      "content",
+      [column.Padding(padding.all(16.0)), column.Spacing(8)],
+      [
+        ui.text_("count", "Count: " <> int.to_string(model.count)),
+        ui.row("buttons", [row.Spacing(8)], [
+          ui.button_("inc", "+"),
+          ui.button_("dec", "-"),
+        ]),
+      ],
+    ),
   ])
 }
 

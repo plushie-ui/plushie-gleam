@@ -169,6 +169,56 @@ pub fn a11y(w: Window, a: A11y) -> Window {
   Window(..w, a11y: option.Some(a))
 }
 
+/// Option type for window properties.
+pub type Opt {
+  Title(String)
+  Size(Float, Float)
+  Width(Float)
+  Height(Float)
+  Position(Float, Float)
+  MinSize(Float, Float)
+  MaxSize(Float, Float)
+  Maximized(Bool)
+  Fullscreen(Bool)
+  Visible(Bool)
+  Resizable(Bool)
+  Closeable(Bool)
+  Minimizable(Bool)
+  Decorations(Bool)
+  Transparent(Bool)
+  Blur(Bool)
+  Level(WindowLevel)
+  ExitOnCloseRequest(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a window builder.
+pub fn with_opts(w: Window, opts: List(Opt)) -> Window {
+  list.fold(opts, w, fn(win, opt) {
+    case opt {
+      Title(t) -> title(win, t)
+      Size(width_, height_) -> size(win, width_, height_)
+      Width(v) -> width(win, v)
+      Height(v) -> height(win, v)
+      Position(x, y) -> position(win, x, y)
+      MinSize(width_, height_) -> min_size(win, width_, height_)
+      MaxSize(width_, height_) -> max_size(win, width_, height_)
+      Maximized(v) -> maximized(win, v)
+      Fullscreen(v) -> fullscreen(win, v)
+      Visible(v) -> visible(win, v)
+      Resizable(v) -> resizable(win, v)
+      Closeable(v) -> closeable(win, v)
+      Minimizable(v) -> minimizable(win, v)
+      Decorations(v) -> decorations(win, v)
+      Transparent(v) -> transparent(win, v)
+      Blur(v) -> blur(win, v)
+      Level(v) -> level(win, v)
+      ExitOnCloseRequest(v) -> exit_on_close_request(win, v)
+      A11y(a) -> a11y(win, a)
+    }
+  })
+}
+
 fn pair_to_prop_value(pair: #(Float, Float)) -> node.PropValue {
   ListVal([FloatVal(pair.0), FloatVal(pair.1)])
 }

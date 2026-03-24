@@ -12,6 +12,7 @@
 //// import plushie/command
 //// import plushie/event.{type Event, WidgetClick}
 //// import plushie/ui
+//// import plushie/widget/window
 //// import gleam/int
 ////
 //// type Model { Model(count: Int) }
@@ -27,7 +28,7 @@
 ////       }
 ////     },
 ////     fn(model) {
-////       ui.window("main", [ui.title("Counter")], [
+////       ui.window("main", [window.Title("Counter")], [
 ////         ui.text_("count", "Count: " <> int.to_string(model.count)),
 ////         ui.button_("inc", "+"),
 ////       ])

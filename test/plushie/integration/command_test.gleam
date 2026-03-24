@@ -17,6 +17,7 @@ import plushie/event.{type Event}
 import plushie/node.{type Node}
 import plushie/support
 import plushie/ui
+import plushie/widget/window
 
 // ---------------------------------------------------------------------------
 // Test apps
@@ -49,7 +50,7 @@ fn send_after_update(
 }
 
 fn send_after_view(_model: SendAfterModel) -> Node {
-  ui.window("main", [ui.title("SendAfter Test")], [
+  ui.window("main", [window.Title("SendAfter Test")], [
     ui.text_("hi", "hello"),
   ])
 }
@@ -86,7 +87,7 @@ fn async_update(
 }
 
 fn async_view(_model: AsyncModel) -> Node {
-  ui.window("main", [ui.title("Async Test")], [ui.button_("go", "Go")])
+  ui.window("main", [window.Title("Async Test")], [ui.button_("go", "Go")])
 }
 
 fn async_app() -> App(AsyncModel, Event) {
@@ -127,7 +128,7 @@ fn batch_update(
 }
 
 fn batch_view(_model: BatchModel) -> Node {
-  ui.window("main", [ui.title("Batch Test")], [ui.text_("hi", "hello")])
+  ui.window("main", [window.Title("Batch Test")], [ui.text_("hi", "hello")])
 }
 
 fn batch_app() -> App(BatchModel, Event) {
@@ -177,7 +178,7 @@ fn stream_update(
 }
 
 fn stream_view(_model: StreamModel) -> Node {
-  ui.window("main", [ui.title("Stream Test")], [ui.button_("go", "Go")])
+  ui.window("main", [window.Title("Stream Test")], [ui.button_("go", "Go")])
 }
 
 fn stream_app() -> App(StreamModel, Event) {
@@ -209,7 +210,7 @@ fn error_update(
 }
 
 fn error_view(_model: ErrorModel) -> Node {
-  ui.window("main", [ui.title("Error Test")], [
+  ui.window("main", [window.Title("Error Test")], [
     ui.button_("crash", "Crash"),
     ui.button_("inc", "Inc"),
   ])
@@ -248,7 +249,7 @@ fn view_crash_view(model: ViewCrashModel) -> Node {
   case model.crash_view {
     True -> panic as "intentional view crash"
     False ->
-      ui.window("main", [ui.title("View Crash Test")], [
+      ui.window("main", [window.Title("View Crash Test")], [
         ui.button_("crash_view", "Crash View"),
         ui.button_("fix_view", "Fix View"),
       ])

@@ -32,6 +32,20 @@ pub fn a11y(th: Themer, a: A11y) -> Themer {
   Themer(..th, a11y: option.Some(a))
 }
 
+/// Option type for themer properties.
+pub type Opt {
+  A11y(A11y)
+}
+
+/// Apply a list of options to a themer builder.
+pub fn with_opts(th: Themer, opts: List(Opt)) -> Themer {
+  list.fold(opts, th, fn(t, opt) {
+    case opt {
+      A11y(a) -> a11y(t, a)
+    }
+  })
+}
+
 /// Build the themer into a renderable Node.
 pub fn build(th: Themer) -> Node {
   let props =

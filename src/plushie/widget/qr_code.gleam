@@ -1,6 +1,7 @@
 //// QR code widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
@@ -83,6 +84,34 @@ pub fn style(qr: QrCode, s: String) -> QrCode {
 /// Set accessibility properties for this widget.
 pub fn a11y(qr: QrCode, a: A11y) -> QrCode {
   QrCode(..qr, a11y: option.Some(a))
+}
+
+/// Option type for qr code properties.
+pub type Opt {
+  CellSize(Int)
+  CellColor(Color)
+  BackgroundColor(Color)
+  ErrorCorrection(ErrorCorrection)
+  Alt(String)
+  Description(String)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a qr code builder.
+pub fn with_opts(qr: QrCode, opts: List(Opt)) -> QrCode {
+  list.fold(opts, qr, fn(q, opt) {
+    case opt {
+      CellSize(s) -> cell_size(q, s)
+      CellColor(c) -> cell_color(q, c)
+      BackgroundColor(c) -> background_color(q, c)
+      ErrorCorrection(ec) -> error_correction(q, ec)
+      Alt(a) -> alt(q, a)
+      Description(d) -> description(q, d)
+      Style(s) -> style(q, s)
+      A11y(a) -> a11y(q, a)
+    }
+  })
 }
 
 fn error_correction_to_string(ec: ErrorCorrection) -> String {

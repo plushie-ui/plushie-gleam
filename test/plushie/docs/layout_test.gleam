@@ -4,24 +4,33 @@ import plushie/prop/alignment.{Center}
 import plushie/prop/length.{Fill, FillPortion, Fixed, Shrink}
 import plushie/prop/padding.{Padding}
 import plushie/ui
+import plushie/widget/button
+import plushie/widget/column
+import plushie/widget/container
+import plushie/widget/grid
+import plushie/widget/image
+import plushie/widget/row
+import plushie/widget/scrollable
+import plushie/widget/space
+import plushie/widget/text
 
 // -- Length examples ----------------------------------------------------------
 
 pub fn layout_length_fill_test() {
-  let node = ui.column("main", [ui.width(Fill)], [])
+  let node = ui.column("main", [column.Width(Fill)], [])
   assert node.kind == "column"
   assert dict.get(node.props, "width") == Ok(StringVal("fill"))
 }
 
 pub fn layout_length_fixed_test() {
-  let node = ui.container("sidebar", [ui.width(Fixed(250.0))], [])
+  let node = ui.container("sidebar", [container.Width(Fixed(250.0))], [])
   assert node.kind == "container"
   assert dict.get(node.props, "width") == Ok(FloatVal(250.0))
 }
 
 pub fn layout_length_fill_portion_test() {
-  let left = ui.container("left", [ui.width(FillPortion(2))], [])
-  let right = ui.container("right", [ui.width(FillPortion(1))], [])
+  let left = ui.container("left", [container.Width(FillPortion(2))], [])
+  let right = ui.container("right", [container.Width(FillPortion(1))], [])
   let row = ui.row("layout", [], [left, right])
   assert row.kind == "row"
   let assert [l, r] = row.children
@@ -34,7 +43,7 @@ pub fn layout_length_fill_portion_test() {
 }
 
 pub fn layout_length_shrink_test() {
-  let node = ui.button("save", "Save", [ui.width(Shrink)])
+  let node = ui.button("save", "Save", [button.Width(Shrink)])
   assert node.kind == "button"
   assert dict.get(node.props, "width") == Ok(StringVal("shrink"))
 }
@@ -42,7 +51,7 @@ pub fn layout_length_shrink_test() {
 // -- Padding examples ---------------------------------------------------------
 
 pub fn layout_padding_all_test() {
-  let node = ui.container("box", [ui.padding(padding.all(16.0))], [])
+  let node = ui.container("box", [container.Padding(padding.all(16.0))], [])
   let expected =
     node.DictVal(
       dict.from_list([
@@ -56,7 +65,7 @@ pub fn layout_padding_all_test() {
 }
 
 pub fn layout_padding_xy_test() {
-  let node = ui.container("box", [ui.padding(padding.xy(8.0, 16.0))], [])
+  let node = ui.container("box", [container.Padding(padding.xy(8.0, 16.0))], [])
   let expected =
     node.DictVal(
       dict.from_list([
@@ -74,7 +83,12 @@ pub fn layout_padding_per_side_test() {
     ui.container(
       "box",
       [
-        ui.padding(Padding(top: 0.0, right: 16.0, bottom: 8.0, left: 16.0)),
+        container.Padding(Padding(
+          top: 0.0,
+          right: 16.0,
+          bottom: 8.0,
+          left: 16.0,
+        )),
       ],
       [],
     )
@@ -94,7 +108,7 @@ pub fn layout_padding_per_side_test() {
 
 pub fn layout_spacing_test() {
   let node =
-    ui.column("col", [ui.spacing(8)], [
+    ui.column("col", [column.Spacing(8)], [
       ui.text_("first", "First"),
       ui.text_("second", "Second"),
       ui.text_("third", "Third"),
@@ -111,7 +125,7 @@ pub fn layout_spacing_test() {
 
 pub fn layout_align_x_column_test() {
   let node =
-    ui.column("col", [ui.align_x(Center)], [
+    ui.column("col", [column.AlignX(Center)], [
       ui.text_("label", "Centered"),
       ui.button_("ok", "OK"),
     ])
@@ -127,10 +141,10 @@ pub fn layout_align_center_container_test() {
     ui.container(
       "page",
       [
-        ui.width(Fill),
-        ui.height(Fill),
-        ui.align_x(Center),
-        ui.align_y(Center),
+        container.Width(Fill),
+        container.Height(Fill),
+        container.AlignX(Center),
+        container.AlignY(Center),
       ],
       [ui.text_("label", "Dead center")],
     )
@@ -150,14 +164,14 @@ pub fn layout_column_with_props_test() {
     ui.column(
       "main",
       [
-        ui.spacing(16),
-        ui.padding(padding.all(20.0)),
-        ui.width(Fill),
-        ui.align_x(Center),
+        column.Spacing(16),
+        column.Padding(padding.all(20.0)),
+        column.Width(Fill),
+        column.AlignX(Center),
       ],
       [
-        ui.text("title", "Title", [ui.font_size(24.0)]),
-        ui.text("subtitle", "Subtitle", [ui.font_size(14.0)]),
+        ui.text("title", "Title", [text.Size(24.0)]),
+        ui.text("subtitle", "Subtitle", [text.Size(14.0)]),
       ],
     )
   assert node.kind == "column"
@@ -171,7 +185,7 @@ pub fn layout_column_with_props_test() {
 
 pub fn layout_row_with_align_y_test() {
   let node =
-    ui.row("nav", [ui.spacing(8), ui.align_y(Center)], [
+    ui.row("nav", [row.Spacing(8), row.AlignY(Center)], [
       ui.button_("back", "<"),
       ui.text_("page", "Page 1 of 5"),
       ui.button_("next", ">"),
@@ -189,7 +203,11 @@ pub fn layout_container_with_style_test() {
   let node =
     ui.container(
       "card",
-      [ui.padding(padding.all(16.0)), ui.style("rounded_box"), ui.width(Fill)],
+      [
+        container.Padding(padding.all(16.0)),
+        container.Style("rounded_box"),
+        container.Width(Fill),
+      ],
       [
         ui.column("card_col", [], [
           ui.text_("card_title", "Card title"),
@@ -209,9 +227,13 @@ pub fn layout_container_with_style_test() {
 
 pub fn layout_scrollable_test() {
   let node =
-    ui.scrollable("list", [ui.height(Fixed(400.0)), ui.width(Fill)], [
-      ui.column("items", [ui.spacing(4)], []),
-    ])
+    ui.scrollable(
+      "list",
+      [scrollable.Height(Fixed(400.0)), scrollable.Width(Fill)],
+      [
+        ui.column("items", [column.Spacing(4)], []),
+      ],
+    )
   assert node.kind == "scrollable"
   assert node.id == "list"
   assert dict.get(node.props, "height") == Ok(FloatVal(400.0))
@@ -224,16 +246,16 @@ pub fn layout_scrollable_test() {
 pub fn layout_stack_test() {
   let node =
     ui.stack("layers", [], [
-      ui.image("bg", "background.png", [ui.width(Fill), ui.height(Fill)]),
+      ui.image("bg", "background.png", [image.Width(Fill), image.Height(Fill)]),
       ui.container(
         "overlay",
         [
-          ui.width(Fill),
-          ui.height(Fill),
-          ui.align_x(Center),
-          ui.align_y(Center),
+          container.Width(Fill),
+          container.Height(Fill),
+          container.AlignX(Center),
+          container.AlignY(Center),
         ],
-        [ui.text("overlay_text", "Overlaid text", [ui.font_size(48.0)])],
+        [ui.text("overlay_text", "Overlaid text", [text.Size(48.0)])],
       ),
     ])
   assert node.kind == "stack"
@@ -251,7 +273,7 @@ pub fn layout_space_test() {
   let node =
     ui.row("spread", [], [
       ui.text_("left", "Left"),
-      ui.space("gap", [ui.width(Fill)]),
+      ui.space("gap", [space.Width(Fill)]),
       ui.text_("right", "Right"),
     ])
   assert node.kind == "row"
@@ -263,7 +285,7 @@ pub fn layout_space_test() {
 }
 
 pub fn layout_grid_test() {
-  let node = ui.grid("gallery", [ui.spacing(8)], [])
+  let node = ui.grid("gallery", [grid.Spacing(8)], [])
   assert node.kind == "grid"
   assert node.id == "gallery"
   assert dict.get(node.props, "spacing") == Ok(IntVal(8))
@@ -277,14 +299,14 @@ pub fn layout_centered_page_test() {
     ui.container(
       "page",
       [
-        ui.width(Fill),
-        ui.height(Fill),
-        ui.align_x(Center),
-        ui.align_y(Center),
+        container.Width(Fill),
+        container.Height(Fill),
+        container.AlignX(Center),
+        container.AlignY(Center),
       ],
       [
-        ui.column("content", [ui.spacing(16), ui.align_x(Center)], [
-          ui.text("welcome", "Welcome", [ui.font_size(32.0)]),
+        ui.column("content", [column.Spacing(16), column.AlignX(Center)], [
+          ui.text("welcome", "Welcome", [text.Size(32.0)]),
           ui.button_("start", "Get Started"),
         ]),
       ],

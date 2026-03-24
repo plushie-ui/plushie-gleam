@@ -155,6 +155,50 @@ pub fn a11y(c: Container, a: A11y) -> Container {
   Container(..c, a11y: option.Some(a))
 }
 
+/// Option type for container properties.
+pub type Opt {
+  Padding(Padding)
+  Width(Length)
+  Height(Length)
+  MaxWidth(Float)
+  MaxHeight(Float)
+  Center(Bool)
+  Clip(Bool)
+  AlignX(Alignment)
+  AlignY(Alignment)
+  BgColor(Color)
+  BgGradient(Gradient)
+  TextColor(Color)
+  Border(Border)
+  Shadow(Shadow)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a container builder.
+pub fn with_opts(c: Container, opts: List(Opt)) -> Container {
+  list.fold(opts, c, fn(ct, opt) {
+    case opt {
+      Padding(p) -> padding(ct, p)
+      Width(w) -> width(ct, w)
+      Height(h) -> height(ct, h)
+      MaxWidth(m) -> max_width(ct, m)
+      MaxHeight(m) -> max_height(ct, m)
+      Center(v) -> center(ct, v)
+      Clip(v) -> clip(ct, v)
+      AlignX(a) -> align_x(ct, a)
+      AlignY(a) -> align_y(ct, a)
+      BgColor(col) -> background(ct, col)
+      BgGradient(g) -> gradient_background(ct, g)
+      TextColor(col) -> color(ct, col)
+      Border(b) -> border(ct, b)
+      Shadow(s) -> shadow(ct, s)
+      Style(s) -> style(ct, s)
+      A11y(a) -> a11y(ct, a)
+    }
+  })
+}
+
 fn background_to_prop_value(bg: Background) -> PropValue {
   case bg {
     ColorBackground(col) -> color.to_prop_value(col)

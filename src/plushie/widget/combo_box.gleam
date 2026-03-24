@@ -148,6 +148,52 @@ pub fn a11y(cb: ComboBox, a: A11y) -> ComboBox {
   ComboBox(..cb, a11y: option.Some(a))
 }
 
+/// Option type for combo box properties.
+pub type Opt {
+  Placeholder(String)
+  Width(Length)
+  Padding(Padding)
+  Size(Float)
+  Font(Font)
+  LineHeight(Float)
+  MenuHeight(Float)
+  Icon(PropValue)
+  OnOptionHovered(Bool)
+  OnOpen(Bool)
+  OnClose(Bool)
+  Shaping(Shaping)
+  Ellipsis(String)
+  MenuStyle(PropValue)
+  OnSubmit(Bool)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a combo box builder.
+pub fn with_opts(cb: ComboBox, opts: List(Opt)) -> ComboBox {
+  list.fold(opts, cb, fn(c, opt) {
+    case opt {
+      Placeholder(p) -> placeholder(c, p)
+      Width(w) -> width(c, w)
+      Padding(p) -> padding(c, p)
+      Size(s) -> size(c, s)
+      Font(f) -> font(c, f)
+      LineHeight(h) -> line_height(c, h)
+      MenuHeight(h) -> menu_height(c, h)
+      Icon(i) -> icon(c, i)
+      OnOptionHovered(v) -> on_option_hovered(c, v)
+      OnOpen(v) -> on_open(c, v)
+      OnClose(v) -> on_close(c, v)
+      Shaping(s) -> shaping(c, s)
+      Ellipsis(e) -> ellipsis(c, e)
+      MenuStyle(ms) -> menu_style(c, ms)
+      OnSubmit(v) -> on_submit(c, v)
+      Style(s) -> style(c, s)
+      A11y(a) -> a11y(c, a)
+    }
+  })
+}
+
 /// Build the combo box into a renderable Node.
 pub fn build(cb: ComboBox) -> Node {
   let props =

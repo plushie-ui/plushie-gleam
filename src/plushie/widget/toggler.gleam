@@ -1,6 +1,7 @@
 //// Toggler widget builder (toggle switch).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -110,6 +111,42 @@ pub fn disabled(t: Toggler, d: Bool) -> Toggler {
 /// Set accessibility properties for this widget.
 pub fn a11y(t: Toggler, a: A11y) -> Toggler {
   Toggler(..t, a11y: option.Some(a))
+}
+
+/// Option type for toggler properties.
+pub type Opt {
+  Spacing(Int)
+  Width(Length)
+  Size(Float)
+  TextSize(Float)
+  Font(Font)
+  LineHeight(Float)
+  Shaping(Shaping)
+  Wrapping(Wrapping)
+  TextAlignment(Alignment)
+  Style(String)
+  Disabled(Bool)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a toggler builder.
+pub fn with_opts(t: Toggler, opts: List(Opt)) -> Toggler {
+  list.fold(opts, t, fn(tg, opt) {
+    case opt {
+      Spacing(s) -> spacing(tg, s)
+      Width(w) -> width(tg, w)
+      Size(s) -> size(tg, s)
+      TextSize(s) -> text_size(tg, s)
+      Font(f) -> font(tg, f)
+      LineHeight(h) -> line_height(tg, h)
+      Shaping(s) -> shaping(tg, s)
+      Wrapping(w) -> wrapping(tg, w)
+      TextAlignment(a) -> text_alignment(tg, a)
+      Style(s) -> style(tg, s)
+      Disabled(d) -> disabled(tg, d)
+      A11y(a) -> a11y(tg, a)
+    }
+  })
 }
 
 /// Build the toggler into a renderable Node.

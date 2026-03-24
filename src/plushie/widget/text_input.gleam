@@ -1,6 +1,7 @@
 //// TextInput widget builder (single-line text entry).
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -107,6 +108,42 @@ pub fn style(input: TextInput, s: String) -> TextInput {
 /// Set accessibility properties for this widget.
 pub fn a11y(input: TextInput, a: A11y) -> TextInput {
   TextInput(..input, a11y: option.Some(a))
+}
+
+/// Option type for text input properties.
+pub type Opt {
+  Placeholder(String)
+  Padding(Padding)
+  Width(Length)
+  Size(Float)
+  Font(Font)
+  LineHeight(Float)
+  AlignX(Alignment)
+  OnSubmit(Bool)
+  OnPaste(Bool)
+  Secure(Bool)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a text input builder.
+pub fn with_opts(input: TextInput, opts: List(Opt)) -> TextInput {
+  list.fold(opts, input, fn(i, opt) {
+    case opt {
+      Placeholder(p) -> placeholder(i, p)
+      Padding(p) -> padding(i, p)
+      Width(w) -> width(i, w)
+      Size(s) -> size(i, s)
+      Font(f) -> font(i, f)
+      LineHeight(h) -> line_height(i, h)
+      AlignX(a) -> align_x(i, a)
+      OnSubmit(v) -> on_submit(i, v)
+      OnPaste(v) -> on_paste(i, v)
+      Secure(v) -> secure(i, v)
+      Style(s) -> style(i, s)
+      A11y(a) -> a11y(i, a)
+    }
+  })
 }
 
 /// Build the text input into a renderable Node.

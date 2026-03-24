@@ -7,6 +7,10 @@ import plushie/node.{type Node, StringVal}
 import plushie/prop/padding
 import plushie/subscription
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/text_input
+import plushie/widget/window
 
 // -- Types (for update/view examples) -----------------------------------------
 
@@ -198,7 +202,7 @@ pub fn app_behaviour_window_close_command_test() {
 pub fn app_behaviour_simple_constructor_test() {
   let _app =
     app.simple(init_simple, update, fn(_model: Model) -> Node {
-      ui.window("main", [ui.title("App")], [])
+      ui.window("main", [window.Title("App")], [])
     })
   Nil
 }
@@ -206,7 +210,7 @@ pub fn app_behaviour_simple_constructor_test() {
 pub fn app_behaviour_pipeline_with_subscriptions_test() {
   let _app =
     app.simple(init_simple, update, fn(_model: Model) -> Node {
-      ui.window("main", [ui.title("App")], [])
+      ui.window("main", [window.Title("App")], [])
     })
     |> app.with_subscriptions(subscribe)
     |> app.with_settings(settings)
@@ -215,16 +219,20 @@ pub fn app_behaviour_pipeline_with_subscriptions_test() {
 
 pub fn app_behaviour_view_basic_structure_test() {
   let tree =
-    ui.window("main", [ui.title("Todos")], [
-      ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(8)], [
-        ui.row("input-row", [ui.spacing(8)], [
-          ui.text_input("todo_field", "", [
-            ui.placeholder("What needs doing?"),
-            ui.on_submit(True),
+    ui.window("main", [window.Title("Todos")], [
+      ui.column(
+        "content",
+        [column.Padding(padding.all(16.0)), column.Spacing(8)],
+        [
+          ui.row("input-row", [row.Spacing(8)], [
+            ui.text_input("todo_field", "", [
+              text_input.Placeholder("What needs doing?"),
+              text_input.OnSubmit(True),
+            ]),
+            ui.button_("add_todo", "Add"),
           ]),
-          ui.button_("add_todo", "Add"),
-        ]),
-      ]),
+        ],
+      ),
     ])
   assert tree.kind == "window"
   let assert [col] = tree.children
@@ -241,13 +249,17 @@ pub fn app_behaviour_view_basic_structure_test() {
 pub fn app_behaviour_dialog_window_test() {
   let dialog =
     ui.window("confirm", [], [
-      ui.column("dialog", [ui.padding(padding.all(16.0)), ui.spacing(12)], [
-        ui.text_("prompt", "Are you sure?"),
-        ui.row("buttons", [ui.spacing(8)], [
-          ui.button_("confirm_yes", "Yes"),
-          ui.button_("confirm_no", "No"),
-        ]),
-      ]),
+      ui.column(
+        "dialog",
+        [column.Padding(padding.all(16.0)), column.Spacing(12)],
+        [
+          ui.text_("prompt", "Are you sure?"),
+          ui.row("buttons", [row.Spacing(8)], [
+            ui.button_("confirm_yes", "Yes"),
+            ui.button_("confirm_no", "No"),
+          ]),
+        ],
+      ),
     ])
   assert dialog.kind == "window"
   assert dialog.id == "confirm"

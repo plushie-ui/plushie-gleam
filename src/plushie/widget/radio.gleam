@@ -1,6 +1,7 @@
 //// Radio button widget builder.
 
 import gleam/dict
+import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
@@ -109,6 +110,40 @@ pub fn style(r: Radio, s: String) -> Radio {
 /// Set accessibility properties for this widget.
 pub fn a11y(r: Radio, a: A11y) -> Radio {
   Radio(..r, a11y: option.Some(a))
+}
+
+/// Option type for radio properties.
+pub type Opt {
+  Group(String)
+  Spacing(Int)
+  Width(Length)
+  Size(Float)
+  TextSize(Float)
+  Font(Font)
+  LineHeight(Float)
+  Shaping(Shaping)
+  Wrapping(Wrapping)
+  Style(String)
+  A11y(A11y)
+}
+
+/// Apply a list of options to a radio builder.
+pub fn with_opts(r: Radio, opts: List(Opt)) -> Radio {
+  list.fold(opts, r, fn(rd, opt) {
+    case opt {
+      Group(g) -> group(rd, g)
+      Spacing(s) -> spacing(rd, s)
+      Width(w) -> width(rd, w)
+      Size(s) -> size(rd, s)
+      TextSize(s) -> text_size(rd, s)
+      Font(f) -> font(rd, f)
+      LineHeight(h) -> line_height(rd, h)
+      Shaping(s) -> shaping(rd, s)
+      Wrapping(w) -> wrapping(rd, w)
+      Style(s) -> style(rd, s)
+      A11y(a) -> a11y(rd, a)
+    }
+  })
 }
 
 /// Build the radio into a renderable Node.
