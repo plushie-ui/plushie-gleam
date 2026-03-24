@@ -5,12 +5,12 @@
 
 import gleam/result
 import plushie/binary
-import plushie/ffi
+import plushie/platform
 
 /// Look up the plushie source checkout path from the PLUSHIE_SOURCE_PATH
 /// environment variable.
 pub fn source_path() -> Result(String, Nil) {
-  ffi.get_env("PLUSHIE_SOURCE_PATH")
+  platform.get_env("PLUSHIE_SOURCE_PATH")
 }
 
 /// Error when the plushie binary cannot be resolved.
@@ -41,7 +41,7 @@ pub fn default_resolve_opts() -> ResolveOpts {
 pub fn resolve_binary(opts: ResolveOpts) -> Result(String, ResolveError) {
   case opts.binary_path {
     Ok(path) ->
-      case ffi.file_exists(path) {
+      case platform.file_exists(path) {
         True -> Ok(path)
         False -> Error(ExplicitPathMissing(path:))
       }

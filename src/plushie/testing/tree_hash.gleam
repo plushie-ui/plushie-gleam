@@ -9,8 +9,8 @@
 
 import gleam/json
 import gleam/string
-import plushie/ffi
 import plushie/node.{type Node}
+import plushie/platform
 import plushie/testing/snapshot
 
 /// A tree hash result.
@@ -22,7 +22,7 @@ pub type TreeHash {
 pub fn hash(tree: Node) -> String {
   let json_str = snapshot.node_to_json(tree) |> json.to_string()
   let json_bits = <<json_str:utf8>>
-  ffi.sha256_hex(json_bits)
+  platform.sha256_hex(json_bits)
 }
 
 /// Assert that a tree hash matches its golden file.
@@ -34,7 +34,7 @@ pub fn assert_tree_hash(tree: Node, name: String, path: String) -> Nil {
   let current_hash = hash(tree)
   let golden_path = path <> "/" <> name <> ".sha256"
 
-  let update_mode = ffi.get_env("PLUSHIE_UPDATE_SNAPSHOTS") == Ok("1")
+  let update_mode = platform.get_env("PLUSHIE_UPDATE_SNAPSHOTS") == Ok("1")
 
   case file_exists(golden_path), update_mode {
     True, False -> {

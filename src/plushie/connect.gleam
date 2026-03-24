@@ -38,7 +38,7 @@ import gleam/option.{type Option, None, Some}
 import plushie
 import plushie/app.{type App}
 import plushie/event.{type Event}
-import plushie/ffi
+import plushie/platform
 import plushie/protocol
 import plushie/socket_adapter
 
@@ -100,7 +100,7 @@ fn resolve_socket() -> String {
   case get_flag_value("--socket") {
     Ok(addr) -> addr
     Error(_) ->
-      case ffi.get_env("PLUSHIE_SOCKET") {
+      case platform.get_env("PLUSHIE_SOCKET") {
         Ok(addr) -> addr
         Error(_) -> {
           io.println_error(
@@ -117,7 +117,7 @@ fn resolve_token() -> Option(String) {
   case get_flag_value("--token") {
     Ok(token) -> Some(token)
     Error(_) ->
-      case ffi.get_env("PLUSHIE_TOKEN") {
+      case platform.get_env("PLUSHIE_TOKEN") {
         Ok(token) -> Some(token)
         Error(_) -> read_token_from_stdin()
       }

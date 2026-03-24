@@ -24,8 +24,8 @@ import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option, None, Some}
 import plushie/app.{type App}
 import plushie/event.{type Event}
-import plushie/ffi
 import plushie/node
+import plushie/platform
 import plushie/protocol
 import plushie/testing/backend.{type TestBackend, TestBackend}
 import plushie/testing/renderer
@@ -137,7 +137,7 @@ fn start_windowed(
   config: renderer.RendererConfig,
 ) -> TestSession(model, Event) {
   // Require a display server
-  case ffi.get_env("DISPLAY"), ffi.get_env("WAYLAND_DISPLAY") {
+  case platform.get_env("DISPLAY"), platform.get_env("WAYLAND_DISPLAY") {
     Error(_), Error(_) ->
       panic as "windowed backend requires DISPLAY or WAYLAND_DISPLAY env var (use Xvfb in CI)"
     _, _ -> Nil

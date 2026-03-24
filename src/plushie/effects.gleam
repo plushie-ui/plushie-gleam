@@ -9,8 +9,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/command.{type Command}
-import plushie/platform
 import plushie/node.{type PropValue, IntVal, ListVal, StringVal}
+import plushie/platform
 
 // -- File dialog option types ------------------------------------------------
 

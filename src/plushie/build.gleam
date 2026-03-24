@@ -26,7 +26,7 @@ import gleam/list
 import gleam/string
 import plushie/binary
 import plushie/config
-import plushie/ffi
+import plushie/platform
 
 const min_rust_version = "1.92.0"
 
@@ -180,7 +180,7 @@ fn install_wasm(
 fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
   let src = pkg_dir <> "/" <> name
   let dest = dest_dir <> "/" <> name
-  case ffi.file_exists(src) {
+  case platform.file_exists(src) {
     True -> copy_file(src, dest)
     False ->
       io.println_error(
@@ -231,12 +231,12 @@ fn install_binary(
     True -> "release"
     False -> "debug"
   }
-  let platform = ffi.platform_string()
-  let arch = ffi.arch_string()
+  let platform = platform.platform_string()
+  let arch = platform.arch_string()
   let binary_name = "plushie-renderer-" <> platform <> "-" <> arch
   let src = source_dir <> "/target/" <> profile <> "/plushie-renderer"
 
-  case ffi.file_exists(src) {
+  case platform.file_exists(src) {
     False -> {
       io.println_error("Build succeeded but binary not found at " <> src)
       halt(1)
@@ -376,7 +376,7 @@ fn resolve_artifacts(
 ///
 /// Resolution: PLUSHIE_SOURCE_PATH env > gleam.toml source_path > error.
 fn resolve_source_path() -> String {
-  case ffi.get_env("PLUSHIE_SOURCE_PATH") {
+  case platform.get_env("PLUSHIE_SOURCE_PATH") {
     Ok(path) -> path
     Error(_) ->
       case config.get_string("source_path") {

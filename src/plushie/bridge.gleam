@@ -23,19 +23,25 @@ import gleam/bit_array
 import gleam/dict
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
+@target(erlang)
 import gleam/erlang/port.{type Port}
+@target(erlang)
 import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/option.{None, Some}
+@target(erlang)
 import gleam/otp/actor
 import gleam/result
+@target(erlang)
 import plushie/ffi
 import plushie/platform
 import plushie/protocol
 import plushie/protocol/decode.{type InboundMessage}
+@target(erlang)
 import plushie/renderer_env
 import plushie/telemetry
 
+@target(erlang)
 /// Messages sent to an iostream adapter process.
 /// The adapter must handle these messages to integrate with
 /// a custom transport (TCP, WebSocket, SSH, etc.).
@@ -47,6 +53,7 @@ pub type IoStreamMessage {
   IoStreamSend(data: BitArray)
 }
 
+@target(erlang)
 /// Messages the bridge actor handles.
 pub type BridgeMessage {
   /// Send pre-encoded wire bytes to the Rust binary.
@@ -69,6 +76,7 @@ pub type BridgeMessage {
   Shutdown
 }
 
+@target(erlang)
 /// Transport mode for the bridge.
 pub type Transport {
   /// Spawn the renderer binary as a child process.
@@ -79,6 +87,7 @@ pub type Transport {
   TransportIoStream(adapter: Subject(IoStreamMessage))
 }
 
+@target(erlang)
 /// Internal bridge state.
 pub opaque type BridgeState {
   BridgeState(
@@ -95,6 +104,7 @@ pub opaque type BridgeState {
   )
 }
 
+@target(erlang)
 /// Notifications sent from bridge to runtime.
 pub type RuntimeNotification {
   /// A decoded inbound message from the Rust binary.
@@ -104,8 +114,10 @@ pub type RuntimeNotification {
 }
 
 // Maximum buffer size for partial JSON lines (64 MiB).
+@target(erlang)
 const max_json_buffer_size = 67_108_864
 
+@target(erlang)
 /// Start the bridge actor with spawn transport (default).
 ///
 /// Opens a port to the plushie binary and begins forwarding messages.
@@ -128,6 +140,7 @@ pub fn start(
   )
 }
 
+@target(erlang)
 /// Start the bridge actor with an explicit transport mode.
 pub fn start_with_transport(
   binary_path: String,
@@ -158,6 +171,7 @@ pub fn start_with_transport(
   |> result.map(fn(started) { started.data })
 }
 
+@target(erlang)
 /// Start the bridge under a supervisor with a registered name.
 ///
 /// The runtime subject is not available yet -- the runtime will send
@@ -191,6 +205,7 @@ pub fn start_supervised(
   |> actor.start
 }
 
+@target(erlang)
 fn init_spawn(
   subject: Subject(BridgeMessage),
   binary_path: String,
@@ -237,6 +252,7 @@ fn init_spawn(
   |> Ok
 }
 
+@target(erlang)
 fn init_stdio(
   subject: Subject(BridgeMessage),
   format: protocol.Format,
@@ -272,6 +288,7 @@ fn init_stdio(
   |> Ok
 }
 
+@target(erlang)
 fn init_iostream(
   subject: Subject(BridgeMessage),
   adapter: Subject(IoStreamMessage),
@@ -311,6 +328,7 @@ fn init_iostream(
 // These are identical to the regular init functions except they set
 // runtime=None and event_buffer=[] since the runtime registers later.
 
+@target(erlang)
 fn init_spawn_deferred(
   subject: Subject(BridgeMessage),
   binary_path: String,
@@ -356,6 +374,7 @@ fn init_spawn_deferred(
   |> Ok
 }
 
+@target(erlang)
 fn init_stdio_deferred(
   subject: Subject(BridgeMessage),
   format: protocol.Format,
@@ -390,6 +409,7 @@ fn init_stdio_deferred(
   |> Ok
 }
 
+@target(erlang)
 fn init_iostream_deferred(
   subject: Subject(BridgeMessage),
   adapter: Subject(IoStreamMessage),
@@ -421,6 +441,7 @@ fn init_iostream_deferred(
   |> Ok
 }
 
+@target(erlang)
 fn handle_message(
   state: BridgeState,
   msg: BridgeMessage,
@@ -491,6 +512,7 @@ fn handle_message(
   }
 }
 
+@target(erlang)
 fn send_data(state: BridgeState, data: BitArray) -> Nil {
   let byte_size = bit_array.byte_size(data)
 
@@ -523,6 +545,7 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
   }
 }
 
+@target(erlang)
 fn handle_port_data(state: BridgeState, raw: Dynamic) -> BridgeState {
   case dyn_decode.run(raw, dyn_decode.bit_array) {
     Ok(bytes) -> {
@@ -541,6 +564,7 @@ fn handle_port_data(state: BridgeState, raw: Dynamic) -> BridgeState {
   }
 }
 
+@target(erlang)
 /// Handle line-buffered data from JSON mode ({line, N} port driver).
 /// Accumulates noeol chunks in the buffer, flushes on eol.
 fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState {
@@ -571,6 +595,7 @@ fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState 
   }
 }
 
+@target(erlang)
 /// Send a notification to the runtime if registered, otherwise buffer it.
 fn notify_runtime(state: BridgeState, notification: RuntimeNotification) -> Nil {
   case state.runtime {
@@ -579,6 +604,7 @@ fn notify_runtime(state: BridgeState, notification: RuntimeNotification) -> Nil 
   }
 }
 
+@target(erlang)
 /// Buffer a notification when the runtime is not yet registered.
 fn buffer_or_send(
   state: BridgeState,
@@ -594,6 +620,7 @@ fn buffer_or_send(
   }
 }
 
+@target(erlang)
 /// Decode a complete wire message and forward to the runtime.
 fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
   case decode.decode_message(bytes, state.format) {
@@ -614,6 +641,7 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
   }
 }
 
+@target(erlang)
 /// Classify raw Erlang port messages into BridgeMessage variants.
 /// In JSON mode, the {line, N} driver delivers {eol, Data} and
 /// {noeol, Data} tuples instead of plain binaries.

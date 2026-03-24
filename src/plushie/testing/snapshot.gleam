@@ -10,8 +10,8 @@ import gleam/dict
 import gleam/json
 import gleam/list
 import gleam/string
-import plushie/ffi
 import plushie/node.{type Node, type PropValue}
+import plushie/platform
 
 /// Assert that a tree matches its golden snapshot file.
 ///
@@ -22,7 +22,7 @@ pub fn assert_tree_snapshot(tree: Node, name: String, path: String) -> Nil {
   let json_str = node_to_json(tree) |> json.to_string()
   let golden_path = path <> "/" <> name <> ".json"
 
-  let update_mode = ffi.get_env("PLUSHIE_UPDATE_SNAPSHOTS") == Ok("1")
+  let update_mode = platform.get_env("PLUSHIE_UPDATE_SNAPSHOTS") == Ok("1")
 
   case file_exists(golden_path), update_mode {
     True, False -> {

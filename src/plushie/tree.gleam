@@ -10,13 +10,13 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/set
 import gleam/string
-import plushie/platform
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
+import plushie/platform
 
 // --- Normalize ---------------------------------------------------------------
 

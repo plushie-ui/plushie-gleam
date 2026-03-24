@@ -117,6 +117,7 @@ fn deserialize(
   }
 }
 
+@target(erlang)
 fn deserialize_msgpack(
   data: BitArray,
 ) -> Result(Dict(String, PropValue), protocol.DecodeError) {
@@ -130,6 +131,15 @@ fn deserialize_msgpack(
     Error(e) ->
       Error(protocol.DeserializationFailed(glepack_error.to_string(e)))
   }
+}
+
+@target(javascript)
+fn deserialize_msgpack(
+  _data: BitArray,
+) -> Result(Dict(String, PropValue), protocol.DecodeError) {
+  Error(protocol.DeserializationFailed(
+    "MessagePack not available on JavaScript target",
+  ))
 }
 
 fn deserialize_json(
@@ -158,6 +168,7 @@ fn deserialize_json(
 // MessagePack data.Value -> PropValue
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn msgpack_to_prop(value: data.Value) -> PropValue {
   case value {
     data.Nil -> PNull
@@ -172,6 +183,7 @@ fn msgpack_to_prop(value: data.Value) -> PropValue {
   }
 }
 
+@target(erlang)
 fn msgpack_map_to_string_dict(
   entries: Dict(data.Value, data.Value),
 ) -> Dict(String, PropValue) {

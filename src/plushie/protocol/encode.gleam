@@ -45,6 +45,7 @@ pub fn prop_value_to_json(v: PropValue) -> json.Json {
   }
 }
 
+@target(erlang)
 /// Convert a PropValue to glepack's data.Value type.
 pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
   case v {
@@ -89,22 +90,38 @@ pub fn serialize(
   format: Format,
 ) -> Result(BitArray, EncodeError) {
   case format {
-    Json -> {
-      let j =
-        dict.to_list(message)
-        |> list.map(fn(pair) { #(pair.0, prop_value_to_json(pair.1)) })
-        |> json.object
-      let s = json.to_string(j) <> "\n"
-      Ok(bit_array.from_string(s))
-    }
-    Msgpack -> {
-      let v = prop_value_to_msgpack(DictVal(message))
-      case glepack.pack(v) {
-        Ok(bytes) -> Ok(bytes)
-        Error(_) -> Error(SerializationFailed("msgpack encoding failed"))
-      }
-    }
+    Json -> serialize_json(message)
+    Msgpack -> serialize_msgpack(message)
   }
+}
+
+fn serialize_json(
+  message: Dict(String, PropValue),
+) -> Result(BitArray, EncodeError) {
+  let j =
+    dict.to_list(message)
+    |> list.map(fn(pair) { #(pair.0, prop_value_to_json(pair.1)) })
+    |> json.object
+  let s = json.to_string(j) <> "\n"
+  Ok(bit_array.from_string(s))
+}
+
+@target(erlang)
+fn serialize_msgpack(
+  message: Dict(String, PropValue),
+) -> Result(BitArray, EncodeError) {
+  let v = prop_value_to_msgpack(DictVal(message))
+  case glepack.pack(v) {
+    Ok(bytes) -> Ok(bytes)
+    Error(_) -> Error(SerializationFailed("msgpack encoding failed"))
+  }
+}
+
+@target(javascript)
+fn serialize_msgpack(
+  _message: Dict(String, PropValue),
+) -> Result(BitArray, EncodeError) {
+  Error(SerializationFailed("MessagePack not available on JavaScript target"))
 }
 
 // --- PatchOp conversion ------------------------------------------------------

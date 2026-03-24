@@ -11,12 +11,14 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 
+@target(erlang)
 /// An environment variable entry: either set to a value or explicitly unset.
 pub type EnvEntry {
   Set(key: String, value: String)
   Unset(key: String)
 }
 
+@target(erlang)
 /// Options for building the renderer environment.
 pub type EnvOpts {
   EnvOpts(
@@ -27,6 +29,7 @@ pub type EnvOpts {
   )
 }
 
+@target(erlang)
 /// Default environment options.
 pub fn default_opts() -> EnvOpts {
   EnvOpts(rust_log: None, extra: dict.new())
@@ -55,6 +58,7 @@ fn is_allowed(key: String) -> Bool {
   list.any(allowed_prefixes, fn(prefix) { string.starts_with(key, prefix) })
 }
 
+@target(erlang)
 /// Build an environment entry list for the renderer port.
 ///
 /// Whitelisted variables are set; all other current env vars are
@@ -93,11 +97,13 @@ pub fn build(opts: EnvOpts) -> List(EnvEntry) {
   list.append(set_entries, unset_entries)
 }
 
+@target(erlang)
 /// Convert env entries to Erlang port format for the `:env` option.
 /// Set entries become `{Charlist, Charlist}`, Unset entries become
 /// `{Charlist, false}`.
 @external(erlang, "plushie_renderer_env_ffi", "entries_to_port_env")
 pub fn to_port_env(entries: List(EnvEntry)) -> Dynamic
 
+@target(erlang)
 @external(erlang, "plushie_renderer_env_ffi", "get_env")
 fn get_system_env() -> Dict(String, String)

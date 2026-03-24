@@ -4,37 +4,60 @@
 //// and sends patches to the bridge. Commands returned from update
 //// are executed before the next view render.
 
+@target(erlang)
 import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode as dyn_decode
+@target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
+@target(erlang)
 import gleam/int
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/set.{type Set}
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/bridge.{
   type BridgeMessage, type RuntimeNotification, InboundEvent, RendererExited,
   Send,
 }
+@target(erlang)
 import plushie/command.{type Command}
+@target(erlang)
 import plushie/effects
+@target(erlang)
 import plushie/event.{type Event}
-import plushie/platform
+@target(erlang)
 import plushie/node.{
-
   type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
 }
+@target(erlang)
+import plushie/platform
+
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/protocol/decode.{EffectStubAck, EventMessage, Hello}
+@target(erlang)
 import plushie/protocol/encode
+@target(erlang)
 import plushie/subscription.{type Subscription}
+@target(erlang)
 import plushie/tree
 
 // -- Public types ------------------------------------------------------------
 
+@target(erlang)
 /// Messages handled by the runtime.
 pub type RuntimeMessage {
   /// Notification from the bridge.
@@ -79,6 +102,7 @@ pub type RuntimeMessage {
   GetPropWarnings(reply: Subject(List(#(String, String, List(String)))))
 }
 
+@target(erlang)
 /// Start options for the runtime.
 pub type RuntimeOpts {
   RuntimeOpts(
@@ -91,6 +115,7 @@ pub type RuntimeOpts {
   )
 }
 
+@target(erlang)
 /// Default runtime options.
 pub fn default_opts() -> RuntimeOpts {
   RuntimeOpts(
@@ -103,6 +128,7 @@ pub fn default_opts() -> RuntimeOpts {
   )
 }
 
+@target(erlang)
 /// Start the runtime as an OTP actor under a supervisor.
 ///
 /// The bridge is already running. The runtime registers its notification
@@ -147,6 +173,7 @@ pub fn start_supervised(
 
 // -- Internal state ----------------------------------------------------------
 
+@target(erlang)
 type LoopState(model, msg) {
   LoopState(
     app: App(model, msg),
@@ -184,6 +211,7 @@ type LoopState(model, msg) {
   )
 }
 
+@target(erlang)
 type SubEntry {
   TimerSub(timer: process.Timer, interval_ms: Int, tag: String)
   RendererSub(kind: String, max_rate: option.Option(Int))
@@ -191,6 +219,7 @@ type SubEntry {
 
 // -- Actor init ---------------------------------------------------------------
 
+@target(erlang)
 /// Build the selector that unifies all message sources.
 fn build_selector(
   self: Subject(RuntimeMessage),
@@ -202,6 +231,7 @@ fn build_selector(
   |> process.select_monitors(ProcessDown)
 }
 
+@target(erlang)
 /// Initialize the runtime state: send settings, render initial view,
 /// send snapshot, sync subscriptions and windows. Returns the initial
 /// LoopState ready for the actor message loop.
@@ -312,6 +342,7 @@ fn init_runtime(
 
 // -- Actor message handler ----------------------------------------------------
 
+@target(erlang)
 fn handle_message(
   state: LoopState(model, msg),
   msg: RuntimeMessage,
@@ -564,7 +595,9 @@ fn handle_message(
               actor.continue(LoopState(..state, bridge_pid: None))
             }
             False -> {
-              platform.log_error("plushie: bridge crashed too many times, giving up")
+              platform.log_error(
+                "plushie: bridge crashed too many times, giving up",
+              )
               actor.stop()
             }
           }
@@ -948,6 +981,7 @@ fn to_dynamic(value: a) -> Dynamic
 
 // -- Event coalescing --------------------------------------------------------
 
+@target(erlang)
 /// Determine which events are coalescable and return their dedup key.
 /// High-frequency events like mouse moves and sensor resizes are deferred
 /// so only the latest value is processed, preventing update storms.
@@ -959,6 +993,7 @@ fn coalesce_key(ev: Event) -> Option(String) {
   }
 }
 
+@target(erlang)
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
 fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
@@ -976,6 +1011,7 @@ fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
   LoopState(..state, pending_coalesce: dict.new())
 }
 
+@target(erlang)
 /// Cancel an effect timeout timer if the event is an EffectResponse.
 fn maybe_cancel_effect_timeout(
   state: LoopState(model, msg),
@@ -999,8 +1035,10 @@ fn maybe_cancel_effect_timeout(
 
 // -- Bridge restart helpers --------------------------------------------------
 
+@target(erlang)
 const max_backoff_ms = 5000
 
+@target(erlang)
 fn calculate_backoff(base: Int, attempt: Int) -> Int {
   let delay = base * pow2(attempt)
   case delay > max_backoff_ms {
@@ -1009,6 +1047,7 @@ fn calculate_backoff(base: Int, attempt: Int) -> Int {
   }
 }
 
+@target(erlang)
 fn pow2(n: Int) -> Int {
   case n {
     0 -> 1
@@ -1016,6 +1055,7 @@ fn pow2(n: Int) -> Int {
   }
 }
 
+@target(erlang)
 /// Fail all pending effects with a "renderer_restarted" error and cancel
 /// their timeout timers. The old renderer can no longer respond.
 fn flush_pending_effects_on_restart(
@@ -1041,6 +1081,7 @@ fn flush_pending_effects_on_restart(
 
 // -- Event handling (the core update cycle) ----------------------------------
 
+@target(erlang)
 /// Map a wire Event to the app's msg type using on_event, if defined.
 /// For simple() apps (on_event=None), we use an unsafe coerce because
 /// msg is known to be Event at the type level.
@@ -1054,6 +1095,7 @@ fn map_event(app: App(model, msg), event: Event) -> msg {
 @external(erlang, "erlang", "element")
 fn erlang_element(n: Int, tuple: a) -> b
 
+@target(erlang)
 /// Unsafe coerce: for simple() apps where msg = Event, bypass the type
 /// system since Gleam doesn't have type equality witnesses.
 fn coerce_event(event: Event) -> msg {
@@ -1064,6 +1106,7 @@ fn coerce_event(event: Event) -> msg {
   erlang_element(1, boxed)
 }
 
+@target(erlang)
 /// Coerce a Dynamic back to the msg type. Safe because we only store
 /// msg values as Dynamic in InternalMsg, and the type parameter is
 /// consistent within a single runtime instance.
@@ -1072,18 +1115,21 @@ fn unsafe_coerce_dynamic(dyn: Dynamic) -> msg {
   erlang_element(1, boxed)
 }
 
+@target(erlang)
 /// Coerce any value to Dynamic for transport through RuntimeMessage.
 fn coerce_to_dynamic(value: a) -> Dynamic {
   let boxed = #(value)
   erlang_element(1, boxed)
 }
 
+@target(erlang)
 /// Handle a message that is already the app's msg type (from Done/SendAfter).
 /// Runs the full update cycle without event mapping.
 fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
   dispatch_update(state, msg)
 }
 
+@target(erlang)
 /// Handle a wire event by mapping it to the app's msg type first.
 fn handle_event(
   state: LoopState(model, msg),
@@ -1093,6 +1139,7 @@ fn handle_event(
   dispatch_update(state, mapped_msg)
 }
 
+@target(erlang)
 /// Core update cycle: call update -> execute commands -> render view ->
 /// diff -> patch -> sync subscriptions -> sync windows.
 fn dispatch_update(
@@ -1200,7 +1247,9 @@ fn dispatch_update(
       let err_count = state.errors + 1
       case err_count <= 10 {
         True ->
-          platform.log_warning("plushie: update error: " <> dynamic.classify(reason))
+          platform.log_warning(
+            "plushie: update error: " <> dynamic.classify(reason),
+          )
         False -> Nil
       }
       LoopState(..state, errors: err_count)
@@ -1210,6 +1259,7 @@ fn dispatch_update(
 
 // -- Command execution -------------------------------------------------------
 
+@target(erlang)
 fn execute_commands(
   cmd: Command(msg),
   state: LoopState(model, msg),
@@ -2036,6 +2086,7 @@ fn execute_commands(
   }
 }
 
+@target(erlang)
 /// Kill an existing async task with the given tag and clean up its monitor.
 fn cancel_existing_task(
   state: LoopState(model, msg),
@@ -2053,6 +2104,7 @@ fn cancel_existing_task(
 
 // -- Wire helpers ------------------------------------------------------------
 
+@target(erlang)
 fn send_encoded(
   bridge: Subject(BridgeMessage),
   result: Result(BitArray, protocol.EncodeError),
@@ -2068,6 +2120,7 @@ fn send_encoded(
   }
 }
 
+@target(erlang)
 fn send_widget_op(
   bridge: Subject(BridgeMessage),
   op: String,
@@ -2085,6 +2138,7 @@ fn send_widget_op(
   )
 }
 
+@target(erlang)
 fn send_window_op(
   bridge: Subject(BridgeMessage),
   op: String,
@@ -2104,6 +2158,7 @@ fn send_window_op(
   )
 }
 
+@target(erlang)
 /// Window queries are sent as window_op with an op name and tag.
 /// Results arrive as op_query_response events.
 fn send_window_query(
@@ -2125,6 +2180,7 @@ fn send_window_query(
   )
 }
 
+@target(erlang)
 fn send_image_op(
   bridge: Subject(BridgeMessage),
   op: String,
@@ -2145,6 +2201,7 @@ fn send_image_op(
 @external(erlang, "base64", "encode")
 fn encode_base64(data: BitArray) -> String
 
+@target(erlang)
 /// Convert a Dynamic value to a PropValue for wire encoding.
 /// Tries string, then int, then float; falls back to classifying the type.
 fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
@@ -2164,6 +2221,7 @@ fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
 
 // -- Subscription management -------------------------------------------------
 
+@target(erlang)
 /// Call the app's subscribe callback wrapped in try_call.
 /// On error, log and return an empty list so the runtime stays alive.
 fn safe_subscribe(
@@ -2182,6 +2240,7 @@ fn safe_subscribe(
   }
 }
 
+@target(erlang)
 fn sync_subscriptions(
   desired: List(Subscription),
   current: Dict(String, SubEntry),
@@ -2239,6 +2298,7 @@ fn sync_subscriptions(
   })
 }
 
+@target(erlang)
 fn subscription_key_string(sub: Subscription) -> String {
   let key = subscription.key(sub)
   case key {
@@ -2248,6 +2308,7 @@ fn subscription_key_string(sub: Subscription) -> String {
   }
 }
 
+@target(erlang)
 fn start_subscription(
   sub: Subscription,
   bridge: Subject(BridgeMessage),
@@ -2272,6 +2333,7 @@ fn start_subscription(
   }
 }
 
+@target(erlang)
 fn stop_subscription(
   entry: SubEntry,
   bridge: Subject(BridgeMessage),
@@ -2299,6 +2361,7 @@ fn stop_subscription(
 @external(erlang, "plushie_ffi", "drain_timer_ticks")
 fn drain_matching_ticks(subject: Subject(RuntimeMessage), tag: String) -> Nil
 
+@target(erlang)
 /// Reschedule a timer subscription after it fires.
 /// Matches by the tag stored in the SubEntry (not string matching).
 fn reschedule_timer(
@@ -2321,6 +2384,7 @@ fn reschedule_timer(
 
 // -- Window detection and lifecycle ------------------------------------------
 
+@target(erlang)
 /// Detect window nodes in the tree. Only checks:
 /// 1. If the root node itself is a window
 /// 2. Direct children of the root that are windows
@@ -2338,6 +2402,7 @@ pub fn detect_windows(tree_node: Node) -> Set(String) {
   }
 }
 
+@target(erlang)
 /// Window prop keys tracked for lifecycle sync. When a window node
 /// has any of these props and they change, an update op is sent.
 const window_prop_keys = [
@@ -2346,6 +2411,7 @@ const window_prop_keys = [
   "decorations", "transparent", "blur", "level", "exit_on_close_request",
 ]
 
+@target(erlang)
 /// Synchronize window lifecycle: open new windows, close removed ones,
 /// and send update ops for windows whose tracked props changed.
 fn sync_windows(
@@ -2399,6 +2465,7 @@ fn sync_windows(
   Nil
 }
 
+@target(erlang)
 /// Extract the tracked window props from a window node found in the tree.
 pub fn extract_window_props(
   tree_node: Node,
@@ -2413,6 +2480,7 @@ pub fn extract_window_props(
   }
 }
 
+@target(erlang)
 /// Find a window node at root level or as a direct child.
 pub fn find_window_node(tree_node: Node, window_id: String) -> Option(Node) {
   case tree_node.kind, tree_node.id {

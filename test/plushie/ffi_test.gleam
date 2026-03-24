@@ -1,5 +1,4 @@
 import gleeunit/should
-import plushie/ffi
 import plushie/platform
 
 pub fn unique_id_generates_different_ids_test() {
@@ -19,12 +18,12 @@ pub fn try_call_catches_panic_test() {
 }
 
 pub fn file_exists_returns_false_for_missing_file_test() {
-  ffi.file_exists("/tmp/nonexistent_plushie_file_99999")
+  platform.file_exists("/tmp/nonexistent_plushie_file_99999")
   |> should.equal(False)
 }
 
 pub fn platform_string_returns_known_value_test() {
-  let platform = ffi.platform_string()
+  let platform = platform.platform_string()
   let is_known =
     platform == "linux"
     || platform == "darwin"
@@ -34,19 +33,19 @@ pub fn platform_string_returns_known_value_test() {
 }
 
 pub fn arch_string_returns_nonempty_test() {
-  let arch = ffi.arch_string()
+  let arch = platform.arch_string()
   should.not_equal(arch, "")
 }
 
 pub fn get_env_returns_error_for_unset_var_test() {
-  ffi.unset_env("PLUSHIE_TEST_NONEXISTENT_VAR_12345")
-  ffi.get_env("PLUSHIE_TEST_NONEXISTENT_VAR_12345")
+  platform.unset_env("PLUSHIE_TEST_NONEXISTENT_VAR_12345")
+  platform.get_env("PLUSHIE_TEST_NONEXISTENT_VAR_12345")
   |> should.be_error
 }
 
 pub fn set_and_get_env_round_trips_test() {
-  ffi.set_env("PLUSHIE_TEST_FFI_VAR", "hello")
-  ffi.get_env("PLUSHIE_TEST_FFI_VAR")
+  platform.set_env("PLUSHIE_TEST_FFI_VAR", "hello")
+  platform.get_env("PLUSHIE_TEST_FFI_VAR")
   |> should.equal(Ok("hello"))
-  ffi.unset_env("PLUSHIE_TEST_FFI_VAR")
+  platform.unset_env("PLUSHIE_TEST_FFI_VAR")
 }

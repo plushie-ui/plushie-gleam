@@ -23,8 +23,8 @@
 import gleam/option.{type Option}
 import plushie/app.{type App}
 import plushie/event.{type Event}
-import plushie/ffi
 import plushie/node.{type Node, type PropValue}
+import plushie/platform
 import plushie/testing/backend.{type TestBackend}
 import plushie/testing/backend/mock as mock_backend
 import plushie/testing/element.{type Element}
@@ -156,7 +156,7 @@ pub fn element_children(el: Element) -> List(Element) {
 /// Resolve the test backend from PLUSHIE_TEST_BACKEND env var.
 /// Always returns a backend that talks to the real binary.
 fn resolve_backend() -> TestBackend(model) {
-  case ffi.get_env("PLUSHIE_TEST_BACKEND") {
+  case platform.get_env("PLUSHIE_TEST_BACKEND") {
     Ok("headless") -> get_or_start_pooled(session_pool.Headless)
     // Default: mock (real binary in --mock mode, sessions pooled)
     _ -> get_or_start_pooled(session_pool.Mock)

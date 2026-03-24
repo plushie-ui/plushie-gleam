@@ -13,7 +13,7 @@
 
 import gleam/list
 import gleam/string
-import plushie/ffi
+import plushie/platform
 
 /// Error when the plushie binary cannot be found.
 pub type BinaryError {
@@ -25,9 +25,9 @@ pub type BinaryError {
 
 /// Find the plushie binary, searching in priority order.
 pub fn find() -> Result(String, BinaryError) {
-  case ffi.get_env("PLUSHIE_BINARY_PATH") {
+  case platform.get_env("PLUSHIE_BINARY_PATH") {
     Ok(path) -> {
-      case ffi.file_exists(path) {
+      case platform.file_exists(path) {
         True -> Ok(path)
         False -> Error(EnvVarPointsToMissing(path:))
       }
@@ -38,7 +38,7 @@ pub fn find() -> Result(String, BinaryError) {
 
 fn find_in_standard_paths() -> Result(String, BinaryError) {
   let paths = candidate_paths()
-  case list.find(paths, ffi.file_exists) {
+  case list.find(paths, platform.file_exists) {
     Ok(path) -> Ok(path)
     Error(_) -> Error(NotFound(searched: paths))
   }
@@ -79,8 +79,8 @@ pub fn download_dir() -> String {
 }
 
 fn candidate_paths() -> List(String) {
-  let platform = ffi.platform_string()
-  let arch = ffi.arch_string()
+  let platform = platform.platform_string()
+  let arch = platform.arch_string()
   let name = "plushie-renderer"
   let platform_name = name <> "-" <> platform <> "-" <> arch
   [

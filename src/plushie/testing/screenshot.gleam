@@ -10,7 +10,7 @@
 import gleam/bit_array
 import gleam/int
 import gleam/string
-import plushie/ffi
+import plushie/platform
 
 /// A screenshot capture.
 pub type Screenshot {
@@ -61,7 +61,8 @@ pub fn assert_screenshot(
     "" -> Nil
     current_hash -> {
       let golden_path = path <> "/" <> name <> ".sha256"
-      let update_mode = ffi.get_env("PLUSHIE_UPDATE_SCREENSHOTS") == Ok("1")
+      let update_mode =
+        platform.get_env("PLUSHIE_UPDATE_SCREENSHOTS") == Ok("1")
 
       case file_exists(golden_path), update_mode {
         True, False -> {
@@ -122,7 +123,7 @@ fn encode_png(width: Int, height: Int, rgba_data: BitArray) -> BitArray {
 
   // IDAT: filter byte 0 (none) prepended to each row, then zlib compressed
   let filtered = add_filter_bytes(rgba_data, width, height, 0, <<>>)
-  let compressed = ffi.zlib_compress(filtered)
+  let compressed = platform.zlib_compress(filtered)
   let idat = png_chunk(<<"IDAT":utf8>>, compressed)
 
   // IEND
@@ -153,7 +154,7 @@ fn add_filter_bytes(
 fn png_chunk(chunk_type: BitArray, data: BitArray) -> BitArray {
   let len = bit_array.byte_size(data)
   let crc_input = bit_array.concat([chunk_type, data])
-  let crc = ffi.crc32(crc_input)
+  let crc = platform.crc32(crc_input)
   <<len:32, chunk_type:bits, data:bits, crc:32>>
 }
 

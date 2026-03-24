@@ -21,7 +21,7 @@ import gleam/list
 import gleam/string
 import plushie/binary
 import plushie/config
-import plushie/ffi
+import plushie/platform
 
 const binary_version = "0.5.1"
 
@@ -60,8 +60,8 @@ pub fn main() -> Nil {
 // -- Native binary ------------------------------------------------------------
 
 fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
-  let platform = ffi.platform_string()
-  let arch = ffi.arch_string()
+  let platform = platform.platform_string()
+  let arch = platform.arch_string()
   let name = "plushie-renderer-" <> platform <> "-" <> arch
   let url = release_url(name)
   let dest_path = case bin_file_override {
@@ -70,7 +70,7 @@ fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
   }
   let dest_dir = dirname(dest_path)
 
-  case ffi.file_exists(dest_path) && !force {
+  case platform.file_exists(dest_path) && !force {
     True -> {
       io.println(
         "Binary already exists at "
@@ -118,7 +118,9 @@ fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
   let js_path = extract_dir <> "/plushie_renderer_wasm.js"
   let wasm_path = extract_dir <> "/plushie_renderer_wasm_bg.wasm"
 
-  case ffi.file_exists(js_path) && ffi.file_exists(wasm_path) && !force {
+  case
+    platform.file_exists(js_path) && platform.file_exists(wasm_path) && !force
+  {
     True -> {
       io.println(
         "WASM files already exist in "
@@ -219,7 +221,7 @@ fn verify_checksum(file_path: String, checksum_url: String) -> Nil {
         |> first_or("")
 
       let file_body = read_file(file_path)
-      let actual = ffi.sha256_hex(file_body)
+      let actual = platform.sha256_hex(file_body)
 
       case actual == expected {
         True -> io.println("Checksum verified.")

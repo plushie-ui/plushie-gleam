@@ -133,4 +133,3 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
     }
   }
 }
-

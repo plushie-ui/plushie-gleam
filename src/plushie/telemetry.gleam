@@ -1,8 +1,9 @@
-//// Thin wrapper over the Erlang `telemetry` library.
+//// Telemetry event emission.
 ////
-//// Provides a Gleam-friendly API for emitting telemetry events.
-//// Event names are lists of strings that get converted to atom
-//// lists for the underlying `:telemetry.execute/3` call.
+//// On BEAM, wraps the Erlang `telemetry` library -- event names
+//// are lists of strings converted to atom lists for the underlying
+//// `:telemetry.execute/3` call. On JavaScript, all functions are
+//// no-ops (events are silently discarded).
 ////
 //// ## Usage
 ////
@@ -37,10 +38,12 @@ pub fn execute(
 
 @external(erlang, "plushie_ffi", "telemetry_execute")
 fn do_execute(
-  event_name: List(String),
-  measurements: Dict(String, Dynamic),
-  metadata: Dict(String, Dynamic),
-) -> Nil
+  _event_name: List(String),
+  _measurements: Dict(String, Dynamic),
+  _metadata: Dict(String, Dynamic),
+) -> Nil {
+  Nil
+}
 
 /// Attach a handler for a telemetry event.
 ///
@@ -60,11 +63,14 @@ pub fn attach(
 
 @external(erlang, "plushie_ffi", "telemetry_attach")
 fn do_attach(
-  handler_id: String,
-  event_name: List(String),
-  handler: fn(List(String), Dict(String, Dynamic), Dict(String, Dynamic)) -> Nil,
-  config: Dynamic,
-) -> Result(Nil, Dynamic)
+  _handler_id: String,
+  _event_name: List(String),
+  _handler: fn(List(String), Dict(String, Dynamic), Dict(String, Dynamic)) ->
+    Nil,
+  _config: Dynamic,
+) -> Result(Nil, Dynamic) {
+  Ok(Nil)
+}
 
 /// Detach a previously attached handler by ID.
 pub fn detach(handler_id: String) -> Nil {
@@ -72,4 +78,6 @@ pub fn detach(handler_id: String) -> Nil {
 }
 
 @external(erlang, "plushie_ffi", "telemetry_detach")
-fn do_detach(handler_id: String) -> Nil
+fn do_detach(_handler_id: String) -> Nil {
+  Nil
+}

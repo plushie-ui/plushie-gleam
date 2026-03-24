@@ -38,22 +38,38 @@
 //// }
 //// ```
 
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/otp/static_supervisor as supervisor
+@target(erlang)
 import gleam/otp/supervision
+@target(erlang)
 import gleam/result
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/binary
+@target(erlang)
 import plushie/bridge
+@target(erlang)
 import plushie/dev_server
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/node
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/runtime
 
+@target(erlang)
 /// Transport mode for communicating with the renderer.
 ///
 /// - `Spawn` (default): spawns the renderer binary as a child process
@@ -69,6 +85,7 @@ pub type Transport {
   Iostream(adapter: Subject(bridge.IoStreamMessage))
 }
 
+@target(erlang)
 /// Options for starting a plushie application.
 pub type StartOpts {
   StartOpts(
@@ -96,6 +113,7 @@ pub type StartOpts {
   )
 }
 
+@target(erlang)
 /// Default start options.
 pub fn default_start_opts() -> StartOpts {
   StartOpts(
@@ -111,6 +129,7 @@ pub fn default_start_opts() -> StartOpts {
   )
 }
 
+@target(erlang)
 /// A running plushie application instance, parameterized over the
 /// application's model type.
 ///
@@ -121,12 +140,14 @@ pub opaque type Instance(model) {
   Instance(supervisor: Pid, runtime: Subject(runtime.RuntimeMessage))
 }
 
+@target(erlang)
 /// Get the supervisor pid from a running instance.
 /// Useful for linking, monitoring, or integration with other OTP code.
 pub fn supervisor_pid(instance: Instance(_)) -> Pid {
   instance.supervisor
 }
 
+@target(erlang)
 /// Errors that can occur when starting a plushie application.
 pub type StartError {
   /// The plushie binary could not be found.
@@ -135,6 +156,7 @@ pub type StartError {
   SupervisorStartFailed(actor.StartError)
 }
 
+@target(erlang)
 /// Format a start error as a human-readable string.
 pub fn start_error_to_string(err: StartError) -> String {
   case err {
@@ -149,6 +171,7 @@ pub fn start_error_to_string(err: StartError) -> String {
   }
 }
 
+@target(erlang)
 /// Start a plushie application under an OTP supervisor.
 ///
 /// Creates a RestForOne supervisor with Bridge and Runtime as children.
@@ -248,6 +271,7 @@ pub fn start(
   }
 }
 
+@target(erlang)
 /// Stop a running plushie application.
 ///
 /// Sends a shutdown exit to the supervisor, which terminates all
@@ -259,13 +283,16 @@ pub fn stop(instance: Instance(_)) -> Nil {
   Nil
 }
 
+@target(erlang)
 @external(erlang, "plushie_ffi", "shutdown_pid")
 fn shutdown_pid(pid: Pid) -> Nil
 
+@target(erlang)
 /// Narrow identity for the Dynamic -> model boundary in get_model.
 @external(erlang, "plushie_ffi", "identity")
 fn from_dynamic(value: Dynamic) -> a
 
+@target(erlang)
 /// Query the current model from a running application.
 ///
 /// Returns the model with full type safety -- the type parameter
@@ -283,6 +310,7 @@ pub fn get_model(instance: Instance(model)) -> Result(model, Nil) {
   }
 }
 
+@target(erlang)
 /// Query the current normalized tree from a running application.
 ///
 /// Returns `None` if the runtime hasn't rendered yet (shouldn't
@@ -294,6 +322,7 @@ pub fn get_tree(instance: Instance(_)) -> Result(Option(node.Node), Nil) {
   process.receive(reply, 5000)
 }
 
+@target(erlang)
 /// Dispatch an event directly to the runtime's message loop.
 ///
 /// Bypasses the bridge/renderer -- the event is processed through
@@ -306,6 +335,7 @@ pub fn dispatch_event(instance: Instance(_), event: Event) -> Nil {
   process.send(instance.runtime, runtime.InternalEvent(event))
 }
 
+@target(erlang)
 /// Register an effect stub with the renderer.
 ///
 /// When the renderer receives an effect request of this kind, it
@@ -329,6 +359,7 @@ pub fn register_effect_stub(
   process.receive(reply, 5000)
 }
 
+@target(erlang)
 /// Remove a previously registered effect stub.
 ///
 /// Blocks until the renderer confirms the stub is removed.
@@ -344,6 +375,7 @@ pub fn unregister_effect_stub(
   process.receive(reply, 5000)
 }
 
+@target(erlang)
 /// Query and clear accumulated prop validation warnings.
 ///
 /// Returns a list of (node_id, node_type, warnings) tuples for
@@ -357,6 +389,7 @@ pub fn get_prop_warnings(
   process.receive(reply, 5000)
 }
 
+@target(erlang)
 /// Block the caller until the plushie application exits.
 ///
 /// Monitors the supervisor process and returns when it stops.

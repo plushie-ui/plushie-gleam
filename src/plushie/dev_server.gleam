@@ -12,7 +12,6 @@ import gleam/dynamic.{type Dynamic}
 import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleam/string
-import plushie/ffi
 import plushie/platform
 import plushie/runtime
 
@@ -77,11 +76,11 @@ fn start_actor(
   runtime: Subject(runtime.RuntimeMessage),
 ) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
   // Snapshot initial BEAM mtimes
-  let initial_mtimes = ffi.list_beam_files(build_dir)
+  let initial_mtimes = list_beam_files(build_dir)
 
   // Start file watcher
-  let watcher = ffi.start_file_watcher(default_watch_dirs)
-  ffi.file_watcher_subscribe(watcher)
+  let watcher = start_file_watcher(default_watch_dirs)
+  file_watcher_subscribe(watcher)
 
   actor.new_with_initialiser(5000, fn(self: Subject(DevMessage)) {
     let initial_state =
@@ -142,7 +141,7 @@ fn handle_message(
       let state = DevState(..state, debounce_pending: False)
 
       platform.log_info("plushie dev: recompiling...")
-      let output = ffi.gleam_build()
+      let output = gleam_build()
 
       case string.contains(output, "error") {
         True -> {
@@ -151,7 +150,7 @@ fn handle_message(
         }
         False -> {
           // Detect changed modules by comparing mtimes
-          let new_mtimes = ffi.list_beam_files(build_dir)
+          let new_mtimes = list_beam_files(build_dir)
           let changed = find_changed_modules(state.last_mtimes, new_mtimes)
 
           case changed {
@@ -160,7 +159,7 @@ fn handle_message(
               actor.continue(DevState(..state, last_mtimes: new_mtimes))
             }
             modules -> {
-              ffi.reload_modules(modules)
+              reload_modules(modules)
               process.send(state.runtime, runtime.ForceRerender)
               platform.log_info("plushie dev: reload complete")
               actor.continue(DevState(..state, last_mtimes: new_mtimes))
@@ -200,3 +199,23 @@ fn find_changed_modules(
   old: List(#(Dynamic, Dynamic)),
   new: List(#(Dynamic, Dynamic)),
 ) -> List(Dynamic)
+
+/// Run `gleam build` and return the output.
+@external(erlang, "plushie_ffi", "gleam_build")
+fn gleam_build() -> String
+
+/// Reload a list of module atoms (purge + load_file).
+@external(erlang, "plushie_ffi", "reload_modules")
+fn reload_modules(modules: List(Dynamic)) -> Nil
+
+/// List .beam files in a directory, returning (module_atom, mtime) tuples.
+@external(erlang, "plushie_ffi", "list_beam_files")
+fn list_beam_files(dir: String) -> List(#(Dynamic, Dynamic))
+
+/// Start a file_system watcher on the given directories.
+@external(erlang, "plushie_ffi", "start_file_watcher")
+fn start_file_watcher(dirs: List(String)) -> Dynamic
+
+/// Subscribe the calling process to file events from the watcher.
+@external(erlang, "plushie_ffi", "file_watcher_subscribe")
+fn file_watcher_subscribe(pid: Dynamic) -> Nil
