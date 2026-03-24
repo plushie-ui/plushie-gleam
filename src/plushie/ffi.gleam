@@ -44,6 +44,7 @@ pub fn json_port_options() -> Dynamic
 @external(erlang, "plushie_ffi", "extract_port_data")
 pub fn extract_port_data(msg: Dynamic) -> Result(Dynamic, Dynamic)
 
+@target(erlang)
 /// Line data from {line, N} port mode: complete line or partial chunk.
 pub type LineData {
   Eol(data: BitArray)

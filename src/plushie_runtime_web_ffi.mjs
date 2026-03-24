@@ -90,6 +90,10 @@ export function getSession(handle) {
   return handle.session;
 }
 
+export function getTransport(handle) {
+  return handle.transport;
+}
+
 // -- Subscriptions -----------------------------------------------------------
 
 export function getActiveSubs(handle) {
@@ -108,16 +112,6 @@ export function getWindows(handle) {
 
 export function setWindows(handle, windows) {
   handle.gleamWindows = windows;
-}
-
-// -- Transport ---------------------------------------------------------------
-
-export function sendToTransport(handle, data) {
-  if (handle.stopped || !handle.transport) return;
-  // Convert BitArray to string for WASM transport (JSON only)
-  const decoder = new TextDecoder();
-  const json = decoder.decode(data.buffer);
-  handle.transport.app?.send_message(json);
 }
 
 // -- Stop --------------------------------------------------------------------
@@ -154,7 +148,7 @@ export function setCoalesce(handle, key, event) {
   handle.pendingCoalesce.set(key, event);
 }
 
-export function scheduleCoalesceFlush(handle, _app) {
+export function scheduleCoalesceFlush(handle) {
   if (handle.coalescePending) return;
   handle.coalescePending = true;
   queueMicrotask(() => {
@@ -173,7 +167,7 @@ export function scheduleCoalesceFlush(handle, _app) {
 // flushCoalesced is called synchronously from the Gleam side when
 // a non-coalescable event arrives. It drains and dispatches pending
 // coalesced events immediately, bypassing coalesce checks.
-export function flushCoalesced(handle, _app) {
+export function flushCoalesced(handle) {
   handle.coalescePending = false;
   const events = [...handle.pendingCoalesce.values()];
   handle.pendingCoalesce.clear();
@@ -216,7 +210,7 @@ export function clearTimerSub(handle, key) {
 
 // -- SendAfter ---------------------------------------------------------------
 
-export function setSendAfter(handle, _app, key, delayMs, msg) {
+export function setSendAfter(handle, key, delayMs, callback) {
   // Cancel existing timer for same key
   const existing = handle.sendAfterTimers.get(key);
   if (existing !== undefined) {
@@ -226,8 +220,9 @@ export function setSendAfter(handle, _app, key, delayMs, msg) {
   const id = setTimeout(() => {
     if (handle.stopped) return;
     handle.sendAfterTimers.delete(key);
-    // msg is already a Gleam Event -- dispatch it directly
-    handle.dispatch?.(msg);
+    // callback is a Gleam closure that dispatches the msg
+    // directly to dispatch_update (already typed as msg)
+    callback();
   }, delayMs);
 
   handle.sendAfterTimers.set(key, id);

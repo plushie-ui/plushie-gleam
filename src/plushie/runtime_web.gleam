@@ -11,12 +11,6 @@
 ////
 //// ## Limitations
 ////
-//// Currently only supports `app.simple()` apps where `msg = Event`.
-//// Apps created with `app.application()` (custom message types via
-//// `on_event`) are not yet supported -- the `msg` type parameter is
-//// hardcoded to `Event`. This will be addressed when the JS->Gleam
-//// callback bridge is implemented.
-////
 //// Not all command variants are handled yet. Core commands (None,
 //// Batch, Done, SendAfter, Async, Stream, Cancel, Exit) and common
 //// widget ops (Focus, ScrollTo, SelectAll) work. Remaining variants
@@ -40,6 +34,8 @@ import gleam/bit_array
 import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
+@target(javascript)
+import gleam/dynamic/decode as dyn_decode
 @target(javascript)
 import gleam/int
 @target(javascript)
@@ -67,6 +63,8 @@ import plushie/protocol/decode
 @target(javascript)
 import plushie/protocol/encode
 @target(javascript)
+import plushie/runtime
+@target(javascript)
 import plushie/subscription.{type Subscription}
 @target(javascript)
 import plushie/tree
@@ -85,8 +83,9 @@ pub opaque type WebRuntime(model) {
 }
 
 @target(javascript)
-/// Opaque JS-side mutable state container.
-pub type WebRuntimeHandle
+/// Mutable JS-side state container. Private to this module --
+/// external code interacts through the opaque `WebRuntime(model)`.
+type WebRuntimeHandle
 
 // -- Lifecycle ---------------------------------------------------------------
 
@@ -99,7 +98,7 @@ pub type WebRuntimeHandle
 ///
 /// The `app_opts` value is passed to the app's `init` function.
 pub fn start(
-  app: App(model, Event),
+  app: App(model, msg),
   transport: WebTransport,
   session: String,
   app_opts: Dynamic,
@@ -123,7 +122,10 @@ pub fn start(
   // - dispatch_direct: goes straight to dispatch_update (for
   //   flushed coalesced events that must not be re-coalesced)
   let dispatch = fn(event) { handle_event(handle, app, event) }
-  let dispatch_direct = fn(event) { dispatch_update(handle, app, event) }
+  let dispatch_direct = fn(event) {
+    let msg = map_event(app, event)
+    dispatch_update(handle, app, msg)
+  }
   register_dispatch(handle, dispatch, dispatch_direct)
   register_timer_callback(handle, fn(tag) {
     dispatch(event.TimerTick(tag:, timestamp: platform.monotonic_time_ms()))
@@ -189,9 +191,12 @@ pub fn dispatch_event(runtime: WebRuntime(model), event: Event) -> Nil {
 }
 
 @target(javascript)
-/// Stop the runtime, clearing all timers and async tasks.
+/// Stop the runtime, clearing all timers, async tasks, and
+/// closing the WASM transport to release the renderer.
 pub fn stop(runtime: WebRuntime(model)) -> Nil {
+  let transport = do_get_transport(runtime.handle)
   do_stop(runtime.handle)
+  bridge_web.close(transport)
 }
 
 // -- Core update cycle -------------------------------------------------------
@@ -200,13 +205,13 @@ pub fn stop(runtime: WebRuntime(model)) -> Nil {
 /// Run one update cycle: update model, execute commands, re-render.
 fn dispatch_update(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
-  event: Event,
+  app: App(model, msg),
+  msg: msg,
 ) -> Nil {
   let update_fn = app.get_update(app)
   let model = do_get_model(handle)
 
-  case platform.try_call(fn() { update_fn(model, event) }) {
+  case platform.try_call(fn() { update_fn(model, msg) }) {
     Ok(#(new_model, commands)) -> {
       do_set_model(handle, new_model)
       execute_commands(handle, app, commands)
@@ -225,7 +230,7 @@ fn dispatch_update(
 /// Render the view, diff against previous tree, send patch or snapshot.
 fn render_and_sync(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
+  app: App(model, msg),
   force_snapshot: Bool,
 ) -> Nil {
   let view_fn = app.get_view(app)
@@ -255,9 +260,11 @@ fn render_and_sync(
         }
       }
 
-      do_set_tree(handle, Some(new_tree))
+      // Sync subscriptions and windows BEFORE updating the stored
+      // tree, so sync_windows can compare old vs new props.
       sync_subscriptions(handle, app)
-      sync_windows(handle, new_tree, session)
+      sync_windows(handle, app, new_tree, session)
+      do_set_tree(handle, Some(new_tree))
     }
     Error(reason) -> {
       platform.log_warning("plushie: view error: " <> dynamic.classify(reason))
@@ -270,30 +277,58 @@ fn render_and_sync(
 
 @target(javascript)
 /// Handle an incoming event, with coalescing for high-frequency events.
+///
+/// Events arrive as `Event` (the wire type) and are mapped to the app's
+/// `msg` type via `map_event` before dispatch. For `simple()` apps where
+/// `msg = Event`, `map_event` is an identity coercion. For `application()`
+/// apps, the `on_event` callback performs the mapping.
 fn handle_event(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
+  app: App(model, msg),
   event: Event,
 ) -> Nil {
   case coalesce_key(event) {
     Some(key) -> {
       do_set_coalesce(handle, key, event)
-      schedule_coalesce_flush(handle, app)
+      schedule_coalesce_flush(handle)
     }
     None -> {
       // Non-coalescable: flush pending first, then dispatch
-      flush_coalesced(handle, app)
-      dispatch_update(handle, app, event)
+      flush_coalesced(handle)
+      let msg = map_event(app, event)
+      dispatch_update(handle, app, msg)
     }
   }
 }
 
 @target(javascript)
+/// Map a wire Event to the app's msg type.
+///
+/// For `simple()` apps (on_event=None), msg is Event and we coerce
+/// directly. For `application()` apps, the on_event callback maps
+/// Event -> msg.
+fn map_event(app: App(model, msg), event: Event) -> msg {
+  case app.get_on_event(app) {
+    Some(mapper) -> mapper(event)
+    None -> coerce_event(event)
+  }
+}
+
+@target(javascript)
+/// Identity coercion for simple() apps where msg = Event.
+///
+/// This is safe because the only code path that reaches here is
+/// when on_event is None, which only happens via simple() where
+/// the type parameter msg is instantiated to Event.
+@external(javascript, "../plushie_platform_ffi.mjs", "identity")
+fn coerce_event(event: Event) -> msg
+
+@target(javascript)
 /// Determine the coalesce key for an event, if coalescable.
 fn coalesce_key(event: Event) -> Option(String) {
   case event {
-    event.MouseMoved(..) -> Some("mouse:moved")
-    event.SensorResize(id:, ..) -> Some("sensor:" <> id)
+    event.MouseMoved(..) -> Some("mouse_moved")
+    event.SensorResize(id:, ..) -> Some("sensor_resize:" <> id)
     _ -> None
   }
 }
@@ -301,7 +336,7 @@ fn coalesce_key(event: Event) -> Option(String) {
 // -- Subscription lifecycle --------------------------------------------------
 
 @target(javascript)
-fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, Event)) -> Nil {
+fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
   let subscribe_fn = app.get_subscribe(app)
   let model = do_get_model(handle)
   let session = do_get_session(handle)
@@ -330,6 +365,33 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, Event)) -> Nil {
     case dict.has_key(active_map, key) {
       True -> Nil
       False -> start_subscription(handle, key, sub, session)
+    }
+  })
+
+  // Update max_rate on surviving renderer subscriptions
+  dict.each(desired_map, fn(key, new_sub) {
+    case dict.get(active_map, key) {
+      Ok(old_sub) ->
+        case new_sub, old_sub {
+          subscription.Every(..), _ -> Nil
+          _, subscription.Every(..) -> Nil
+          _, _ ->
+            case
+              subscription.get_max_rate(new_sub)
+              != subscription.get_max_rate(old_sub)
+            {
+              True -> {
+                let kind = subscription.wire_kind(new_sub)
+                let stag = subscription.tag(new_sub)
+                let max_rate = subscription.get_max_rate(new_sub)
+                let assert Ok(bytes) =
+                  encode.encode_subscribe(kind, stag, max_rate, session, Json)
+                do_send(handle, bytes)
+              }
+              False -> Nil
+            }
+        }
+      Error(_) -> Nil
     }
   })
 
@@ -396,35 +458,59 @@ fn stop_subscription(
 @target(javascript)
 fn sync_windows(
   handle: WebRuntimeHandle,
+  app: App(model, msg),
   new_tree: Node,
   session: String,
 ) -> Nil {
   let old_windows = do_get_windows(handle)
   let new_windows = detect_windows(new_tree)
+  let model = do_get_model(handle)
 
-  // Open new windows
-  set.each(new_windows, fn(id) {
-    case set.contains(old_windows, id) {
-      True -> Nil
-      False -> {
-        let assert Ok(bytes) =
-          encode.encode_window_op("open", id, dict.new(), session, Json)
-        do_send(handle, bytes)
-      }
-    }
+  // Open new windows (merge base window_config with per-window props)
+  let opened = set.difference(new_windows, old_windows)
+  set.each(opened, fn(window_id) {
+    let base_config = app.get_window_config(app)(model)
+    let per_window = runtime.extract_window_props(new_tree, window_id)
+    let merged = dict.merge(base_config, per_window)
+    let assert Ok(bytes) =
+      encode.encode_window_op("open", window_id, merged, session, Json)
+    do_send(handle, bytes)
   })
 
   // Close removed windows
-  set.each(old_windows, fn(id) {
-    case set.contains(new_windows, id) {
-      True -> Nil
-      False -> {
-        let assert Ok(bytes) =
-          encode.encode_window_op("close", id, dict.new(), session, Json)
-        do_send(handle, bytes)
-      }
-    }
+  let closed = set.difference(old_windows, new_windows)
+  set.each(closed, fn(window_id) {
+    let assert Ok(bytes) =
+      encode.encode_window_op("close", window_id, dict.new(), session, Json)
+    do_send(handle, bytes)
   })
+
+  // Update surviving windows whose tracked props changed
+  let old_tree = do_get_tree(handle)
+  case old_tree {
+    Some(old) -> {
+      let surviving = set.intersection(old_windows, new_windows)
+      set.each(surviving, fn(window_id) {
+        let old_props = runtime.extract_window_props(old, window_id)
+        let new_props = runtime.extract_window_props(new_tree, window_id)
+        case old_props == new_props {
+          True -> Nil
+          False -> {
+            let assert Ok(bytes) =
+              encode.encode_window_op(
+                "update",
+                window_id,
+                new_props,
+                session,
+                Json,
+              )
+            do_send(handle, bytes)
+          }
+        }
+      })
+    }
+    None -> Nil
+  }
 
   do_set_windows(handle, new_windows)
 }
@@ -447,8 +533,8 @@ fn detect_windows(tree_node: Node) -> Set(String) {
 @target(javascript)
 fn execute_commands(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
-  cmd: Command(Event),
+  app: App(model, msg),
+  cmd: Command(msg),
 ) -> Nil {
   let session = do_get_session(handle)
   case cmd {
@@ -467,7 +553,12 @@ fn execute_commands(
 
     command.SendAfter(delay_ms:, msg:) -> {
       let key = platform.stable_hash_key(dynamic.from(msg))
-      set_send_after(handle, app, key, delay_ms, msg)
+      // SendAfter msg is already the app's msg type -- dispatch
+      // directly to dispatch_update, not through handle_event
+      // (which expects Event for coalesce checking).
+      set_send_after(handle, key, delay_ms, fn() {
+        dispatch_update(handle, app, msg)
+      })
     }
 
     command.Async(work:, tag:) -> {
@@ -482,45 +573,46 @@ fn execute_commands(
       cancel_async(handle, tag)
     }
 
-    command.Focus(id:) ->
+    command.Focus(widget_id:) ->
       send_widget_op(
         handle,
         "focus",
-        dict.from_list([#("id", node.StringVal(id))]),
+        dict.from_list([#("target", node.StringVal(widget_id))]),
         session,
       )
     command.FocusNext ->
       send_widget_op(handle, "focus_next", dict.new(), session)
     command.FocusPrevious ->
       send_widget_op(handle, "focus_previous", dict.new(), session)
-    command.SelectAll(id:) ->
+    command.SelectAll(widget_id:) ->
       send_widget_op(
         handle,
         "select_all",
-        dict.from_list([#("id", node.StringVal(id))]),
+        dict.from_list([#("target", node.StringVal(widget_id))]),
         session,
       )
-    command.ScrollTo(id:, x:, y:) ->
+    command.ScrollTo(widget_id:, offset:) ->
       send_widget_op(
         handle,
         "scroll_to",
         dict.from_list([
-          #("id", node.StringVal(id)),
-          #("x", node.FloatVal(x)),
-          #("y", node.FloatVal(y)),
+          #("target", node.StringVal(widget_id)),
+          #("offset_y", dynamic_to_prop_value(offset)),
         ]),
         session,
       )
 
-    command.CloseWindow(id:) -> {
-      let assert Ok(bytes) =
-        encode.encode_window_op("close", id, dict.new(), session, Json)
-      do_send(handle, bytes)
-    }
+    command.CloseWindow(window_id:) ->
+      send_widget_op(
+        handle,
+        "close_window",
+        dict.from_list([#("window_id", node.StringVal(window_id))]),
+        session,
+      )
 
-    command.Effect(request_id:, kind:, payload:) -> {
+    command.Effect(id:, kind:, payload:) -> {
       let assert Ok(bytes) =
-        encode.encode_effect(request_id, kind, payload, session, Json)
+        encode.encode_effect(id, kind, payload, session, Json)
       do_send(handle, bytes)
     }
 
@@ -536,6 +628,23 @@ fn execute_commands(
       platform.log_warning("plushie web: unhandled command variant, skipping")
       Nil
     }
+  }
+}
+
+@target(javascript)
+/// Convert a Dynamic value to a PropValue for wire encoding.
+fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
+  case dyn_decode.run(d, dyn_decode.string) {
+    Ok(s) -> node.StringVal(s)
+    Error(_) ->
+      case dyn_decode.run(d, dyn_decode.int) {
+        Ok(n) -> node.IntVal(n)
+        Error(_) ->
+          case dyn_decode.run(d, dyn_decode.float) {
+            Ok(f) -> node.FloatVal(f)
+            Error(_) -> node.StringVal(dynamic.classify(d))
+          }
+      }
   }
 }
 
@@ -598,42 +707,49 @@ fn register_stream_callback(
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "createHandle")
 fn create_handle(
   model: model,
-  app: App(model, Event),
+  app: App(model, msg),
   transport: WebTransport,
   session: String,
   empty_subs: Dict(String, Subscription),
   empty_windows: Set(String),
 ) -> WebRuntimeHandle
 
+// The following accessors have free type variables (model, msg)
+// because WebRuntimeHandle is an unparameterized opaque JS object.
+// Type safety is maintained by construction: only `start` creates
+// handles, and it stores properly typed values. These accessors
+// are private to this module and only called in contexts where the
+// types are already constrained by the enclosing function signature.
+
 @target(javascript)
-/// Get the current model from the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getModel")
 fn do_get_model(handle: WebRuntimeHandle) -> model
 
 @target(javascript)
-/// Set the model on the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setModel")
 fn do_set_model(handle: WebRuntimeHandle, model: model) -> Nil
 
 @target(javascript)
-/// Get the current tree from the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getTree")
 fn do_get_tree(handle: WebRuntimeHandle) -> Option(Node)
 
 @target(javascript)
-/// Set the tree on the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setTree")
 fn do_set_tree(handle: WebRuntimeHandle, tree: Option(Node)) -> Nil
 
 @target(javascript)
-/// Get the app reference from the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getApp")
-fn do_get_app(handle: WebRuntimeHandle) -> App(model, Event)
+fn do_get_app(handle: WebRuntimeHandle) -> App(model, msg)
 
 @target(javascript)
 /// Get the session ID from the handle.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getSession")
 fn do_get_session(handle: WebRuntimeHandle) -> String
+
+@target(javascript)
+/// Get the transport from the handle (for closing on stop).
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "getTransport")
+fn do_get_transport(handle: WebRuntimeHandle) -> WebTransport
 
 @target(javascript)
 /// Get the active subscriptions dict.
@@ -660,8 +776,21 @@ fn do_set_windows(handle: WebRuntimeHandle, windows: Set(String)) -> Nil
 
 @target(javascript)
 /// Send serialized wire bytes to the transport.
-@external(javascript, "../plushie_runtime_web_ffi.mjs", "sendToTransport")
-fn do_send(handle: WebRuntimeHandle, data: BitArray) -> Nil
+///
+/// Converts the BitArray (JSON with trailing newline) to a String
+/// and sends via the bridge_web abstraction.
+fn do_send(handle: WebRuntimeHandle, data: BitArray) -> Nil {
+  let transport = do_get_transport(handle)
+  case bit_array.to_string(data) {
+    Ok(json) -> bridge_web.send(transport, json)
+    Error(_) -> {
+      platform.log_warning(
+        "plushie web: failed to convert wire bytes to string",
+      )
+      Nil
+    }
+  }
+}
 
 @target(javascript)
 /// Stop the runtime: clear all timers, cancel async tasks, close transport.
@@ -676,15 +805,12 @@ fn do_set_coalesce(handle: WebRuntimeHandle, key: String, event: Event) -> Nil
 @target(javascript)
 /// Schedule a microtask to flush coalesced events.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "scheduleCoalesceFlush")
-fn schedule_coalesce_flush(
-  handle: WebRuntimeHandle,
-  app: App(model, Event),
-) -> Nil
+fn schedule_coalesce_flush(handle: WebRuntimeHandle) -> Nil
 
 @target(javascript)
 /// Flush all pending coalesced events.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "flushCoalesced")
-fn flush_coalesced(handle: WebRuntimeHandle, app: App(model, Event)) -> Nil
+fn flush_coalesced(handle: WebRuntimeHandle) -> Nil
 
 @target(javascript)
 /// Defer a function call to the next microtask.
@@ -696,7 +822,7 @@ fn defer(f: fn() -> Nil) -> Nil
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startTimerSub")
 fn start_timer_sub(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
+  app: App(model, msg),
   key: String,
   interval_ms: Int,
   tag: String,
@@ -708,14 +834,14 @@ fn start_timer_sub(
 fn clear_timer_sub(handle: WebRuntimeHandle, key: String) -> Nil
 
 @target(javascript)
-/// Schedule a SendAfter callback.
+/// Schedule a SendAfter callback. The callback is a closure that
+/// dispatches the msg directly to dispatch_update.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setSendAfter")
 fn set_send_after(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
   key: String,
   delay_ms: Int,
-  msg: Event,
+  callback: fn() -> Nil,
 ) -> Nil
 
 @target(javascript)
@@ -723,7 +849,7 @@ fn set_send_after(
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startAsync")
 fn start_async(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
+  app: App(model, msg),
   tag: String,
   work: fn() -> Dynamic,
 ) -> Nil
@@ -733,7 +859,7 @@ fn start_async(
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startStream")
 fn start_stream(
   handle: WebRuntimeHandle,
-  app: App(model, Event),
+  app: App(model, msg),
   tag: String,
   work: fn(fn(Dynamic) -> Nil) -> Nil,
 ) -> Nil

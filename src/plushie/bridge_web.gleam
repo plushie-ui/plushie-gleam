@@ -20,6 +20,7 @@
 //// bridge_web.close(transport)
 //// ```
 
+@target(javascript)
 /// Opaque handle to a WASM transport instance.
 ///
 /// Wraps the JavaScript PlushieApp object. Created by `create`,

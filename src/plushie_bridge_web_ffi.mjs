@@ -26,9 +26,10 @@ export function setPlushieAppConstructor(ctor) {
 /**
  * Create a WebTransport by instantiating PlushieApp.
  *
- * The on_event callback is stored mutably on the transport object
- * so it can be replaced later via setOnEvent (needed because the
- * runtime doesn't exist yet when the transport is created).
+ * Events received before setOnEvent is called are buffered and
+ * flushed when setOnEvent wires the real handler. This prevents
+ * event loss during the startup window between transport creation
+ * and runtime initialization.
  */
 export function create(settingsJson, onEvent) {
   if (!PlushieAppCtor) {
@@ -38,11 +39,20 @@ export function create(settingsJson, onEvent) {
     );
   }
   try {
-    // The transport holds a mutable event handler. The PlushieApp
-    // callback forwards to it, allowing setOnEvent to rewire.
-    const transport = { app: null, onEvent };
+    const transport = {
+      app: null,
+      onEvent,
+      // Buffer for events received before setOnEvent is called.
+      // Flushed on first setOnEvent call, then set to null.
+      eventBuffer: [],
+    };
     const app = new PlushieAppCtor(settingsJson, (eventJson) => {
-      transport.onEvent(eventJson);
+      if (transport.eventBuffer !== null) {
+        // Still in startup -- buffer the event
+        transport.eventBuffer.push(eventJson);
+      } else {
+        transport.onEvent(eventJson);
+      }
     });
     transport.app = app;
     return new Ok(transport);
@@ -52,10 +62,21 @@ export function create(settingsJson, onEvent) {
 }
 
 /**
- * Replace the event callback on an existing transport.
+ * Replace the event callback and flush any buffered events.
+ *
+ * Called after the runtime is initialized. Any events that arrived
+ * between create() and this call are replayed in order.
  */
 export function setOnEvent(transport, onEvent) {
   transport.onEvent = onEvent;
+  // Flush buffered events from the startup window
+  if (transport.eventBuffer !== null) {
+    const buffered = transport.eventBuffer;
+    transport.eventBuffer = null;
+    for (const eventJson of buffered) {
+      onEvent(eventJson);
+    }
+  }
 }
 
 /**
@@ -71,5 +92,8 @@ export function send(transport, json) {
  * Close the transport, releasing the WASM renderer.
  */
 export function close(transport) {
+  // Call wasm-bindgen's free() if available to release WASM memory.
+  transport.app?.free?.();
   transport.app = null;
+  transport.eventBuffer = null;
 }

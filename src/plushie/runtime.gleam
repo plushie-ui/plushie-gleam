@@ -2402,7 +2402,6 @@ pub fn detect_windows(tree_node: Node) -> Set(String) {
   }
 }
 
-@target(erlang)
 /// Window prop keys tracked for lifecycle sync. When a window node
 /// has any of these props and they change, an update op is sent.
 const window_prop_keys = [
@@ -2465,7 +2464,6 @@ fn sync_windows(
   Nil
 }
 
-@target(erlang)
 /// Extract the tracked window props from a window node found in the tree.
 pub fn extract_window_props(
   tree_node: Node,
@@ -2480,7 +2478,6 @@ pub fn extract_window_props(
   }
 }
 
-@target(erlang)
 /// Find a window node at root level or as a direct child.
 pub fn find_window_node(tree_node: Node, window_id: String) -> Option(Node) {
   case tree_node.kind, tree_node.id {

@@ -52,6 +52,14 @@ export function tryCall(f) {
   }
 }
 
+// Identity function -- returns the value unchanged. Used for narrow
+// type boundary crossings where the type system can't prove equality
+// (e.g., simple() apps where msg = Event but Gleam doesn't have
+// type equality witnesses).
+export function identity(value) {
+  return value;
+}
+
 // Returns a deterministic string key for deduplication purposes.
 // On BEAM this is erlang:phash2 which produces a 32-bit integer hash.
 // The JS version uses JSON.stringify -- sufficient for the dedup use

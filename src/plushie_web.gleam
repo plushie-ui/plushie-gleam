@@ -4,10 +4,10 @@
 //// OTP supervisors). It provides the user-facing API for starting
 //// and controlling a plushie app in the browser via the WASM renderer.
 ////
-//// ## Limitations
+//// ## Supported app types
 ////
-//// Currently only supports `app.simple()` apps where `msg = Event`.
-//// See `runtime_web.gleam` module documentation for details.
+//// Both `app.simple()` (msg = Event) and `app.application()`
+//// (custom msg type via `on_event`) are supported.
 ////
 //// ## Quick start (browser)
 ////
@@ -117,10 +117,8 @@ pub fn start_error_to_string(err: WebStartError) -> String {
 /// The WASM module must be loaded and registered via
 /// `setPlushieAppConstructor()` (from `plushie_bridge_web_ffi.mjs`)
 /// before calling this function.
-///
-/// Only supports `app.simple()` apps (where msg = Event).
 pub fn start(
-  app: App(model, Event),
+  app: App(model, msg),
   opts: WebStartOpts,
 ) -> Result(WebInstance(model), WebStartError) {
   // Serialize settings using the same encoder as the BEAM runtime
@@ -153,7 +151,7 @@ pub fn start(
 /// Query the current model from a running web application.
 ///
 /// Returns the model with full type safety -- the type parameter
-/// flows from the `App(model, Event)` passed to `start`.
+/// flows from the `App(model, msg)` passed to `start`.
 pub fn get_model(instance: WebInstance(model)) -> model {
   runtime_web.get_model(instance.runtime)
 }
