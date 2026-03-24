@@ -60,6 +60,10 @@ pub type RuntimeMessage {
   ForceRerender
   /// Shutdown.
   Shutdown
+  /// Query the current model (replies with dynamic model value).
+  GetModel(reply: Subject(Dynamic))
+  /// Query the current tree (replies with the latest normalized tree).
+  GetTree(reply: Subject(Option(Node)))
 }
 
 /// Start options for the runtime.
@@ -330,16 +334,16 @@ fn run(
   // Execute init commands (threads full state for PID tracking)
   let state = execute_commands(init_cmds, state)
 
-  // Sync subscriptions
+  // Sync subscriptions (timers, renderer event sources)
   let state =
     LoopState(
       ..state,
       active_subs: sync_subscriptions(
-        safe_subscribe(app, state.model),
+        safe_subscribe(state.app, state.model),
         state.active_subs,
-        bridge,
-        self,
-        opts,
+        state.bridge,
+        state.self,
+        state.opts,
       ),
     )
 
@@ -406,7 +410,6 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
     FromBridge(InboundEvent(Hello(protocol: proto, ..))) -> {
       case proto == protocol.protocol_version {
         True -> {
-          // Reset restart count on successful handshake
           let state = LoopState(..state, restart_count: 0)
           message_loop(state)
         }
@@ -418,7 +421,6 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             <> int.to_string(proto)
             <> ") -- stopping runtime",
           )
-          // Stop the runtime loop on protocol mismatch
           Nil
         }
       }
@@ -894,11 +896,27 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       process.send(state.bridge, bridge.Shutdown)
       Nil
     }
+
+    GetModel(reply:) -> {
+      process.send(reply, to_dynamic(state.model))
+      message_loop(state)
+    }
+
+    GetTree(reply:) -> {
+      process.send(reply, state.tree)
+      message_loop(state)
+    }
   }
 }
 
 @external(erlang, "erlang", "monotonic_time")
 fn erlang_monotonic_time() -> Int
+
+/// Widen a generic value to Dynamic for the GetModel reply.
+/// The model type parameter is erased at the RuntimeMessage boundary,
+/// so this identity function bridges the gap at zero runtime cost.
+@external(erlang, "plushie_ffi", "identity")
+fn to_dynamic(value: a) -> Dynamic
 
 // -- Event coalescing --------------------------------------------------------
 
@@ -1085,7 +1103,7 @@ fn dispatch_update(
                   )
               }
             }
-            None ->
+            None -> {
               send_encoded(
                 state.bridge,
                 encode.encode_snapshot(
@@ -1094,6 +1112,7 @@ fn dispatch_update(
                   state.opts.format,
                 ),
               )
+            }
           }
 
           // Sync subscriptions

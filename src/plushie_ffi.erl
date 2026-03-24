@@ -35,7 +35,8 @@
     sha256_hex/1,
     crc32/1,
     zlib_compress/1,
-    shutdown_pid/1
+    shutdown_pid/1,
+    identity/1
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -216,13 +217,20 @@ null_port() ->
 %% The Subject is {subject, Owner, SubjectTag} in Gleam's compiled form.
 %% Messages sent via the subject arrive as {SubjectTag, Payload}.
 %% TimerFired(tag: Tag) compiles to {timer_fired, Tag}.
-drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag) ->
+drain_timer_ticks(Subject, TimerTag) ->
+    Tag = subject_tag(Subject),
+    drain_timer_ticks_loop(Tag, TimerTag).
+
+drain_timer_ticks_loop(Tag, TimerTag) ->
     receive
-        {SubjectTag, {timer_fired, TimerTag}} ->
-            drain_timer_ticks({subject, _Owner, SubjectTag}, TimerTag)
+        {Tag, {timer_fired, TimerTag}} ->
+            drain_timer_ticks_loop(Tag, TimerTag)
     after
         0 -> nil
     end.
+
+subject_tag({subject, _Owner, SubjectTag}) -> SubjectTag;
+subject_tag({named_subject, Name}) -> Name.
 
 %% Return a stable hash key for any Erlang term as a binary string.
 %% Uses erlang:phash2 which gives consistent results regardless of
@@ -284,3 +292,7 @@ zlib_compress(Data) ->
 shutdown_pid(Pid) ->
     exit(Pid, shutdown),
     nil.
+
+%% Identity function for Gleam type erasure (e.g. model -> Dynamic).
+identity(X) -> X.
+
