@@ -9,7 +9,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/command.{type Command}
-import plushie/ffi
+import plushie/platform
 import plushie/node.{type PropValue, IntVal, ListVal, StringVal}
 
 // -- File dialog option types ------------------------------------------------
@@ -155,7 +155,7 @@ fn make_effect(
   kind: String,
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
-  let id = ffi.unique_id()
+  let id = platform.unique_id()
   command.Effect(id:, kind:, payload: dict.from_list(payload))
 }
 

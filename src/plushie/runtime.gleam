@@ -22,8 +22,9 @@ import plushie/bridge.{
 import plushie/command.{type Command}
 import plushie/effects
 import plushie/event.{type Event}
-import plushie/ffi
+import plushie/platform
 import plushie/node.{
+
   type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
 }
 import plushie/protocol
@@ -330,7 +331,7 @@ fn handle_message(
         <> node_id
         <> "\": "
         <> string.join(warnings, "; ")
-      ffi.log_warning(warning_text)
+      platform.log_warning(warning_text)
       let new_warnings = [
         #(node_id, node_type, warnings),
         ..state.prop_warnings
@@ -379,7 +380,7 @@ fn handle_message(
           actor.continue(state)
         }
         False -> {
-          ffi.log_error(
+          platform.log_error(
             "plushie: protocol version mismatch (expected "
             <> int.to_string(protocol.protocol_version)
             <> ", got "
@@ -425,7 +426,7 @@ fn handle_message(
             True -> {
               let delay =
                 calculate_backoff(state.restart_delay_base, state.restart_count)
-              ffi.log_warning(
+              platform.log_warning(
                 "plushie: renderer crashed (status "
                 <> int.to_string(status)
                 <> "), restarting in "
@@ -440,7 +441,7 @@ fn handle_message(
               actor.continue(state)
             }
             False -> {
-              ffi.log_error(
+              platform.log_error(
                 "plushie: renderer crashed "
                 <> int.to_string(state.max_restarts)
                 <> " times, giving up",
@@ -454,7 +455,7 @@ fn handle_message(
 
     InternalEvent(event) -> {
       // Remove delivered timer entry (SendAfter deduplication)
-      let timer_key = ffi.stable_hash_key(coerce_to_dynamic(event))
+      let timer_key = platform.stable_hash_key(coerce_to_dynamic(event))
       let state =
         LoopState(
           ..state,
@@ -471,7 +472,7 @@ fn handle_message(
     InternalMsg(dyn_msg) -> {
       // Done/SendAfter deliver msg values wrapped as Dynamic.
       // Remove delivered timer entry for deduplication.
-      let timer_key = ffi.stable_hash_key(dyn_msg)
+      let timer_key = platform.stable_hash_key(dyn_msg)
       let state =
         LoopState(
           ..state,
@@ -550,7 +551,7 @@ fn handle_message(
       }
       case is_bridge {
         True -> {
-          ffi.log_warning(
+          platform.log_warning(
             "plushie: bridge process died unexpectedly: "
             <> string.inspect(reason),
           )
@@ -563,7 +564,7 @@ fn handle_message(
               actor.continue(LoopState(..state, bridge_pid: None))
             }
             False -> {
-              ffi.log_error("plushie: bridge crashed too many times, giving up")
+              platform.log_error("plushie: bridge crashed too many times, giving up")
               actor.stop()
             }
           }
@@ -641,7 +642,7 @@ fn handle_message(
             Error(_) -> None
           }
 
-          ffi.log_info(
+          platform.log_info(
             "plushie: renderer restarted (attempt "
             <> int.to_string(new_count)
             <> ")",
@@ -714,7 +715,7 @@ fn handle_message(
 
           // Re-render view and send fresh snapshot
           let view_fn = app.get_view(state.app)
-          let tree = case ffi.try_call(fn() { view_fn(state.model) }) {
+          let tree = case platform.try_call(fn() { view_fn(state.model) }) {
             Ok(t) -> Some(tree.normalize(t))
             Error(_) -> state.tree
           }
@@ -772,17 +773,17 @@ fn handle_message(
           |> actor.with_selector(new_selector)
         }
         Error(_) -> {
-          ffi.log_error("plushie: failed to restart renderer, giving up")
+          platform.log_error("plushie: failed to restart renderer, giving up")
           actor.stop()
         }
       }
     }
 
     ForceRerender -> {
-      ffi.log_info("plushie runtime: force re-render (code reload)")
+      platform.log_info("plushie runtime: force re-render (code reload)")
       // Re-render view and diff/patch
       let view_fn = app.get_view(state.app)
-      case ffi.try_call(fn() { view_fn(state.model) }) {
+      case platform.try_call(fn() { view_fn(state.model) }) {
         Ok(new_tree_raw) -> {
           let new_tree = tree.normalize(new_tree_raw)
           // Diff and send patch (or snapshot if no previous tree)
@@ -842,7 +843,7 @@ fn handle_message(
           |> actor.continue()
         }
         Error(reason) -> {
-          ffi.log_error(
+          platform.log_error(
             "plushie runtime: force re-render view crashed: "
             <> string.inspect(reason),
           )
@@ -1100,7 +1101,7 @@ fn dispatch_update(
 ) -> LoopState(model, msg) {
   let update_fn = app.get_update(state.app)
 
-  case ffi.try_call(fn() { update_fn(state.model, msg) }) {
+  case platform.try_call(fn() { update_fn(state.model, msg) }) {
     Ok(#(new_model, commands)) -> {
       // Execute commands (before view, matching Elixir SDK)
       let state_after_cmds =
@@ -1109,7 +1110,7 @@ fn dispatch_update(
 
       // Render view
       let view_fn = app.get_view(state.app)
-      case ffi.try_call(fn() { view_fn(new_model) }) {
+      case platform.try_call(fn() { view_fn(new_model) }) {
         Ok(new_tree_raw) -> {
           let new_tree = tree.normalize(new_tree_raw)
 
@@ -1186,7 +1187,7 @@ fn dispatch_update(
           let err_count = state_after_cmds.errors + 1
           case err_count <= 10 {
             True ->
-              ffi.log_warning(
+              platform.log_warning(
                 "plushie: view error: " <> dynamic.classify(reason),
               )
             False -> Nil
@@ -1199,7 +1200,7 @@ fn dispatch_update(
       let err_count = state.errors + 1
       case err_count <= 10 {
         True ->
-          ffi.log_warning("plushie: update error: " <> dynamic.classify(reason))
+          platform.log_warning("plushie: update error: " <> dynamic.classify(reason))
         False -> Nil
       }
       LoopState(..state, errors: err_count)
@@ -1225,7 +1226,7 @@ fn execute_commands(
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      let timer_key = ffi.stable_hash_key(coerce_to_dynamic(msg))
+      let timer_key = platform.stable_hash_key(coerce_to_dynamic(msg))
       // Cancel any existing timer for the same event key
       let state = case dict.get(state.pending_timers, timer_key) {
         Ok(old_timer) -> {
@@ -1991,7 +1992,7 @@ fn execute_commands(
       let runtime_self = state.self
       let pid =
         process.spawn(fn() {
-          let result = case ffi.try_call(work) {
+          let result = case platform.try_call(work) {
             Ok(value) -> Ok(value)
             Error(reason) -> Error(reason)
           }
@@ -2015,7 +2016,7 @@ fn execute_commands(
       }
       let pid =
         process.spawn(fn() {
-          let result = case ffi.try_call(fn() { work(emit) }) {
+          let result = case platform.try_call(fn() { work(emit) }) {
             Ok(value) -> Ok(value)
             Error(reason) -> Error(reason)
           }
@@ -2059,7 +2060,7 @@ fn send_encoded(
   case result {
     Ok(bytes) -> process.send(bridge, Send(data: bytes))
     Error(err) -> {
-      ffi.log_error(
+      platform.log_error(
         "plushie: encode error: " <> protocol.encode_error_to_string(err),
       )
       Nil
@@ -2170,10 +2171,10 @@ fn safe_subscribe(
   model: model,
 ) -> List(Subscription) {
   let subscribe_fn = app.get_subscribe(application)
-  case ffi.try_call(fn() { subscribe_fn(model) }) {
+  case platform.try_call(fn() { subscribe_fn(model) }) {
     Ok(subs) -> subs
     Error(reason) -> {
-      ffi.log_warning(
+      platform.log_warning(
         "plushie runtime: subscribe/1 raised: " <> string.inspect(reason),
       )
       []

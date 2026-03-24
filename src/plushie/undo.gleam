@@ -11,6 +11,7 @@
 
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import plushie/platform
 
 /// A reversible command.
 pub type UndoCommand(model) {
@@ -179,9 +180,6 @@ fn maybe_coalesce(
   }
 }
 
-@external(erlang, "plushie_ffi", "monotonic_time_ms")
-fn monotonic_time_ms() -> Int
-
 fn timestamp() -> Int {
-  monotonic_time_ms()
+  platform.monotonic_time_ms()
 }

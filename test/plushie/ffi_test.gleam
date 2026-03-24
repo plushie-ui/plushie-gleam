@@ -1,19 +1,20 @@
 import gleeunit/should
 import plushie/ffi
+import plushie/platform
 
 pub fn unique_id_generates_different_ids_test() {
-  let id1 = ffi.unique_id()
-  let id2 = ffi.unique_id()
+  let id1 = platform.unique_id()
+  let id2 = platform.unique_id()
   should.not_equal(id1, id2)
 }
 
 pub fn try_call_succeeds_test() {
-  let result = ffi.try_call(fn() { 42 })
+  let result = platform.try_call(fn() { 42 })
   should.equal(result, Ok(42))
 }
 
 pub fn try_call_catches_panic_test() {
-  let result = ffi.try_call(fn() { panic as "boom" })
+  let result = platform.try_call(fn() { panic as "boom" })
   should.be_error(result)
 }
 

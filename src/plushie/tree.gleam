@@ -10,7 +10,7 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/set
 import gleam/string
-import plushie/ffi
+import plushie/platform
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
@@ -39,7 +39,7 @@ fn normalize_with_scope(node: Node, scope: String) -> Node {
     id ->
       case string.contains(id, "/") {
         True ->
-          ffi.log_warning(
+          platform.log_warning(
             "plushie: widget ID \""
             <> id
             <> "\" contains \"/\" -- scoped paths are built automatically by named containers",
@@ -87,7 +87,7 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
         })
         |> fn(pair) { pair.1 }
         |> list.unique
-      ffi.log_warning(
+      platform.log_warning(
         "plushie: duplicate sibling IDs detected during normalize: "
         <> string.inspect(dupes),
       )

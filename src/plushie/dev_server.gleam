@@ -13,6 +13,7 @@ import gleam/erlang/process.{type Subject}
 import gleam/otp/actor
 import gleam/string
 import plushie/ffi
+import plushie/platform
 import plushie/runtime
 
 const default_debounce_ms = 100
@@ -49,7 +50,7 @@ type DevState {
 /// Start the dev server actor, watching src/ for changes.
 pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
   let _result = start_actor(runtime)
-  ffi.log_info(
+  platform.log_info(
     "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
   )
   Nil
@@ -63,7 +64,7 @@ pub fn start_supervised(
 ) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
   case start_actor(runtime) {
     Ok(started) -> {
-      ffi.log_info(
+      platform.log_info(
         "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
       )
       Ok(started)
@@ -140,12 +141,12 @@ fn handle_message(
     Recompile -> {
       let state = DevState(..state, debounce_pending: False)
 
-      ffi.log_info("plushie dev: recompiling...")
+      platform.log_info("plushie dev: recompiling...")
       let output = ffi.gleam_build()
 
       case string.contains(output, "error") {
         True -> {
-          ffi.log_error("plushie dev: build failed:\n" <> output)
+          platform.log_error("plushie dev: build failed:\n" <> output)
           actor.continue(state)
         }
         False -> {
@@ -155,13 +156,13 @@ fn handle_message(
 
           case changed {
             [] -> {
-              ffi.log_info("plushie dev: no modules changed")
+              platform.log_info("plushie dev: no modules changed")
               actor.continue(DevState(..state, last_mtimes: new_mtimes))
             }
             modules -> {
               ffi.reload_modules(modules)
               process.send(state.runtime, runtime.ForceRerender)
-              ffi.log_info("plushie dev: reload complete")
+              platform.log_info("plushie dev: reload complete")
               actor.continue(DevState(..state, last_mtimes: new_mtimes))
             }
           }

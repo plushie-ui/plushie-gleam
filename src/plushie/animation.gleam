@@ -5,6 +5,7 @@
 
 import gleam/int
 import gleam/option.{type Option, None, Some}
+import plushie/platform
 
 /// An animation interpolating between two values over time.
 pub type Animation {
@@ -124,8 +125,8 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
             True -> 1.0
             False -> {
               let c4 = 2.0 *. 3.14159265358979 /. 3.0
-              let pow_val = pow(2.0, -10.0 *. t)
-              pow_val *. sin({ t *. 10.0 -. 0.75 } *. c4) +. 1.0
+              let pow_val = platform.math_pow(2.0, -10.0 *. t)
+              pow_val *. platform.math_sin({ t *. 10.0 -. 0.75 } *. c4) +. 1.0
             }
           }
       }
@@ -133,8 +134,3 @@ pub fn apply_easing(easing: Easing, t: Float) -> Float {
   }
 }
 
-@external(erlang, "math", "sin")
-fn sin(x: Float) -> Float
-
-@external(erlang, "math", "pow")
-fn pow(base: Float, exp: Float) -> Float

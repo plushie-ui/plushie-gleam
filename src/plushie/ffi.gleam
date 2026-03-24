@@ -1,5 +1,6 @@
-//// Erlang FFI wrappers for port operations, error handling, and
-//// unique ID generation.
+//// Erlang FFI wrappers for port operations and BEAM-specific
+//// system access. Cross-target utilities (logging, unique IDs,
+//// time, error handling) live in plushie/platform.gleam.
 
 import gleam/dynamic.{type Dynamic}
 import gleam/erlang/port.{type Port}
@@ -21,15 +22,6 @@ pub fn port_command(port: Port, data: BitArray) -> Bool
 /// Close a port.
 @external(erlang, "plushie_ffi", "port_close")
 pub fn port_close(port: Port) -> Bool
-
-/// Call a function with try/catch error handling.
-/// Catches panics and exceptions, returning Result.
-@external(erlang, "plushie_ffi", "try_call")
-pub fn try_call(f: fn() -> a) -> Result(a, Dynamic)
-
-/// Generate a unique monotonic ID string.
-@external(erlang, "plushie_ffi", "unique_id")
-pub fn unique_id() -> String
 
 /// Port options for MessagePack wire format (4-byte length prefix).
 @external(erlang, "plushie_ffi", "msgpack_port_options")
@@ -83,9 +75,6 @@ pub fn set_env(name: String, value: String) -> Nil
 @external(erlang, "plushie_ffi", "unset_env")
 pub fn unset_env(name: String) -> Nil
 
-/// Return the current monotonic time in milliseconds.
-@external(erlang, "plushie_ffi", "monotonic_time_ms")
-pub fn monotonic_time_ms() -> Int
 
 /// Port options for stdio transport with MessagePack (eof, no exit_status).
 @external(erlang, "plushie_ffi", "stdio_port_options_msgpack")
@@ -107,11 +96,6 @@ pub fn extract_eof(msg: Dynamic) -> Result(Nil, Dynamic)
 @external(erlang, "plushie_ffi", "null_port")
 pub fn null_port() -> Port
 
-/// Return a stable hash key for any value as a string.
-/// Uses erlang:phash2 for consistent results regardless of how the
-/// value is wrapped (raw term vs Dynamic).
-@external(erlang, "plushie_ffi", "stable_hash_key")
-pub fn stable_hash_key(value: Dynamic) -> String
 
 /// Run `gleam build` and return the output.
 @external(erlang, "plushie_ffi", "gleam_build")
@@ -145,14 +129,3 @@ pub fn crc32(data: BitArray) -> Int
 @external(erlang, "plushie_ffi", "zlib_compress")
 pub fn zlib_compress(data: BitArray) -> BitArray
 
-/// Log at info level via the Erlang logger.
-@external(erlang, "plushie_ffi", "log_info")
-pub fn log_info(message: String) -> Nil
-
-/// Log at warning level via the Erlang logger.
-@external(erlang, "plushie_ffi", "log_warning")
-pub fn log_warning(message: String) -> Nil
-
-/// Log at error level via the Erlang logger.
-@external(erlang, "plushie_ffi", "log_error")
-pub fn log_error(message: String) -> Nil
