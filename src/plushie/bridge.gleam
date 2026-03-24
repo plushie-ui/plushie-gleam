@@ -19,26 +19,37 @@
 //// - MessagePack: 4-byte big-endian length prefix (Erlang {packet, 4})
 //// - JSONL: newline-delimited (Erlang {line, 65536})
 
+@target(erlang)
 import gleam/bit_array
+@target(erlang)
 import gleam/dict
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode as dyn_decode
 @target(erlang)
 import gleam/erlang/port.{type Port}
 @target(erlang)
 import gleam/erlang/process.{type Subject}
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{None, Some}
 @target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/result
 @target(erlang)
 import plushie/ffi
+@target(erlang)
 import plushie/platform
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/protocol/decode.{type InboundMessage}
 @target(erlang)
 import plushie/renderer_env
+@target(erlang)
 import plushie/telemetry
 
 @target(erlang)

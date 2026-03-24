@@ -410,9 +410,9 @@ fn start_subscription(
   session: String,
 ) -> Nil {
   case sub {
-    subscription.Every(interval_ms:, tag:, ..) -> {
+    subscription.Every(interval_ms:, tag:) -> {
       let app = do_get_app(handle)
-      start_timer_sub(handle, app, key, interval_ms, tag)
+      start_timer_sub(handle, key, interval_ms, tag)
     }
     _ -> {
       let kind = subscription.wire_kind(sub)
@@ -545,7 +545,7 @@ fn execute_commands(
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      let key = platform.stable_hash_key(dynamic.from(msg))
+      let key = platform.stable_hash_key(msg)
       // SendAfter msg is already the app's msg type -- dispatch
       // directly to dispatch_update, not through handle_event
       // (which expects Event for coalesce checking).
@@ -555,11 +555,11 @@ fn execute_commands(
     }
 
     command.Async(work:, tag:) -> {
-      start_async(handle, app, tag, work)
+      start_async(handle, tag, work)
     }
 
     command.Stream(work:, tag:) -> {
-      start_stream(handle, app, tag, work)
+      start_stream(handle, tag, work)
     }
 
     command.Cancel(tag:) -> {
@@ -1231,7 +1231,6 @@ fn defer(f: fn() -> Nil) -> Nil
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startTimerSub")
 fn start_timer_sub(
   handle: WebRuntimeHandle,
-  app: App(model, msg),
   key: String,
   interval_ms: Int,
   tag: String,
@@ -1258,7 +1257,6 @@ fn set_send_after(
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startAsync")
 fn start_async(
   handle: WebRuntimeHandle,
-  app: App(model, msg),
   tag: String,
   work: fn() -> Dynamic,
 ) -> Nil
@@ -1268,9 +1266,8 @@ fn start_async(
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "startStream")
 fn start_stream(
   handle: WebRuntimeHandle,
-  app: App(model, msg),
   tag: String,
-  work: fn(fn(Dynamic) -> Nil) -> Nil,
+  work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> Nil
 
 @target(javascript)

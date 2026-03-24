@@ -17,13 +17,18 @@
 //// from the socket -- a pattern that doesn't map cleanly to Gleam's
 //// single-typed actor model.
 
+@target(erlang)
 import gleam/erlang/process.{type Subject}
+@target(erlang)
 import plushie/bridge.{type IoStreamMessage}
+@target(erlang)
 import plushie/protocol
 
+@target(erlang)
 /// Opaque socket handle from gen_tcp.
 pub type Socket
 
+@target(erlang)
 /// Start the socket adapter.
 ///
 /// Connects to the given address and returns the adapter's subject,
@@ -38,6 +43,7 @@ pub fn start(
   start_ffi(addr, format)
 }
 
+@target(erlang)
 @external(erlang, "plushie_socket_adapter_ffi", "start")
 fn start_ffi(
   addr: String,

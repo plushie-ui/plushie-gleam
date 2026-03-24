@@ -19,21 +19,36 @@
 ////
 ////     let backend = pooled.backend(pool)
 
+@target(erlang)
 import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode as dyn_decode
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/node.{type Node, BoolVal, StringVal}
+@target(erlang)
 import plushie/testing/backend.{type TestBackend, TestBackend}
+@target(erlang)
 import plushie/testing/event_decoder
+@target(erlang)
 import plushie/testing/session.{type TestSession}
+@target(erlang)
 import plushie/testing/session_pool.{type PoolSubject}
+@target(erlang)
 import plushie/tree
 
+@target(erlang)
 /// Create a pooled test backend.
 pub fn backend(pool: PoolSubject) -> TestBackend(model) {
   TestBackend(
@@ -156,6 +171,7 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
 
 // -- Internal -----------------------------------------------------------------
 
+@target(erlang)
 fn start_pooled(
   app: App(model, Event),
   pool: PoolSubject,
@@ -200,6 +216,7 @@ fn start_pooled(
   sess
 }
 
+@target(erlang)
 fn stop_pooled(pool: PoolSubject) -> Nil {
   case get_pool_session() {
     Ok(#(_pool_ref, session_id)) -> {
@@ -210,6 +227,7 @@ fn stop_pooled(pool: PoolSubject) -> Nil {
   }
 }
 
+@target(erlang)
 fn require_pool_session() -> #(PoolSubject, String) {
   case get_pool_session() {
     Ok(pair) -> pair
@@ -217,6 +235,7 @@ fn require_pool_session() -> #(PoolSubject, String) {
   }
 }
 
+@target(erlang)
 fn do_interact(
   sess: TestSession(model, Event),
   _pool: PoolSubject,
@@ -251,6 +270,7 @@ fn do_interact(
   dispatch_events(sess, events)
 }
 
+@target(erlang)
 fn dispatch_events(
   sess: TestSession(model, Event),
   events: List(Dynamic),
@@ -286,6 +306,7 @@ fn dispatch_events(
 
 // -- Selector encoding --------------------------------------------------------
 
+@target(erlang)
 /// Resolve a local ID (e.g. "count") to its full scoped path
 /// (e.g. "content/count") by searching the local tree. If the ID
 /// already contains "/" (already scoped) or isn't found, return as-is.
@@ -300,6 +321,7 @@ fn resolve_scoped_id(current_tree: Node, id: String) -> String {
   }
 }
 
+@target(erlang)
 fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
   case selector {
     "#" <> id ->
@@ -317,6 +339,7 @@ fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
 
 // -- Tree helpers -------------------------------------------------------------
 
+@target(erlang)
 fn read_toggle_state(sess: TestSession(model, Event), id: String) -> Bool {
   let current_tree = session.current_tree(sess)
   case tree.find(current_tree, id) {
@@ -334,6 +357,7 @@ fn read_toggle_state(sess: TestSession(model, Event), id: String) -> Bool {
   }
 }
 
+@target(erlang)
 fn read_string_prop_from_tree(
   sess: TestSession(model, Event),
   id: String,
@@ -350,6 +374,7 @@ fn read_string_prop_from_tree(
   }
 }
 
+@target(erlang)
 fn tree_to_prop_value(nd: Node) -> node.PropValue {
   node.DictVal(
     dict.from_list([
@@ -363,6 +388,7 @@ fn tree_to_prop_value(nd: Node) -> node.PropValue {
 
 // -- Find response decoding ---------------------------------------------------
 
+@target(erlang)
 fn decode_find_data(raw: Dynamic) -> Option(element.Element) {
   case dyn_decode.run(raw, dyn_decode.at(["data"], dyn_decode.dynamic)) {
     Ok(data) ->
@@ -384,6 +410,7 @@ fn decode_find_data(raw: Dynamic) -> Option(element.Element) {
   }
 }
 
+@target(erlang)
 fn decode_props(data: Dynamic) -> Dict(String, node.PropValue) {
   case
     dyn_decode.run(
@@ -400,6 +427,7 @@ fn decode_props(data: Dynamic) -> Dict(String, node.PropValue) {
   }
 }
 
+@target(erlang)
 fn decode_prop_value(raw: Dynamic) -> node.PropValue {
   case dyn_decode.run(raw, dyn_decode.string) {
     Ok(s) -> node.StringVal(s)
@@ -419,6 +447,7 @@ fn decode_prop_value(raw: Dynamic) -> node.PropValue {
   }
 }
 
+@target(erlang)
 fn decode_children(data: Dynamic) -> List(Node) {
   case
     dyn_decode.run(
@@ -443,6 +472,7 @@ fn decode_children(data: Dynamic) -> List(Node) {
   }
 }
 
+@target(erlang)
 fn is_nil_or_empty(data: Dynamic) -> Bool {
   case
     dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
@@ -458,6 +488,7 @@ fn is_nil_or_empty(data: Dynamic) -> Bool {
 
 // -- Dynamic helpers ----------------------------------------------------------
 
+@target(erlang)
 fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.string)) {
     Ok(s) -> s
@@ -465,6 +496,7 @@ fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   }
 }
 
+@target(erlang)
 fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
   case
     dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
@@ -476,20 +508,26 @@ fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
 
 // -- FFI for process dictionary (pool session) --------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "put_pool_session")
 fn put_pool_session(pool: PoolSubject, session_id: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "get_pool_session")
 fn get_pool_session() -> Result(#(PoolSubject, String), Nil)
 
+@target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "erase_pool_session")
 fn erase_pool_session() -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "wait_for_interact_response")
 fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
 
+@target(erlang)
 /// Cast Event to msg for simple apps where msg = Event.
 @external(erlang, "plushie_test_ffi", "identity")
 fn event_to_msg(value: Event) -> msg
 
+@target(erlang)
 import plushie/testing/element

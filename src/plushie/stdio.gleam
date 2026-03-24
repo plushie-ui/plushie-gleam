@@ -17,14 +17,22 @@
 //// }
 //// ```
 
+@target(erlang)
 import gleam/erlang/process
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/option.{None}
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/protocol
 
+@target(erlang)
 /// Options for stdio mode.
 pub type StdioOpts {
   StdioOpts(
@@ -35,11 +43,13 @@ pub type StdioOpts {
   )
 }
 
+@target(erlang)
 /// Default stdio options.
 pub fn default_opts() -> StdioOpts {
   StdioOpts(format: protocol.Msgpack, daemon: False)
 }
 
+@target(erlang)
 /// Run a plushie application in stdio transport mode.
 ///
 /// Starts the runtime with stdio transport and blocks until

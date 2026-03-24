@@ -11,16 +11,26 @@
 //// - Effects (file dialogs, clipboard) return cancelled.
 //// - Subscriptions are tracked but not fired (no event loop).
 
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/node
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/testing/backend.{type TestBackend, TestBackend}
+@target(erlang)
 import plushie/testing/renderer
+@target(erlang)
 import plushie/testing/session.{type TestSession}
 
+@target(erlang)
 /// Options for the headless backend.
 pub type HeadlessOpts {
   HeadlessOpts(
@@ -31,16 +41,19 @@ pub type HeadlessOpts {
   )
 }
 
+@target(erlang)
 /// Default headless options.
 pub fn default_opts() -> HeadlessOpts {
   HeadlessOpts(format: protocol.Msgpack, renderer_path: None)
 }
 
+@target(erlang)
 /// Create a headless test backend with default options.
 pub fn backend() -> TestBackend(model) {
   backend_with_opts(default_opts())
 }
 
+@target(erlang)
 /// Create a headless test backend with custom options.
 pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
   let args = case opts.format {
@@ -119,6 +132,7 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
 
 // -- Internal -----------------------------------------------------------------
 
+@target(erlang)
 fn start_headless(
   app: App(model, Event),
   config: renderer.RendererConfig,
@@ -128,6 +142,7 @@ fn start_headless(
   session.start(app)
 }
 
+@target(erlang)
 fn stop_renderer() -> Nil {
   case get_renderer() {
     Ok(subj) -> {
@@ -138,6 +153,7 @@ fn stop_renderer() -> Nil {
   }
 }
 
+@target(erlang)
 fn require_renderer() -> renderer.RendererSubject {
   case get_renderer() {
     Ok(subj) -> subj
@@ -147,15 +163,19 @@ fn require_renderer() -> renderer.RendererSubject {
 
 // -- FFI for process dictionary -----------------------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "put_renderer")
 fn put_renderer(subject: renderer.RendererSubject) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "get_renderer")
 fn get_renderer() -> Result(renderer.RendererSubject, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "erase_renderer")
 fn erase_renderer() -> Nil
 
+@target(erlang)
 /// Narrow Dynamic -> typed model from the renderer actor reply.
 @external(erlang, "plushie_test_ffi", "identity")
 fn from_dynamic(value: Dynamic) -> a

@@ -1,24 +1,32 @@
 //// Test facade for plushie applications.
 ////
-//// Provides a unified test API across all backends. Tests always
-//// run against the real plushie-renderer binary.
+//// Provides a unified test API that works on both BEAM and JS targets.
+//// The backend is resolved once at `start` and carried through the
+//// `TestContext` -- no repeated env lookups or backend construction.
 ////
-//// ## Backend selection
+//// ## BEAM target
 ////
-//// Set `PLUSHIE_TEST_BACKEND` to choose the backend:
+//// Tests run against the real plushie-renderer binary. Set
+//// `PLUSHIE_TEST_BACKEND` to choose the backend:
 ////
 ////     gleam test                                  # default: mock
 ////     PLUSHIE_TEST_BACKEND=headless gleam test    # software rendering
 ////
 //// Default: `mock` (real binary in `--mock` mode, sessions pooled).
 ////
+//// ## JavaScript target
+////
+//// Tests run the app's init/update/view cycle in-memory via the
+//// pure session runner. No renderer binary is needed. Widget
+//// interactions construct events directly.
+////
 //// ## Usage
 ////
-////     let session = testing.start(my_app())
-////     let session = testing.click(session, "increment")
-////     let assert option.Some(el) = testing.find(session, "count")
+////     let ctx = testing.start(my_app())
+////     let ctx = testing.click(ctx, "increment")
+////     let assert option.Some(el) = testing.find(ctx, "count")
 ////     should.equal(element.text(el), option.Some("Count: 1"))
-////     testing.stop(session)
+////     testing.stop(ctx)
 
 import gleam/option.{type Option}
 import plushie/app.{type App}
@@ -26,114 +34,110 @@ import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/platform
 import plushie/testing/backend.{type TestBackend}
-import plushie/testing/backend/mock as mock_backend
 import plushie/testing/element.{type Element}
 import plushie/testing/session.{type TestSession}
+
+// JS-only import for the pure session backend
+@target(javascript)
+import plushie/testing/backend/session_backend
+
+// BEAM-only imports for the pooled backend
+@target(erlang)
+import plushie/testing/backend/mock as mock_backend
+@target(erlang)
 import plushie/testing/session_pool
+
+// -- TestContext ---------------------------------------------------------------
+
+/// A test context: bundles the session with its backend.
+///
+/// Created by `start`, threaded through all test operations.
+/// The backend is resolved once at startup, not on every call.
+pub opaque type TestContext(model) {
+  TestContext(session: TestSession(model, Event), backend: TestBackend(model))
+}
 
 // -- Session lifecycle -------------------------------------------------------
 
 /// Start a test session for a simple app (msg = Event).
 ///
-/// Requires the plushie-renderer binary. Panics with setup
-/// instructions if not found.
-pub fn start(app: App(model, Event)) -> TestSession(model, Event) {
+/// On BEAM, requires the plushie-renderer binary (panics with
+/// setup instructions if not found). On JS, runs in-memory.
+pub fn start(app: App(model, Event)) -> TestContext(model) {
   let be = resolve_backend()
-  be.start(app)
+  let session = be.start(app)
+  TestContext(session:, backend: be)
 }
 
-/// Stop the test session and release resources.
-pub fn stop(session: TestSession(model, Event)) -> Nil {
-  let be = resolve_backend()
-  be.stop(session)
+/// Stop the test context and release resources.
+pub fn stop(ctx: TestContext(model)) -> Nil {
+  ctx.backend.stop(ctx.session)
 }
 
-/// Return the current model from the session.
-pub fn model(session: TestSession(model, Event)) -> model {
-  let be = resolve_backend()
-  be.model(session)
+/// Return the current model.
+pub fn model(ctx: TestContext(model)) -> model {
+  ctx.backend.model(ctx.session)
 }
 
-/// Return the current normalized tree from the session.
-pub fn tree(session: TestSession(model, Event)) -> Node {
-  let be = resolve_backend()
-  be.tree(session)
+/// Return the current normalized tree.
+pub fn tree(ctx: TestContext(model)) -> Node {
+  ctx.backend.tree(ctx.session)
 }
 
 /// Dispatch a raw event through the update cycle.
-pub fn send_event(
-  session: TestSession(model, Event),
-  event: Event,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.send_event(session, event)
+pub fn send_event(ctx: TestContext(model), event: Event) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.send_event(ctx.session, event))
 }
 
 // -- Interaction helpers -----------------------------------------------------
 
 /// Simulate a click on a widget by ID.
-pub fn click(
-  session: TestSession(model, Event),
-  id: String,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.click(session, id)
+pub fn click(ctx: TestContext(model), id: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.click(ctx.session, id))
 }
 
 /// Simulate text input on a widget by ID.
 pub fn type_text(
-  session: TestSession(model, Event),
+  ctx: TestContext(model),
   id: String,
   text: String,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.type_text(session, id, text)
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.type_text(ctx.session, id, text))
 }
 
 /// Simulate a checkbox/toggler toggle by ID.
-pub fn toggle(
-  session: TestSession(model, Event),
-  id: String,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.toggle(session, id)
+pub fn toggle(ctx: TestContext(model), id: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.toggle(ctx.session, id))
 }
 
 /// Simulate form submission on a widget by ID.
-pub fn submit(
-  session: TestSession(model, Event),
-  id: String,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.submit(session, id)
+pub fn submit(ctx: TestContext(model), id: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.submit(ctx.session, id))
 }
 
 /// Simulate a slider change by ID.
 pub fn slide(
-  session: TestSession(model, Event),
+  ctx: TestContext(model),
   id: String,
   value: Float,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.slide(session, id, value)
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.slide(ctx.session, id, value))
 }
 
 /// Simulate selection on a widget by ID.
 pub fn select(
-  session: TestSession(model, Event),
+  ctx: TestContext(model),
   id: String,
   value: String,
-) -> TestSession(model, Event) {
-  let be = resolve_backend()
-  be.select(session, id, value)
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.select(ctx.session, id, value))
 }
 
 // -- Element queries ---------------------------------------------------------
 
-/// Find an element by ID in the session's current tree.
-pub fn find(session: TestSession(model, Event), id: String) -> Option(Element) {
-  let be = resolve_backend()
-  be.find(session, id)
+/// Find an element by ID in the context's current tree.
+pub fn find(ctx: TestContext(model), id: String) -> Option(Element) {
+  ctx.backend.find(ctx.session, id)
 }
 
 /// Extract text content from an element.
@@ -151,20 +155,17 @@ pub fn element_children(el: Element) -> List(Element) {
   element.children(el)
 }
 
-// -- Backend resolution ------------------------------------------------------
+// -- Backend resolution (target-specific) ------------------------------------
 
-/// Resolve the test backend from PLUSHIE_TEST_BACKEND env var.
-/// Always returns a backend that talks to the real binary.
+@target(erlang)
 fn resolve_backend() -> TestBackend(model) {
   case platform.get_env("PLUSHIE_TEST_BACKEND") {
     Ok("headless") -> get_or_start_pooled(session_pool.Headless)
-    // Default: mock (real binary in --mock mode, sessions pooled)
     _ -> get_or_start_pooled(session_pool.Mock)
   }
 }
 
-/// Get or start a pooled backend. The pool is started once per
-/// test run and cached in the process dictionary.
+@target(erlang)
 fn get_or_start_pooled(mode: session_pool.PoolMode) -> TestBackend(model) {
   case get_pool() {
     Ok(pool_subject) -> mock_backend.backend(pool_subject)
@@ -178,8 +179,15 @@ fn get_or_start_pooled(mode: session_pool.PoolMode) -> TestBackend(model) {
   }
 }
 
+@target(erlang)
 @external(erlang, "plushie_test_pool_ffi", "get_pool")
 fn get_pool() -> Result(session_pool.PoolSubject, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_test_pool_ffi", "put_pool")
 fn put_pool(pool: session_pool.PoolSubject) -> Nil
+
+@target(javascript)
+fn resolve_backend() -> TestBackend(model) {
+  session_backend.backend()
+}

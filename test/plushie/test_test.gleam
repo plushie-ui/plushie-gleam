@@ -49,17 +49,17 @@ fn counter_app() {
   app.simple(counter_init, counter_update, counter_view)
 }
 
-// -- Session lifecycle --------------------------------------------------------
+// -- Context lifecycle --------------------------------------------------------
 
 pub fn start_creates_initial_state_test() {
-  let session = testing.start(counter_app())
-  let model = testing.model(session)
+  let ctx = testing.start(counter_app())
+  let model = testing.model(ctx)
   should.equal(model.count, 0)
 }
 
 pub fn initial_tree_is_normalized_test() {
-  let session = testing.start(counter_app())
-  let tree = testing.tree(session)
+  let ctx = testing.start(counter_app())
+  let tree = testing.tree(ctx)
   should.equal(tree.id, "root")
 
   let assert [label, inc, dec] = tree.children
@@ -72,29 +72,29 @@ pub fn initial_tree_is_normalized_test() {
 // -- Click interaction --------------------------------------------------------
 
 pub fn click_increments_counter_test() {
-  let session = testing.start(counter_app())
-  let session = testing.click(session, "inc")
-  should.equal(testing.model(session).count, 1)
+  let ctx = testing.start(counter_app())
+  let ctx = testing.click(ctx, "inc")
+  should.equal(testing.model(ctx).count, 1)
 }
 
 pub fn click_decrements_counter_test() {
-  let session = testing.start(counter_app())
-  let session = testing.click(session, "dec")
-  should.equal(testing.model(session).count, -1)
+  let ctx = testing.start(counter_app())
+  let ctx = testing.click(ctx, "dec")
+  should.equal(testing.model(ctx).count, -1)
 }
 
 pub fn multiple_clicks_accumulate_test() {
-  let session = testing.start(counter_app())
-  let session = testing.click(session, "inc")
-  let session = testing.click(session, "inc")
-  let session = testing.click(session, "inc")
-  should.equal(testing.model(session).count, 3)
+  let ctx = testing.start(counter_app())
+  let ctx = testing.click(ctx, "inc")
+  let ctx = testing.click(ctx, "inc")
+  let ctx = testing.click(ctx, "inc")
+  should.equal(testing.model(ctx).count, 3)
 }
 
 pub fn tree_updates_after_click_test() {
-  let session = testing.start(counter_app())
-  let session = testing.click(session, "inc")
-  let tree = testing.tree(session)
+  let ctx = testing.start(counter_app())
+  let ctx = testing.click(ctx, "inc")
+  let tree = testing.tree(ctx)
   let assert [label, ..] = tree.children
   let assert Ok(StringVal(content)) =
     node.Node(..label, props: label.props).props
@@ -105,44 +105,44 @@ pub fn tree_updates_after_click_test() {
 // -- Element queries ----------------------------------------------------------
 
 pub fn find_element_by_id_test() {
-  let session = testing.start(counter_app())
-  let result = testing.find(session, "label")
+  let ctx = testing.start(counter_app())
+  let result = testing.find(ctx, "label")
   should.be_true(option.is_some(result))
   let assert option.Some(el) = result
   should.equal(element.kind(el), "text")
 }
 
 pub fn find_element_not_found_test() {
-  let session = testing.start(counter_app())
-  let result = testing.find(session, "nonexistent")
+  let ctx = testing.start(counter_app())
+  let result = testing.find(ctx, "nonexistent")
   should.be_true(option.is_none(result))
 }
 
 pub fn element_text_extraction_test() {
-  let session = testing.start(counter_app())
-  let assert option.Some(el) = testing.find(session, "label")
+  let ctx = testing.start(counter_app())
+  let assert option.Some(el) = testing.find(ctx, "label")
   let text = element.text(el)
   should.equal(text, option.Some("Count: 0"))
 }
 
 pub fn element_text_after_update_test() {
-  let session = testing.start(counter_app())
-  let session = testing.click(session, "inc")
-  let session = testing.click(session, "inc")
-  let assert option.Some(el) = testing.find(session, "label")
+  let ctx = testing.start(counter_app())
+  let ctx = testing.click(ctx, "inc")
+  let ctx = testing.click(ctx, "inc")
+  let assert option.Some(el) = testing.find(ctx, "label")
   should.equal(element.text(el), option.Some("Count: 2"))
 }
 
 pub fn element_children_test() {
-  let session = testing.start(counter_app())
-  let assert option.Some(root) = testing.find(session, "root")
+  let ctx = testing.start(counter_app())
+  let assert option.Some(root) = testing.find(ctx, "root")
   let kids = element.children(root)
   should.equal(gleam_list_length(kids), 3)
 }
 
 pub fn element_prop_test() {
-  let session = testing.start(counter_app())
-  let assert option.Some(el) = testing.find(session, "inc")
+  let ctx = testing.start(counter_app())
+  let assert option.Some(el) = testing.find(ctx, "inc")
   let label = element.prop(el, "label")
   should.equal(label, option.Some(StringVal("+")))
 }
@@ -150,10 +150,9 @@ pub fn element_prop_test() {
 // -- Send raw event -----------------------------------------------------------
 
 pub fn send_raw_event_test() {
-  let session = testing.start(counter_app())
-  let session =
-    testing.send_event(session, WidgetClick(id: "inc", scope: ["root"]))
-  should.equal(testing.model(session).count, 1)
+  let ctx = testing.start(counter_app())
+  let ctx = testing.send_event(ctx, WidgetClick(id: "inc", scope: ["root"]))
+  should.equal(testing.model(ctx).count, 1)
 }
 
 // -- State immutability -------------------------------------------------------
@@ -224,16 +223,16 @@ fn todo_app() {
 }
 
 pub fn type_text_updates_input_test() {
-  let session = testing.start(todo_app())
-  let session = testing.type_text(session, "input", "Buy milk")
-  should.equal(testing.model(session).input, "Buy milk")
+  let ctx = testing.start(todo_app())
+  let ctx = testing.type_text(ctx, "input", "Buy milk")
+  should.equal(testing.model(ctx).input, "Buy milk")
 }
 
 pub fn submit_adds_todo_item_test() {
-  let session = testing.start(todo_app())
-  let session = testing.type_text(session, "input", "Buy milk")
-  let session = testing.submit(session, "input")
-  let model = testing.model(session)
+  let ctx = testing.start(todo_app())
+  let ctx = testing.type_text(ctx, "input", "Buy milk")
+  let ctx = testing.submit(ctx, "input")
+  let model = testing.model(ctx)
   should.equal(model.input, "")
   should.equal(gleam_list_length(model.items), 1)
   let assert [item] = model.items
@@ -242,21 +241,21 @@ pub fn submit_adds_todo_item_test() {
 }
 
 pub fn toggle_toggles_item_test() {
-  let session = testing.start(todo_app())
-  let session = testing.type_text(session, "input", "Buy milk")
-  let session = testing.submit(session, "input")
-  let session = testing.toggle(session, "toggle-0")
-  let assert [item] = testing.model(session).items
+  let ctx = testing.start(todo_app())
+  let ctx = testing.type_text(ctx, "input", "Buy milk")
+  let ctx = testing.submit(ctx, "input")
+  let ctx = testing.toggle(ctx, "toggle-0")
+  let assert [item] = testing.model(ctx).items
   should.be_true(item.done)
 }
 
 pub fn toggle_back_untoggles_test() {
-  let session = testing.start(todo_app())
-  let session = testing.type_text(session, "input", "Buy milk")
-  let session = testing.submit(session, "input")
-  let session = testing.toggle(session, "toggle-0")
-  let session = testing.toggle(session, "toggle-0")
-  let assert [item] = testing.model(session).items
+  let ctx = testing.start(todo_app())
+  let ctx = testing.type_text(ctx, "input", "Buy milk")
+  let ctx = testing.submit(ctx, "input")
+  let ctx = testing.toggle(ctx, "toggle-0")
+  let ctx = testing.toggle(ctx, "toggle-0")
+  let assert [item] = testing.model(ctx).items
   should.be_false(item.done)
 }
 
@@ -291,8 +290,8 @@ fn cmd_app() {
 }
 
 pub fn init_commands_are_processed_test() {
-  let session = testing.start(cmd_app())
-  should.equal(testing.model(session).value, "from_init")
+  let ctx = testing.start(cmd_app())
+  should.equal(testing.model(ctx).value, "from_init")
 }
 
 // -- Helpers to avoid import issues -------------------------------------------

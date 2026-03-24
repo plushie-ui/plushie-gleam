@@ -21,15 +21,23 @@
 //// directory is created automatically. `--wasm-dir` overrides the
 //// default WASM output directory (priv/wasm/).
 
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/binary
+@target(erlang)
 import plushie/config
+@target(erlang)
 import plushie/platform
 
+@target(erlang)
 const min_rust_version = "1.92.0"
 
+@target(erlang)
 /// Entry point for `gleam run -m plushie/build`.
 pub fn main() -> Nil {
   let release = has_flag("--release")
@@ -61,6 +69,7 @@ pub fn main() -> Nil {
 
 // -- Native binary build ------------------------------------------------------
 
+@target(erlang)
 fn build_bin(
   release: Bool,
   verbose: Bool,
@@ -105,6 +114,7 @@ fn build_bin(
 
 // -- WASM build ---------------------------------------------------------------
 
+@target(erlang)
 fn build_wasm(
   release: Bool,
   verbose: Bool,
@@ -160,6 +170,7 @@ fn build_wasm(
   }
 }
 
+@target(erlang)
 fn install_wasm(
   wasm_crate: String,
   wasm_dir_override: Result(String, Nil),
@@ -177,6 +188,7 @@ fn install_wasm(
   io.println("Installed WASM files to " <> dest_dir)
 }
 
+@target(erlang)
 fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
   let src = pkg_dir <> "/" <> name
   let dest = dest_dir <> "/" <> name
@@ -191,6 +203,7 @@ fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
 
 // -- Shared -------------------------------------------------------------------
 
+@target(erlang)
 fn check_rust_toolchain() -> Nil {
   case rustc_version() {
     Error(msg) -> {
@@ -222,6 +235,7 @@ fn check_rust_toolchain() -> Nil {
   }
 }
 
+@target(erlang)
 fn install_binary(
   source_dir: String,
   release: Bool,
@@ -256,6 +270,7 @@ fn install_binary(
   io.println("Installed to " <> dest)
 }
 
+@target(erlang)
 fn create_bin_symlink(target_path: String) -> Nil {
   let link_dir = "bin"
   let link_path = link_dir <> "/plushie-renderer"
@@ -269,6 +284,7 @@ fn create_bin_symlink(target_path: String) -> Nil {
   }
 }
 
+@target(erlang)
 fn compare_versions(actual: String, minimum: String) -> Result(Bool, Nil) {
   let actual_parts = string.split(actual, ".")
   let min_parts = string.split(minimum, ".")
@@ -341,6 +357,7 @@ fn halt(status: Int) -> Nil
 
 // -- Helpers ------------------------------------------------------------------
 
+@target(erlang)
 fn is_ok(result: Result(a, b)) -> Bool {
   case result {
     Ok(_) -> True
@@ -348,6 +365,7 @@ fn is_ok(result: Result(a, b)) -> Bool {
   }
 }
 
+@target(erlang)
 /// Resolve which artifacts to build.
 ///
 /// CLI flags > gleam.toml [plushie] artifacts > default (bin only).
@@ -372,6 +390,7 @@ fn resolve_artifacts(
   }
 }
 
+@target(erlang)
 /// Resolve the plushie source path.
 ///
 /// Resolution: PLUSHIE_SOURCE_PATH env > gleam.toml source_path > error.
@@ -399,6 +418,7 @@ fn resolve_source_path() -> String {
   }
 }
 
+@target(erlang)
 /// Use a gleam.toml config value as fallback when the CLI flag is absent.
 fn or_config(
   flag_result: Result(String, Nil),
@@ -410,6 +430,7 @@ fn or_config(
   }
 }
 
+@target(erlang)
 fn dirname(path: String) -> String {
   case string.split(path, "/") {
     [_] -> "."
@@ -423,10 +444,12 @@ fn dirname(path: String) -> String {
   }
 }
 
+@target(erlang)
 fn list_reverse(items: List(a)) -> List(a) {
   do_reverse(items, [])
 }
 
+@target(erlang)
 fn do_reverse(items: List(a), acc: List(a)) -> List(a) {
   case items {
     [] -> acc

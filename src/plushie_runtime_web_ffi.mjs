@@ -184,7 +184,7 @@ export function defer(f) {
 
 // -- Timer subscriptions -----------------------------------------------------
 
-export function startTimerSub(handle, _app, key, intervalMs, _tag) {
+export function startTimerSub(handle, key, intervalMs, _tag) {
   // Clear existing if any
   if (handle.timerSubs.has(key)) {
     clearInterval(handle.timerSubs.get(key));
@@ -230,7 +230,7 @@ export function setSendAfter(handle, key, delayMs, callback) {
 
 // -- Async tasks -------------------------------------------------------------
 
-export function startAsync(handle, _app, tag, work) {
+export function startAsync(handle, tag, work) {
   // Cancel existing task with same tag
   cancelAsync(handle, tag);
 
@@ -283,7 +283,7 @@ export function startAsync(handle, _app, tag, work) {
   }
 }
 
-export function startStream(handle, _app, tag, work) {
+export function startStream(handle, tag, work) {
   cancelAsync(handle, tag);
 
   const nonce = ++handle.nextNonce;

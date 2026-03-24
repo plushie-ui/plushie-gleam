@@ -8,23 +8,34 @@
 //// Started automatically when `dev: True` is set in StartOpts.
 //// Requires the `file_system` Erlang package.
 
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/erlang/process.{type Subject}
+@target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/platform
+@target(erlang)
 import plushie/runtime
 
+@target(erlang)
 const default_debounce_ms = 100
 
+@target(erlang)
 const default_watch_dirs = ["src/"]
 
+@target(erlang)
 const gleam_extension = ".gleam"
 
+@target(erlang)
 const build_dir = "build/dev/erlang"
 
 // -- Types -------------------------------------------------------------------
 
+@target(erlang)
 /// Messages handled by the dev server actor.
 pub opaque type DevMessage {
   /// Debounce timer expired -- time to recompile.
@@ -33,6 +44,7 @@ pub opaque type DevMessage {
   RawFileEvent(Dynamic)
 }
 
+@target(erlang)
 /// Dev server actor state.
 type DevState {
   DevState(
@@ -46,6 +58,7 @@ type DevState {
 
 // -- Public API --------------------------------------------------------------
 
+@target(erlang)
 /// Start the dev server actor, watching src/ for changes.
 pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
   let _result = start_actor(runtime)
@@ -55,6 +68,7 @@ pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
   Nil
 }
 
+@target(erlang)
 /// Start the dev server under a supervisor.
 ///
 /// Returns `Started` for use as a supervisor child spec.
@@ -72,6 +86,7 @@ pub fn start_supervised(
   }
 }
 
+@target(erlang)
 fn start_actor(
   runtime: Subject(runtime.RuntimeMessage),
 ) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
@@ -110,6 +125,7 @@ fn start_actor(
 
 // -- Actor loop --------------------------------------------------------------
 
+@target(erlang)
 fn handle_message(
   state: DevState,
   msg: DevMessage,
@@ -173,6 +189,7 @@ fn handle_message(
 
 // -- Helpers -----------------------------------------------------------------
 
+@target(erlang)
 /// Check if a path is a Gleam source file worth watching.
 /// Excludes _build/ and build/ only when they appear as directory
 /// boundaries, not as substrings of other directory names.
@@ -183,16 +200,19 @@ fn is_gleam_file(path: String) -> Bool {
   && !is_build_output_dir(path)
 }
 
+@target(erlang)
 /// Check if a path is inside a top-level build output directory.
 /// Matches "/build/dev/" or "build/dev/" but not "/my_build/".
 fn is_build_output_dir(path: String) -> Bool {
   string.contains(path, "/build/dev/") || string.starts_with(path, "build/dev/")
 }
 
+@target(erlang)
 /// Extract a file path from a raw file_system event.
 @external(erlang, "plushie_dev_server_ffi", "extract_file_path")
 fn extract_file_path(msg: Dynamic) -> Result(String, Nil)
 
+@target(erlang)
 /// Find modules whose mtimes changed between two snapshots.
 @external(erlang, "plushie_dev_server_ffi", "find_changed_modules")
 fn find_changed_modules(
@@ -200,22 +220,27 @@ fn find_changed_modules(
   new: List(#(Dynamic, Dynamic)),
 ) -> List(Dynamic)
 
+@target(erlang)
 /// Run `gleam build` and return the output.
 @external(erlang, "plushie_ffi", "gleam_build")
 fn gleam_build() -> String
 
+@target(erlang)
 /// Reload a list of module atoms (purge + load_file).
 @external(erlang, "plushie_ffi", "reload_modules")
 fn reload_modules(modules: List(Dynamic)) -> Nil
 
+@target(erlang)
 /// List .beam files in a directory, returning (module_atom, mtime) tuples.
 @external(erlang, "plushie_ffi", "list_beam_files")
 fn list_beam_files(dir: String) -> List(#(Dynamic, Dynamic))
 
+@target(erlang)
 /// Start a file_system watcher on the given directories.
 @external(erlang, "plushie_ffi", "start_file_watcher")
 fn start_file_watcher(dirs: List(String)) -> Dynamic
 
+@target(erlang)
 /// Subscribe the calling process to file events from the watcher.
 @external(erlang, "plushie_ffi", "file_watcher_subscribe")
 fn file_watcher_subscribe(pid: Dynamic) -> Nil

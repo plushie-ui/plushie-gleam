@@ -19,15 +19,24 @@
 //// server watches `src/` for changes, recompiles, hot-reloads BEAM
 //// modules, and triggers a re-render without losing app state.
 
+@target(erlang)
 import gleam/erlang/process
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/option.{Some}
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/cli_helpers as helpers
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/protocol
 
+@target(erlang)
 /// Options for starting a GUI application.
 pub type GuiOpts {
   GuiOpts(
@@ -44,6 +53,7 @@ pub type GuiOpts {
   )
 }
 
+@target(erlang)
 /// Default GUI options.
 pub fn default_opts() -> GuiOpts {
   GuiOpts(
@@ -55,6 +65,7 @@ pub fn default_opts() -> GuiOpts {
   )
 }
 
+@target(erlang)
 /// Start a plushie GUI application, blocking until it exits.
 ///
 /// Resolves the binary, starts the runtime with the given options,

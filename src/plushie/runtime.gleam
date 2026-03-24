@@ -4,7 +4,6 @@
 //// and sends patches to the bridge. Commands returned from update
 //// are executed before the next view render.
 
-@target(erlang)
 import gleam/dict.{type Dict}
 @target(erlang)
 import gleam/dynamic.{type Dynamic}
@@ -14,13 +13,10 @@ import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/process.{type Pid, type Subject}
 @target(erlang)
 import gleam/int
-@target(erlang)
 import gleam/list
-@target(erlang)
 import gleam/option.{type Option, None, Some}
 @target(erlang)
 import gleam/otp/actor
-@target(erlang)
 import gleam/set.{type Set}
 @target(erlang)
 import gleam/string
@@ -37,7 +33,6 @@ import plushie/command.{type Command}
 import plushie/effects
 @target(erlang)
 import plushie/event.{type Event}
-@target(erlang)
 import plushie/node.{
   type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
 }
@@ -486,7 +481,7 @@ fn handle_message(
 
     InternalEvent(event) -> {
       // Remove delivered timer entry (SendAfter deduplication)
-      let timer_key = platform.stable_hash_key(coerce_to_dynamic(event))
+      let timer_key = platform.stable_hash_key(event)
       let state =
         LoopState(
           ..state,
@@ -973,6 +968,7 @@ fn handle_message(
 @external(erlang, "erlang", "monotonic_time")
 fn erlang_monotonic_time() -> Int
 
+@target(erlang)
 /// Widen a generic value to Dynamic for the GetModel reply.
 /// The model type parameter is erased at the RuntimeMessage boundary,
 /// so this identity function bridges the gap at zero runtime cost.
@@ -1276,7 +1272,7 @@ fn execute_commands(
     }
 
     command.SendAfter(delay_ms:, msg:) -> {
-      let timer_key = platform.stable_hash_key(coerce_to_dynamic(msg))
+      let timer_key = platform.stable_hash_key(msg)
       // Cancel any existing timer for the same event key
       let state = case dict.get(state.pending_timers, timer_key) {
         Ok(old_timer) -> {
@@ -2353,6 +2349,7 @@ fn stop_subscription(
   }
 }
 
+@target(erlang)
 /// Drain queued TimerFired messages for the same tag from the mailbox.
 /// Uses Erlang selective receive (via FFI) with zero timeout to consume
 /// only matching messages without disturbing other mailbox contents.

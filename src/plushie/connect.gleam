@@ -33,15 +33,24 @@
 //// - `:port` = TCP localhost on that port
 //// - `host:port` = TCP on specified host and port
 
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/platform
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/socket_adapter
 
+@target(erlang)
 /// Options for connect mode.
 pub type ConnectOpts {
   ConnectOpts(
@@ -52,11 +61,13 @@ pub type ConnectOpts {
   )
 }
 
+@target(erlang)
 /// Default connect options.
 pub fn default_opts() -> ConnectOpts {
   ConnectOpts(format: protocol.Msgpack, daemon: False)
 }
 
+@target(erlang)
 /// Run a plushie application connected to an external renderer.
 ///
 /// Parses CLI args for socket address and token, connects via the
@@ -96,6 +107,7 @@ pub fn run(app: App(model, Event), opts: ConnectOpts) -> Nil {
   }
 }
 
+@target(erlang)
 fn resolve_socket() -> String {
   case get_flag_value("--socket") {
     Ok(addr) -> addr
@@ -113,6 +125,7 @@ fn resolve_socket() -> String {
   }
 }
 
+@target(erlang)
 fn resolve_token() -> Option(String) {
   case get_flag_value("--token") {
     Ok(token) -> Some(token)
@@ -124,6 +137,7 @@ fn resolve_token() -> Option(String) {
   }
 }
 
+@target(erlang)
 fn read_token_from_stdin() -> Option(String) {
   case read_stdin_line_timeout(1000) {
     Ok(line) -> parse_negotiation_token(line)
@@ -131,6 +145,7 @@ fn read_token_from_stdin() -> Option(String) {
   }
 }
 
+@target(erlang)
 fn parse_negotiation_token(line: String) -> Option(String) {
   case parse_json_token(line) {
     Ok(token) -> Some(token)

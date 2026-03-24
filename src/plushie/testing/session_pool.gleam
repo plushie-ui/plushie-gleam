@@ -19,33 +19,51 @@
 ////
 ////     let backend = pooled.backend(pool)
 
+@target(erlang)
 import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode as dyn_decode
+@target(erlang)
 import gleam/erlang/port.{type Port}
+@target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
+@target(erlang)
 import gleam/int
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/result
+@target(erlang)
 import plushie/ffi
+@target(erlang)
 import plushie/node
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/protocol/encode as proto_encode
+@target(erlang)
 import plushie/renderer_env
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Pool mode: mock or headless.
 pub type PoolMode {
   Mock
   Headless
 }
 
+@target(erlang)
 /// Configuration for starting a session pool.
 pub type PoolConfig {
   PoolConfig(
@@ -60,6 +78,7 @@ pub type PoolConfig {
   )
 }
 
+@target(erlang)
 /// Default pool configuration.
 pub fn default_config() -> PoolConfig {
   PoolConfig(
@@ -70,6 +89,7 @@ pub fn default_config() -> PoolConfig {
   )
 }
 
+@target(erlang)
 /// Messages the pool actor handles.
 pub opaque type PoolMessage {
   /// Register a new session. Replies with session ID.
@@ -101,6 +121,7 @@ pub opaque type PoolMessage {
   OwnerDown(session_id: String)
 }
 
+@target(erlang)
 /// Reply for register calls.
 pub type RegisterReply {
   Registered(session_id: String)
@@ -108,18 +129,21 @@ pub type RegisterReply {
   AlreadyRegistered(session_id: String)
 }
 
+@target(erlang)
 /// Reply for unregister calls.
 pub type UnregisterReply {
   Unregistered
   UnregisterError(String)
 }
 
+@target(erlang)
 /// Reply for send-sync calls.
 pub type SendReply {
   SendOk(Dynamic)
   SendError(String)
 }
 
+@target(erlang)
 /// Pool event forwarded to session owners.
 pub type PoolEvent {
   PoolEventInteractStep(session_id: String, data: Dynamic)
@@ -127,6 +151,7 @@ pub type PoolEvent {
   PoolEventGeneric(session_id: String, data: Dynamic)
 }
 
+@target(erlang)
 /// Convenience alias for the pool actor's Subject.
 pub type PoolSubject =
   Subject(PoolMessage)
@@ -135,14 +160,17 @@ pub type PoolSubject =
 // Pool state
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 type SessionEntry {
   SessionEntry(owner: Pid, monitor_ref: Dynamic)
 }
 
+@target(erlang)
 type PendingValue {
   PendingValue(response_type: String, reply: Subject(SendReply))
 }
 
+@target(erlang)
 type PoolState {
   PoolState(
     port: Port,
@@ -162,6 +190,7 @@ type PoolState {
 // Public API
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Start a session pool.
 pub fn start(config: PoolConfig) -> Result(PoolSubject, actor.StartError) {
   actor.new_with_initialiser(10_000, fn(subject) { init_pool(subject, config) })
@@ -170,6 +199,7 @@ pub fn start(config: PoolConfig) -> Result(PoolSubject, actor.StartError) {
   |> result.map(fn(started) { started.data })
 }
 
+@target(erlang)
 /// Register a new session. Returns the session ID.
 pub fn register(pool: PoolSubject) -> String {
   let caller_pid = get_caller_pid()
@@ -185,6 +215,7 @@ pub fn register(pool: PoolSubject) -> String {
   }
 }
 
+@target(erlang)
 /// Unregister a session.
 pub fn unregister(pool: PoolSubject, session_id: String) -> Nil {
   case
@@ -195,6 +226,7 @@ pub fn unregister(pool: PoolSubject, session_id: String) -> Nil {
   }
 }
 
+@target(erlang)
 /// Send a message to the renderer for the given session, waiting
 /// for a correlated response.
 pub fn send_message(
@@ -213,6 +245,7 @@ pub fn send_message(
   }
 }
 
+@target(erlang)
 /// Send a fire-and-forget message to the renderer.
 pub fn send_async(
   pool: PoolSubject,
@@ -222,6 +255,7 @@ pub fn send_async(
   process.send(pool, SendAsync(session_id:, msg:))
 }
 
+@target(erlang)
 /// Send an interact message. Returns the request ID.
 /// Intermediate steps and the final response are forwarded
 /// to the session owner as PoolEvent messages.
@@ -239,6 +273,7 @@ pub fn send_interact(
 // Internal: init
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn init_pool(subject: PoolSubject, config: PoolConfig) {
   let renderer_path = case config.renderer_path {
     Some(p) -> p
@@ -315,6 +350,7 @@ fn init_pool(subject: PoolSubject, config: PoolConfig) {
 // Internal: message handler
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn handle_message(
   state: PoolState,
   msg: PoolMessage,
@@ -335,6 +371,7 @@ fn handle_message(
   }
 }
 
+@target(erlang)
 fn handle_register(
   state: PoolState,
   reply: Subject(RegisterReply),
@@ -374,6 +411,7 @@ fn handle_register(
   }
 }
 
+@target(erlang)
 fn handle_unregister(
   state: PoolState,
   session_id: String,
@@ -420,6 +458,7 @@ fn handle_unregister(
   )
 }
 
+@target(erlang)
 fn handle_send_sync(
   state: PoolState,
   session_id: String,
@@ -441,6 +480,7 @@ fn handle_send_sync(
   actor.continue(PoolState(..state, pending:, next_id: state.next_id + 1))
 }
 
+@target(erlang)
 fn handle_send_async(
   state: PoolState,
   session_id: String,
@@ -451,6 +491,7 @@ fn handle_send_async(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_send_interact(
   state: PoolState,
   session_id: String,
@@ -469,6 +510,7 @@ fn handle_send_interact(
   actor.continue(PoolState(..state, next_id: state.next_id + 1))
 }
 
+@target(erlang)
 fn handle_owner_down(
   state: PoolState,
   session_id: String,
@@ -499,6 +541,7 @@ fn handle_owner_down(
 // Internal: port data handling
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn handle_port_data(
   state: PoolState,
   raw: Dynamic,
@@ -512,6 +555,7 @@ fn handle_port_data(
   }
 }
 
+@target(erlang)
 fn handle_line_data(
   state: PoolState,
   line_data: ffi.LineData,
@@ -525,6 +569,7 @@ fn handle_line_data(
   }
 }
 
+@target(erlang)
 fn handle_port_exit(
   state: PoolState,
   status: Dynamic,
@@ -549,6 +594,7 @@ fn handle_port_exit(
 // Internal: wire dispatch
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn dispatch_wire(state: PoolState, bytes: BitArray) -> PoolState {
   case deserialize_wire(bytes, state.format) {
     Ok(raw) -> dispatch_raw(state, raw)
@@ -556,6 +602,7 @@ fn dispatch_wire(state: PoolState, bytes: BitArray) -> PoolState {
   }
 }
 
+@target(erlang)
 fn dispatch_raw(state: PoolState, raw: Dynamic) -> PoolState {
   let msg_type = dyn_string_field(raw, "type", "")
   let session_id = dyn_string_field(raw, "session", "")
@@ -601,6 +648,7 @@ fn dispatch_raw(state: PoolState, raw: Dynamic) -> PoolState {
   }
 }
 
+@target(erlang)
 fn forward_to_session(
   state: PoolState,
   session_id: String,
@@ -625,6 +673,7 @@ fn forward_to_session(
 // Internal: helpers
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn send_to_port(
   port: Port,
   format: protocol.Format,
@@ -639,6 +688,7 @@ fn send_to_port(
   }
 }
 
+@target(erlang)
 fn classify_port_message(format: protocol.Format, msg: Dynamic) -> PoolMessage {
   case format {
     protocol.Json ->
@@ -662,6 +712,7 @@ fn classify_port_message(format: protocol.Format, msg: Dynamic) -> PoolMessage {
   }
 }
 
+@target(erlang)
 fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.string)) {
     Ok(s) -> s
@@ -669,6 +720,7 @@ fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   }
 }
 
+@target(erlang)
 /// Check whether a pending key belongs to a given session.
 /// Keys are formatted as "session_id:req_id".
 fn starts_with_session(key: String, session_id: String) -> Bool {
@@ -681,36 +733,44 @@ fn starts_with_session(key: String, session_id: String) -> Bool {
 
 // -- FFI ----------------------------------------------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "deserialize_wire")
 fn deserialize_wire(
   bytes: BitArray,
   format: protocol.Format,
 ) -> Result(Dynamic, Nil)
 
+@target(erlang)
 /// Get the caller's pid (for registration).
 @external(erlang, "erlang", "self")
 fn get_caller_pid() -> Pid
 
+@target(erlang)
 /// Monitor a process.
 @external(erlang, "plushie_test_pool_ffi", "monitor_process")
 fn monitor_process(pid: Pid) -> Dynamic
 
+@target(erlang)
 /// Demonitor a reference.
 @external(erlang, "plushie_test_pool_ffi", "demonitor_process")
 fn demonitor(ref: Dynamic) -> Nil
 
+@target(erlang)
 /// Send a message to a pid.
 @external(erlang, "plushie_test_pool_ffi", "send_to_pid")
 fn send_to_pid(pid: Pid, msg: PoolEvent) -> Nil
 
+@target(erlang)
 /// Convert a pid to a string for use as dict key.
 @external(erlang, "plushie_test_pool_ffi", "pid_to_string")
 fn pid_to_string(pid: Pid) -> String
 
+@target(erlang)
 /// Check if a string starts with a prefix.
 @external(erlang, "plushie_test_pool_ffi", "string_starts_with")
 fn string_starts_with(str: String, prefix: String) -> Bool
 
+@target(erlang)
 /// Find plushie binary (re-export from binary module).
 fn plushie_binary_find() -> Result(String, Nil) {
   case plushie_binary_find_impl() {
@@ -719,13 +779,16 @@ fn plushie_binary_find() -> Result(String, Nil) {
   }
 }
 
+@target(erlang)
 /// Cast UnregisterReply subject to SendReply subject for the shared
 /// pending map. Both are processed through the same reply path.
 @external(erlang, "plushie_test_ffi", "identity")
 fn cast_reply_subject(value: Subject(UnregisterReply)) -> Subject(SendReply)
 
+@target(erlang)
 import plushie/binary
 
+@target(erlang)
 fn plushie_binary_find_impl() {
   binary.find()
   |> result.map_error(fn(_) { Nil })

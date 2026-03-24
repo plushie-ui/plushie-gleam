@@ -22,34 +22,34 @@ fn key_press(key: String) -> event.Event {
 }
 
 pub fn starts_with_zero_events_test() {
-  let session = testing.start(shortcuts.app())
-  let assert option.Some(el) = testing.find(session, "count")
+  let ctx = testing.start(shortcuts.app())
+  let assert option.Some(el) = testing.find(ctx, "count")
   should.equal(element.text(el), option.Some("0 key events captured"))
 }
 
 pub fn header_text_is_present_test() {
-  let session = testing.start(shortcuts.app())
-  let assert option.Some(el) = testing.find(session, "header")
+  let ctx = testing.start(shortcuts.app())
+  let assert option.Some(el) = testing.find(ctx, "header")
   should.equal(element.text(el), option.Some("Press any key"))
 }
 
 pub fn scrollable_log_exists_test() {
-  let session = testing.start(shortcuts.app())
-  should.be_true(option.is_some(testing.find(session, "log")))
+  let ctx = testing.start(shortcuts.app())
+  should.be_true(option.is_some(testing.find(ctx, "log")))
 }
 
 pub fn key_event_increments_count_test() {
-  let session = testing.start(shortcuts.app())
-  let session = testing.send_event(session, key_press("a"))
-  let assert option.Some(el) = testing.find(session, "count")
+  let ctx = testing.start(shortcuts.app())
+  let ctx = testing.send_event(ctx, key_press("a"))
+  let assert option.Some(el) = testing.find(ctx, "count")
   should.equal(element.text(el), option.Some("1 key events captured"))
 }
 
 pub fn multiple_key_events_accumulate_test() {
-  let session = testing.start(shortcuts.app())
-  let session = testing.send_event(session, key_press("a"))
-  let session = testing.send_event(session, key_press("b"))
-  let session = testing.send_event(session, key_press("c"))
-  let assert option.Some(el) = testing.find(session, "count")
+  let ctx = testing.start(shortcuts.app())
+  let ctx = testing.send_event(ctx, key_press("a"))
+  let ctx = testing.send_event(ctx, key_press("b"))
+  let ctx = testing.send_event(ctx, key_press("c"))
+  let assert option.Some(el) = testing.find(ctx, "count")
   should.equal(element.text(el), option.Some("3 key events captured"))
 }

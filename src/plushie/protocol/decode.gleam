@@ -17,8 +17,11 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+@target(erlang)
 import glepack
+@target(erlang)
 import glepack/data
+@target(erlang)
 import glepack/error as glepack_error
 import plushie/event.{
   type Event, type KeyLocation, type Modifiers, type MouseButton,

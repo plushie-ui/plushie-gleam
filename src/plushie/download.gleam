@@ -16,19 +16,29 @@
 //// pointing to the downloaded artifact. Skips if already present
 //// unless --force.
 
+@target(erlang)
 import gleam/io
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/binary
+@target(erlang)
 import plushie/config
+@target(erlang)
 import plushie/platform
 
+@target(erlang)
 const binary_version = "0.5.1"
 
+@target(erlang)
 const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
 
+@target(erlang)
 const wasm_archive = "plushie-renderer-wasm.tar.gz"
 
+@target(erlang)
 /// Entry point for `gleam run -m plushie/download`.
 pub fn main() -> Nil {
   let force = has_flag("--force")
@@ -59,6 +69,7 @@ pub fn main() -> Nil {
 
 // -- Native binary ------------------------------------------------------------
 
+@target(erlang)
 fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
   let platform = platform.platform_string()
   let arch = platform.arch_string()
@@ -107,6 +118,7 @@ fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
 
 // -- WASM ---------------------------------------------------------------------
 
+@target(erlang)
 fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
   let url = release_url(wasm_archive)
   let extract_dir = case wasm_dir_override {
@@ -163,6 +175,7 @@ fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
   }
 }
 
+@target(erlang)
 fn create_bin_symlink(target_path: String) -> Nil {
   let link_dir = "bin"
   let link_path = link_dir <> "/plushie-renderer"
@@ -178,10 +191,12 @@ fn create_bin_symlink(target_path: String) -> Nil {
 
 // -- Shared helpers -----------------------------------------------------------
 
+@target(erlang)
 fn release_url(artifact: String) -> String {
   base_url <> "/v" <> binary_version <> "/" <> artifact
 }
 
+@target(erlang)
 fn dirname(path: String) -> String {
   case string.split(path, "/") {
     [_] -> "."
@@ -192,10 +207,12 @@ fn dirname(path: String) -> String {
   }
 }
 
+@target(erlang)
 fn list_reverse(items: List(a)) -> List(a) {
   do_list_reverse(items, [])
 }
 
+@target(erlang)
 fn do_list_reverse(items: List(a), acc: List(a)) -> List(a) {
   case items {
     [] -> acc
@@ -203,6 +220,7 @@ fn do_list_reverse(items: List(a), acc: List(a)) -> List(a) {
   }
 }
 
+@target(erlang)
 fn is_ok(result: Result(a, b)) -> Bool {
   case result {
     Ok(_) -> True
@@ -210,6 +228,7 @@ fn is_ok(result: Result(a, b)) -> Bool {
   }
 }
 
+@target(erlang)
 fn verify_checksum(file_path: String, checksum_url: String) -> Nil {
   case download_binary(checksum_url, 5) {
     Ok(checksum_body) -> {
@@ -247,6 +266,7 @@ fn verify_checksum(file_path: String, checksum_url: String) -> Nil {
   }
 }
 
+@target(erlang)
 fn first_or(items: List(String), default: String) -> String {
   case items {
     [first, ..] -> first
@@ -289,6 +309,7 @@ fn extract_tarball(
 @external(erlang, "file", "read_file")
 fn do_read_file(path: String) -> Result(BitArray, anything)
 
+@target(erlang)
 fn read_file(path: String) -> BitArray {
   let assert Ok(data) = do_read_file(path)
   data
@@ -302,6 +323,7 @@ fn halt(status: Int) -> Nil
 
 // -- Config helpers -----------------------------------------------------------
 
+@target(erlang)
 /// Resolve which artifacts to download.
 ///
 /// CLI flags > gleam.toml [plushie] artifacts > default (bin only).
@@ -325,6 +347,7 @@ fn resolve_artifacts(
   }
 }
 
+@target(erlang)
 /// Use a gleam.toml config value as fallback when the CLI flag is absent.
 fn or_config(
   flag_result: Result(String, Nil),

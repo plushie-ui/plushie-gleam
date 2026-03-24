@@ -26,36 +26,62 @@
 //// verification. The mock backend does not use this actor at all --
 //// it runs the Elm loop in pure Gleam without a port.
 
+@target(erlang)
 import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode as dyn_decode
+@target(erlang)
 import gleam/erlang/port.{type Port}
+@target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
+@target(erlang)
 import gleam/int
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import gleam/otp/actor
+@target(erlang)
 import gleam/result
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/binary
+@target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
 import plushie/ffi
+@target(erlang)
 import plushie/node.{type Node, StringVal}
+@target(erlang)
 import plushie/protocol
+@target(erlang)
 import plushie/protocol/encode as proto_encode
+@target(erlang)
 import plushie/renderer_env
+@target(erlang)
 import plushie/testing/command_processor
+@target(erlang)
 import plushie/testing/element.{type Element}
+@target(erlang)
 import plushie/testing/event_decoder
+@target(erlang)
 import plushie/testing/screenshot.{type Screenshot, Screenshot}
+@target(erlang)
 import plushie/testing/tree_hash.{type TreeHash, TreeHash}
+@target(erlang)
 import plushie/tree
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Configuration for starting a renderer actor.
 pub type RendererConfig {
   RendererConfig(
@@ -72,6 +98,7 @@ pub type RendererConfig {
   )
 }
 
+@target(erlang)
 /// Pending request types for response correlation.
 type PendingType {
   PendingFind
@@ -82,11 +109,13 @@ type PendingType {
   PendingReset
 }
 
+@target(erlang)
 /// Pending request entry: type + reply subject.
 type PendingEntry {
   PendingEntry(kind: PendingType, reply: Subject(RendererReply))
 }
 
+@target(erlang)
 /// Internal actor state.
 type RendererState(model) {
   RendererState(
@@ -101,6 +130,7 @@ type RendererState(model) {
   )
 }
 
+@target(erlang)
 /// Messages the renderer actor handles.
 pub opaque type RendererMessage {
   /// External call: find element by selector.
@@ -130,10 +160,12 @@ pub opaque type RendererMessage {
   PortExit(status: Dynamic)
 }
 
+@target(erlang)
 /// Convenience alias for the renderer actor's Subject.
 pub type RendererSubject =
   Subject(RendererMessage)
 
+@target(erlang)
 /// Reply values from the renderer actor.
 pub type RendererReply {
   ReplyElement(Option(Element))
@@ -149,6 +181,7 @@ pub type RendererReply {
 // Public API
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Start a renderer actor with the given app and config.
 pub fn start(
   app: App(model, Event),
@@ -162,6 +195,7 @@ pub fn start(
   |> result.map(fn(started) { started.data })
 }
 
+@target(erlang)
 /// Stop a renderer actor by sending a normal exit to its process.
 pub fn stop(subject: Subject(RendererMessage)) -> Nil {
   case process.subject_owner(subject) {
@@ -170,6 +204,7 @@ pub fn stop(subject: Subject(RendererMessage)) -> Nil {
   }
 }
 
+@target(erlang)
 /// Find an element by selector string.
 pub fn find(
   subject: Subject(RendererMessage),
@@ -183,11 +218,13 @@ pub fn find(
   }
 }
 
+@target(erlang)
 /// Click on an element identified by selector.
 pub fn click(subject: Subject(RendererMessage), selector: String) -> Nil {
   interact(subject, "click", Some(selector), dict.new())
 }
 
+@target(erlang)
 /// Type text into an element identified by selector.
 pub fn type_text(
   subject: Subject(RendererMessage),
@@ -202,16 +239,19 @@ pub fn type_text(
   )
 }
 
+@target(erlang)
 /// Submit a form element identified by selector.
 pub fn submit(subject: Subject(RendererMessage), selector: String) -> Nil {
   interact(subject, "submit", Some(selector), dict.new())
 }
 
+@target(erlang)
 /// Toggle a checkbox/toggler identified by selector.
 pub fn toggle(subject: Subject(RendererMessage), selector: String) -> Nil {
   interact(subject, "toggle", Some(selector), dict.new())
 }
 
+@target(erlang)
 /// Select a value on a picker/dropdown identified by selector.
 pub fn select(
   subject: Subject(RendererMessage),
@@ -226,6 +266,7 @@ pub fn select(
   )
 }
 
+@target(erlang)
 /// Slide a slider to a value, identified by selector.
 pub fn slide(
   subject: Subject(RendererMessage),
@@ -240,6 +281,7 @@ pub fn slide(
   )
 }
 
+@target(erlang)
 /// Get the current model (returned as Dynamic -- caller casts).
 pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
   case process.call(subject, 10_000, fn(reply) { CallModel(reply:) }) {
@@ -248,6 +290,7 @@ pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
   }
 }
 
+@target(erlang)
 /// Get the raw tree from the renderer.
 pub fn get_tree(subject: Subject(RendererMessage)) -> Option(Dynamic) {
   case process.call(subject, 10_000, fn(reply) { CallTree(reply:) }) {
@@ -256,6 +299,7 @@ pub fn get_tree(subject: Subject(RendererMessage)) -> Option(Dynamic) {
   }
 }
 
+@target(erlang)
 /// Get a tree hash from the renderer.
 pub fn get_tree_hash(
   subject: Subject(RendererMessage),
@@ -269,6 +313,7 @@ pub fn get_tree_hash(
   }
 }
 
+@target(erlang)
 /// Capture a screenshot from the renderer.
 pub fn get_screenshot(
   subject: Subject(RendererMessage),
@@ -282,6 +327,7 @@ pub fn get_screenshot(
   }
 }
 
+@target(erlang)
 /// Reset the session to initial state.
 pub fn reset(subject: Subject(RendererMessage)) -> Nil {
   case process.call(subject, 10_000, fn(reply) { CallReset(reply:) }) {
@@ -289,18 +335,21 @@ pub fn reset(subject: Subject(RendererMessage)) -> Nil {
   }
 }
 
+@target(erlang)
 /// Press a key (no selector).
 pub fn press(subject: Subject(RendererMessage), key: String) -> Nil {
   let payload = parse_key(key)
   interact(subject, "press", None, payload)
 }
 
+@target(erlang)
 /// Release a key (no selector).
 pub fn release(subject: Subject(RendererMessage), key: String) -> Nil {
   let payload = parse_key(key)
   interact(subject, "release", None, payload)
 }
 
+@target(erlang)
 /// Move the mouse pointer to absolute coordinates.
 pub fn move_to(subject: Subject(RendererMessage), x: Float, y: Float) -> Nil {
   interact(
@@ -314,6 +363,7 @@ pub fn move_to(subject: Subject(RendererMessage), x: Float, y: Float) -> Nil {
   )
 }
 
+@target(erlang)
 /// Press and release a key (no selector).
 pub fn type_key(subject: Subject(RendererMessage), key: String) -> Nil {
   let payload = parse_key(key)
@@ -324,6 +374,7 @@ pub fn type_key(subject: Subject(RendererMessage), key: String) -> Nil {
 // Internal: interact helper
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn interact(
   subject: Subject(RendererMessage),
   action: String,
@@ -344,6 +395,7 @@ fn interact(
 // Internal: actor init
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn init_renderer(
   subject: Subject(RendererMessage),
   app: App(model, Event),
@@ -420,6 +472,7 @@ fn init_renderer(
 // Internal: message handler
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn handle_message(
   state: RendererState(model),
   msg: RendererMessage,
@@ -446,6 +499,7 @@ fn handle_message(
 // Internal: call handlers (send request, store pending)
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn handle_find(
   state: RendererState(model),
   selector: String,
@@ -470,6 +524,7 @@ fn handle_find(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_tree_call(
   state: RendererState(model),
   reply: Subject(RendererReply),
@@ -492,6 +547,7 @@ fn handle_tree_call(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_interact(
   state: RendererState(model),
   action: String,
@@ -527,6 +583,7 @@ fn handle_interact(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_tree_hash(
   state: RendererState(model),
   name: String,
@@ -549,6 +606,7 @@ fn handle_tree_hash(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_screenshot(
   state: RendererState(model),
   name: String,
@@ -579,6 +637,7 @@ fn handle_screenshot(
   actor.continue(state)
 }
 
+@target(erlang)
 fn handle_reset(
   state: RendererState(model),
   reply: Subject(RendererReply),
@@ -626,6 +685,7 @@ fn handle_reset(
 // Internal: port data handling
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn handle_port_data(
   state: RendererState(model),
   raw: Dynamic,
@@ -639,6 +699,7 @@ fn handle_port_data(
   }
 }
 
+@target(erlang)
 fn handle_line_data(
   state: RendererState(model),
   line_data: ffi.LineData,
@@ -654,6 +715,7 @@ fn handle_line_data(
   }
 }
 
+@target(erlang)
 fn handle_port_exit(
   state: RendererState(model),
   status: Dynamic,
@@ -678,6 +740,7 @@ fn handle_port_exit(
 // Internal: wire deserialization and dispatch
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Deserialize wire bytes and dispatch based on message type.
 fn dispatch_wire(
   state: RendererState(model),
@@ -689,6 +752,7 @@ fn dispatch_wire(
   }
 }
 
+@target(erlang)
 /// Route a deserialized wire message by its "type" field.
 fn dispatch_raw(
   state: RendererState(model),
@@ -719,6 +783,7 @@ fn dispatch_raw(
   }
 }
 
+@target(erlang)
 fn handle_response(
   state: RendererState(model),
   req_id: String,
@@ -777,6 +842,7 @@ fn handle_response(
 // Internal: event dispatching (Elm loop)
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn dispatch_wire_event(
   state: RendererState(model),
   family: String,
@@ -795,6 +861,7 @@ fn dispatch_wire_event(
   }
 }
 
+@target(erlang)
 fn dispatch_interact_events(
   state: RendererState(model),
   raw: Dynamic,
@@ -807,6 +874,7 @@ fn dispatch_interact_events(
   })
 }
 
+@target(erlang)
 /// Run the Elm loop: update -> process commands -> view -> snapshot.
 fn run_update(state: RendererState(model), event: Event) -> RendererState(model) {
   let update_fn = app.get_update(state.app)
@@ -827,6 +895,7 @@ fn run_update(state: RendererState(model), event: Event) -> RendererState(model)
 // Internal: selector encoding
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn encode_selector(
   selector: String,
   current_tree: Node,
@@ -854,6 +923,7 @@ fn encode_selector(
   }
 }
 
+@target(erlang)
 fn resolve_local_id(nd: Node, target_id: String) -> Option(String) {
   let local = case string.split(nd.id, "/") {
     [single] -> single
@@ -881,11 +951,13 @@ fn resolve_local_id(nd: Node, target_id: String) -> Option(String) {
 // Internal: helpers
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn next_id(state: RendererState(model)) -> #(String, RendererState(model)) {
   let id = "req_" <> int.to_string(state.next_id)
   #(id, RendererState(..state, next_id: state.next_id + 1))
 }
 
+@target(erlang)
 fn send_wire(
   port: Port,
   format: protocol.Format,
@@ -900,6 +972,7 @@ fn send_wire(
   }
 }
 
+@target(erlang)
 fn classify_port_message(
   format: protocol.Format,
   msg: Dynamic,
@@ -926,6 +999,7 @@ fn classify_port_message(
   }
 }
 
+@target(erlang)
 fn parse_key(key: String) -> Dict(String, String) {
   let parts = string.split(key, "+")
   let #(mods, key_parts) = list.split(parts, list.length(parts) - 1)
@@ -947,6 +1021,7 @@ fn parse_key(key: String) -> Dict(String, String) {
   })
 }
 
+@target(erlang)
 fn decode_find_data(raw: Dynamic) -> Option(Element) {
   case dyn_field(raw, "data") {
     Error(_) -> None
@@ -966,6 +1041,7 @@ fn decode_find_data(raw: Dynamic) -> Option(Element) {
 // Internal: Dynamic field accessors
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   case dyn_field(data, key) {
     Ok(val) ->
@@ -977,6 +1053,7 @@ fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   }
 }
 
+@target(erlang)
 fn dyn_int_field(data: Dynamic, key: String, default: Int) -> Int {
   case dyn_field(data, key) {
     Ok(val) ->
@@ -988,6 +1065,7 @@ fn dyn_int_field(data: Dynamic, key: String, default: Int) -> Int {
   }
 }
 
+@target(erlang)
 fn dyn_binary_field(data: Dynamic, key: String) -> BitArray {
   case dyn_field(data, key) {
     Ok(val) ->
@@ -999,6 +1077,7 @@ fn dyn_binary_field(data: Dynamic, key: String) -> BitArray {
   }
 }
 
+@target(erlang)
 fn dyn_list_field(data: Dynamic, key: String) -> List(Dynamic) {
   case dyn_field(data, key) {
     Ok(val) ->
@@ -1010,6 +1089,7 @@ fn dyn_list_field(data: Dynamic, key: String) -> List(Dynamic) {
   }
 }
 
+@target(erlang)
 fn dyn_field(data: Dynamic, key: String) -> Result(Dynamic, Nil) {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.dynamic)) {
     Ok(val) -> Ok(val)
@@ -1017,6 +1097,7 @@ fn dyn_field(data: Dynamic, key: String) -> Result(Dynamic, Nil) {
   }
 }
 
+@target(erlang)
 fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
   case
     dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
@@ -1026,6 +1107,7 @@ fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
   }
 }
 
+@target(erlang)
 fn is_nil_or_empty_map(data: Dynamic) -> Bool {
   case
     dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
@@ -1043,6 +1125,7 @@ fn is_nil_or_empty_map(data: Dynamic) -> Bool {
 // FFI
 // ---------------------------------------------------------------------------
 
+@target(erlang)
 /// Deserialize wire bytes to a Dynamic Erlang map.
 @external(erlang, "plushie_test_renderer_ffi", "deserialize_wire")
 fn deserialize_wire(
@@ -1050,12 +1133,15 @@ fn deserialize_wire(
   format: protocol.Format,
 ) -> Result(Dynamic, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "float_to_string")
 fn float_to_string(f: Float) -> String
 
+@target(erlang)
 @external(erlang, "plushie_test_renderer_ffi", "send_exit")
 fn send_exit(pid: Pid) -> Nil
 
+@target(erlang)
 /// Widen the typed model to Dynamic for the RendererReply boundary.
 /// RendererMessage is not parameterized over model, so the reply
 /// carries Dynamic. See also from_dynamic in headless/windowed backends.

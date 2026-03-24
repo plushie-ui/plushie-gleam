@@ -4,14 +4,22 @@
 //// typed Event values. Shared between all test backends that receive
 //// wire events, keeping decoding logic in one place.
 
+@target(erlang)
 import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/dynamic/decode
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/option.{None, Some}
+@target(erlang)
 import gleam/string
+@target(erlang)
 import plushie/event.{type Event, type Modifiers, Modifiers}
 
+@target(erlang)
 /// Decode a wire event map into a typed Event.
 /// Returns Ok(event) or Error(Nil) for unrecognised families.
 pub fn decode_test_event(
@@ -429,6 +437,7 @@ pub fn decode_test_event(
 
 // -- Scoped ID splitting -----------------------------------------------------
 
+@target(erlang)
 fn split_scoped_id(id: String) -> #(String, List(String)) {
   case string.split(id, "/") {
     [] -> #(id, [])
@@ -443,6 +452,7 @@ fn split_scoped_id(id: String) -> #(String, List(String)) {
 
 // -- Key event decoding ------------------------------------------------------
 
+@target(erlang)
 fn decode_key_press(data: Dict(String, Dynamic)) -> Event {
   let key = parse_wire_key_name(get_string(data, "value", ""))
   let modifiers = decode_modifiers(data)
@@ -462,6 +472,7 @@ fn decode_key_press(data: Dict(String, Dynamic)) -> Event {
   )
 }
 
+@target(erlang)
 fn decode_key_release(data: Dict(String, Dynamic)) -> Event {
   let key = parse_wire_key_name(get_string(data, "value", ""))
   let modifiers = decode_modifiers(data)
@@ -480,6 +491,7 @@ fn decode_key_release(data: Dict(String, Dynamic)) -> Event {
   )
 }
 
+@target(erlang)
 fn decode_modifiers(data: Dict(String, Dynamic)) -> Modifiers {
   case dict.get(data, "modifiers") {
     Ok(m) -> decode_modifiers_from_dynamic(m)
@@ -497,6 +509,7 @@ fn decode_modifiers(data: Dict(String, Dynamic)) -> Modifiers {
   }
 }
 
+@target(erlang)
 fn decode_modifiers_from_dynamic(raw: Dynamic) -> Modifiers {
   let get_field = fn(name) {
     case decode.run(raw, decode.at([name], decode.bool)) {
@@ -514,10 +527,12 @@ fn decode_modifiers_from_dynamic(raw: Dynamic) -> Modifiers {
   )
 }
 
+@target(erlang)
 fn modifiers_none() -> Modifiers {
   Modifiers(shift: False, ctrl: False, alt: False, logo: False, command: False)
 }
 
+@target(erlang)
 /// Map wire key names to canonical key strings.
 fn parse_wire_key_name(name: String) -> String {
   case name {
@@ -553,6 +568,7 @@ fn parse_wire_key_name(name: String) -> String {
 
 // -- Mouse button decoding ---------------------------------------------------
 
+@target(erlang)
 fn decode_mouse_button(name: String) -> event.MouseButton {
   case name {
     "left" -> event.LeftButton
@@ -566,6 +582,7 @@ fn decode_mouse_button(name: String) -> event.MouseButton {
 
 // -- Dict helpers ------------------------------------------------------------
 
+@target(erlang)
 fn get_string(
   data: Dict(String, Dynamic),
   key: String,
@@ -581,6 +598,7 @@ fn get_string(
   }
 }
 
+@target(erlang)
 fn get_optional_string(
   data: Dict(String, Dynamic),
   key: String,
@@ -595,6 +613,7 @@ fn get_optional_string(
   }
 }
 
+@target(erlang)
 fn get_float(data: Dict(String, Dynamic), key: String, default: Float) -> Float {
   case dict.get(data, key) {
     Ok(val) ->
@@ -610,6 +629,7 @@ fn get_float(data: Dict(String, Dynamic), key: String, default: Float) -> Float 
   }
 }
 
+@target(erlang)
 fn get_optional_float(
   data: Dict(String, Dynamic),
   key: String,
@@ -628,6 +648,7 @@ fn get_optional_float(
   }
 }
 
+@target(erlang)
 fn get_int(data: Dict(String, Dynamic), key: String, default: Int) -> Int {
   case dict.get(data, key) {
     Ok(val) ->
@@ -639,6 +660,7 @@ fn get_int(data: Dict(String, Dynamic), key: String, default: Int) -> Int {
   }
 }
 
+@target(erlang)
 fn get_bool(data: Dict(String, Dynamic), key: String, default: Bool) -> Bool {
   case dict.get(data, key) {
     Ok(val) ->
@@ -650,6 +672,7 @@ fn get_bool(data: Dict(String, Dynamic), key: String, default: Bool) -> Bool {
   }
 }
 
+@target(erlang)
 fn get_dynamic(data: Dict(String, Dynamic), key: String) -> Dynamic {
   case dict.get(data, key) {
     Ok(val) -> val
@@ -657,5 +680,6 @@ fn get_dynamic(data: Dict(String, Dynamic), key: String) -> Dynamic {
   }
 }
 
+@target(erlang)
 @external(erlang, "erlang", "float")
 fn int_to_float(i: Int) -> Float

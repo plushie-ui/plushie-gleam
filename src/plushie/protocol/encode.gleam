@@ -10,7 +10,9 @@ import gleam/dict.{type Dict}
 import gleam/json
 import gleam/list
 import gleam/option
+@target(erlang)
 import glepack
+@target(erlang)
 import glepack/data
 import plushie/app.{type Settings}
 import plushie/node.{

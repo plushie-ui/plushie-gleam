@@ -77,12 +77,13 @@ pub fn try_call(f: fn() -> a) -> Result(a, Dynamic)
 /// Return a stable string key for a value, for deduplication.
 ///
 /// Used by the runtime to deduplicate `SendAfter` timers for the
-/// same message value. Not a cryptographic hash.
+/// same message value. Not a cryptographic hash. Accepts any type
+/// since both BEAM and JS implementations handle arbitrary values.
 ///
 /// BEAM: `erlang:phash2/1` (32-bit hash). JS: `JSON.stringify`.
 @external(erlang, "plushie_ffi", "stable_hash_key")
 @external(javascript, "../plushie_platform_ffi.mjs", "stableHashKey")
-pub fn stable_hash_key(value: Dynamic) -> String
+pub fn stable_hash_key(value: a) -> String
 
 // -- Math ---------------------------------------------------------------------
 

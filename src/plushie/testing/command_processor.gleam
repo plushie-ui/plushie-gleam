@@ -7,16 +7,23 @@
 //// Since execution is synchronous, await_async returns immediately --
 //// commands have already completed by the time it is called.
 
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
+@target(erlang)
 import gleam/option.{type Option, None, Some}
+@target(erlang)
 import plushie/app.{type App}
+@target(erlang)
 import plushie/command.{type Command}
+@target(erlang)
 import plushie/event.{type Event}
 
+@target(erlang)
 /// Default max depth for recursive command processing (guards against
 /// infinite loops).
 const default_max_depth = 100
 
+@target(erlang)
 /// Process commands synchronously, threading model state through each
 /// update dispatch. Returns the final model and list of events processed.
 ///
@@ -35,6 +42,7 @@ pub fn process_commands(
   do_process(app, model, commands, 0, effective_max, [])
 }
 
+@target(erlang)
 fn do_process(
   app: App(model, msg),
   model: model,
@@ -97,6 +105,7 @@ fn do_process(
   }
 }
 
+@target(erlang)
 fn batch_process(
   app: App(model, msg),
   model: model,
@@ -115,6 +124,7 @@ fn batch_process(
   }
 }
 
+@target(erlang)
 fn dispatch_async_result(
   app: App(model, msg),
   model: model,
@@ -142,6 +152,7 @@ fn dispatch_async_result(
   }
 }
 
+@target(erlang)
 fn dispatch_stream_value(
   app: App(model, msg),
   model: model,
@@ -169,6 +180,7 @@ fn dispatch_stream_value(
   }
 }
 
+@target(erlang)
 fn drain_stream_values(
   app: App(model, msg),
   model: model,
@@ -188,12 +200,14 @@ fn drain_stream_values(
   }
 }
 
+@target(erlang)
 /// Run a stream work function, collecting emitted values in order.
 @external(erlang, "plushie_test_ffi", "collect_stream_values")
 fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)
 
+@target(erlang)
 /// Cast Event to msg for simple apps where msg = Event.
 @external(erlang, "plushie_test_ffi", "identity")
 fn event_to_msg(value: Event) -> msg
