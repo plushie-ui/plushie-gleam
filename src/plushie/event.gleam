@@ -475,6 +475,13 @@ pub type Event {
   /// Diagnostic message from the renderer (warnings, errors).
   Diagnostic(level: String, element_id: String, code: String, message: String)
 
+  // --- Prop validation ---
+  /// Emitted by the renderer when validate_props is enabled and a
+  /// node has unexpected or mistyped properties. Indicates an SDK
+  /// or extension bug -- app code cannot produce these through the
+  /// typed builder API.
+  PropValidation(node_id: String, node_type: String, warnings: List(String))
+
   // --- Effect response ---
   /// Response to a platform Effect command (file dialog, clipboard,
   /// notification). The request_id correlates with the originating

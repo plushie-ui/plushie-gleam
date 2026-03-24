@@ -17,7 +17,9 @@
 ////     let assert Ok(_) = result
 
 import gleam/erlang/process.{type Subject}
+import gleam/list
 import gleam/option.{type Option}
+import gleam/string
 import plushie
 import plushie/app.{type App}
 import plushie/event.{type Event}
@@ -120,8 +122,25 @@ pub fn unregister_effect_stub(rt: TestApp(_), kind: String) -> Result(Nil, Nil) 
 
 /// Stop the test application.
 ///
-/// Signals the owner process to shut down the supervisor.
+/// Checks for prop validation warnings before shutting down.
+/// Panics if any warnings accumulated -- these indicate SDK bugs
+/// (incorrect prop names or types on the wire).
 pub fn stop(rt: TestApp(_)) -> Nil {
+  // Drain prop warnings and fail if any found
+  case plushie.get_prop_warnings(rt.instance) {
+    Ok([]) -> Nil
+    Ok(warnings) -> {
+      let messages =
+        list.map(warnings, fn(w) {
+          let #(node_id, node_type, warns) = w
+          node_type <> " \"" <> node_id <> "\": " <> string.join(warns, "; ")
+        })
+      panic as {
+        "Prop validation warnings found:\n" <> string.join(messages, "\n")
+      }
+    }
+    Error(_) -> Nil
+  }
   process.send(rt.stop_signal, Nil)
 }
 

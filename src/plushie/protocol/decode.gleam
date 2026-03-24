@@ -617,6 +617,9 @@ fn decode_event(
     // Error events
     "error" -> decode_error_event(map)
 
+    // Prop validation warnings
+    "prop_validation" -> decode_prop_validation(map)
+
     // Unknown family -- wrap in the catch-all WidgetEvent
     _ -> decode_generic_widget_event(map, family)
   }
@@ -759,6 +762,28 @@ fn decode_widget_scroll(
       content_height: get_float_or(data, "content_height", 0.0),
     )
   Ok(EventMessage(event.WidgetScroll(id: local, scope:, data: scroll_data)))
+}
+
+fn decode_prop_validation(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let data = case dict.get(map, "data") {
+    Ok(PMap(d)) -> d
+    _ -> dict.new()
+  }
+  let node_id = get_string_or(data, "node_id", "")
+  let node_type = get_string_or(data, "node_type", "")
+  let warnings = case dict.get(data, "warnings") {
+    Ok(PList(items)) ->
+      list.filter_map(items, fn(item) {
+        case item {
+          PString(s) -> Ok(s)
+          _ -> Error(Nil)
+        }
+      })
+    _ -> []
+  }
+  Ok(EventMessage(event.PropValidation(node_id:, node_type:, warnings:)))
 }
 
 fn decode_generic_widget_event(

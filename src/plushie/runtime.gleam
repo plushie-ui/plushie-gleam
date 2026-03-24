@@ -73,6 +73,8 @@ pub type RuntimeMessage {
   /// Remove a previously registered effect stub. The renderer sends
   /// an ack after removing the stub; the reply Subject is notified.
   UnregisterEffectStub(kind: String, reply: Subject(Nil))
+  /// Query accumulated prop validation warnings and clear them.
+  GetPropWarnings(reply: Subject(List(#(String, String, List(String)))))
 }
 
 /// Start options for the runtime.
@@ -251,6 +253,8 @@ type LoopState(model, msg) {
     pending_timers: Dict(String, process.Timer),
     // Pending effect stub ack replies, keyed by kind
     pending_stub_acks: Dict(String, Subject(Nil)),
+    // Accumulated prop validation warnings from the renderer
+    prop_warnings: List(#(String, String, List(String))),
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -334,6 +338,7 @@ fn run(
       nonce_counter: 0,
       pending_effects: dict.new(),
       pending_stub_acks: dict.new(),
+      prop_warnings: [],
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -386,6 +391,29 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
   let msg = process.selector_receive_forever(selector)
 
   case msg {
+    FromBridge(InboundEvent(EventMessage(event.PropValidation(
+      node_id:,
+      node_type:,
+      warnings:,
+    )))) -> {
+      // Prop validation warnings are SDK bugs, not app events.
+      // Log and accumulate -- never dispatch to the app.
+      let warning_text =
+        "plushie: prop validation warning on "
+        <> node_type
+        <> " \""
+        <> node_id
+        <> "\": "
+        <> string.join(warnings, "; ")
+      ffi.log_warning(warning_text)
+      let new_warnings = [
+        #(node_id, node_type, warnings),
+        ..state.prop_warnings
+      ]
+      LoopState(..state, prop_warnings: new_warnings)
+      |> message_loop()
+    }
+
     FromBridge(InboundEvent(EventMessage(ev))) -> {
       // Reset restart count on successful communication
       let state = LoopState(..state, restart_count: 0)
@@ -941,6 +969,12 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
     GetTree(reply:) -> {
       process.send(reply, state.tree)
       message_loop(state)
+    }
+
+    GetPropWarnings(reply:) -> {
+      process.send(reply, state.prop_warnings)
+      LoopState(..state, prop_warnings: [])
+      |> message_loop()
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
