@@ -233,8 +233,8 @@ fn install_binary(
   }
   let platform = ffi.platform_string()
   let arch = ffi.arch_string()
-  let binary_name = "plushie-" <> platform <> "-" <> arch
-  let src = source_dir <> "/target/" <> profile <> "/plushie"
+  let binary_name = "plushie-renderer-" <> platform <> "-" <> arch
+  let src = source_dir <> "/target/" <> profile <> "/plushie-renderer"
 
   case ffi.file_exists(src) {
     False -> {
@@ -258,7 +258,7 @@ fn install_binary(
 
 fn create_bin_symlink(target_path: String) -> Nil {
   let link_dir = "bin"
-  let link_path = link_dir <> "/plushie"
+  let link_path = link_dir <> "/plushie-renderer"
   ensure_dir(link_dir)
   // Remove existing symlink/file before creating
   delete_file(link_path)

@@ -163,7 +163,7 @@ fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
 
 fn create_bin_symlink(target_path: String) -> Nil {
   let link_dir = "bin"
-  let link_path = link_dir <> "/plushie"
+  let link_path = link_dir <> "/plushie-renderer"
   ensure_dir(link_dir)
   // Remove existing symlink/file before creating
   delete_file(link_path)

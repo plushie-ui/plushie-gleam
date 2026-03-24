@@ -39,8 +39,8 @@ cargo_build(SourceDir, Release) ->
     SourceDirStr = binary_to_list(SourceDir),
     Cargo = find_executable("cargo"),
     Args = case Release of
-        true -> ["-p", "plushie", "--release"];
-        false -> ["-p", "plushie"]
+        true -> ["-p", "plushie-renderer", "--release"];
+        false -> ["-p", "plushie-renderer"]
     end,
     Port = erlang:open_port({spawn_executable, Cargo}, [
         {args, ["build" | Args]},

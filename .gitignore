@@ -2,4 +2,5 @@
 *.ez
 /build/
 /priv/
+/bin/plushie-renderer
 erl_crash.dump
