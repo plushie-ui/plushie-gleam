@@ -321,7 +321,8 @@ fn read_toggle_state(sess: TestSession(model, Event), id: String) -> Bool {
   let current_tree = session.current_tree(sess)
   case tree.find(current_tree, id) {
     Some(nd) ->
-      case dict.get(nd.props, "is_checked") {
+      // Checkbox uses "checked", toggler uses "is_toggled"
+      case dict.get(nd.props, "checked") {
         Ok(BoolVal(v)) -> v
         _ ->
           case dict.get(nd.props, "is_toggled") {

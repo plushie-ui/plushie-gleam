@@ -19,6 +19,7 @@ import plushie/node.{type Node, StringVal}
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/prop/position
+import plushie/prop/theme
 import plushie/ui
 import plushie/widget/canvas
 import plushie/widget/combo_box
@@ -292,7 +293,14 @@ fn layout_tab() -> Node {
     // Themer - overrides the theme for its subtree
     ui.themer(
       "demo_themer",
-      "{\"background\":\"#1a1a2e\",\"text\":\"#e0e0e0\",\"primary\":\"#0f3460\"}",
+      theme.custom(
+        "custom_dark",
+        dict.from_list([
+          #("background", StringVal("#1a1a2e")),
+          #("text", StringVal("#e0e0e0")),
+          #("primary", StringVal("#0f3460")),
+        ]),
+      ),
       [],
       [
         ui.container("themed_box", [ui.padding(padding.all(12.0))], [

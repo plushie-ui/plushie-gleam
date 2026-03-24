@@ -80,7 +80,7 @@ pub fn checkbox_creates_checkbox_node_test() {
   assert node.id == "agree"
   assert node.kind == "checkbox"
   assert dict.get(node.props, "label") == Ok(StringVal("I agree"))
-  assert dict.get(node.props, "is_toggled") == Ok(BoolVal(True))
+  assert dict.get(node.props, "checked") == Ok(BoolVal(True))
 }
 
 pub fn slider_creates_slider_node_test() {

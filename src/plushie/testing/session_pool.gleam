@@ -280,6 +280,7 @@ fn init_pool(subject: PoolSubject, config: PoolConfig) {
         node.DictVal(
           dict.from_list([
             #("protocol_version", node.IntVal(protocol.protocol_version)),
+            #("validate_props", node.BoolVal(True)),
           ]),
         ),
       ),

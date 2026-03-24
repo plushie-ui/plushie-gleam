@@ -304,7 +304,7 @@ pub fn tutorial_step3_todo_row_structure_test() {
   let assert [cb, text, btn] = inner_row.children
   assert cb.kind == "checkbox"
   assert cb.id == "toggle"
-  assert dict.get(cb.props, "is_toggled") == Ok(BoolVal(False))
+  assert dict.get(cb.props, "checked") == Ok(BoolVal(False))
   assert text.kind == "text"
   assert dict.get(text.props, "content") == Ok(StringVal("Buy milk"))
   assert btn.kind == "button"
