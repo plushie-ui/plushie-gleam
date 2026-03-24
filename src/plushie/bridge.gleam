@@ -25,7 +25,6 @@ import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/port.{type Port}
 import gleam/erlang/process.{type Subject}
-import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
@@ -515,7 +514,7 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
           Nil
         }
         Error(_) -> {
-          io.println("plushie bridge: port closed during send")
+          ffi.log_warning("plushie bridge: port closed during send")
           Nil
         }
       }
@@ -535,7 +534,7 @@ fn handle_port_data(state: BridgeState, raw: Dynamic) -> BridgeState {
       dispatch_decoded(state, bytes)
     }
     Error(_) -> {
-      io.println("plushie bridge: received non-binary port data")
+      ffi.log_warning("plushie bridge: received non-binary port data")
       state
     }
   }
@@ -560,7 +559,7 @@ fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState 
       let new_buffer = bit_array.append(state.json_buffer, data)
       case bit_array.byte_size(new_buffer) > max_json_buffer_size {
         True -> {
-          io.println(
+          ffi.log_warning(
             "plushie bridge: JSON buffer exceeded 64 MiB, dropping message",
           )
           BridgeState(..state, json_buffer: <<>>)
@@ -599,7 +598,7 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
   case decode.decode_message(bytes, state.format) {
     Ok(msg) -> buffer_or_send(state, InboundEvent(msg))
     Error(err) -> {
-      io.println(
+      ffi.log_warning(
         "plushie bridge: decode error: " <> protocol.decode_error_to_string(err),
       )
       telemetry.execute(

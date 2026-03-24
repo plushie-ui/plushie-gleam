@@ -144,3 +144,15 @@ pub fn crc32(data: BitArray) -> Int
 /// Zlib compress binary data.
 @external(erlang, "plushie_ffi", "zlib_compress")
 pub fn zlib_compress(data: BitArray) -> BitArray
+
+/// Log at info level via the Erlang logger.
+@external(erlang, "plushie_ffi", "log_info")
+pub fn log_info(message: String) -> Nil
+
+/// Log at warning level via the Erlang logger.
+@external(erlang, "plushie_ffi", "log_warning")
+pub fn log_warning(message: String) -> Nil
+
+/// Log at error level via the Erlang logger.
+@external(erlang, "plushie_ffi", "log_error")
+pub fn log_error(message: String) -> Nil

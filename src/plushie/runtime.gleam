@@ -9,7 +9,6 @@ import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/process.{type Pid, type Subject}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
@@ -414,7 +413,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           message_loop(state)
         }
         False -> {
-          io.println(
+          ffi.log_error(
             "plushie: protocol version mismatch (expected "
             <> int.to_string(protocol.protocol_version)
             <> ", got "
@@ -446,7 +445,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             True -> {
               let delay =
                 calculate_backoff(state.restart_delay_base, state.restart_count)
-              io.println(
+              ffi.log_warning(
                 "plushie: renderer crashed (status "
                 <> int.to_string(status)
                 <> "), restarting in "
@@ -461,7 +460,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
               message_loop(state)
             }
             False -> {
-              io.println(
+              ffi.log_error(
                 "plushie: renderer crashed "
                 <> int.to_string(state.max_restarts)
                 <> " times, giving up",
@@ -571,7 +570,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       }
       case is_bridge {
         True -> {
-          io.println(
+          ffi.log_warning(
             "plushie: bridge process died unexpectedly: "
             <> string.inspect(reason),
           )
@@ -584,7 +583,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
               message_loop(LoopState(..state, bridge_pid: None))
             }
             False -> {
-              io.println("plushie: bridge crashed too many times, giving up")
+              ffi.log_error("plushie: bridge crashed too many times, giving up")
               Nil
             }
           }
@@ -662,7 +661,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             Error(_) -> None
           }
 
-          io.println(
+          ffi.log_info(
             "plushie: renderer restarted (attempt "
             <> int.to_string(new_count)
             <> ")",
@@ -784,14 +783,14 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           message_loop(state)
         }
         Error(_) -> {
-          io.println("plushie: failed to restart renderer, giving up")
+          ffi.log_error("plushie: failed to restart renderer, giving up")
           Nil
         }
       }
     }
 
     ForceRerender -> {
-      io.println("plushie runtime: force re-render (code reload)")
+      ffi.log_info("plushie runtime: force re-render (code reload)")
       // Re-render view and diff/patch
       let view_fn = app.get_view(state.app)
       case ffi.try_call(fn() { view_fn(state.model) }) {
@@ -854,7 +853,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           |> message_loop()
         }
         Error(reason) -> {
-          io.println(
+          ffi.log_error(
             "plushie runtime: force re-render view crashed: "
             <> string.inspect(reason),
           )
@@ -1159,7 +1158,9 @@ fn dispatch_update(
           let err_count = state_after_cmds.errors + 1
           case err_count <= 10 {
             True ->
-              io.println("plushie: view error: " <> dynamic.classify(reason))
+              ffi.log_warning(
+                "plushie: view error: " <> dynamic.classify(reason),
+              )
             False -> Nil
           }
           LoopState(..state_after_cmds, tree: state.tree, errors: err_count)
@@ -1170,7 +1171,7 @@ fn dispatch_update(
       let err_count = state.errors + 1
       case err_count <= 10 {
         True ->
-          io.println("plushie: update error: " <> dynamic.classify(reason))
+          ffi.log_warning("plushie: update error: " <> dynamic.classify(reason))
         False -> Nil
       }
       LoopState(..state, errors: err_count)
@@ -2030,7 +2031,7 @@ fn send_encoded(
   case result {
     Ok(bytes) -> process.send(bridge, Send(data: bytes))
     Error(err) -> {
-      io.println(
+      ffi.log_error(
         "plushie: encode error: " <> protocol.encode_error_to_string(err),
       )
       Nil
@@ -2144,7 +2145,7 @@ fn safe_subscribe(
   case ffi.try_call(fn() { subscribe_fn(model) }) {
     Ok(subs) -> subs
     Error(reason) -> {
-      io.println(
+      ffi.log_warning(
         "plushie runtime: subscribe/1 raised: " <> string.inspect(reason),
       )
       []

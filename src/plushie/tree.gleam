@@ -6,11 +6,11 @@
 //// the wire protocol.
 
 import gleam/dict.{type Dict}
-import gleam/io
 import gleam/list
 import gleam/option.{type Option}
 import gleam/set
 import gleam/string
+import plushie/ffi
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
@@ -39,8 +39,8 @@ fn normalize_with_scope(node: Node, scope: String) -> Node {
     id ->
       case string.contains(id, "/") {
         True ->
-          io.println(
-            "Warning: widget ID \""
+          ffi.log_warning(
+            "plushie: widget ID \""
             <> id
             <> "\" contains \"/\" -- scoped paths are built automatically by named containers",
           )
@@ -87,8 +87,8 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
         })
         |> fn(pair) { pair.1 }
         |> list.unique
-      io.println(
-        "Warning: duplicate sibling IDs detected during normalize: "
+      ffi.log_warning(
+        "plushie: duplicate sibling IDs detected during normalize: "
         <> string.inspect(dupes),
       )
     }

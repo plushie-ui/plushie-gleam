@@ -36,7 +36,10 @@
     crc32/1,
     zlib_compress/1,
     shutdown_pid/1,
-    identity/1
+    identity/1,
+    log_info/1,
+    log_warning/1,
+    log_error/1
 ]).
 
 %% Open a port with {spawn_executable, Path} and given args, env, options.
@@ -295,4 +298,9 @@ shutdown_pid(Pid) ->
 
 %% Identity function for Gleam type erasure (e.g. model -> Dynamic).
 identity(X) -> X.
+
+%% Erlang logger wrappers that return nil instead of ok.
+log_info(Msg) -> logger:info(Msg), nil.
+log_warning(Msg) -> logger:warning(Msg), nil.
+log_error(Msg) -> logger:error(Msg), nil.
 
