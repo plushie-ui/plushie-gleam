@@ -11,6 +11,7 @@ import gleam/erlang/process.{type Pid, type Subject}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/otp/actor
 import gleam/set.{type Set}
 import gleam/string
 import plushie/app.{type App}
@@ -101,74 +102,11 @@ pub fn default_opts() -> RuntimeOpts {
   )
 }
 
-/// Start the runtime as a linked process.
-///
-/// Spawns a child process that:
-/// 1. Creates its own Subjects (for correct message ownership)
-/// 2. Starts the bridge actor
-/// 3. Initializes the app (init -> view -> snapshot)
-/// 4. Enters the message loop
-///
-/// Returns `Ok(runtime_subject)` on success, or an error if bridge
-/// startup fails or times out (5 second deadline).
-pub fn start(
-  app: App(model, msg),
-  binary_path: String,
-  opts: RuntimeOpts,
-) -> Result(Subject(RuntimeMessage), StartError) {
-  // Channel for the spawned process to report back its Subject
-  let init_channel = process.new_subject()
-
-  process.spawn(fn() {
-    // Create Subjects inside this process so we own them and can
-    // receive messages delivered to them.
-    let runtime_subject = process.new_subject()
-    let notification_subject = process.new_subject()
-
-    // Start bridge actor with our notification subject
-    case
-      bridge.start(
-        binary_path,
-        opts.format,
-        notification_subject,
-        opts.session,
-        opts.renderer_args,
-      )
-    {
-      Ok(bridge_subject) -> {
-        // Report success to parent
-        process.send(init_channel, Ok(runtime_subject))
-        // Run the app
-        run(
-          app,
-          bridge_subject,
-          runtime_subject,
-          notification_subject,
-          opts,
-          binary_path,
-        )
-      }
-      Error(err) -> {
-        process.send(init_channel, Error(BridgeStartFailed(err)))
-      }
-    }
-  })
-
-  // Wait for the spawned process to report back (5s timeout)
-  case process.receive(init_channel, 5000) {
-    Ok(result) -> result
-    Error(Nil) -> Error(StartTimeout)
-  }
-}
-
-/// Start the runtime under a supervisor with a registered name.
+/// Start the runtime as an OTP actor under a supervisor.
 ///
 /// The bridge is already running. The runtime registers its notification
-/// subject with the bridge via `RegisterRuntime`, then initializes the
-/// app and enters the message loop.
-///
-/// Returns `Started(runtime_subject)` on success for the supervisor
-/// child spec, or a `StartError` mapped to `actor.StartError`.
+/// subject with the bridge, initializes the app (settings, snapshot,
+/// subscriptions, windows), and enters the actor message loop.
 pub fn start_supervised(
   app: App(model, msg),
   bridge_subject: Subject(BridgeMessage),
@@ -176,57 +114,35 @@ pub fn start_supervised(
   binary_path: String,
   name: process.Name(RuntimeMessage),
 ) -> Result(actor.Started(Subject(RuntimeMessage)), actor.StartError) {
-  // Channel for the spawned process to report back its Subject
-  let init_channel = process.new_subject()
+  actor.new_with_initialiser(10_000, fn(subject) {
+    let notification_subject = process.new_subject()
 
-  let pid =
-    process.spawn(fn() {
-      // Register this process with the given name so other processes
-      // can find us via named_subject.
-      case process.register(process.self(), name) {
-        Ok(_) -> Nil
-        Error(_) -> Nil
-      }
+    // Register with the bridge so it forwards renderer events to us
+    process.send(bridge_subject, bridge.RegisterRuntime(notification_subject))
 
-      // Create the named subject for receiving messages.
-      let runtime_subject = process.named_subject(name)
-      let notification_subject = process.new_subject()
-
-      // Register notification subject with the already-running bridge
-      process.send(bridge_subject, bridge.RegisterRuntime(notification_subject))
-
-      // Report success to parent
-      process.send(init_channel, Ok(runtime_subject))
-
-      // Run the app
-      run(
+    // Initialize the app
+    let state =
+      init_runtime(
         app,
         bridge_subject,
-        runtime_subject,
+        subject,
         notification_subject,
         opts,
         binary_path,
       )
-    })
 
-  // Wait for the spawned process to report back (5s timeout)
-  case process.receive(init_channel, 5000) {
-    Ok(Ok(runtime_subject)) ->
-      Ok(actor.Started(pid: pid, data: runtime_subject))
-    Ok(Error(_)) -> Error(actor.InitFailed("runtime init failed"))
-    Error(Nil) -> Error(actor.InitTimeout)
-  }
+    // Build the selector for all message sources
+    let selector = build_selector(subject, notification_subject)
+
+    actor.initialised(state)
+    |> actor.selecting(selector)
+    |> actor.returning(subject)
+    |> Ok
+  })
+  |> actor.on_message(handle_message)
+  |> actor.named(name)
+  |> actor.start
 }
-
-/// Errors that can occur when starting the runtime.
-pub type StartError {
-  /// The bridge actor failed to start.
-  BridgeStartFailed(actor.StartError)
-  /// Startup timed out (bridge or init took too long).
-  StartTimeout
-}
-
-import gleam/otp/actor
 
 // -- Internal state ----------------------------------------------------------
 
@@ -272,16 +188,30 @@ type SubEntry {
   RendererSub(kind: String, max_rate: option.Option(Int))
 }
 
-// -- Process entry point -----------------------------------------------------
+// -- Actor init ---------------------------------------------------------------
 
-fn run(
+/// Build the selector that unifies all message sources.
+fn build_selector(
+  self: Subject(RuntimeMessage),
+  notifications: Subject(RuntimeNotification),
+) -> process.Selector(RuntimeMessage) {
+  process.new_selector()
+  |> process.select(self)
+  |> process.select_map(notifications, FromBridge)
+  |> process.select_monitors(ProcessDown)
+}
+
+/// Initialize the runtime state: send settings, render initial view,
+/// send snapshot, sync subscriptions and windows. Returns the initial
+/// LoopState ready for the actor message loop.
+fn init_runtime(
   app: App(model, msg),
   bridge: Subject(BridgeMessage),
   self: Subject(RuntimeMessage),
   notifications: Subject(RuntimeNotification),
   opts: RuntimeOpts,
   binary_path: String,
-) -> Nil {
+) -> LoopState(model, msg) {
   // Initialize
   let #(model, init_cmds) = app.get_init(app)(opts.app_opts)
 
@@ -376,20 +306,15 @@ fn run(
     opts,
   )
 
-  message_loop(state)
+  state
 }
 
-// -- Message loop ------------------------------------------------------------
+// -- Actor message handler ----------------------------------------------------
 
-fn message_loop(state: LoopState(model, msg)) -> Nil {
-  let selector =
-    process.new_selector()
-    |> process.select(state.self)
-    |> process.select_map(state.notifications, FromBridge)
-    |> process.select_monitors(ProcessDown)
-
-  let msg = process.selector_receive_forever(selector)
-
+fn handle_message(
+  state: LoopState(model, msg),
+  msg: RuntimeMessage,
+) -> actor.Next(LoopState(model, msg), RuntimeMessage) {
   case msg {
     FromBridge(InboundEvent(EventMessage(event.PropValidation(
       node_id:,
@@ -411,7 +336,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
         ..state.prop_warnings
       ]
       LoopState(..state, prop_warnings: new_warnings)
-      |> message_loop()
+      |> actor.continue()
     }
 
     FromBridge(InboundEvent(EventMessage(ev))) -> {
@@ -431,7 +356,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             pending_coalesce: new_coalesce,
             coalesce_timer: timer,
           )
-          |> message_loop()
+          |> actor.continue()
         }
         None -> {
           // Non-coalescable: flush pending first, then process
@@ -440,8 +365,8 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           let new_state = handle_event(state, ev)
           // Stop runtime on AllWindowsClosed in non-daemon mode
           case ev, state.opts.daemon {
-            event.AllWindowsClosed, False -> Nil
-            _, _ -> message_loop(new_state)
+            event.AllWindowsClosed, False -> actor.stop()
+            _, _ -> actor.continue(new_state)
           }
         }
       }
@@ -451,7 +376,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       case proto == protocol.protocol_version {
         True -> {
           let state = LoopState(..state, restart_count: 0)
-          message_loop(state)
+          actor.continue(state)
         }
         False -> {
           ffi.log_error(
@@ -461,7 +386,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             <> int.to_string(proto)
             <> ") -- stopping runtime",
           )
-          Nil
+          actor.stop()
         }
       }
     }
@@ -474,9 +399,9 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             ..state,
             pending_stub_acks: dict.delete(state.pending_stub_acks, kind),
           )
-          |> message_loop()
+          |> actor.continue()
         }
-        Error(_) -> message_loop(state)
+        Error(_) -> actor.continue(state)
       }
     }
 
@@ -492,7 +417,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
         0 -> {
           // Clean exit (user closed window) -- stop bridge and exit
           process.send(state.bridge, bridge.Shutdown)
-          Nil
+          actor.stop()
         }
         _ -> {
           // Crash -- attempt restart with exponential backoff
@@ -512,7 +437,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
                 <> ")",
               )
               process.send_after(state.self, delay, RestartRenderer)
-              message_loop(state)
+              actor.continue(state)
             }
             False -> {
               ffi.log_error(
@@ -520,7 +445,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
                 <> int.to_string(state.max_restarts)
                 <> " times, giving up",
               )
-              Nil
+              actor.stop()
             }
           }
         }
@@ -538,8 +463,8 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       let new_state = handle_event(state, event)
       // D-033: stop runtime on AllWindowsClosed in non-daemon mode
       case event, state.opts.daemon {
-        event.AllWindowsClosed, False -> Nil
-        _, _ -> message_loop(new_state)
+        event.AllWindowsClosed, False -> actor.stop()
+        _, _ -> actor.continue(new_state)
       }
     }
 
@@ -555,7 +480,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       // Unsafe coerce: the Dynamic contains a value of type msg
       let msg = unsafe_coerce_dynamic(dyn_msg)
       let new_state = handle_msg(state, msg)
-      message_loop(new_state)
+      actor.continue(new_state)
     }
 
     TimerFired(tag:) -> {
@@ -564,7 +489,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       drain_matching_ticks(state.self, tag)
       let timestamp = erlang_monotonic_time()
       let new_state = handle_event(state, event.TimerTick(tag:, timestamp:))
-      reschedule_timer(new_state, tag) |> message_loop()
+      reschedule_timer(new_state, tag) |> actor.continue()
     }
 
     AsyncComplete(tag:, nonce:, result:) -> {
@@ -577,9 +502,9 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             ..new_state,
             async_tasks: dict.delete(new_state.async_tasks, tag),
           )
-          |> message_loop()
+          |> actor.continue()
         }
-        _ -> message_loop(state)
+        _ -> actor.continue(state)
       }
     }
 
@@ -588,9 +513,9 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, _)) if current_nonce == nonce -> {
           handle_event(state, event.StreamValue(tag:, value:))
-          |> message_loop()
+          |> actor.continue()
         }
-        _ -> message_loop(state)
+        _ -> actor.continue(state)
       }
     }
 
@@ -607,14 +532,14 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             ..new_state,
             pending_effects: dict.delete(new_state.pending_effects, request_id),
           )
-          |> message_loop()
+          |> actor.continue()
         }
-        Error(_) -> message_loop(state)
+        Error(_) -> actor.continue(state)
       }
     }
 
     CoalesceFlush -> {
-      flush_coalesced(state) |> message_loop()
+      flush_coalesced(state) |> actor.continue()
     }
 
     ProcessDown(process.ProcessDown(monitor: _, pid: down_pid, reason: reason)) -> {
@@ -635,11 +560,11 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
               let delay =
                 calculate_backoff(state.restart_delay_base, state.restart_count)
               process.send_after(state.self, delay, RestartRenderer)
-              message_loop(LoopState(..state, bridge_pid: None))
+              actor.continue(LoopState(..state, bridge_pid: None))
             }
             False -> {
               ffi.log_error("plushie: bridge crashed too many times, giving up")
-              Nil
+              actor.stop()
             }
           }
         }
@@ -666,7 +591,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
                   async_tasks: dict.delete(state.async_tasks, tag),
                 )
               case reason {
-                process.Normal -> message_loop(state)
+                process.Normal -> actor.continue(state)
                 _ -> {
                   let crash_reason = case reason {
                     process.Killed -> dynamic.string("killed")
@@ -677,18 +602,18 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
                     state,
                     event.AsyncResult(tag:, result: Error(crash_reason)),
                   )
-                  |> message_loop()
+                  |> actor.continue()
                 }
               }
             }
-            None -> message_loop(state)
+            None -> actor.continue(state)
           }
         }
       }
     }
 
     // PortDown is not expected but handle gracefully
-    ProcessDown(process.PortDown(..)) -> message_loop(state)
+    ProcessDown(process.PortDown(..)) -> actor.continue(state)
 
     RestartRenderer -> {
       // Send Shutdown to old bridge actor so it doesn't linger
@@ -749,7 +674,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
           // Cancel all pending send_after timers
           dict.each(state.pending_timers, fn(_key, timer) {
             process.cancel_timer(timer)
-            Nil
+            actor.stop()
           })
           let state = LoopState(..state, pending_timers: dict.new())
 
@@ -841,11 +766,14 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
               windows:,
               restart_count: new_count,
             )
-          message_loop(state)
+          // Update the selector to use the new notification subject
+          let new_selector = build_selector(state.self, state.notifications)
+          actor.continue(state)
+          |> actor.with_selector(new_selector)
         }
         Error(_) -> {
           ffi.log_error("plushie: failed to restart renderer, giving up")
-          Nil
+          actor.stop()
         }
       }
     }
@@ -911,14 +839,14 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
             active_subs: new_subs,
             windows: new_windows,
           )
-          |> message_loop()
+          |> actor.continue()
         }
         Error(reason) -> {
           ffi.log_error(
             "plushie runtime: force re-render view crashed: "
             <> string.inspect(reason),
           )
-          message_loop(state)
+          actor.continue(state)
         }
       }
     }
@@ -958,23 +886,23 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       })
       // Stop the bridge actor
       process.send(state.bridge, bridge.Shutdown)
-      Nil
+      actor.stop()
     }
 
     GetModel(reply:) -> {
       process.send(reply, to_dynamic(state.model))
-      message_loop(state)
+      actor.continue(state)
     }
 
     GetTree(reply:) -> {
       process.send(reply, state.tree)
-      message_loop(state)
+      actor.continue(state)
     }
 
     GetPropWarnings(reply:) -> {
       process.send(reply, state.prop_warnings)
       LoopState(..state, prop_warnings: [])
-      |> message_loop()
+      |> actor.continue()
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
@@ -989,7 +917,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       )
       let pending = dict.insert(state.pending_stub_acks, kind, reply)
       LoopState(..state, pending_stub_acks: pending)
-      |> message_loop()
+      |> actor.continue()
     }
 
     UnregisterEffectStub(kind:, reply:) -> {
@@ -1003,7 +931,7 @@ fn message_loop(state: LoopState(model, msg)) -> Nil {
       )
       let pending = dict.insert(state.pending_stub_acks, kind, reply)
       LoopState(..state, pending_stub_acks: pending)
-      |> message_loop()
+      |> actor.continue()
     }
   }
 }
