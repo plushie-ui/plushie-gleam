@@ -179,6 +179,7 @@ pub fn is_placeholder(node: Node) -> Bool {
 pub fn render_placeholder(
   node: Node,
   scoped_id: String,
+  local_id: String,
   registry: Registry,
 ) -> Option(#(Node, RegistryEntry)) {
   case dict.get(node.props, meta_key), dict.get(node.props, props_key) {
@@ -202,8 +203,9 @@ pub fn render_placeholder(
         }
       }
 
-      // Render the widget
-      let rendered = entry.render(scoped_id)
+      // Render with the local (pre-scoped) ID. The render function
+      // should think in local IDs; scoping is applied by the caller.
+      let rendered = entry.render(local_id)
 
       // Attach metadata to the rendered node for registry derivation.
       // Use the scoped_id as the node ID (it was already computed by
@@ -334,7 +336,9 @@ fn build_scope_ids(
   acc: List(String),
 ) -> List(String) {
   case parts {
-    [] -> list.reverse(acc)
+    // acc is built by prepending, so the longest (innermost) scoped ID
+    // is already first -- exactly the order we want (inner to outer).
+    [] -> acc
     [part, ..rest] -> {
       let new_prefix = list.append(prefix, [part])
       let scoped_id = string.join(new_prefix, "/")

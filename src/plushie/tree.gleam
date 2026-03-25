@@ -71,7 +71,9 @@ fn normalize_ctx(
   // attached to the final node's props for registry derivation.
   case canvas_widget.is_placeholder(node) {
     True -> {
-      case canvas_widget.render_placeholder(node, scoped_id, registry) {
+      case
+        canvas_widget.render_placeholder(node, scoped_id, node.id, registry)
+      {
         Some(#(rendered_node, _entry)) -> {
           // The rendered node already has the scoped_id set and metadata
           // attached. Normalize its children at the same scope position
