@@ -7,9 +7,10 @@
 
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option.{type Option}
+import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
+import plushie/canvas_widget
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
@@ -29,10 +30,23 @@ import plushie/platform
 /// - Window nodes reset scope -- children start with no scope prefix.
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  normalize_with_scope(node, "")
+  normalize_ctx(node, "", canvas_widget.empty_registry())
 }
 
-fn normalize_with_scope(node: Node, scope: String) -> Node {
+/// Normalize with a canvas widget registry. Canvas widget placeholders
+/// in the tree are rendered using stored state from the registry.
+pub fn normalize_with_registry(
+  node: Node,
+  registry: canvas_widget.Registry,
+) -> Node {
+  normalize_ctx(node, "", registry)
+}
+
+fn normalize_ctx(
+  node: Node,
+  scope: String,
+  registry: canvas_widget.Registry,
+) -> Node {
   // Validate: user-provided IDs (non-empty) must not contain "/"
   case node.id {
     "" -> Nil
@@ -50,6 +64,45 @@ fn normalize_with_scope(node: Node, scope: String) -> Node {
 
   let scoped_id = apply_scope(node.id, scope)
 
+  // Canvas widget rendering: if this node is a placeholder, render it
+  // with stored state and normalize the output. The rendered canvas
+  // node has no __canvas_widget__ tags in its props, so normalization
+  // won't re-trigger rendering (no recursion). Widget metadata is
+  // attached to the final node's props for registry derivation.
+  case canvas_widget.is_placeholder(node) {
+    True -> {
+      case canvas_widget.render_placeholder(node, scoped_id, registry) {
+        Some(#(rendered_node, _entry)) -> {
+          // The rendered node already has the scoped_id set and metadata
+          // attached. Normalize its children at the same scope position.
+          let child_scope = case rendered_node.kind, rendered_node.id {
+            "window", _ -> ""
+            _, "" -> scope
+            _, _ -> scoped_id
+          }
+          let children =
+            list.map(rendered_node.children, fn(child) {
+              normalize_ctx(child, child_scope, registry)
+            })
+          check_duplicate_sibling_ids(children)
+          Node(..rendered_node, children:)
+        }
+        _ -> {
+          // Fallback: normalize as a regular node
+          normalize_regular(node, scoped_id, scope, registry)
+        }
+      }
+    }
+    False -> normalize_regular(node, scoped_id, scope, registry)
+  }
+}
+
+fn normalize_regular(
+  node: Node,
+  scoped_id: String,
+  scope: String,
+  registry: canvas_widget.Registry,
+) -> Node {
   // Windows reset scope; empty IDs don't create scope boundaries.
   let child_scope = case node.kind, node.id {
     "window", _ -> ""
@@ -61,7 +114,7 @@ fn normalize_with_scope(node: Node, scope: String) -> Node {
 
   let children =
     list.map(node.children, fn(child) {
-      normalize_with_scope(child, child_scope)
+      normalize_ctx(child, child_scope, registry)
     })
 
   // Warn on duplicate sibling IDs

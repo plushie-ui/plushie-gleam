@@ -26,6 +26,8 @@ import plushie/bridge.{
   Send,
 }
 @target(erlang)
+import plushie/canvas_widget
+@target(erlang)
 import plushie/command.{type Command}
 @target(erlang)
 import plushie/command_encode
@@ -193,6 +195,8 @@ type LoopState(model, msg) {
     pending_stub_acks: Dict(String, Subject(Nil)),
     // Accumulated prop validation warnings from the renderer
     prop_warnings: List(#(String, String, List(String))),
+    // Canvas widget state registry (scoped ID -> entry)
+    cw_registry: canvas_widget.Registry,
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -248,7 +252,10 @@ fn init_runtime(
   )
 
   // Render initial view
-  let initial_tree = app.get_view(app)(model) |> tree.normalize()
+  let initial_tree =
+    app.get_view(app)(model)
+    |> tree.normalize_with_registry(canvas_widget.empty_registry())
+  let initial_cw_registry = canvas_widget.derive_registry(initial_tree)
 
   // Send initial snapshot
   send_encoded(
@@ -294,6 +301,7 @@ fn init_runtime(
       pending_effects: dict.new(),
       pending_stub_acks: dict.new(),
       prop_warnings: [],
+      cw_registry: initial_cw_registry,
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -306,12 +314,14 @@ fn init_runtime(
   // Execute init commands (threads full state for PID tracking)
   let state = execute_commands(init_cmds, state)
 
-  // Sync subscriptions (timers, renderer event sources)
+  // Sync subscriptions (timers, renderer event sources, canvas widget subs)
+  let app_subs = safe_subscribe(state.app, state.model)
+  let cw_subs = canvas_widget.collect_subscriptions(state.cw_registry)
   let state =
     LoopState(
       ..state,
       active_subs: sync_subscriptions(
-        safe_subscribe(state.app, state.model),
+        list.append(app_subs, cw_subs),
         state.active_subs,
         state.bridge,
         state.self,
@@ -514,7 +524,19 @@ fn handle_message(
       // timer events (only the latest tick matters).
       drain_matching_ticks(state.self, tag)
       let timestamp = erlang_monotonic_time()
-      let new_state = handle_event(state, event.TimerTick(tag:, timestamp:))
+      // Check if this timer belongs to a canvas widget
+      let new_state = case canvas_widget.is_widget_tag(tag) {
+        True -> {
+          let #(maybe_event, new_registry) =
+            canvas_widget.handle_widget_timer(state.cw_registry, tag, timestamp)
+          let state = LoopState(..state, cw_registry: new_registry)
+          case maybe_event {
+            Some(ev) -> handle_event(state, ev)
+            None -> rerender(state)
+          }
+        }
+        False -> handle_event(state, event.TimerTick(tag:, timestamp:))
+      }
       reschedule_timer(new_state, tag) |> actor.continue()
     }
 
@@ -742,9 +764,15 @@ fn handle_message(
 
           // Re-render view and send fresh snapshot
           let view_fn = app.get_view(state.app)
-          let tree = case platform.try_call(fn() { view_fn(state.model) }) {
-            Ok(t) -> Some(tree.normalize(t))
-            Error(_) -> state.tree
+          let #(tree, cw_registry) = case
+            platform.try_call(fn() { view_fn(state.model) })
+          {
+            Ok(t) -> {
+              let normalized =
+                tree.normalize_with_registry(t, state.cw_registry)
+              #(Some(normalized), canvas_widget.derive_registry(normalized))
+            }
+            Error(_) -> #(state.tree, state.cw_registry)
           }
           case tree {
             Some(t) ->
@@ -755,10 +783,12 @@ fn handle_message(
             None -> Nil
           }
 
-          // Re-sync subscriptions with new renderer
+          // Re-sync subscriptions with new renderer (incl. canvas widget subs)
+          let restart_app_subs = safe_subscribe(state.app, state.model)
+          let restart_cw_subs = canvas_widget.collect_subscriptions(cw_registry)
           let new_subs =
             sync_subscriptions(
-              safe_subscribe(state.app, state.model),
+              list.append(restart_app_subs, restart_cw_subs),
               dict.new(),
               new_bridge,
               state.self,
@@ -792,6 +822,7 @@ fn handle_message(
               tree:,
               active_subs: new_subs,
               windows:,
+              cw_registry:,
               restart_count: new_count,
             )
           // Update the selector to use the new notification subject
@@ -812,7 +843,9 @@ fn handle_message(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(state.model) }) {
         Ok(new_tree_raw) -> {
-          let new_tree = tree.normalize(new_tree_raw)
+          let new_tree =
+            tree.normalize_with_registry(new_tree_raw, state.cw_registry)
+          let new_cw_registry = canvas_widget.derive_registry(new_tree)
           // Diff and send patch (or snapshot if no previous tree)
           case state.tree {
             Some(old_tree) -> {
@@ -840,10 +873,12 @@ fn handle_message(
                 ),
               )
           }
-          // Re-sync subscriptions
+          // Re-sync subscriptions (including canvas widget subscriptions)
+          let app_subs = safe_subscribe(state.app, state.model)
+          let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
           let new_subs =
             sync_subscriptions(
-              safe_subscribe(state.app, state.model),
+              list.append(app_subs, cw_subs),
               state.active_subs,
               state.bridge,
               state.self,
@@ -866,6 +901,7 @@ fn handle_message(
             tree: Some(new_tree),
             active_subs: new_subs,
             windows: new_windows,
+            cw_registry: new_cw_registry,
           )
           |> actor.continue()
         }
@@ -1091,13 +1127,104 @@ fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
 }
 
 @target(erlang)
-/// Handle a wire event by mapping it to the app's msg type first.
+/// Re-render the view without going through update. Used when
+/// canvas_widget state changes internally (event consumed or
+/// timer handled by widget) but the app model hasn't changed.
+fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
+  let view_fn = app.get_view(state.app)
+  case platform.try_call(fn() { view_fn(state.model) }) {
+    Ok(new_tree_raw) -> {
+      let new_tree =
+        tree.normalize_with_registry(new_tree_raw, state.cw_registry)
+      let new_cw_registry = canvas_widget.derive_registry(new_tree)
+
+      // Diff and send patch
+      case state.tree {
+        Some(old_tree) -> {
+          let ops = tree.diff(old_tree, new_tree)
+          case ops {
+            [] -> Nil
+            _ ->
+              send_encoded(
+                state.bridge,
+                encode.encode_patch(ops, state.opts.session, state.opts.format),
+              )
+          }
+        }
+        None ->
+          send_encoded(
+            state.bridge,
+            encode.encode_snapshot(
+              new_tree,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+      }
+
+      // Sync subscriptions (including canvas widget subscriptions)
+      let app_subs = safe_subscribe(state.app, state.model)
+      let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
+      let new_subs =
+        sync_subscriptions(
+          list.append(app_subs, cw_subs),
+          state.active_subs,
+          state.bridge,
+          state.self,
+          state.opts,
+        )
+
+      let new_windows = runtime_core.detect_windows(new_tree)
+      sync_windows(
+        new_tree,
+        state.windows,
+        new_windows,
+        state.tree,
+        state.bridge,
+        state.app,
+        state.model,
+        state.opts,
+      )
+
+      LoopState(
+        ..state,
+        tree: Some(new_tree),
+        active_subs: new_subs,
+        windows: new_windows,
+        cw_registry: new_cw_registry,
+      )
+    }
+    Error(reason) -> {
+      platform.log_warning(
+        "plushie: view error during rerender: " <> dynamic.classify(reason),
+      )
+      state
+    }
+  }
+}
+
+@target(erlang)
+/// Handle a wire event by routing through canvas_widget handlers
+/// first, then mapping to the app's msg type.
 fn handle_event(
   state: LoopState(model, msg),
   event: Event,
 ) -> LoopState(model, msg) {
-  let mapped_msg = runtime_core.map_event(state.app, event)
-  dispatch_update(state, mapped_msg)
+  // Route through canvas_widget scope chain
+  let #(maybe_event, new_registry) =
+    canvas_widget.dispatch_through_widgets(state.cw_registry, event)
+  let state = LoopState(..state, cw_registry: new_registry)
+  case maybe_event {
+    Some(ev) -> {
+      let mapped_msg = runtime_core.map_event(state.app, ev)
+      dispatch_update(state, mapped_msg)
+    }
+    None -> {
+      // Event was consumed by a canvas_widget. Still need to re-render
+      // since widget state may have changed.
+      rerender(state)
+    }
+  }
 }
 
 @target(erlang)
@@ -1120,7 +1247,12 @@ fn dispatch_update(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(new_model) }) {
         Ok(new_tree_raw) -> {
-          let new_tree = tree.normalize(new_tree_raw)
+          let new_tree =
+            tree.normalize_with_registry(
+              new_tree_raw,
+              state_after_cmds.cw_registry,
+            )
+          let new_cw_registry = canvas_widget.derive_registry(new_tree)
 
           // Diff and send patch
           case state.tree {
@@ -1151,10 +1283,12 @@ fn dispatch_update(
             }
           }
 
-          // Sync subscriptions
+          // Sync subscriptions (including canvas widget subscriptions)
+          let app_subs = safe_subscribe(state.app, new_model)
+          let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
           let new_subs =
             sync_subscriptions(
-              safe_subscribe(state.app, new_model),
+              list.append(app_subs, cw_subs),
               state.active_subs,
               state.bridge,
               state.self,
@@ -1181,6 +1315,7 @@ fn dispatch_update(
             tree: Some(new_tree),
             active_subs: new_subs,
             windows: new_windows,
+            cw_registry: new_cw_registry,
             errors: 0,
             async_tasks: state_after_cmds.async_tasks,
             nonce_counter: state_after_cmds.nonce_counter,

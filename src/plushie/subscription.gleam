@@ -279,6 +279,33 @@ pub fn tag(sub: Subscription) -> String {
   }
 }
 
+/// Set the tag on any subscription.
+pub fn set_tag(sub: Subscription, new_tag: String) -> Subscription {
+  case sub {
+    Every(interval_ms:, ..) -> Every(interval_ms:, tag: new_tag)
+    OnKeyPress(max_rate:, ..) -> OnKeyPress(tag: new_tag, max_rate:)
+    OnKeyRelease(max_rate:, ..) -> OnKeyRelease(tag: new_tag, max_rate:)
+    OnModifiersChanged(max_rate:, ..) ->
+      OnModifiersChanged(tag: new_tag, max_rate:)
+    OnWindowClose(max_rate:, ..) -> OnWindowClose(tag: new_tag, max_rate:)
+    OnWindowEvent(max_rate:, ..) -> OnWindowEvent(tag: new_tag, max_rate:)
+    OnWindowOpen(max_rate:, ..) -> OnWindowOpen(tag: new_tag, max_rate:)
+    OnWindowResize(max_rate:, ..) -> OnWindowResize(tag: new_tag, max_rate:)
+    OnWindowFocus(max_rate:, ..) -> OnWindowFocus(tag: new_tag, max_rate:)
+    OnWindowUnfocus(max_rate:, ..) -> OnWindowUnfocus(tag: new_tag, max_rate:)
+    OnWindowMove(max_rate:, ..) -> OnWindowMove(tag: new_tag, max_rate:)
+    OnMouseMove(max_rate:, ..) -> OnMouseMove(tag: new_tag, max_rate:)
+    OnMouseButton(max_rate:, ..) -> OnMouseButton(tag: new_tag, max_rate:)
+    OnMouseScroll(max_rate:, ..) -> OnMouseScroll(tag: new_tag, max_rate:)
+    OnTouch(max_rate:, ..) -> OnTouch(tag: new_tag, max_rate:)
+    OnIme(max_rate:, ..) -> OnIme(tag: new_tag, max_rate:)
+    OnThemeChange(max_rate:, ..) -> OnThemeChange(tag: new_tag, max_rate:)
+    OnAnimationFrame(max_rate:, ..) -> OnAnimationFrame(tag: new_tag, max_rate:)
+    OnFileDrop(max_rate:, ..) -> OnFileDrop(tag: new_tag, max_rate:)
+    OnEvent(max_rate:, ..) -> OnEvent(tag: new_tag, max_rate:)
+  }
+}
+
 /// Get the max_rate from any subscription.
 /// Returns None for timer subscriptions and renderer subs without a rate.
 pub fn get_max_rate(sub: Subscription) -> Option(Int) {
