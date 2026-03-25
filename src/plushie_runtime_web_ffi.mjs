@@ -24,6 +24,7 @@ export function createHandle(
     tree: new None(), // Option(Node) -- Gleam None
     gleamActiveSubs: emptySubs, // Gleam Dict(String, Subscription)
     gleamWindows: emptyWindows, // Gleam Set(String)
+    cwRegistry: null, // Gleam Dict -- canvas widget registry
     asyncTasks: new Map(), // tag -> { nonce, cancel }
     nextNonce: 0,
     timerSubs: new Map(), // key -> JS intervalId
@@ -92,6 +93,16 @@ export function getSession(handle) {
 
 export function getTransport(handle) {
   return handle.transport;
+}
+
+// -- Canvas widget registry --------------------------------------------------
+
+export function getCwRegistry(handle) {
+  return handle.cwRegistry;
+}
+
+export function setCwRegistry(handle, registry) {
+  handle.cwRegistry = registry;
 }
 
 // -- Subscriptions -----------------------------------------------------------

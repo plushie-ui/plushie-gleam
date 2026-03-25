@@ -38,6 +38,8 @@ import plushie/app.{type App}
 @target(javascript)
 import plushie/bridge_web.{type WebTransport}
 @target(javascript)
+import plushie/canvas_widget
+@target(javascript)
 import plushie/command.{type Command}
 @target(javascript)
 import plushie/command_encode
@@ -103,6 +105,9 @@ pub fn start(
   let handle =
     create_handle(model, app, transport, session, dict.new(), set.new())
 
+  // Initialize canvas widget registry
+  do_set_cw_registry(handle, canvas_widget.empty_registry())
+
   // Register callbacks so JS timers, async completions, and
   // renderer events can call back into the Gleam update loop.
   // Each callback constructs the appropriate Gleam event type
@@ -119,7 +124,21 @@ pub fn start(
   }
   register_dispatch(handle, dispatch, dispatch_direct)
   register_timer_callback(handle, fn(tag) {
-    dispatch(event.TimerTick(tag:, timestamp: platform.monotonic_time_ms()))
+    let timestamp = platform.monotonic_time_ms()
+    // Route canvas widget timers to the widget handler
+    case canvas_widget.is_widget_tag(tag) {
+      True -> {
+        let registry = do_get_cw_registry(handle)
+        let #(maybe_event, new_registry) =
+          canvas_widget.handle_widget_timer(registry, tag, timestamp)
+        do_set_cw_registry(handle, new_registry)
+        case maybe_event {
+          Some(ev) -> dispatch(ev)
+          None -> render_and_sync(handle, app, False)
+        }
+      }
+      False -> dispatch(event.TimerTick(tag:, timestamp:))
+    }
   })
   register_async_callback(handle, fn(tag, result) {
     dispatch(event.AsyncResult(tag:, result:))
@@ -230,7 +249,10 @@ fn render_and_sync(
 
   case platform.try_call(fn() { view_fn(model) }) {
     Ok(raw_tree) -> {
-      let new_tree = tree.normalize(raw_tree)
+      let registry = do_get_cw_registry(handle)
+      let new_tree = tree.normalize_with_registry(raw_tree, registry)
+      let new_registry = canvas_widget.derive_registry(new_tree)
+      do_set_cw_registry(handle, new_registry)
       let old_tree = do_get_tree(handle)
 
       case force_snapshot || option.is_none(old_tree) {
@@ -286,8 +308,21 @@ fn handle_event(
     None -> {
       // Non-coalescable: flush pending first, then dispatch
       flush_coalesced(handle)
-      let msg = runtime_core.map_event(app, event)
-      dispatch_update(handle, app, msg)
+      // Route through canvas_widget scope chain
+      let registry = do_get_cw_registry(handle)
+      let #(maybe_event, new_registry) =
+        canvas_widget.dispatch_through_widgets(registry, event)
+      do_set_cw_registry(handle, new_registry)
+      case maybe_event {
+        Some(ev) -> {
+          let msg = runtime_core.map_event(app, ev)
+          dispatch_update(handle, app, msg)
+        }
+        None -> {
+          // Consumed by canvas_widget -- re-render for state changes
+          render_and_sync(handle, app, False)
+        }
+      }
     }
   }
 }
@@ -300,10 +335,13 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
   let model = do_get_model(handle)
   let session = do_get_session(handle)
 
-  let desired = case platform.try_call(fn() { subscribe_fn(model) }) {
+  let app_subs = case platform.try_call(fn() { subscribe_fn(model) }) {
     Ok(subs) -> subs
     Error(_) -> []
   }
+  // Merge canvas widget subscriptions
+  let cw_subs = canvas_widget.collect_subscriptions(do_get_cw_registry(handle))
+  let desired = list.append(app_subs, cw_subs)
 
   let desired_map =
     list.map(desired, fn(sub) {
@@ -713,6 +751,19 @@ fn do_get_windows(handle: WebRuntimeHandle) -> Set(String)
 /// Set the active window IDs.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setWindows")
 fn do_set_windows(handle: WebRuntimeHandle, windows: Set(String)) -> Nil
+
+@target(javascript)
+/// Get the canvas widget registry.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "getCwRegistry")
+fn do_get_cw_registry(handle: WebRuntimeHandle) -> canvas_widget.Registry
+
+@target(javascript)
+/// Set the canvas widget registry.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "setCwRegistry")
+fn do_set_cw_registry(
+  handle: WebRuntimeHandle,
+  registry: canvas_widget.Registry,
+) -> Nil
 
 @target(javascript)
 /// Send serialized wire bytes to the transport.

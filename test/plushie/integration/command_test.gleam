@@ -10,6 +10,7 @@
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/process
+import gleam/int
 import gleam/list
 import plushie/app.{type App}
 import plushie/command
@@ -268,6 +269,49 @@ fn view_crash_app() -> App(ViewCrashModel, Event) {
 @external(erlang, "plushie_test_ffi", "identity")
 fn to_dynamic(value: a) -> Dynamic
 
+// -- done: immediate value delivery ------------------------------------------
+
+type DoneModel {
+  DoneModel(result: Int)
+}
+
+fn done_init() -> #(DoneModel, command.Command(Event)) {
+  let value: Dynamic = coerce_to_dynamic(99)
+  #(
+    DoneModel(result: 0),
+    command.done(value, fn(d) {
+      let assert Ok(n) = dyn_decode.run(d, dyn_decode.int)
+      event.TimerTick(tag: "done:" <> int.to_string(n), timestamp: 0)
+    }),
+  )
+}
+
+@external(erlang, "plushie_test_ffi", "identity")
+fn coerce_to_dynamic(value: a) -> Dynamic
+
+fn done_update(
+  model: DoneModel,
+  event: Event,
+) -> #(DoneModel, command.Command(Event)) {
+  case event {
+    event.TimerTick(tag: "done:99", ..) -> #(
+      DoneModel(result: 99),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn done_view(_model: DoneModel) -> Node {
+  ui.window("main", [window.Title("Done Test")], [
+    ui.text_("label", "done"),
+  ])
+}
+
+fn done_app() -> App(DoneModel, Event) {
+  app.simple(done_init, done_update, done_view)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -321,6 +365,16 @@ pub fn update_exception_does_not_crash_runtime_test() -> Nil {
   process.sleep(50)
   support.dispatch_event(rt, event.WidgetClick(id: "inc", scope: []))
   let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
+  support.stop(rt)
+  let assert Ok(_) = result
+  Nil
+}
+
+/// Done command delivers an already-resolved value immediately
+/// through the mapper function and into update.
+pub fn done_delivers_value_immediately_test() -> Nil {
+  let rt = support.start(done_app(), [])
+  let result = support.await(rt, fn(m) { m.result == 99 }, 500)
   support.stop(rt)
   let assert Ok(_) = result
   Nil

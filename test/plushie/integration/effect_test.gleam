@@ -82,3 +82,37 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
   let assert Ok(_) = result
   Nil
 }
+
+/// After unregistering a stub, the renderer no longer returns the
+/// stubbed response. In mock mode, the real clipboard isn't available,
+/// so we should not get the original stub value back.
+pub fn unregister_removes_stub_test() -> Nil {
+  let rt = support.start(effect_app(), [])
+
+  // Register and then immediately unregister
+  let assert Ok(_) =
+    support.register_effect_stub(rt, "clipboard_read", StringVal("first"))
+  let assert Ok(_) = support.unregister_effect_stub(rt, "clipboard_read")
+
+  // Trigger the clipboard read -- should not get "first" back
+  support.dispatch_event(rt, event.WidgetClick(id: "read", scope: []))
+
+  // Wait a bit for the response to arrive
+  let result =
+    support.await(
+      rt,
+      fn(m) { m.clipboard_text != "" || m.got_unsupported },
+      2000,
+    )
+  support.stop(rt)
+
+  // Either we got a different value or unsupported -- but not "first"
+  case result {
+    Ok(model) -> {
+      let assert True = model.clipboard_text != "first"
+      Nil
+    }
+    // Timeout is also acceptable -- no stub means the mock may not respond
+    Error(_) -> Nil
+  }
+}
