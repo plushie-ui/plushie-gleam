@@ -40,8 +40,6 @@ import gleam/otp/actor
 @target(erlang)
 import gleam/result
 @target(erlang)
-import plushie/ffi
-@target(erlang)
 import plushie/platform
 @target(erlang)
 import plushie/protocol
@@ -49,6 +47,8 @@ import plushie/protocol
 import plushie/protocol/decode.{type InboundMessage}
 @target(erlang)
 import plushie/renderer_env
+@target(erlang)
+import plushie/renderer_port
 @target(erlang)
 import plushie/telemetry
 
@@ -72,7 +72,7 @@ pub type BridgeMessage {
   /// Port data received from the Rust binary (via selector).
   PortData(data: Dynamic)
   /// Line data received from the Rust binary in JSON mode (via selector).
-  PortLineData(line_data: ffi.LineData)
+  PortLineData(line_data: renderer_port.LineData)
   /// Port closed/exited (via selector).
   PortExit(status: Dynamic)
   /// Data received from an iostream adapter.
@@ -226,8 +226,8 @@ fn init_spawn(
   renderer_args: List(String),
 ) {
   let options = case format {
-    protocol.Msgpack -> ffi.msgpack_port_options()
-    protocol.Json -> ffi.json_port_options()
+    protocol.Msgpack -> renderer_port.msgpack_port_options()
+    protocol.Json -> renderer_port.json_port_options()
   }
 
   let format_args = case format {
@@ -239,7 +239,7 @@ fn init_spawn(
   let env_entries = renderer_env.build(renderer_env.default_opts())
   let env = renderer_env.to_port_env(env_entries)
 
-  let port = ffi.open_port_spawn(binary_path, args, env, options)
+  let port = renderer_port.open_port_spawn(binary_path, args, env, options)
 
   let selector =
     process.new_selector()
@@ -271,11 +271,11 @@ fn init_stdio(
   session: String,
 ) {
   let options = case format {
-    protocol.Msgpack -> ffi.stdio_port_options_msgpack()
-    protocol.Json -> ffi.stdio_port_options_json()
+    protocol.Msgpack -> renderer_port.stdio_port_options_msgpack()
+    protocol.Json -> renderer_port.stdio_port_options_json()
   }
 
-  let port = ffi.open_fd_port(0, 1, options)
+  let port = renderer_port.open_fd_port(0, 1, options)
 
   let selector =
     process.new_selector()
@@ -316,7 +316,7 @@ fn init_iostream(
 
   // iostream transport doesn't use a real port; we use a dummy
   // value that will never be referenced for I/O.
-  let port = ffi.null_port()
+  let port = renderer_port.null_port()
 
   let state =
     BridgeState(
@@ -348,8 +348,8 @@ fn init_spawn_deferred(
   renderer_args: List(String),
 ) {
   let options = case format {
-    protocol.Msgpack -> ffi.msgpack_port_options()
-    protocol.Json -> ffi.json_port_options()
+    protocol.Msgpack -> renderer_port.msgpack_port_options()
+    protocol.Json -> renderer_port.json_port_options()
   }
 
   let format_args = case format {
@@ -361,7 +361,7 @@ fn init_spawn_deferred(
   let env_entries = renderer_env.build(renderer_env.default_opts())
   let env = renderer_env.to_port_env(env_entries)
 
-  let port = ffi.open_port_spawn(binary_path, args, env, options)
+  let port = renderer_port.open_port_spawn(binary_path, args, env, options)
 
   let selector =
     process.new_selector()
@@ -392,11 +392,11 @@ fn init_stdio_deferred(
   session: String,
 ) {
   let options = case format {
-    protocol.Msgpack -> ffi.stdio_port_options_msgpack()
-    protocol.Json -> ffi.stdio_port_options_json()
+    protocol.Msgpack -> renderer_port.stdio_port_options_msgpack()
+    protocol.Json -> renderer_port.stdio_port_options_json()
   }
 
-  let port = ffi.open_fd_port(0, 1, options)
+  let port = renderer_port.open_fd_port(0, 1, options)
 
   let selector =
     process.new_selector()
@@ -433,7 +433,7 @@ fn init_iostream_deferred(
     process.new_selector()
     |> process.select(subject)
 
-  let port = ffi.null_port()
+  let port = renderer_port.null_port()
 
   let state =
     BridgeState(
@@ -514,7 +514,7 @@ fn handle_message(
       case state.transport {
         TransportIoStream(_) -> Nil
         _ -> {
-          ffi.port_close(state.port)
+          renderer_port.port_close(state.port)
           Nil
         }
       }
@@ -538,7 +538,9 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
       Nil
     }
     _ -> {
-      case platform.try_call(fn() { ffi.port_command(state.port, data) }) {
+      case
+        platform.try_call(fn() { renderer_port.port_command(state.port, data) })
+      {
         Ok(_) -> {
           telemetry.execute(
             ["plushie", "bridge", "send"],
@@ -578,9 +580,12 @@ fn handle_port_data(state: BridgeState, raw: Dynamic) -> BridgeState {
 @target(erlang)
 /// Handle line-buffered data from JSON mode ({line, N} port driver).
 /// Accumulates noeol chunks in the buffer, flushes on eol.
-fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState {
+fn handle_line_data(
+  state: BridgeState,
+  line_data: renderer_port.LineData,
+) -> BridgeState {
   case line_data {
-    ffi.Eol(data:) -> {
+    renderer_port.Eol(data:) -> {
       let line = bit_array.append(state.json_buffer, data)
       let byte_size = bit_array.byte_size(line)
       telemetry.execute(
@@ -591,7 +596,7 @@ fn handle_line_data(state: BridgeState, line_data: ffi.LineData) -> BridgeState 
       let new_state = BridgeState(..state, json_buffer: <<>>)
       dispatch_decoded(new_state, line)
     }
-    ffi.Noeol(data:) -> {
+    renderer_port.Noeol(data:) -> {
       let new_buffer = bit_array.append(state.json_buffer, data)
       case bit_array.byte_size(new_buffer) > max_json_buffer_size {
         True -> {
@@ -659,26 +664,26 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
 fn classify_port_message(format: protocol.Format, msg: Dynamic) -> BridgeMessage {
   case format {
     protocol.Json ->
-      case ffi.extract_line_data(msg) {
+      case renderer_port.extract_line_data(msg) {
         Ok(line_data) -> PortLineData(line_data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) ->
-              case ffi.extract_eof(msg) {
+              case renderer_port.extract_eof(msg) {
                 Ok(_) -> IoStreamClosed
                 Error(_) -> PortData(data: msg)
               }
           }
       }
     protocol.Msgpack ->
-      case ffi.extract_port_data(msg) {
+      case renderer_port.extract_port_data(msg) {
         Ok(data) -> PortData(data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) ->
-              case ffi.extract_eof(msg) {
+              case renderer_port.extract_eof(msg) {
                 Ok(_) -> IoStreamClosed
                 Error(_) -> PortData(data: msg)
               }

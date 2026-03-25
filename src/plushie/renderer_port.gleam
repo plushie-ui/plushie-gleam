@@ -1,8 +1,11 @@
-//// Erlang Port FFI -- BEAM-only operations for managing the
-//// renderer subprocess. All functions are @target(erlang).
+//// Erlang Port operations for the renderer subprocess.
 ////
-//// Cross-target utilities (logging, env, hashing, time) live in
-//// plushie/platform.gleam.
+//// Manages the low-level Erlang Port that communicates with the
+//// plushie-renderer binary over stdin/stdout. Used by bridge.gleam
+//// and testing infrastructure.
+////
+//// All functions are @target(erlang). Cross-target utilities
+//// (logging, env, hashing, time) live in plushie/platform.gleam.
 
 @target(erlang)
 import gleam/dynamic.{type Dynamic}

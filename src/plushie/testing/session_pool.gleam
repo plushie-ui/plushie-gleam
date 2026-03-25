@@ -42,8 +42,6 @@ import gleam/otp/actor
 @target(erlang)
 import gleam/result
 @target(erlang)
-import plushie/ffi
-@target(erlang)
 import plushie/node
 @target(erlang)
 import plushie/protocol
@@ -51,6 +49,8 @@ import plushie/protocol
 import plushie/protocol/encode as proto_encode
 @target(erlang)
 import plushie/renderer_env
+@target(erlang)
+import plushie/renderer_port
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,7 +114,7 @@ pub opaque type PoolMessage {
   /// Port data from the renderer.
   PortData(data: Dynamic)
   /// Port line data (JSON mode).
-  PortLineData(line_data: ffi.LineData)
+  PortLineData(line_data: renderer_port.LineData)
   /// Port exited.
   PortExit(status: Dynamic)
   /// Session owner process died.
@@ -300,14 +300,14 @@ fn init_pool(subject: PoolSubject, config: PoolConfig) {
   }
 
   let options = case config.format {
-    protocol.Msgpack -> ffi.msgpack_port_options()
-    protocol.Json -> ffi.json_port_options()
+    protocol.Msgpack -> renderer_port.msgpack_port_options()
+    protocol.Json -> renderer_port.json_port_options()
   }
 
   let env_entries = renderer_env.build(renderer_env.default_opts())
   let env = renderer_env.to_port_env(env_entries)
 
-  let port = ffi.open_port_spawn(renderer_path, args, env, options)
+  let port = renderer_port.open_port_spawn(renderer_path, args, env, options)
 
   // Send initial settings to trigger the hello handshake
   let settings_msg =
@@ -570,14 +570,14 @@ fn handle_port_data(
 @target(erlang)
 fn handle_line_data(
   state: PoolState,
-  line_data: ffi.LineData,
+  line_data: renderer_port.LineData,
 ) -> actor.Next(PoolState, PoolMessage) {
   case line_data {
-    ffi.Eol(data:) -> {
+    renderer_port.Eol(data:) -> {
       let new_state = dispatch_wire(state, data)
       actor.continue(new_state)
     }
-    ffi.Noeol(_data) -> actor.continue(state)
+    renderer_port.Noeol(_data) -> actor.continue(state)
   }
 }
 
@@ -691,7 +691,7 @@ fn send_to_port(
 ) -> Nil {
   case proto_encode.serialize(msg, format) {
     Ok(data) -> {
-      ffi.port_command(port, data)
+      renderer_port.port_command(port, data)
       Nil
     }
     Error(_) -> Nil
@@ -702,19 +702,19 @@ fn send_to_port(
 fn classify_port_message(format: protocol.Format, msg: Dynamic) -> PoolMessage {
   case format {
     protocol.Json ->
-      case ffi.extract_line_data(msg) {
+      case renderer_port.extract_line_data(msg) {
         Ok(line_data) -> PortLineData(line_data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) -> PortData(data: msg)
           }
       }
     protocol.Msgpack ->
-      case ffi.extract_port_data(msg) {
+      case renderer_port.extract_port_data(msg) {
         Ok(data) -> PortData(data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) -> PortData(data: msg)
           }

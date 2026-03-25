@@ -55,8 +55,6 @@ import plushie/binary
 @target(erlang)
 import plushie/event.{type Event}
 @target(erlang)
-import plushie/ffi
-@target(erlang)
 import plushie/node.{type Node, StringVal}
 @target(erlang)
 import plushie/protocol
@@ -64,6 +62,8 @@ import plushie/protocol
 import plushie/protocol/encode as proto_encode
 @target(erlang)
 import plushie/renderer_env
+@target(erlang)
+import plushie/renderer_port
 @target(erlang)
 import plushie/testing/command_processor
 @target(erlang)
@@ -155,7 +155,7 @@ pub opaque type RendererMessage {
   /// Port data received from the renderer (msgpack binary).
   PortData(data: Dynamic)
   /// Port line data received (JSON mode).
-  PortLineData(line_data: ffi.LineData)
+  PortLineData(line_data: renderer_port.LineData)
   /// Port exited.
   PortExit(status: Dynamic)
 }
@@ -411,14 +411,15 @@ fn init_renderer(
   }
 
   let options = case config.format {
-    protocol.Msgpack -> ffi.msgpack_port_options()
-    protocol.Json -> ffi.json_port_options()
+    protocol.Msgpack -> renderer_port.msgpack_port_options()
+    protocol.Json -> renderer_port.json_port_options()
   }
 
   let env_entries = renderer_env.build(renderer_env.default_opts())
   let env = renderer_env.to_port_env(env_entries)
 
-  let port = ffi.open_port_spawn(renderer_path, config.args, env, options)
+  let port =
+    renderer_port.open_port_spawn(renderer_path, config.args, env, options)
 
   // If windowed, send settings before the initial snapshot
   case config.send_settings {
@@ -426,7 +427,7 @@ fn init_renderer(
       let settings = { app.get_settings(app) }()
       let assert Ok(data) =
         proto_encode.encode_settings(settings, "", config.format, option.None)
-      ffi.port_command(port, data)
+      renderer_port.port_command(port, data)
       Nil
     }
     False -> Nil
@@ -443,7 +444,7 @@ fn init_renderer(
   // Send initial snapshot
   let assert Ok(snapshot_data) =
     proto_encode.encode_snapshot(initial_tree, "", config.format)
-  ffi.port_command(port, snapshot_data)
+  renderer_port.port_command(port, snapshot_data)
 
   let selector =
     process.new_selector()
@@ -668,7 +669,7 @@ fn handle_reset(
   // Send fresh snapshot
   let assert Ok(snapshot_data) =
     proto_encode.encode_snapshot(new_tree, "", state.format)
-  ffi.port_command(state.port, snapshot_data)
+  renderer_port.port_command(state.port, snapshot_data)
 
   let entry = PendingEntry(kind: PendingReset, reply:)
   let state =
@@ -702,14 +703,14 @@ fn handle_port_data(
 @target(erlang)
 fn handle_line_data(
   state: RendererState(model),
-  line_data: ffi.LineData,
+  line_data: renderer_port.LineData,
 ) -> actor.Next(RendererState(model), RendererMessage) {
   case line_data {
-    ffi.Eol(data:) -> {
+    renderer_port.Eol(data:) -> {
       let new_state = dispatch_wire(state, data)
       actor.continue(new_state)
     }
-    ffi.Noeol(_data) ->
+    renderer_port.Noeol(_data) ->
       // Partial lines -- the {line, N} port driver buffers them
       actor.continue(state)
   }
@@ -886,7 +887,7 @@ fn run_update(state: RendererState(model), event: Event) -> RendererState(model)
 
   let assert Ok(snapshot_data) =
     proto_encode.encode_snapshot(new_tree, "", state.format)
-  ffi.port_command(state.port, snapshot_data)
+  renderer_port.port_command(state.port, snapshot_data)
 
   RendererState(..state, model:, tree: new_tree)
 }
@@ -965,7 +966,7 @@ fn send_wire(
 ) -> Nil {
   case proto_encode.serialize(msg, format) {
     Ok(data) -> {
-      ffi.port_command(port, data)
+      renderer_port.port_command(port, data)
       Nil
     }
     Error(_) -> Nil
@@ -979,19 +980,19 @@ fn classify_port_message(
 ) -> RendererMessage {
   case format {
     protocol.Json ->
-      case ffi.extract_line_data(msg) {
+      case renderer_port.extract_line_data(msg) {
         Ok(line_data) -> PortLineData(line_data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) -> PortData(data: msg)
           }
       }
     protocol.Msgpack ->
-      case ffi.extract_port_data(msg) {
+      case renderer_port.extract_port_data(msg) {
         Ok(data) -> PortData(data:)
         Error(_) ->
-          case ffi.extract_exit_status(msg) {
+          case renderer_port.extract_exit_status(msg) {
             Ok(status) -> PortExit(status:)
             Error(_) -> PortData(data: msg)
           }
