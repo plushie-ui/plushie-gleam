@@ -767,6 +767,30 @@ These tests run on `:pooled_mock` by default (fast, logic-only). Set
 with the extension compiled in.
 
 
+## Key name validation
+
+`testing.press_key`, `testing.type_key`, and `testing.release_key`
+validate key names at call time. Input is case-insensitive. Named keys
+use PascalCase matching the renderer's wire format (same strings that
+appear in `handle_event` data):
+
+    testing.press_key(ctx, "Tab")
+    testing.press_key(ctx, "ArrowRight")
+    testing.press_key(ctx, "Shift+PageUp")
+    testing.press_key(ctx, "a")
+
+Unrecognized key names panic immediately:
+
+```
+unknown key "tabb". Examples: Tab, ArrowRight, PageUp, Escape, Enter.
+See plushie/key.gleam for the full list.
+```
+
+Single characters are also accepted and lowercased (`"a"`, `"Z"`,
+`"1"`). Modifier combos use `+`: `"Ctrl+s"`, `"Shift+ArrowUp"`.
+Modifiers: `shift`, `ctrl`, `alt`, `logo`, `command`.
+
+
 ## Known limitations
 
 Workarounds and details for each limitation are noted inline below.

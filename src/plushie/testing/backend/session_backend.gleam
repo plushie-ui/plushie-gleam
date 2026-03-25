@@ -12,6 +12,7 @@
 
 import gleam/option.{None}
 import plushie/event
+import plushie/key
 import plushie/node
 import plushie/testing/backend.{type TestBackend, TestBackend}
 import plushie/testing/element
@@ -57,13 +58,14 @@ pub fn backend() -> TestBackend(model) {
     slide: fn(sess, id, value) {
       session.send_event(sess, event.WidgetSlide(id:, value:, scope: []))
     },
-    press_key: fn(sess, key) {
+    press_key: fn(sess, key_str) {
+      let #(key_name, modifiers) = parse_key_event(key_str)
       session.send_event(
         sess,
         event.KeyPress(
-          key:,
-          modified_key: key,
-          modifiers: event.modifiers_none(),
+          key: key_name,
+          modified_key: key_name,
+          modifiers:,
           physical_key: None,
           location: event.Standard,
           text: None,
@@ -72,13 +74,14 @@ pub fn backend() -> TestBackend(model) {
         ),
       )
     },
-    release_key: fn(sess, key) {
+    release_key: fn(sess, key_str) {
+      let #(key_name, modifiers) = parse_key_event(key_str)
       session.send_event(
         sess,
         event.KeyRelease(
-          key:,
-          modified_key: key,
-          modifiers: event.modifiers_none(),
+          key: key_name,
+          modified_key: key_name,
+          modifiers:,
           physical_key: None,
           location: event.Standard,
           text: None,
@@ -86,14 +89,15 @@ pub fn backend() -> TestBackend(model) {
         ),
       )
     },
-    type_key: fn(sess, key) {
+    type_key: fn(sess, key_str) {
+      let #(key_name, modifiers) = parse_key_event(key_str)
       let sess =
         session.send_event(
           sess,
           event.KeyPress(
-            key:,
-            modified_key: key,
-            modifiers: event.modifiers_none(),
+            key: key_name,
+            modified_key: key_name,
+            modifiers:,
             physical_key: None,
             location: event.Standard,
             text: None,
@@ -104,9 +108,9 @@ pub fn backend() -> TestBackend(model) {
       session.send_event(
         sess,
         event.KeyRelease(
-          key:,
-          modified_key: key,
-          modifiers: event.modifiers_none(),
+          key: key_name,
+          modified_key: key_name,
+          modifiers:,
           physical_key: None,
           location: event.Standard,
           text: None,
@@ -128,4 +132,18 @@ pub fn backend() -> TestBackend(model) {
     },
     send_event: fn(sess, evt) { session.send_event(sess, evt) },
   )
+}
+
+/// Parse a key string into a resolved key name and Modifiers.
+fn parse_key_event(key_str: String) -> #(String, event.Modifiers) {
+  let parsed = key.parse(key_str)
+  let modifiers =
+    event.Modifiers(
+      shift: parsed.shift,
+      ctrl: parsed.ctrl,
+      alt: parsed.alt,
+      logo: parsed.logo,
+      command: parsed.command,
+    )
+  #(parsed.key, modifiers)
 }

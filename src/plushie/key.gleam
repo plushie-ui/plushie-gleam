@@ -18,6 +18,7 @@
 //// }
 //// ```
 
+import gleam/list
 import gleam/string
 
 // --- Navigation ---
@@ -703,337 +704,408 @@ pub const numpad_9 = "Numpad9"
 
 pub const numpad_add = "NumpadAdd"
 
-/// Check if a key name is valid (a named key or a single character).
+/// Check if a key name is valid for use in test helpers.
 ///
-/// Named keys use PascalCase wire format matching iced's
-/// `keyboard::key::Named` debug format. Single characters
-/// (letters, digits, punctuation) are also valid.
+/// Case-insensitive: "Tab", "tab", and "TAB" are all valid.
+/// Single characters are always valid. Named keys resolve to
+/// PascalCase matching the renderer's wire format.
 pub fn is_valid(name: String) -> Bool {
+  case resolve(name) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+/// Resolve a key name to PascalCase wire format (case-insensitive).
+///
+/// The full set of named keys from the renderer is supported.
+/// Single characters are lowercased. Returns the PascalCase name
+/// that matches what the renderer sends in key events, so
+/// handle_event patterns match naturally.
+///
+///     resolve("tab") -> Ok("Tab")
+///     resolve("ArrowRight") -> Ok("ArrowRight")
+///     resolve("a") -> Ok("a")
+///     resolve("tabb") -> Error(Nil)
+pub fn resolve(name: String) -> Result(String, Nil) {
   case string.length(name) {
-    1 -> True
+    1 -> Ok(string.lowercase(name))
     _ ->
-      case name {
-        "Escape" -> True
-        "Enter" -> True
-        "Tab" -> True
-        "Backspace" -> True
-        "Delete" -> True
-        "ArrowUp" -> True
-        "ArrowDown" -> True
-        "ArrowLeft" -> True
-        "ArrowRight" -> True
-        "Home" -> True
-        "End" -> True
-        "PageUp" -> True
-        "PageDown" -> True
-        "Space" -> True
-        "Insert" -> True
-        "Clear" -> True
-        "Alt" -> True
-        "AltGraph" -> True
-        "CapsLock" -> True
-        "Control" -> True
-        "Fn" -> True
-        "FnLock" -> True
-        "NumLock" -> True
-        "ScrollLock" -> True
-        "Shift" -> True
-        "Symbol" -> True
-        "SymbolLock" -> True
-        "Meta" -> True
-        "Hyper" -> True
-        "Super" -> True
-        "Copy" -> True
-        "Cut" -> True
-        "Paste" -> True
-        "Redo" -> True
-        "Undo" -> True
-        "CrSel" -> True
-        "EraseEof" -> True
-        "ExSel" -> True
-        "Accept" -> True
-        "Again" -> True
-        "Attn" -> True
-        "Cancel" -> True
-        "ContextMenu" -> True
-        "Execute" -> True
-        "Find" -> True
-        "Help" -> True
-        "Pause" -> True
-        "Play" -> True
-        "Props" -> True
-        "Select" -> True
-        "ZoomIn" -> True
-        "ZoomOut" -> True
-        "BrightnessDown" -> True
-        "BrightnessUp" -> True
-        "Eject" -> True
-        "LogOff" -> True
-        "Power" -> True
-        "PowerOff" -> True
-        "PrintScreen" -> True
-        "Hibernate" -> True
-        "Standby" -> True
-        "WakeUp" -> True
-        "F1" -> True
-        "F2" -> True
-        "F3" -> True
-        "F4" -> True
-        "F5" -> True
-        "F6" -> True
-        "F7" -> True
-        "F8" -> True
-        "F9" -> True
-        "F10" -> True
-        "F11" -> True
-        "F12" -> True
-        "F13" -> True
-        "F14" -> True
-        "F15" -> True
-        "F16" -> True
-        "F17" -> True
-        "F18" -> True
-        "F19" -> True
-        "F20" -> True
-        "F21" -> True
-        "F22" -> True
-        "F23" -> True
-        "F24" -> True
-        "F25" -> True
-        "F26" -> True
-        "F27" -> True
-        "F28" -> True
-        "F29" -> True
-        "F30" -> True
-        "F31" -> True
-        "F32" -> True
-        "F33" -> True
-        "F34" -> True
-        "F35" -> True
-        "ChannelDown" -> True
-        "ChannelUp" -> True
-        "Close" -> True
-        "MailForward" -> True
-        "MailReply" -> True
-        "MailSend" -> True
-        "MediaClose" -> True
-        "MediaFastForward" -> True
-        "MediaPause" -> True
-        "MediaPlay" -> True
-        "MediaPlayPause" -> True
-        "MediaRecord" -> True
-        "MediaRewind" -> True
-        "MediaStop" -> True
-        "MediaTrackNext" -> True
-        "MediaTrackPrevious" -> True
-        "New" -> True
-        "Open" -> True
-        "Print" -> True
-        "Save" -> True
-        "SpellCheck" -> True
-        "AudioBalanceLeft" -> True
-        "AudioBalanceRight" -> True
-        "AudioBassBoostDown" -> True
-        "AudioBassBoostToggle" -> True
-        "AudioBassBoostUp" -> True
-        "AudioFaderFront" -> True
-        "AudioFaderRear" -> True
-        "AudioSurroundModeNext" -> True
-        "AudioTrebleDown" -> True
-        "AudioTrebleUp" -> True
-        "AudioVolumeDown" -> True
-        "AudioVolumeUp" -> True
-        "AudioVolumeMute" -> True
-        "MicrophoneToggle" -> True
-        "MicrophoneVolumeDown" -> True
-        "MicrophoneVolumeUp" -> True
-        "MicrophoneVolumeMute" -> True
-        "SpeechCorrectionList" -> True
-        "SpeechInputToggle" -> True
-        "LaunchApplication1" -> True
-        "LaunchApplication2" -> True
-        "LaunchCalendar" -> True
-        "LaunchContacts" -> True
-        "LaunchMail" -> True
-        "LaunchMediaPlayer" -> True
-        "LaunchMusicPlayer" -> True
-        "LaunchPhone" -> True
-        "LaunchScreenSaver" -> True
-        "LaunchSpreadsheet" -> True
-        "LaunchWebBrowser" -> True
-        "LaunchWebCam" -> True
-        "LaunchWordProcessor" -> True
-        "BrowserBack" -> True
-        "BrowserFavorites" -> True
-        "BrowserForward" -> True
-        "BrowserHome" -> True
-        "BrowserRefresh" -> True
-        "BrowserSearch" -> True
-        "BrowserStop" -> True
-        "AllCandidates" -> True
-        "Alphanumeric" -> True
-        "CodeInput" -> True
-        "Compose" -> True
-        "Convert" -> True
-        "FinalMode" -> True
-        "GroupFirst" -> True
-        "GroupLast" -> True
-        "GroupNext" -> True
-        "GroupPrevious" -> True
-        "ModeChange" -> True
-        "NextCandidate" -> True
-        "NonConvert" -> True
-        "PreviousCandidate" -> True
-        "Process" -> True
-        "SingleCandidate" -> True
-        "HangulMode" -> True
-        "HanjaMode" -> True
-        "JunjaMode" -> True
-        "Eisu" -> True
-        "Hankaku" -> True
-        "Hiragana" -> True
-        "HiraganaKatakana" -> True
-        "KanaMode" -> True
-        "KanjiMode" -> True
-        "Katakana" -> True
-        "Romaji" -> True
-        "Zenkaku" -> True
-        "ZenkakuHankaku" -> True
-        "Soft1" -> True
-        "Soft2" -> True
-        "Soft3" -> True
-        "Soft4" -> True
-        "AppSwitch" -> True
-        "Call" -> True
-        "Camera" -> True
-        "CameraFocus" -> True
-        "EndCall" -> True
-        "GoBack" -> True
-        "GoHome" -> True
-        "HeadsetHook" -> True
-        "LastNumberRedial" -> True
-        "Notification" -> True
-        "MannerMode" -> True
-        "VoiceDial" -> True
-        "Key11" -> True
-        "Key12" -> True
-        "NumpadBackspace" -> True
-        "NumpadClear" -> True
-        "NumpadClearEntry" -> True
-        "NumpadComma" -> True
-        "NumpadDecimal" -> True
-        "NumpadDivide" -> True
-        "NumpadEnter" -> True
-        "NumpadEqual" -> True
-        "NumpadHash" -> True
-        "NumpadMemoryAdd" -> True
-        "NumpadMemoryClear" -> True
-        "NumpadMemoryRecall" -> True
-        "NumpadMemoryStore" -> True
-        "NumpadMemorySubtract" -> True
-        "NumpadMultiply" -> True
-        "NumpadParenLeft" -> True
-        "NumpadParenRight" -> True
-        "NumpadStar" -> True
-        "NumpadSubtract" -> True
-        "TV" -> True
-        "TV3DMode" -> True
-        "TVAntennaCable" -> True
-        "TVAudioDescription" -> True
-        "TVAudioDescriptionMixDown" -> True
-        "TVAudioDescriptionMixUp" -> True
-        "TVContentsMenu" -> True
-        "TVDataService" -> True
-        "TVInput" -> True
-        "TVInputComponent1" -> True
-        "TVInputComponent2" -> True
-        "TVInputComposite1" -> True
-        "TVInputComposite2" -> True
-        "TVInputHDMI1" -> True
-        "TVInputHDMI2" -> True
-        "TVInputHDMI3" -> True
-        "TVInputHDMI4" -> True
-        "TVInputVGA1" -> True
-        "TVMediaContext" -> True
-        "TVNetwork" -> True
-        "TVNumberEntry" -> True
-        "TVPower" -> True
-        "TVRadioService" -> True
-        "TVSatellite" -> True
-        "TVSatelliteBS" -> True
-        "TVSatelliteCS" -> True
-        "TVSatelliteToggle" -> True
-        "TVTerrestrialAnalog" -> True
-        "TVTerrestrialDigital" -> True
-        "TVTimer" -> True
-        "Unidentified" -> True
-        "KeyA" -> True
-        "KeyB" -> True
-        "KeyC" -> True
-        "KeyD" -> True
-        "KeyE" -> True
-        "KeyF" -> True
-        "KeyG" -> True
-        "KeyH" -> True
-        "KeyI" -> True
-        "KeyJ" -> True
-        "KeyK" -> True
-        "KeyL" -> True
-        "KeyM" -> True
-        "KeyN" -> True
-        "KeyO" -> True
-        "KeyP" -> True
-        "KeyQ" -> True
-        "KeyR" -> True
-        "KeyS" -> True
-        "KeyT" -> True
-        "KeyU" -> True
-        "KeyV" -> True
-        "KeyW" -> True
-        "KeyX" -> True
-        "KeyY" -> True
-        "KeyZ" -> True
-        "Digit0" -> True
-        "Digit1" -> True
-        "Digit2" -> True
-        "Digit3" -> True
-        "Digit4" -> True
-        "Digit5" -> True
-        "Digit6" -> True
-        "Digit7" -> True
-        "Digit8" -> True
-        "Digit9" -> True
-        "ShiftLeft" -> True
-        "ShiftRight" -> True
-        "ControlLeft" -> True
-        "ControlRight" -> True
-        "AltLeft" -> True
-        "AltRight" -> True
-        "MetaLeft" -> True
-        "MetaRight" -> True
-        "Minus" -> True
-        "Equal" -> True
-        "BracketLeft" -> True
-        "BracketRight" -> True
-        "Backslash" -> True
-        "Semicolon" -> True
-        "Quote" -> True
-        "Backquote" -> True
-        "Comma" -> True
-        "Period" -> True
-        "Slash" -> True
-        "Numpad0" -> True
-        "Numpad1" -> True
-        "Numpad2" -> True
-        "Numpad3" -> True
-        "Numpad4" -> True
-        "Numpad5" -> True
-        "Numpad6" -> True
-        "Numpad7" -> True
-        "Numpad8" -> True
-        "Numpad9" -> True
-        "NumpadAdd" -> True
-        _ -> False
+      case string.lowercase(name) {
+        "escape" -> Ok("Escape")
+        "enter" -> Ok("Enter")
+        "tab" -> Ok("Tab")
+        "backspace" -> Ok("Backspace")
+        "delete" -> Ok("Delete")
+        "arrowup" -> Ok("ArrowUp")
+        "arrowdown" -> Ok("ArrowDown")
+        "arrowleft" -> Ok("ArrowLeft")
+        "arrowright" -> Ok("ArrowRight")
+        "home" -> Ok("Home")
+        "end" -> Ok("End")
+        "pageup" -> Ok("PageUp")
+        "pagedown" -> Ok("PageDown")
+        "space" -> Ok("Space")
+        "insert" -> Ok("Insert")
+        "clear" -> Ok("Clear")
+        "alt" -> Ok("Alt")
+        "altgraph" -> Ok("AltGraph")
+        "capslock" -> Ok("CapsLock")
+        "control" -> Ok("Control")
+        "fn" -> Ok("Fn")
+        "fnlock" -> Ok("FnLock")
+        "numlock" -> Ok("NumLock")
+        "scrolllock" -> Ok("ScrollLock")
+        "shift" -> Ok("Shift")
+        "symbol" -> Ok("Symbol")
+        "symbollock" -> Ok("SymbolLock")
+        "meta" -> Ok("Meta")
+        "hyper" -> Ok("Hyper")
+        "super" -> Ok("Super")
+        "copy" -> Ok("Copy")
+        "cut" -> Ok("Cut")
+        "paste" -> Ok("Paste")
+        "redo" -> Ok("Redo")
+        "undo" -> Ok("Undo")
+        "crsel" -> Ok("CrSel")
+        "eraseeof" -> Ok("EraseEof")
+        "exsel" -> Ok("ExSel")
+        "accept" -> Ok("Accept")
+        "again" -> Ok("Again")
+        "attn" -> Ok("Attn")
+        "cancel" -> Ok("Cancel")
+        "contextmenu" -> Ok("ContextMenu")
+        "execute" -> Ok("Execute")
+        "find" -> Ok("Find")
+        "help" -> Ok("Help")
+        "pause" -> Ok("Pause")
+        "play" -> Ok("Play")
+        "props" -> Ok("Props")
+        "select" -> Ok("Select")
+        "zoomin" -> Ok("ZoomIn")
+        "zoomout" -> Ok("ZoomOut")
+        "brightnessdown" -> Ok("BrightnessDown")
+        "brightnessup" -> Ok("BrightnessUp")
+        "eject" -> Ok("Eject")
+        "logoff" -> Ok("LogOff")
+        "power" -> Ok("Power")
+        "poweroff" -> Ok("PowerOff")
+        "printscreen" -> Ok("PrintScreen")
+        "hibernate" -> Ok("Hibernate")
+        "standby" -> Ok("Standby")
+        "wakeup" -> Ok("WakeUp")
+        "f1" -> Ok("F1")
+        "f2" -> Ok("F2")
+        "f3" -> Ok("F3")
+        "f4" -> Ok("F4")
+        "f5" -> Ok("F5")
+        "f6" -> Ok("F6")
+        "f7" -> Ok("F7")
+        "f8" -> Ok("F8")
+        "f9" -> Ok("F9")
+        "f10" -> Ok("F10")
+        "f11" -> Ok("F11")
+        "f12" -> Ok("F12")
+        "f13" -> Ok("F13")
+        "f14" -> Ok("F14")
+        "f15" -> Ok("F15")
+        "f16" -> Ok("F16")
+        "f17" -> Ok("F17")
+        "f18" -> Ok("F18")
+        "f19" -> Ok("F19")
+        "f20" -> Ok("F20")
+        "f21" -> Ok("F21")
+        "f22" -> Ok("F22")
+        "f23" -> Ok("F23")
+        "f24" -> Ok("F24")
+        "f25" -> Ok("F25")
+        "f26" -> Ok("F26")
+        "f27" -> Ok("F27")
+        "f28" -> Ok("F28")
+        "f29" -> Ok("F29")
+        "f30" -> Ok("F30")
+        "f31" -> Ok("F31")
+        "f32" -> Ok("F32")
+        "f33" -> Ok("F33")
+        "f34" -> Ok("F34")
+        "f35" -> Ok("F35")
+        "channeldown" -> Ok("ChannelDown")
+        "channelup" -> Ok("ChannelUp")
+        "close" -> Ok("Close")
+        "mailforward" -> Ok("MailForward")
+        "mailreply" -> Ok("MailReply")
+        "mailsend" -> Ok("MailSend")
+        "mediaclose" -> Ok("MediaClose")
+        "mediafastforward" -> Ok("MediaFastForward")
+        "mediapause" -> Ok("MediaPause")
+        "mediaplay" -> Ok("MediaPlay")
+        "mediaplaypause" -> Ok("MediaPlayPause")
+        "mediarecord" -> Ok("MediaRecord")
+        "mediarewind" -> Ok("MediaRewind")
+        "mediastop" -> Ok("MediaStop")
+        "mediatracknext" -> Ok("MediaTrackNext")
+        "mediatrackprevious" -> Ok("MediaTrackPrevious")
+        "new" -> Ok("New")
+        "open" -> Ok("Open")
+        "print" -> Ok("Print")
+        "save" -> Ok("Save")
+        "spellcheck" -> Ok("SpellCheck")
+        "audiobalanceleft" -> Ok("AudioBalanceLeft")
+        "audiobalanceright" -> Ok("AudioBalanceRight")
+        "audiobassboostdown" -> Ok("AudioBassBoostDown")
+        "audiobassboosttoggle" -> Ok("AudioBassBoostToggle")
+        "audiobassboostup" -> Ok("AudioBassBoostUp")
+        "audiofaderfront" -> Ok("AudioFaderFront")
+        "audiofaderrear" -> Ok("AudioFaderRear")
+        "audiosurroundmodenext" -> Ok("AudioSurroundModeNext")
+        "audiotrebledown" -> Ok("AudioTrebleDown")
+        "audiotrebleup" -> Ok("AudioTrebleUp")
+        "audiovolumedown" -> Ok("AudioVolumeDown")
+        "audiovolumeup" -> Ok("AudioVolumeUp")
+        "audiovolumemute" -> Ok("AudioVolumeMute")
+        "microphonetoggle" -> Ok("MicrophoneToggle")
+        "microphonevolumedown" -> Ok("MicrophoneVolumeDown")
+        "microphonevolumeup" -> Ok("MicrophoneVolumeUp")
+        "microphonevolumemute" -> Ok("MicrophoneVolumeMute")
+        "speechcorrectionlist" -> Ok("SpeechCorrectionList")
+        "speechinputtoggle" -> Ok("SpeechInputToggle")
+        "launchapplication1" -> Ok("LaunchApplication1")
+        "launchapplication2" -> Ok("LaunchApplication2")
+        "launchcalendar" -> Ok("LaunchCalendar")
+        "launchcontacts" -> Ok("LaunchContacts")
+        "launchmail" -> Ok("LaunchMail")
+        "launchmediaplayer" -> Ok("LaunchMediaPlayer")
+        "launchmusicplayer" -> Ok("LaunchMusicPlayer")
+        "launchphone" -> Ok("LaunchPhone")
+        "launchscreensaver" -> Ok("LaunchScreenSaver")
+        "launchspreadsheet" -> Ok("LaunchSpreadsheet")
+        "launchwebbrowser" -> Ok("LaunchWebBrowser")
+        "launchwebcam" -> Ok("LaunchWebCam")
+        "launchwordprocessor" -> Ok("LaunchWordProcessor")
+        "browserback" -> Ok("BrowserBack")
+        "browserfavorites" -> Ok("BrowserFavorites")
+        "browserforward" -> Ok("BrowserForward")
+        "browserhome" -> Ok("BrowserHome")
+        "browserrefresh" -> Ok("BrowserRefresh")
+        "browsersearch" -> Ok("BrowserSearch")
+        "browserstop" -> Ok("BrowserStop")
+        "allcandidates" -> Ok("AllCandidates")
+        "alphanumeric" -> Ok("Alphanumeric")
+        "codeinput" -> Ok("CodeInput")
+        "compose" -> Ok("Compose")
+        "convert" -> Ok("Convert")
+        "finalmode" -> Ok("FinalMode")
+        "groupfirst" -> Ok("GroupFirst")
+        "grouplast" -> Ok("GroupLast")
+        "groupnext" -> Ok("GroupNext")
+        "groupprevious" -> Ok("GroupPrevious")
+        "modechange" -> Ok("ModeChange")
+        "nextcandidate" -> Ok("NextCandidate")
+        "nonconvert" -> Ok("NonConvert")
+        "previouscandidate" -> Ok("PreviousCandidate")
+        "process" -> Ok("Process")
+        "singlecandidate" -> Ok("SingleCandidate")
+        "hangulmode" -> Ok("HangulMode")
+        "hanjamode" -> Ok("HanjaMode")
+        "junjamode" -> Ok("JunjaMode")
+        "eisu" -> Ok("Eisu")
+        "hankaku" -> Ok("Hankaku")
+        "hiragana" -> Ok("Hiragana")
+        "hiraganakatakana" -> Ok("HiraganaKatakana")
+        "kanamode" -> Ok("KanaMode")
+        "kanjimode" -> Ok("KanjiMode")
+        "katakana" -> Ok("Katakana")
+        "romaji" -> Ok("Romaji")
+        "zenkaku" -> Ok("Zenkaku")
+        "zenkakuhankaku" -> Ok("ZenkakuHankaku")
+        "soft1" -> Ok("Soft1")
+        "soft2" -> Ok("Soft2")
+        "soft3" -> Ok("Soft3")
+        "soft4" -> Ok("Soft4")
+        "appswitch" -> Ok("AppSwitch")
+        "call" -> Ok("Call")
+        "camera" -> Ok("Camera")
+        "camerafocus" -> Ok("CameraFocus")
+        "endcall" -> Ok("EndCall")
+        "goback" -> Ok("GoBack")
+        "gohome" -> Ok("GoHome")
+        "headsethook" -> Ok("HeadsetHook")
+        "lastnumberredial" -> Ok("LastNumberRedial")
+        "notification" -> Ok("Notification")
+        "mannermode" -> Ok("MannerMode")
+        "voicedial" -> Ok("VoiceDial")
+        "key11" -> Ok("Key11")
+        "key12" -> Ok("Key12")
+        "numpadbackspace" -> Ok("NumpadBackspace")
+        "numpadclear" -> Ok("NumpadClear")
+        "numpadclearentry" -> Ok("NumpadClearEntry")
+        "numpadcomma" -> Ok("NumpadComma")
+        "numpaddecimal" -> Ok("NumpadDecimal")
+        "numpaddivide" -> Ok("NumpadDivide")
+        "numpadenter" -> Ok("NumpadEnter")
+        "numpadequal" -> Ok("NumpadEqual")
+        "numpadhash" -> Ok("NumpadHash")
+        "numpadmemoryadd" -> Ok("NumpadMemoryAdd")
+        "numpadmemoryclear" -> Ok("NumpadMemoryClear")
+        "numpadmemoryrecall" -> Ok("NumpadMemoryRecall")
+        "numpadmemorystore" -> Ok("NumpadMemoryStore")
+        "numpadmemorysubtract" -> Ok("NumpadMemorySubtract")
+        "numpadmultiply" -> Ok("NumpadMultiply")
+        "numpadparenleft" -> Ok("NumpadParenLeft")
+        "numpadparenright" -> Ok("NumpadParenRight")
+        "numpadstar" -> Ok("NumpadStar")
+        "numpadsubtract" -> Ok("NumpadSubtract")
+        "tv" -> Ok("TV")
+        "tv3dmode" -> Ok("TV3DMode")
+        "tvantennacable" -> Ok("TVAntennaCable")
+        "tvaudiodescription" -> Ok("TVAudioDescription")
+        "tvaudiodescriptionmixdown" -> Ok("TVAudioDescriptionMixDown")
+        "tvaudiodescriptionmixup" -> Ok("TVAudioDescriptionMixUp")
+        "tvcontentsmenu" -> Ok("TVContentsMenu")
+        "tvdataservice" -> Ok("TVDataService")
+        "tvinput" -> Ok("TVInput")
+        "tvinputcomponent1" -> Ok("TVInputComponent1")
+        "tvinputcomponent2" -> Ok("TVInputComponent2")
+        "tvinputcomposite1" -> Ok("TVInputComposite1")
+        "tvinputcomposite2" -> Ok("TVInputComposite2")
+        "tvinputhdmi1" -> Ok("TVInputHDMI1")
+        "tvinputhdmi2" -> Ok("TVInputHDMI2")
+        "tvinputhdmi3" -> Ok("TVInputHDMI3")
+        "tvinputhdmi4" -> Ok("TVInputHDMI4")
+        "tvinputvga1" -> Ok("TVInputVGA1")
+        "tvmediacontext" -> Ok("TVMediaContext")
+        "tvnetwork" -> Ok("TVNetwork")
+        "tvnumberentry" -> Ok("TVNumberEntry")
+        "tvpower" -> Ok("TVPower")
+        "tvradioservice" -> Ok("TVRadioService")
+        "tvsatellite" -> Ok("TVSatellite")
+        "tvsatellitebs" -> Ok("TVSatelliteBS")
+        "tvsatellitecs" -> Ok("TVSatelliteCS")
+        "tvsatellitetoggle" -> Ok("TVSatelliteToggle")
+        "tvterrestrialanalog" -> Ok("TVTerrestrialAnalog")
+        "tvterrestrialdigital" -> Ok("TVTerrestrialDigital")
+        "tvtimer" -> Ok("TVTimer")
+        "unidentified" -> Ok("Unidentified")
+        "keya" -> Ok("KeyA")
+        "keyb" -> Ok("KeyB")
+        "keyc" -> Ok("KeyC")
+        "keyd" -> Ok("KeyD")
+        "keye" -> Ok("KeyE")
+        "keyf" -> Ok("KeyF")
+        "keyg" -> Ok("KeyG")
+        "keyh" -> Ok("KeyH")
+        "keyi" -> Ok("KeyI")
+        "keyj" -> Ok("KeyJ")
+        "keyk" -> Ok("KeyK")
+        "keyl" -> Ok("KeyL")
+        "keym" -> Ok("KeyM")
+        "keyn" -> Ok("KeyN")
+        "keyo" -> Ok("KeyO")
+        "keyp" -> Ok("KeyP")
+        "keyq" -> Ok("KeyQ")
+        "keyr" -> Ok("KeyR")
+        "keys" -> Ok("KeyS")
+        "keyt" -> Ok("KeyT")
+        "keyu" -> Ok("KeyU")
+        "keyv" -> Ok("KeyV")
+        "keyw" -> Ok("KeyW")
+        "keyx" -> Ok("KeyX")
+        "keyy" -> Ok("KeyY")
+        "keyz" -> Ok("KeyZ")
+        "digit0" -> Ok("Digit0")
+        "digit1" -> Ok("Digit1")
+        "digit2" -> Ok("Digit2")
+        "digit3" -> Ok("Digit3")
+        "digit4" -> Ok("Digit4")
+        "digit5" -> Ok("Digit5")
+        "digit6" -> Ok("Digit6")
+        "digit7" -> Ok("Digit7")
+        "digit8" -> Ok("Digit8")
+        "digit9" -> Ok("Digit9")
+        "shiftleft" -> Ok("ShiftLeft")
+        "shiftright" -> Ok("ShiftRight")
+        "controlleft" -> Ok("ControlLeft")
+        "controlright" -> Ok("ControlRight")
+        "altleft" -> Ok("AltLeft")
+        "altright" -> Ok("AltRight")
+        "metaleft" -> Ok("MetaLeft")
+        "metaright" -> Ok("MetaRight")
+        "minus" -> Ok("Minus")
+        "equal" -> Ok("Equal")
+        "bracketleft" -> Ok("BracketLeft")
+        "bracketright" -> Ok("BracketRight")
+        "backslash" -> Ok("Backslash")
+        "semicolon" -> Ok("Semicolon")
+        "quote" -> Ok("Quote")
+        "backquote" -> Ok("Backquote")
+        "comma" -> Ok("Comma")
+        "period" -> Ok("Period")
+        "slash" -> Ok("Slash")
+        "numpad0" -> Ok("Numpad0")
+        "numpad1" -> Ok("Numpad1")
+        "numpad2" -> Ok("Numpad2")
+        "numpad3" -> Ok("Numpad3")
+        "numpad4" -> Ok("Numpad4")
+        "numpad5" -> Ok("Numpad5")
+        "numpad6" -> Ok("Numpad6")
+        "numpad7" -> Ok("Numpad7")
+        "numpad8" -> Ok("Numpad8")
+        "numpad9" -> Ok("Numpad9")
+        "numpadadd" -> Ok("NumpadAdd")
+        _ -> Error(Nil)
       }
   }
+}
+
+/// Result of parsing a key combo string like "Shift+ArrowRight".
+pub type ParsedKey {
+  ParsedKey(
+    /// The resolved key name in PascalCase wire format.
+    key: String,
+    shift: Bool,
+    ctrl: Bool,
+    alt: Bool,
+    logo: Bool,
+    command: Bool,
+  )
+}
+
+/// Parse a key combo string into a resolved key name and modifiers.
+///
+/// Case-insensitive for both key names and modifiers. Validates the
+/// key name against the full renderer key set. Panics on unknown keys
+/// or modifiers -- this is test-only code where fail-fast is correct.
+///
+///     parse("Tab") -> ParsedKey(key: "Tab", ...)
+///     parse("ctrl+s") -> ParsedKey(key: "s", ctrl: True, ...)
+///     parse("Shift+ArrowRight") -> ParsedKey(key: "ArrowRight", shift: True, ...)
+pub fn parse(key_str: String) -> ParsedKey {
+  let parts = string.split(key_str, "+")
+  let #(mods, key_parts) = list.split(parts, list.length(parts) - 1)
+  let raw_key = case key_parts {
+    [k] -> k
+    _ -> key_str
+  }
+
+  let key_name = case resolve(raw_key) {
+    Ok(resolved) -> resolved
+    Error(_) ->
+      panic as {
+        "unknown key \""
+        <> raw_key
+        <> "\". Examples: Tab, ArrowRight, PageUp, Escape, Enter. "
+        <> "See plushie/key.gleam for the full list."
+      }
+  }
+
+  let has = fn(name) { list.any(mods, fn(m) { string.lowercase(m) == name }) }
+  let ctrl = has("ctrl")
+  ParsedKey(
+    key: key_name,
+    shift: has("shift"),
+    ctrl:,
+    alt: has("alt"),
+    logo: has("logo"),
+    command: has("command") || ctrl,
+  )
 }

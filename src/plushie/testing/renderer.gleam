@@ -1024,38 +1024,28 @@ fn classify_port_message(
 
 @target(erlang)
 fn parse_key(key_str: String) -> Dict(String, String) {
-  let parts = string.split(key_str, "+")
-  let #(mods, key_parts) = list.split(parts, list.length(parts) - 1)
-  let key_name = case key_parts {
-    [k] -> k
-    _ -> key_str
+  let parsed = key.parse(key_str)
+  let d = dict.from_list([#("key", parsed.key)])
+  let d = case parsed.ctrl {
+    True -> dict.insert(d, "ctrl", "true")
+    False -> d
   }
-
-  // Validate key name against known keys. Catches typos at the
-  // test call site instead of silently sending garbage to the
-  // renderer. Mirrors the Elixir SDK's key validation (5ee2bf1).
-  case key.is_valid(key_name) {
-    True -> Nil
-    False ->
-      panic as {
-        "unknown key \""
-        <> key_name
-        <> "\". Use PascalCase named keys (e.g., \"ArrowRight\", \"Escape\") "
-        <> "or single characters. See plushie/key.gleam for the full list."
-      }
+  let d = case parsed.shift {
+    True -> dict.insert(d, "shift", "true")
+    False -> d
   }
-
-  let base = dict.from_list([#("key", key_name)])
-  list.fold(mods, base, fn(acc, m) {
-    case m {
-      "ctrl" -> dict.insert(acc, "ctrl", "true")
-      "shift" -> dict.insert(acc, "shift", "true")
-      "alt" -> dict.insert(acc, "alt", "true")
-      "logo" -> dict.insert(acc, "logo", "true")
-      "command" -> dict.insert(acc, "command", "true")
-      _ -> acc
-    }
-  })
+  let d = case parsed.alt {
+    True -> dict.insert(d, "alt", "true")
+    False -> d
+  }
+  let d = case parsed.logo {
+    True -> dict.insert(d, "logo", "true")
+    False -> d
+  }
+  case parsed.command {
+    True -> dict.insert(d, "command", "true")
+    False -> d
+  }
 }
 
 @target(erlang)
