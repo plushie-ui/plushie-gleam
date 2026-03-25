@@ -40,6 +40,8 @@ import plushie/bridge_web.{type WebTransport}
 @target(javascript)
 import plushie/command.{type Command}
 @target(javascript)
+import plushie/command_encode
+@target(javascript)
 import plushie/event.{type Event}
 @target(javascript)
 import plushie/node.{type Node, type PropValue}
@@ -472,21 +474,21 @@ fn execute_commands(
   cmd: Command(msg),
 ) -> Nil {
   let session = do_get_session(handle)
-  case cmd {
-    command.None -> Nil
+  case command_encode.classify(cmd) {
+    command_encode.NoOp -> Nil
 
-    command.Batch(commands:) ->
+    command_encode.RunBatch(commands) ->
       list.each(commands, fn(c) { execute_commands(handle, app, c) })
 
-    command.Exit -> do_stop(handle)
+    command_encode.Exit -> do_stop(handle)
 
-    command.Done(value:, mapper:) -> {
+    command_encode.DoneImmediate(value, mapper) -> {
       let msg = mapper(value)
       // Defer to next microtask to match BEAM's mailbox semantics
       defer(fn() { dispatch_update(handle, app, msg) })
     }
 
-    command.SendAfter(delay_ms:, msg:) -> {
+    command_encode.ScheduleTimer(delay_ms, msg) -> {
       let key = platform.stable_hash_key(msg)
       // SendAfter msg is already the app's msg type -- dispatch
       // directly to dispatch_update, not through handle_event
@@ -496,424 +498,33 @@ fn execute_commands(
       })
     }
 
-    command.Async(work:, tag:) -> {
-      start_async(handle, tag, work)
-    }
+    command_encode.SpawnAsync(tag, work) -> start_async(handle, tag, work)
+    command_encode.SpawnStream(tag, work) -> start_stream(handle, tag, work)
+    command_encode.CancelTask(tag) -> cancel_async(handle, tag)
 
-    command.Stream(work:, tag:) -> {
-      start_stream(handle, tag, work)
-    }
+    command_encode.WidgetOp(op, payload) -> wop(handle, op, payload, session)
 
-    command.Cancel(tag:) -> {
-      cancel_async(handle, tag)
-    }
+    command_encode.WindowOp(op, window_id, settings) ->
+      winop(handle, op, window_id, settings, session)
 
-    // -- Widget ops (sent as widget_op wire messages) --
-    command.Focus(widget_id:) ->
-      wop(handle, "focus", [#("target", sv(widget_id))], session)
-    command.FocusElement(canvas_id:, element_id:) ->
-      wop(
-        handle,
-        "focus_element",
-        [
-          #("target", sv(canvas_id)),
-          #("element_id", sv(element_id)),
-        ],
-        session,
-      )
-    command.FocusNext -> wop(handle, "focus_next", [], session)
-    command.FocusPrevious -> wop(handle, "focus_previous", [], session)
-    command.SelectAll(widget_id:) ->
-      wop(handle, "select_all", [#("target", sv(widget_id))], session)
-    command.MoveCursorToFront(widget_id:) ->
-      wop(handle, "move_cursor_to_front", [#("target", sv(widget_id))], session)
-    command.MoveCursorToEnd(widget_id:) ->
-      wop(handle, "move_cursor_to_end", [#("target", sv(widget_id))], session)
-    command.MoveCursorTo(widget_id:, position:) ->
-      wop(
-        handle,
-        "move_cursor_to",
-        [
-          #("target", sv(widget_id)),
-          #("position", node.IntVal(position)),
-        ],
-        session,
-      )
-    command.SelectRange(widget_id:, start:, end:) ->
-      wop(
-        handle,
-        "select_range",
-        [
-          #("target", sv(widget_id)),
-          #("start", node.IntVal(start)),
-          #("end", node.IntVal(end)),
-        ],
-        session,
-      )
-    command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
-      let payload = [#("target", sv(widget_id))]
-      let payload = case offset_x {
-        Some(x) -> [#("offset_x", node.FloatVal(x)), ..payload]
-        None -> payload
-      }
-      let payload = case offset_y {
-        Some(y) -> [#("offset_y", node.FloatVal(y)), ..payload]
-        None -> payload
-      }
-      wop(handle, "scroll_to", payload, session)
-    }
-    command.SnapTo(widget_id:, x:, y:) ->
-      wop(
-        handle,
-        "snap_to",
-        [
-          #("target", sv(widget_id)),
-          #("x", node.FloatVal(x)),
-          #("y", node.FloatVal(y)),
-        ],
-        session,
-      )
-    command.SnapToEnd(widget_id:) ->
-      wop(handle, "snap_to_end", [#("target", sv(widget_id))], session)
-    command.ScrollBy(widget_id:, x:, y:) ->
-      wop(
-        handle,
-        "scroll_by",
-        [
-          #("target", sv(widget_id)),
-          #("x", node.FloatVal(x)),
-          #("y", node.FloatVal(y)),
-        ],
-        session,
-      )
-    command.CloseWindow(window_id:) ->
-      wop(
-        handle,
-        "close_window",
-        [
-          #("window_id", sv(window_id)),
-        ],
-        session,
-      )
-    command.Announce(text:) ->
-      wop(handle, "announce", [#("text", sv(text))], session)
-    command.TreeHashQuery(tag:) ->
-      wop(handle, "tree_hash", [#("tag", sv(tag))], session)
-    command.FindFocused(tag:) ->
-      wop(handle, "find_focused", [#("tag", sv(tag))], session)
-    command.LoadFont(data:) ->
-      wop(
-        handle,
-        "load_font",
-        [
-          #("data", sv(bit_array.base64_encode(data, True))),
-        ],
-        session,
-      )
-    command.ListImages(tag:) ->
-      wop(handle, "list_images", [#("tag", sv(tag))], session)
-    command.ClearImages -> wop(handle, "clear_images", [], session)
+    command_encode.WindowQuery(op, window_id, tag) ->
+      winquery(handle, op, window_id, tag, session)
 
-    // -- Pane grid ops (widget_op) --
-    command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) ->
-      wop(
-        handle,
-        "pane_split",
-        [
-          #("target", sv(pane_grid_id)),
-          #("pane", sv(pane_id)),
-          #("axis", sv(axis)),
-          #("new_pane_id", sv(new_pane_id)),
-        ],
-        session,
-      )
-    command.PaneClose(pane_grid_id:, pane_id:) ->
-      wop(
-        handle,
-        "pane_close",
-        [
-          #("target", sv(pane_grid_id)),
-          #("pane", sv(pane_id)),
-        ],
-        session,
-      )
-    command.PaneSwap(pane_grid_id:, pane_a:, pane_b:) ->
-      wop(
-        handle,
-        "pane_swap",
-        [
-          #("target", sv(pane_grid_id)),
-          #("a", sv(pane_a)),
-          #("b", sv(pane_b)),
-        ],
-        session,
-      )
-    command.PaneMaximize(pane_grid_id:, pane_id:) ->
-      wop(
-        handle,
-        "pane_maximize",
-        [
-          #("target", sv(pane_grid_id)),
-          #("pane", sv(pane_id)),
-        ],
-        session,
-      )
-    command.PaneRestore(pane_grid_id:) ->
-      wop(handle, "pane_restore", [#("target", sv(pane_grid_id))], session)
+    command_encode.ImageOp(op, payload) -> imgop(handle, op, payload, session)
 
-    // -- Window ops (sent as window_op wire messages) --
-    command.ResizeWindow(window_id:, width:, height:) ->
-      winop(
-        handle,
-        "resize",
-        window_id,
-        [
-          #("width", node.FloatVal(width)),
-          #("height", node.FloatVal(height)),
-        ],
-        session,
-      )
-    command.MoveWindow(window_id:, x:, y:) ->
-      winop(
-        handle,
-        "move",
-        window_id,
-        [
-          #("x", node.FloatVal(x)),
-          #("y", node.FloatVal(y)),
-        ],
-        session,
-      )
-    command.MaximizeWindow(window_id:, maximized:) ->
-      winop(
-        handle,
-        "maximize",
-        window_id,
-        [
-          #("maximized", node.BoolVal(maximized)),
-        ],
-        session,
-      )
-    command.MinimizeWindow(window_id:, minimized:) ->
-      winop(
-        handle,
-        "minimize",
-        window_id,
-        [
-          #("minimized", node.BoolVal(minimized)),
-        ],
-        session,
-      )
-    command.SetWindowMode(window_id:, mode:) ->
-      winop(handle, "set_mode", window_id, [#("mode", sv(mode))], session)
-    command.ToggleMaximize(window_id:) ->
-      winop(handle, "toggle_maximize", window_id, [], session)
-    command.ToggleDecorations(window_id:) ->
-      winop(handle, "toggle_decorations", window_id, [], session)
-    command.GainFocus(window_id:) ->
-      winop(handle, "gain_focus", window_id, [], session)
-    command.SetWindowLevel(window_id:, level:) ->
-      winop(
-        handle,
-        "set_level",
-        window_id,
-        [
-          #("level", sv(level)),
-        ],
-        session,
-      )
-    command.DragWindow(window_id:) ->
-      winop(handle, "drag", window_id, [], session)
-    command.DragResizeWindow(window_id:, direction:) ->
-      winop(
-        handle,
-        "drag_resize",
-        window_id,
-        [
-          #("direction", sv(direction)),
-        ],
-        session,
-      )
-    command.RequestUserAttention(window_id:, urgency:) -> {
-      let payload = case urgency {
-        Some(u) -> [#("urgency", sv(u))]
-        None -> []
-      }
-      winop(handle, "request_attention", window_id, payload, session)
-    }
-    command.Screenshot(window_id:, tag:) ->
-      winop(handle, "screenshot", window_id, [#("tag", sv(tag))], session)
-    command.SetResizable(window_id:, resizable:) ->
-      winop(
-        handle,
-        "set_resizable",
-        window_id,
-        [
-          #("resizable", node.BoolVal(resizable)),
-        ],
-        session,
-      )
-    command.SetMinSize(window_id:, width:, height:) ->
-      winop(
-        handle,
-        "set_min_size",
-        window_id,
-        [
-          #("width", node.FloatVal(width)),
-          #("height", node.FloatVal(height)),
-        ],
-        session,
-      )
-    command.SetMaxSize(window_id:, width:, height:) ->
-      winop(
-        handle,
-        "set_max_size",
-        window_id,
-        [
-          #("width", node.FloatVal(width)),
-          #("height", node.FloatVal(height)),
-        ],
-        session,
-      )
-    command.EnableMousePassthrough(window_id:) ->
-      winop(
-        handle,
-        "mouse_passthrough",
-        window_id,
-        [
-          #("enabled", node.BoolVal(True)),
-        ],
-        session,
-      )
-    command.DisableMousePassthrough(window_id:) ->
-      winop(
-        handle,
-        "mouse_passthrough",
-        window_id,
-        [
-          #("enabled", node.BoolVal(False)),
-        ],
-        session,
-      )
-    command.ShowSystemMenu(window_id:) ->
-      winop(handle, "show_system_menu", window_id, [], session)
-    command.SetResizeIncrements(window_id:, width:, height:) -> {
-      let payload = case width, height {
-        Some(w), Some(h) -> [
-          #("width", node.FloatVal(w)),
-          #("height", node.FloatVal(h)),
-        ]
-        Some(w), None -> [#("width", node.FloatVal(w))]
-        None, Some(h) -> [#("height", node.FloatVal(h))]
-        None, None -> []
-      }
-      winop(handle, "set_resize_increments", window_id, payload, session)
-    }
-    command.AllowAutomaticTabbing(enabled:) ->
-      winop(
-        handle,
-        "allow_automatic_tabbing",
-        "_global",
-        [
-          #("enabled", node.BoolVal(enabled)),
-        ],
-        session,
-      )
-    command.SetIcon(window_id:, rgba_data:, width:, height:) ->
-      winop(
-        handle,
-        "set_icon",
-        window_id,
-        [
-          #("data", sv(bit_array.base64_encode(rgba_data, True))),
-          #("width", node.IntVal(width)),
-          #("height", node.IntVal(height)),
-        ],
-        session,
-      )
-
-    // -- Window queries (sent as window_op with a tag) --
-    command.GetWindowSize(window_id:, tag:) ->
-      winquery(handle, "get_size", window_id, tag, session)
-    command.GetWindowPosition(window_id:, tag:) ->
-      winquery(handle, "get_position", window_id, tag, session)
-    command.IsMaximized(window_id:, tag:) ->
-      winquery(handle, "is_maximized", window_id, tag, session)
-    command.IsMinimized(window_id:, tag:) ->
-      winquery(handle, "is_minimized", window_id, tag, session)
-    command.GetMode(window_id:, tag:) ->
-      winquery(handle, "get_mode", window_id, tag, session)
-    command.GetScaleFactor(window_id:, tag:) ->
-      winquery(handle, "get_scale_factor", window_id, tag, session)
-    command.RawWindowId(window_id:, tag:) ->
-      winquery(handle, "raw_id", window_id, tag, session)
-    command.MonitorSize(window_id:, tag:) ->
-      winquery(handle, "monitor_size", window_id, tag, session)
-    command.GetSystemTheme(tag:) ->
-      winquery(handle, "get_system_theme", "_system", tag, session)
-    command.GetSystemInfo(tag:) ->
-      winquery(handle, "get_system_info", "_system", tag, session)
-
-    // -- Image ops --
-    command.CreateImage(handle: img_handle, data:) ->
-      imgop(
-        handle,
-        "create_image",
-        [
-          #("handle", sv(img_handle)),
-          #("data", node.BinaryVal(data)),
-        ],
-        session,
-      )
-    command.CreateImageRgba(handle: img_handle, width:, height:, pixels:) ->
-      imgop(
-        handle,
-        "create_image",
-        [
-          #("handle", sv(img_handle)),
-          #("width", node.IntVal(width)),
-          #("height", node.IntVal(height)),
-          #("pixels", node.BinaryVal(pixels)),
-        ],
-        session,
-      )
-    command.UpdateImage(handle: img_handle, data:) ->
-      imgop(
-        handle,
-        "update_image",
-        [
-          #("handle", sv(img_handle)),
-          #("data", node.BinaryVal(data)),
-        ],
-        session,
-      )
-    command.UpdateImageRgba(handle: img_handle, width:, height:, pixels:) ->
-      imgop(
-        handle,
-        "update_image",
-        [
-          #("handle", sv(img_handle)),
-          #("width", node.IntVal(width)),
-          #("height", node.IntVal(height)),
-          #("pixels", node.BinaryVal(pixels)),
-        ],
-        session,
-      )
-    command.DeleteImage(handle: img_handle) ->
-      imgop(handle, "delete_image", [#("handle", sv(img_handle))], session)
-
-    // -- Effect and extension --
-    command.Effect(id:, kind:, payload:) -> {
+    command_encode.EffectRequest(id, kind, payload) -> {
       let assert Ok(bytes) =
         encode.encode_effect(id, kind, payload, session, Json)
       do_send(handle, bytes)
     }
-    command.ExtensionCommand(node_id:, op:, payload:) -> {
+
+    command_encode.ExtensionCmd(node_id, op, payload) -> {
       let assert Ok(bytes) =
         encode.encode_extension_command(node_id, op, payload, session, Json)
       do_send(handle, bytes)
     }
-    command.ExtensionCommands(commands:) -> {
+
+    command_encode.ExtensionBatch(commands) -> {
       list.each(commands, fn(cmd_tuple) {
         let #(nid, o, p) = cmd_tuple
         let assert Ok(bytes) =
@@ -922,19 +533,12 @@ fn execute_commands(
       })
     }
 
-    // -- Advance frame (testing/headless) --
-    command.AdvanceFrame(timestamp:) -> {
+    command_encode.AdvanceFrame(timestamp) -> {
       let assert Ok(bytes) =
         encode.encode_advance_frame(timestamp, session, Json)
       do_send(handle, bytes)
     }
   }
-}
-
-@target(javascript)
-/// Shorthand for StringVal.
-fn sv(s: String) -> PropValue {
-  node.StringVal(s)
 }
 
 @target(javascript)

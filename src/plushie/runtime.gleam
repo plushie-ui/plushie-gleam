@@ -28,12 +28,12 @@ import plushie/bridge.{
 @target(erlang)
 import plushie/command.{type Command}
 @target(erlang)
+import plushie/command_encode
+@target(erlang)
 import plushie/effects
 @target(erlang)
 import plushie/event.{type Event}
-import plushie/node.{
-  type Node, type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
-}
+import plushie/node.{type Node, type PropValue, StringVal}
 @target(erlang)
 import plushie/platform
 import plushie/runtime_core
@@ -1225,18 +1225,18 @@ fn execute_commands(
   cmd: Command(msg),
   state: LoopState(model, msg),
 ) -> LoopState(model, msg) {
-  case cmd {
-    command.None -> state
+  case command_encode.classify(cmd) {
+    command_encode.NoOp -> state
 
-    command.Batch(commands:) ->
+    command_encode.RunBatch(commands) ->
       list.fold(commands, state, fn(s, c) { execute_commands(c, s) })
 
-    command.Exit -> {
+    command_encode.Exit -> {
       process.send(state.self, Shutdown)
       state
     }
 
-    command.SendAfter(delay_ms:, msg:) -> {
+    command_encode.ScheduleTimer(delay_ms, msg) -> {
       let timer_key = platform.stable_hash_key(msg)
       // Cancel any existing timer for the same event key
       let state = case dict.get(state.pending_timers, timer_key) {
@@ -1259,745 +1259,13 @@ fn execute_commands(
       )
     }
 
-    command.Done(value:, mapper:) -> {
+    command_encode.DoneImmediate(value, mapper) -> {
       let mapped_msg = mapper(value)
       process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg)))
       state
     }
 
-    command.Focus(widget_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "focus",
-        [#("target", StringVal(widget_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.FocusElement(canvas_id:, element_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "focus_element",
-        [
-          #("target", StringVal(canvas_id)),
-          #("element_id", StringVal(element_id)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.FocusNext -> {
-      send_widget_op(state.bridge, "focus_next", [], state.opts)
-      state
-    }
-
-    command.FocusPrevious -> {
-      send_widget_op(state.bridge, "focus_previous", [], state.opts)
-      state
-    }
-
-    command.SelectAll(widget_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "select_all",
-        [#("target", StringVal(widget_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MoveCursorToFront(widget_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "move_cursor_to_front",
-        [#("target", StringVal(widget_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MoveCursorToEnd(widget_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "move_cursor_to_end",
-        [#("target", StringVal(widget_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MoveCursorTo(widget_id:, position:) -> {
-      send_widget_op(
-        state.bridge,
-        "move_cursor_to",
-        [
-          #("target", StringVal(widget_id)),
-          #("position", IntVal(position)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.SelectRange(widget_id:, start:, end:) -> {
-      send_widget_op(
-        state.bridge,
-        "select_range",
-        [
-          #("target", StringVal(widget_id)),
-          #("start", IntVal(start)),
-          #("end", IntVal(end)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
-      let payload = [#("target", StringVal(widget_id))]
-      let payload = case offset_x {
-        option.Some(x) -> [#("offset_x", FloatVal(x)), ..payload]
-        option.None -> payload
-      }
-      let payload = case offset_y {
-        option.Some(y) -> [#("offset_y", FloatVal(y)), ..payload]
-        option.None -> payload
-      }
-      send_widget_op(state.bridge, "scroll_to", payload, state.opts)
-      state
-    }
-
-    command.SnapTo(widget_id:, x:, y:) -> {
-      send_widget_op(
-        state.bridge,
-        "snap_to",
-        [
-          #("target", StringVal(widget_id)),
-          #("x", FloatVal(x)),
-          #("y", FloatVal(y)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.SnapToEnd(widget_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "snap_to_end",
-        [#("target", StringVal(widget_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ScrollBy(widget_id:, x:, y:) -> {
-      send_widget_op(
-        state.bridge,
-        "scroll_by",
-        [
-          #("target", StringVal(widget_id)),
-          #("x", FloatVal(x)),
-          #("y", FloatVal(y)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.CloseWindow(window_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "close_window",
-        [#("window_id", StringVal(window_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ResizeWindow(window_id:, width:, height:) -> {
-      send_window_op(
-        state.bridge,
-        "resize",
-        window_id,
-        [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MoveWindow(window_id:, x:, y:) -> {
-      send_window_op(
-        state.bridge,
-        "move",
-        window_id,
-        [#("x", FloatVal(x)), #("y", FloatVal(y))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MaximizeWindow(window_id:, maximized:) -> {
-      send_window_op(
-        state.bridge,
-        "maximize",
-        window_id,
-        [#("maximized", BoolVal(maximized))],
-        state.opts,
-      )
-      state
-    }
-
-    command.MinimizeWindow(window_id:, minimized:) -> {
-      send_window_op(
-        state.bridge,
-        "minimize",
-        window_id,
-        [#("minimized", BoolVal(minimized))],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetWindowMode(window_id:, mode:) -> {
-      send_window_op(
-        state.bridge,
-        "set_mode",
-        window_id,
-        [#("mode", StringVal(mode))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ToggleMaximize(window_id:) -> {
-      send_window_op(state.bridge, "toggle_maximize", window_id, [], state.opts)
-      state
-    }
-
-    command.ToggleDecorations(window_id:) -> {
-      send_window_op(
-        state.bridge,
-        "toggle_decorations",
-        window_id,
-        [],
-        state.opts,
-      )
-      state
-    }
-
-    command.GainFocus(window_id:) -> {
-      send_window_op(state.bridge, "gain_focus", window_id, [], state.opts)
-      state
-    }
-
-    command.SetWindowLevel(window_id:, level:) -> {
-      send_window_op(
-        state.bridge,
-        "set_level",
-        window_id,
-        [#("level", StringVal(level))],
-        state.opts,
-      )
-      state
-    }
-
-    command.DragWindow(window_id:) -> {
-      send_window_op(state.bridge, "drag", window_id, [], state.opts)
-      state
-    }
-
-    command.DragResizeWindow(window_id:, direction:) -> {
-      send_window_op(
-        state.bridge,
-        "drag_resize",
-        window_id,
-        [#("direction", StringVal(direction))],
-        state.opts,
-      )
-      state
-    }
-
-    command.RequestUserAttention(window_id:, urgency:) -> {
-      let payload = case urgency {
-        option.Some(u) -> [#("urgency", StringVal(u))]
-        option.None -> []
-      }
-      send_window_op(
-        state.bridge,
-        "request_attention",
-        window_id,
-        payload,
-        state.opts,
-      )
-      state
-    }
-
-    command.Screenshot(window_id:, tag:) -> {
-      send_window_op(
-        state.bridge,
-        "screenshot",
-        window_id,
-        [#("tag", StringVal(tag))],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetResizable(window_id:, resizable:) -> {
-      send_window_op(
-        state.bridge,
-        "set_resizable",
-        window_id,
-        [#("resizable", BoolVal(resizable))],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetMinSize(window_id:, width:, height:) -> {
-      send_window_op(
-        state.bridge,
-        "set_min_size",
-        window_id,
-        [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetMaxSize(window_id:, width:, height:) -> {
-      send_window_op(
-        state.bridge,
-        "set_max_size",
-        window_id,
-        [#("width", FloatVal(width)), #("height", FloatVal(height))],
-        state.opts,
-      )
-      state
-    }
-
-    command.EnableMousePassthrough(window_id:) -> {
-      send_window_op(
-        state.bridge,
-        "mouse_passthrough",
-        window_id,
-        [#("enabled", BoolVal(True))],
-        state.opts,
-      )
-      state
-    }
-
-    command.DisableMousePassthrough(window_id:) -> {
-      send_window_op(
-        state.bridge,
-        "mouse_passthrough",
-        window_id,
-        [#("enabled", BoolVal(False))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ShowSystemMenu(window_id:) -> {
-      send_window_op(
-        state.bridge,
-        "show_system_menu",
-        window_id,
-        [],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetResizeIncrements(window_id:, width:, height:) -> {
-      let payload = case width, height {
-        option.Some(w), option.Some(h) -> [
-          #("width", FloatVal(w)),
-          #("height", FloatVal(h)),
-        ]
-        option.Some(w), option.None -> [#("width", FloatVal(w))]
-        option.None, option.Some(h) -> [#("height", FloatVal(h))]
-        option.None, option.None -> []
-      }
-      send_window_op(
-        state.bridge,
-        "set_resize_increments",
-        window_id,
-        payload,
-        state.opts,
-      )
-      state
-    }
-
-    command.AllowAutomaticTabbing(enabled:) -> {
-      send_window_op(
-        state.bridge,
-        "allow_automatic_tabbing",
-        "_global",
-        [#("enabled", BoolVal(enabled))],
-        state.opts,
-      )
-      state
-    }
-
-    command.SetIcon(window_id:, rgba_data:, width:, height:) -> {
-      send_window_op(
-        state.bridge,
-        "set_icon",
-        window_id,
-        [
-          #("data", StringVal(encode_base64(rgba_data))),
-          #("width", IntVal(width)),
-          #("height", IntVal(height)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.GetWindowSize(window_id:, tag:) -> {
-      send_window_query(state.bridge, "get_size", window_id, tag, state.opts)
-      state
-    }
-
-    command.GetWindowPosition(window_id:, tag:) -> {
-      send_window_query(
-        state.bridge,
-        "get_position",
-        window_id,
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.IsMaximized(window_id:, tag:) -> {
-      send_window_query(
-        state.bridge,
-        "is_maximized",
-        window_id,
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.IsMinimized(window_id:, tag:) -> {
-      send_window_query(
-        state.bridge,
-        "is_minimized",
-        window_id,
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.GetMode(window_id:, tag:) -> {
-      send_window_query(state.bridge, "get_mode", window_id, tag, state.opts)
-      state
-    }
-
-    command.GetScaleFactor(window_id:, tag:) -> {
-      send_window_query(
-        state.bridge,
-        "get_scale_factor",
-        window_id,
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.RawWindowId(window_id:, tag:) -> {
-      send_window_query(state.bridge, "raw_id", window_id, tag, state.opts)
-      state
-    }
-
-    command.MonitorSize(window_id:, tag:) -> {
-      send_window_query(
-        state.bridge,
-        "monitor_size",
-        window_id,
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.GetSystemTheme(tag:) -> {
-      send_window_query(
-        state.bridge,
-        "get_system_theme",
-        "_system",
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.GetSystemInfo(tag:) -> {
-      send_window_query(
-        state.bridge,
-        "get_system_info",
-        "_system",
-        tag,
-        state.opts,
-      )
-      state
-    }
-
-    command.Announce(text:) -> {
-      send_widget_op(
-        state.bridge,
-        "announce",
-        [#("text", StringVal(text))],
-        state.opts,
-      )
-      state
-    }
-
-    command.AdvanceFrame(timestamp:) -> {
-      send_encoded(
-        state.bridge,
-        encode.encode_advance_frame(
-          timestamp,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      state
-    }
-
-    command.Effect(id:, kind:, payload:) -> {
-      send_encoded(
-        state.bridge,
-        encode.encode_effect(
-          id,
-          kind,
-          payload,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      // Start a per-kind timeout timer for this effect
-      let timeout_timer =
-        process.send_after(
-          state.self,
-          effects.default_timeout(kind),
-          EffectTimeout(request_id: id),
-        )
-      LoopState(
-        ..state,
-        pending_effects: dict.insert(state.pending_effects, id, timeout_timer),
-      )
-    }
-
-    command.ExtensionCommand(node_id:, op:, payload:) -> {
-      send_encoded(
-        state.bridge,
-        encode.encode_extension_command(
-          node_id,
-          op,
-          payload,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      state
-    }
-
-    command.ExtensionCommands(commands:) -> {
-      list.each(commands, fn(cmd_tuple) {
-        let #(node_id, op, payload) = cmd_tuple
-        send_encoded(
-          state.bridge,
-          encode.encode_extension_command(
-            node_id,
-            op,
-            payload,
-            state.opts.session,
-            state.opts.format,
-          ),
-        )
-      })
-      state
-    }
-
-    command.CreateImage(handle:, data:) -> {
-      send_image_op(
-        state.bridge,
-        "create_image",
-        [#("handle", StringVal(handle)), #("data", BinaryVal(data))],
-        state.opts,
-      )
-      state
-    }
-
-    command.CreateImageRgba(handle:, width:, height:, pixels:) -> {
-      send_image_op(
-        state.bridge,
-        "create_image",
-        [
-          #("handle", StringVal(handle)),
-          #("width", IntVal(width)),
-          #("height", IntVal(height)),
-          #("pixels", BinaryVal(pixels)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.UpdateImage(handle:, data:) -> {
-      send_image_op(
-        state.bridge,
-        "update_image",
-        [#("handle", StringVal(handle)), #("data", BinaryVal(data))],
-        state.opts,
-      )
-      state
-    }
-
-    command.UpdateImageRgba(handle:, width:, height:, pixels:) -> {
-      send_image_op(
-        state.bridge,
-        "update_image",
-        [
-          #("handle", StringVal(handle)),
-          #("width", IntVal(width)),
-          #("height", IntVal(height)),
-          #("pixels", BinaryVal(pixels)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.DeleteImage(handle:) -> {
-      send_image_op(
-        state.bridge,
-        "delete_image",
-        [#("handle", StringVal(handle))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ListImages(tag:) -> {
-      send_widget_op(
-        state.bridge,
-        "list_images",
-        [#("tag", StringVal(tag))],
-        state.opts,
-      )
-      state
-    }
-
-    command.ClearImages -> {
-      send_widget_op(state.bridge, "clear_images", [], state.opts)
-      state
-    }
-
-    command.TreeHashQuery(tag:) -> {
-      send_widget_op(
-        state.bridge,
-        "tree_hash",
-        [#("tag", StringVal(tag))],
-        state.opts,
-      )
-      state
-    }
-
-    command.FindFocused(tag:) -> {
-      send_widget_op(
-        state.bridge,
-        "find_focused",
-        [#("tag", StringVal(tag))],
-        state.opts,
-      )
-      state
-    }
-
-    command.LoadFont(data:) -> {
-      send_widget_op(
-        state.bridge,
-        "load_font",
-        [#("data", StringVal(encode_base64(data)))],
-        state.opts,
-      )
-      state
-    }
-
-    command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "pane_split",
-        [
-          #("target", StringVal(pane_grid_id)),
-          #("pane", StringVal(pane_id)),
-          #("axis", StringVal(axis)),
-          #("new_pane_id", StringVal(new_pane_id)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.PaneClose(pane_grid_id:, pane_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "pane_close",
-        [
-          #("target", StringVal(pane_grid_id)),
-          #("pane", StringVal(pane_id)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.PaneSwap(pane_grid_id:, pane_a:, pane_b:) -> {
-      send_widget_op(
-        state.bridge,
-        "pane_swap",
-        [
-          #("target", StringVal(pane_grid_id)),
-          #("a", StringVal(pane_a)),
-          #("b", StringVal(pane_b)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.PaneMaximize(pane_grid_id:, pane_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "pane_maximize",
-        [
-          #("target", StringVal(pane_grid_id)),
-          #("pane", StringVal(pane_id)),
-        ],
-        state.opts,
-      )
-      state
-    }
-
-    command.PaneRestore(pane_grid_id:) -> {
-      send_widget_op(
-        state.bridge,
-        "pane_restore",
-        [#("target", StringVal(pane_grid_id))],
-        state.opts,
-      )
-      state
-    }
-
-    command.Async(work:, tag:) -> {
+    command_encode.SpawnAsync(tag, work) -> {
       // Kill existing task for same tag before starting a new one
       let state = cancel_existing_task(state, tag)
       let nonce = state.nonce_counter + 1
@@ -2018,7 +1286,7 @@ fn execute_commands(
       )
     }
 
-    command.Stream(work:, tag:) -> {
+    command_encode.SpawnStream(tag, work) -> {
       // Kill existing task for same tag before starting a new one
       let state = cancel_existing_task(state, tag)
       let nonce = state.nonce_counter + 1
@@ -2042,8 +1310,93 @@ fn execute_commands(
       )
     }
 
-    command.Cancel(tag:) -> {
-      cancel_existing_task(state, tag)
+    command_encode.CancelTask(tag) -> cancel_existing_task(state, tag)
+
+    command_encode.WidgetOp(op, payload) -> {
+      send_widget_op(state.bridge, op, payload, state.opts)
+      state
+    }
+
+    command_encode.WindowOp(op, window_id, settings) -> {
+      send_window_op(state.bridge, op, window_id, settings, state.opts)
+      state
+    }
+
+    command_encode.WindowQuery(op, window_id, tag) -> {
+      send_window_query(state.bridge, op, window_id, tag, state.opts)
+      state
+    }
+
+    command_encode.ImageOp(op, payload) -> {
+      send_image_op(state.bridge, op, payload, state.opts)
+      state
+    }
+
+    command_encode.EffectRequest(id, kind, payload) -> {
+      send_encoded(
+        state.bridge,
+        encode.encode_effect(
+          id,
+          kind,
+          payload,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      // Start a per-kind timeout timer for this effect
+      let timeout_timer =
+        process.send_after(
+          state.self,
+          effects.default_timeout(kind),
+          EffectTimeout(request_id: id),
+        )
+      LoopState(
+        ..state,
+        pending_effects: dict.insert(state.pending_effects, id, timeout_timer),
+      )
+    }
+
+    command_encode.ExtensionCmd(node_id, op, payload) -> {
+      send_encoded(
+        state.bridge,
+        encode.encode_extension_command(
+          node_id,
+          op,
+          payload,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      state
+    }
+
+    command_encode.ExtensionBatch(commands) -> {
+      list.each(commands, fn(cmd_tuple) {
+        let #(node_id, op, payload) = cmd_tuple
+        send_encoded(
+          state.bridge,
+          encode.encode_extension_command(
+            node_id,
+            op,
+            payload,
+            state.opts.session,
+            state.opts.format,
+          ),
+        )
+      })
+      state
+    }
+
+    command_encode.AdvanceFrame(timestamp) -> {
+      send_encoded(
+        state.bridge,
+        encode.encode_advance_frame(
+          timestamp,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      state
     }
   }
 }
@@ -2159,9 +1512,6 @@ fn send_image_op(
     ),
   )
 }
-
-@external(erlang, "base64", "encode")
-fn encode_base64(data: BitArray) -> String
 
 // -- Subscription management -------------------------------------------------
 
