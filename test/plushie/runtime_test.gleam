@@ -5,6 +5,7 @@ import gleam/set
 import plushie/node.{type Node, BoolVal, FloatVal, StringVal}
 import plushie/protocol
 import plushie/runtime
+import plushie/runtime_core
 
 pub fn default_opts_format_test() {
   let opts = runtime.default_opts()
@@ -49,7 +50,7 @@ fn window_node_with_props(id: String, title: String) -> Node {
 
 pub fn detect_windows_root_is_window_test() {
   let tree = window_node("main")
-  let windows = runtime.detect_windows(tree)
+  let windows = runtime_core.detect_windows(tree)
   assert set.contains(windows, "main")
   assert set.size(windows) == 1
 }
@@ -62,7 +63,7 @@ pub fn detect_windows_children_are_windows_test() {
       window_node("win-b"),
       node.new("not-a-window", "column"),
     ])
-  let windows = runtime.detect_windows(tree)
+  let windows = runtime_core.detect_windows(tree)
   assert set.size(windows) == 2
   assert set.contains(windows, "win-a")
   assert set.contains(windows, "win-b")
@@ -75,7 +76,7 @@ pub fn detect_windows_no_windows_test() {
       node.new("txt", "text"),
       node.new("btn", "button"),
     ])
-  let windows = runtime.detect_windows(tree)
+  let windows = runtime_core.detect_windows(tree)
   assert set.is_empty(windows)
 }
 
@@ -87,7 +88,7 @@ pub fn detect_windows_ignores_deeply_nested_test() {
       node.new("wrapper", "column")
       |> node.with_children([window_node("deep-win")]),
     ])
-  let windows = runtime.detect_windows(tree)
+  let windows = runtime_core.detect_windows(tree)
   assert set.is_empty(windows)
 }
 
@@ -103,7 +104,7 @@ pub fn extract_window_props_returns_tracked_keys_test() {
       #("resizable", BoolVal(True)),
       #("untracked_prop", StringVal("ignored")),
     ])
-  let props = runtime.extract_window_props(tree, "main")
+  let props = runtime_core.extract_window_props(tree, "main")
   assert dict.size(props) == 4
   assert dict.get(props, "title") == Ok(StringVal("My App"))
   assert dict.get(props, "width") == Ok(FloatVal(800.0))
@@ -133,7 +134,7 @@ pub fn extract_window_props_includes_size_and_position_test() {
       #("min_size", size_val),
       #("max_size", size_val),
     ])
-  let props = runtime.extract_window_props(tree, "main")
+  let props = runtime_core.extract_window_props(tree, "main")
   assert dict.size(props) == 4
   assert dict.has_key(props, "size")
   assert dict.has_key(props, "position")
@@ -148,13 +149,13 @@ pub fn extract_window_props_child_window_test() {
       node.new("settings", "window")
       |> node.with_prop("title", StringVal("Settings")),
     ])
-  let props = runtime.extract_window_props(tree, "settings")
+  let props = runtime_core.extract_window_props(tree, "settings")
   assert dict.get(props, "title") == Ok(StringVal("Settings"))
 }
 
 pub fn extract_window_props_missing_window_test() {
   let tree = node.new("root", "container")
-  let props = runtime.extract_window_props(tree, "nonexistent")
+  let props = runtime_core.extract_window_props(tree, "nonexistent")
   assert dict.is_empty(props)
 }
 
@@ -162,7 +163,7 @@ pub fn extract_window_props_missing_window_test() {
 
 pub fn find_window_node_root_test() {
   let tree = window_node_with_props("main", "Root Window")
-  assert runtime.find_window_node(tree, "main") == Some(tree)
+  assert runtime_core.find_window_node(tree, "main") == Some(tree)
 }
 
 pub fn find_window_node_child_test() {
@@ -170,17 +171,17 @@ pub fn find_window_node_child_test() {
   let tree =
     node.new("root", "container")
     |> node.with_children([win])
-  assert runtime.find_window_node(tree, "child") == Some(win)
+  assert runtime_core.find_window_node(tree, "child") == Some(win)
 }
 
 pub fn find_window_node_not_found_test() {
   let tree =
     node.new("root", "container")
     |> node.with_children([node.new("btn", "button")])
-  assert runtime.find_window_node(tree, "missing") == None
+  assert runtime_core.find_window_node(tree, "missing") == None
 }
 
 pub fn find_window_node_wrong_id_test() {
   let tree = window_node("win-a")
-  assert runtime.find_window_node(tree, "win-b") == None
+  assert runtime_core.find_window_node(tree, "win-b") == None
 }

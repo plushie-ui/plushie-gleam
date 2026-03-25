@@ -28,8 +28,6 @@ import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
 @target(javascript)
-import gleam/int
-@target(javascript)
 import gleam/list
 @target(javascript)
 import gleam/option.{type Option, None, Some}
@@ -54,7 +52,7 @@ import plushie/protocol/decode
 @target(javascript)
 import plushie/protocol/encode
 @target(javascript)
-import plushie/runtime
+import plushie/runtime_core
 @target(javascript)
 import plushie/subscription.{type Subscription}
 @target(javascript)
@@ -114,7 +112,7 @@ pub fn start(
   //   flushed coalesced events that must not be re-coalesced)
   let dispatch = fn(event) { handle_event(handle, app, event) }
   let dispatch_direct = fn(event) {
-    let msg = map_event(app, event)
+    let msg = runtime_core.map_event(app, event)
     dispatch_update(handle, app, msg)
   }
   register_dispatch(handle, dispatch, dispatch_direct)
@@ -278,7 +276,7 @@ fn handle_event(
   app: App(model, msg),
   event: Event,
 ) -> Nil {
-  case coalesce_key(event) {
+  case runtime_core.coalesce_key(event) {
     Some(key) -> {
       do_set_coalesce(handle, key, event)
       schedule_coalesce_flush(handle)
@@ -286,41 +284,9 @@ fn handle_event(
     None -> {
       // Non-coalescable: flush pending first, then dispatch
       flush_coalesced(handle)
-      let msg = map_event(app, event)
+      let msg = runtime_core.map_event(app, event)
       dispatch_update(handle, app, msg)
     }
-  }
-}
-
-@target(javascript)
-/// Map a wire Event to the app's msg type.
-///
-/// For `simple()` apps (on_event=None), msg is Event and we coerce
-/// directly. For `application()` apps, the on_event callback maps
-/// Event -> msg.
-fn map_event(app: App(model, msg), event: Event) -> msg {
-  case app.get_on_event(app) {
-    Some(mapper) -> mapper(event)
-    None -> coerce_event(event)
-  }
-}
-
-@target(javascript)
-/// Identity coercion for simple() apps where msg = Event.
-///
-/// This is safe because the only code path that reaches here is
-/// when on_event is None, which only happens via simple() where
-/// the type parameter msg is instantiated to Event.
-@external(javascript, "../plushie_platform_ffi.mjs", "identity")
-fn coerce_event(event: Event) -> msg
-
-@target(javascript)
-/// Determine the coalesce key for an event, if coalescable.
-fn coalesce_key(event: Event) -> Option(String) {
-  case event {
-    event.MouseMoved(..) -> Some("mouse_moved")
-    event.SensorResize(id:, ..) -> Some("sensor_resize:" <> id)
-    _ -> None
   }
 }
 
@@ -338,7 +304,9 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
   }
 
   let desired_map =
-    list.map(desired, fn(sub) { #(subscription_key_string(sub), sub) })
+    list.map(desired, fn(sub) {
+      #(runtime_core.subscription_key_string(sub), sub)
+    })
     |> dict.from_list()
 
   let active_map = do_get_active_subs(handle)
@@ -387,17 +355,6 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
   })
 
   do_set_active_subs(handle, desired_map)
-}
-
-@target(javascript)
-/// Convert a SubscriptionKey to a string for use as a dict key.
-fn subscription_key_string(sub: Subscription) -> String {
-  let key = subscription.key(sub)
-  case key {
-    subscription.TimerKey(interval_ms:, tag:) ->
-      "timer:" <> int.to_string(interval_ms) <> ":" <> tag
-    subscription.RendererKey(kind:, tag:) -> "renderer:" <> kind <> ":" <> tag
-  }
 }
 
 @target(javascript)
@@ -454,14 +411,14 @@ fn sync_windows(
   session: String,
 ) -> Nil {
   let old_windows = do_get_windows(handle)
-  let new_windows = detect_windows(new_tree)
+  let new_windows = runtime_core.detect_windows(new_tree)
   let model = do_get_model(handle)
 
   // Open new windows (merge base window_config with per-window props)
   let opened = set.difference(new_windows, old_windows)
   set.each(opened, fn(window_id) {
     let base_config = app.get_window_config(app)(model)
-    let per_window = runtime.extract_window_props(new_tree, window_id)
+    let per_window = runtime_core.extract_window_props(new_tree, window_id)
     let merged = dict.merge(base_config, per_window)
     let assert Ok(bytes) =
       encode.encode_window_op("open", window_id, merged, session, Json)
@@ -482,8 +439,8 @@ fn sync_windows(
     Some(old) -> {
       let surviving = set.intersection(old_windows, new_windows)
       set.each(surviving, fn(window_id) {
-        let old_props = runtime.extract_window_props(old, window_id)
-        let new_props = runtime.extract_window_props(new_tree, window_id)
+        let old_props = runtime_core.extract_window_props(old, window_id)
+        let new_props = runtime_core.extract_window_props(new_tree, window_id)
         case old_props == new_props {
           True -> Nil
           False -> {
@@ -504,19 +461,6 @@ fn sync_windows(
   }
 
   do_set_windows(handle, new_windows)
-}
-
-@target(javascript)
-/// Detect window nodes at root or direct child level.
-fn detect_windows(tree_node: Node) -> Set(String) {
-  case tree_node.kind {
-    "window" -> set.from_list([tree_node.id])
-    _ ->
-      tree_node.children
-      |> list.filter(fn(child) { child.kind == "window" })
-      |> list.map(fn(child) { child.id })
-      |> set.from_list()
-  }
 }
 
 // -- Command execution -------------------------------------------------------

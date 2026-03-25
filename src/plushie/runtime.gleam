@@ -36,6 +36,7 @@ import plushie/node.{
 }
 @target(erlang)
 import plushie/platform
+import plushie/runtime_core
 
 @target(erlang)
 import plushie/protocol
@@ -256,7 +257,7 @@ fn init_runtime(
   )
 
   // Detect initial windows
-  let initial_windows = detect_windows(initial_tree)
+  let initial_windows = runtime_core.detect_windows(initial_tree)
 
   // Get the bridge actor's PID for monitoring (D-039)
   let bridge_pid = case process.subject_owner(bridge) {
@@ -367,7 +368,7 @@ fn handle_message(
     FromBridge(InboundEvent(EventMessage(ev))) -> {
       // Reset restart count on successful communication
       let state = LoopState(..state, restart_count: 0)
-      case coalesce_key(ev) {
+      case runtime_core.coalesce_key(ev) {
         Some(key) -> {
           // Defer this event -- latest value wins
           let new_coalesce = dict.insert(state.pending_coalesce, key, ev)
@@ -767,7 +768,7 @@ fn handle_message(
           // Re-open all windows
           let windows = case tree {
             Some(t) -> {
-              let new_windows = detect_windows(t)
+              let new_windows = runtime_core.detect_windows(t)
               sync_windows(
                 t,
                 set.new(),
@@ -849,7 +850,7 @@ fn handle_message(
               state.opts,
             )
           // Re-sync windows
-          let new_windows = detect_windows(new_tree)
+          let new_windows = runtime_core.detect_windows(new_tree)
           sync_windows(
             new_tree,
             state.windows,
@@ -976,18 +977,6 @@ fn to_dynamic(value: a) -> Dynamic
 // -- Event coalescing --------------------------------------------------------
 
 @target(erlang)
-/// Determine which events are coalescable and return their dedup key.
-/// High-frequency events like mouse moves and sensor resizes are deferred
-/// so only the latest value is processed, preventing update storms.
-fn coalesce_key(ev: Event) -> Option(String) {
-  case ev {
-    event.MouseMoved(..) -> Some("mouse_moved")
-    event.SensorResize(id:, ..) -> Some("sensor_resize:" <> id)
-    _ -> None
-  }
-}
-
-@target(erlang)
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
 fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
@@ -1075,30 +1064,8 @@ fn flush_pending_effects_on_restart(
 
 // -- Event handling (the core update cycle) ----------------------------------
 
-@target(erlang)
-/// Map a wire Event to the app's msg type using on_event, if defined.
-/// For simple() apps (on_event=None), we use an unsafe coerce because
-/// msg is known to be Event at the type level.
-fn map_event(app: App(model, msg), event: Event) -> msg {
-  case app.get_on_event(app) {
-    Some(mapper) -> mapper(event)
-    None -> coerce_event(event)
-  }
-}
-
 @external(erlang, "erlang", "element")
 fn erlang_element(n: Int, tuple: a) -> b
-
-@target(erlang)
-/// Unsafe coerce: for simple() apps where msg = Event, bypass the type
-/// system since Gleam doesn't have type equality witnesses.
-fn coerce_event(event: Event) -> msg {
-  // At runtime, Event IS msg for simple() apps. This is safe because
-  // the only code path that reaches here is when on_event is None,
-  // which only happens via simple() where msg = Event.
-  let boxed = #(event)
-  erlang_element(1, boxed)
-}
 
 @target(erlang)
 /// Coerce a Dynamic back to the msg type. Safe because we only store
@@ -1129,7 +1096,7 @@ fn handle_event(
   state: LoopState(model, msg),
   event: Event,
 ) -> LoopState(model, msg) {
-  let mapped_msg = map_event(state.app, event)
+  let mapped_msg = runtime_core.map_event(state.app, event)
   dispatch_update(state, mapped_msg)
 }
 
@@ -1194,7 +1161,7 @@ fn dispatch_update(
               state.opts,
             )
 
-          let new_windows = detect_windows(new_tree)
+          let new_windows = runtime_core.detect_windows(new_tree)
 
           // Sync window lifecycle (open/close/update ops)
           sync_windows(
@@ -2227,7 +2194,7 @@ fn sync_subscriptions(
 ) -> Dict(String, SubEntry) {
   let desired_by_key =
     list.fold(desired, dict.new(), fn(acc, sub) {
-      let k = subscription_key_string(sub)
+      let k = runtime_core.subscription_key_string(sub)
       dict.insert(acc, k, sub)
     })
 
@@ -2273,16 +2240,6 @@ fn sync_subscriptions(
       Ok(_) -> acc
     }
   })
-}
-
-@target(erlang)
-fn subscription_key_string(sub: Subscription) -> String {
-  let key = subscription.key(sub)
-  case key {
-    subscription.TimerKey(interval_ms:, tag:) ->
-      "timer:" <> int.to_string(interval_ms) <> ":" <> tag
-    subscription.RendererKey(kind:, tag:) -> "renderer:" <> kind <> ":" <> tag
-  }
 }
 
 @target(erlang)
@@ -2363,32 +2320,6 @@ fn reschedule_timer(
 // -- Window detection and lifecycle ------------------------------------------
 
 @target(erlang)
-/// Detect window nodes in the tree. Only checks:
-/// 1. If the root node itself is a window
-/// 2. Direct children of the root that are windows
-///
-/// Does NOT recurse deeper -- matches the Elixir SDK behavior where
-/// only top-level windows are tracked for lifecycle management.
-pub fn detect_windows(tree_node: Node) -> Set(String) {
-  case tree_node.kind {
-    "window" -> set.from_list([tree_node.id])
-    _ ->
-      tree_node.children
-      |> list.filter(fn(child) { child.kind == "window" })
-      |> list.map(fn(child) { child.id })
-      |> set.from_list()
-  }
-}
-
-/// Window prop keys tracked for lifecycle sync. When a window node
-/// has any of these props and they change, an update op is sent.
-const window_prop_keys = [
-  "title", "size", "width", "height", "position", "min_size", "max_size",
-  "maximized", "fullscreen", "visible", "resizable", "closeable", "minimizable",
-  "decorations", "transparent", "blur", "level", "exit_on_close_request",
-]
-
-@target(erlang)
 /// Synchronize window lifecycle: open new windows, close removed ones,
 /// and send update ops for windows whose tracked props changed.
 fn sync_windows(
@@ -2405,7 +2336,7 @@ fn sync_windows(
   let opened = set.difference(new_windows, old_windows)
   set.each(opened, fn(window_id) {
     let base_config = app.get_window_config(app)(model)
-    let per_window = extract_window_props(new_tree, window_id)
+    let per_window = runtime_core.extract_window_props(new_tree, window_id)
     let merged = dict.merge(base_config, per_window)
     send_window_op(bridge, "open", window_id, dict.to_list(merged), opts)
   })
@@ -2421,8 +2352,8 @@ fn sync_windows(
     Some(old) -> {
       let surviving = set.intersection(old_windows, new_windows)
       set.each(surviving, fn(window_id) {
-        let old_props = extract_window_props(old, window_id)
-        let new_props = extract_window_props(new_tree, window_id)
+        let old_props = runtime_core.extract_window_props(old, window_id)
+        let new_props = runtime_core.extract_window_props(new_tree, window_id)
         case old_props == new_props {
           True -> Nil
           False ->
@@ -2440,30 +2371,4 @@ fn sync_windows(
   }
 
   Nil
-}
-
-/// Extract the tracked window props from a window node found in the tree.
-pub fn extract_window_props(
-  tree_node: Node,
-  window_id: String,
-) -> Dict(String, PropValue) {
-  case find_window_node(tree_node, window_id) {
-    Some(win) ->
-      dict.filter(win.props, fn(key, _val) {
-        list.contains(window_prop_keys, key)
-      })
-    None -> dict.new()
-  }
-}
-
-/// Find a window node at root level or as a direct child.
-pub fn find_window_node(tree_node: Node, window_id: String) -> Option(Node) {
-  case tree_node.kind, tree_node.id {
-    "window", id if id == window_id -> Some(tree_node)
-    _, _ ->
-      list.find(tree_node.children, fn(child) {
-        child.kind == "window" && child.id == window_id
-      })
-      |> option.from_result()
-  }
 }
