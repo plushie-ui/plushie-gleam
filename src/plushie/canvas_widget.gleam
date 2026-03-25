@@ -49,6 +49,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue, Node}
+import plushie/platform
 import plushie/subscription.{type Subscription}
 
 // -- Canvas widget definition ------------------------------------------------
@@ -165,7 +166,7 @@ pub fn make_entry(
 
 // -- Normalization support ---------------------------------------------------
 
-/// Check if a node is a canvas widget placeholder.
+/// Check if a node is a canvas widget placeholder (has metadata props).
 pub fn is_placeholder(node: Node) -> Bool {
   dict.has_key(node.props, meta_key)
 }
@@ -305,10 +306,12 @@ fn build_handler_chain(
 }
 
 /// Reconstruct a full scoped ID from a reversed scope list and a
-/// local ID.
+/// local ID. The scope is reversed (innermost first) as stored in
+/// events; this function reverses it to forward order before joining.
 ///
 /// scope_to_id(["form"], "submit") => "form/submit"
 /// scope_to_id([], "picker") => "picker"
+/// scope_to_id(["inner", "outer"], "btn") => "outer/inner/btn"
 fn scope_to_id(scope: List(String), id: String) -> String {
   case scope {
     [] -> id
@@ -341,6 +344,8 @@ fn build_scope_ids(
 }
 
 /// Walk the handler chain, dispatching the event to each widget.
+/// If a handler raises, log a warning and treat it as Ignored so
+/// one misbehaving widget doesn't crash the entire runtime.
 fn walk_chain(
   registry: Registry,
   ev: Event,
@@ -351,12 +356,23 @@ fn walk_chain(
     [widget_id, ..rest] -> {
       case dict.get(registry, widget_id) {
         Ok(entry) -> {
-          let #(action, new_entry) = entry.handle_event(ev)
-          let registry = dict.insert(registry, widget_id, new_entry)
-          case action {
-            Ignored -> walk_chain(registry, ev, rest)
-            Consumed -> #(None, registry)
-            Emit(new_event) -> walk_chain(registry, new_event, rest)
+          case platform.try_call(fn() { entry.handle_event(ev) }) {
+            Ok(#(action, new_entry)) -> {
+              let registry = dict.insert(registry, widget_id, new_entry)
+              case action {
+                Ignored -> walk_chain(registry, ev, rest)
+                Consumed -> #(None, registry)
+                Emit(new_event) -> walk_chain(registry, new_event, rest)
+              }
+            }
+            Error(_) -> {
+              platform.log_warning(
+                "plushie: canvas_widget \""
+                <> widget_id
+                <> "\" raised in handle_event, treating as Ignored",
+              )
+              walk_chain(registry, ev, rest)
+            }
           }
         }
         Error(_) -> walk_chain(registry, ev, rest)
@@ -433,15 +449,22 @@ pub fn handle_widget_timer(
       case dict.get(registry, widget_id) {
         Ok(entry) -> {
           let timer_event = event.TimerTick(tag: inner_tag, timestamp:)
-          let #(action, new_entry) = entry.handle_event(timer_event)
-          let registry = dict.insert(registry, widget_id, new_entry)
-          case action {
-            Ignored -> #(None, registry)
-            Consumed -> #(None, registry)
-            Emit(new_event) -> {
-              // Dispatch emitted event through the scope chain so
-              // parent canvas widgets can intercept it.
-              dispatch_through_widgets(registry, new_event)
+          case platform.try_call(fn() { entry.handle_event(timer_event) }) {
+            Ok(#(action, new_entry)) -> {
+              let registry = dict.insert(registry, widget_id, new_entry)
+              case action {
+                Ignored -> #(None, registry)
+                Consumed -> #(None, registry)
+                Emit(new_event) -> dispatch_through_widgets(registry, new_event)
+              }
+            }
+            Error(_) -> {
+              platform.log_warning(
+                "plushie: canvas_widget \""
+                <> widget_id
+                <> "\" raised in timer handler, ignoring",
+              )
+              #(None, registry)
             }
           }
         }
@@ -453,8 +476,9 @@ pub fn handle_widget_timer(
 
 // -- Metadata stripping ------------------------------------------------------
 
-/// Strip canvas widget metadata props from a node before wire encoding.
+/// Strip canvas widget metadata props from a node tree recursively.
 /// These are runtime-only props that the renderer doesn't understand.
+/// Called by protocol/encode.gleam before wire serialization.
 pub fn strip_metadata(node: Node) -> Node {
   let props =
     node.props
@@ -467,7 +491,12 @@ pub fn strip_metadata(node: Node) -> Node {
 
 // -- Scope extraction --------------------------------------------------------
 
-/// Extract the scope from an event (reversed ancestor list).
+/// Extract the scope from an event.
+///
+/// The scope is a reversed ancestor list (innermost first). For
+/// example, a button "save" inside container "form" has
+/// `scope: ["form"]`. Returns an empty list for events that don't
+/// carry scope (system events, timer events, etc.).
 ///
 /// Returns an empty list for events that don't carry scope
 /// (system events, timer events, etc.).
@@ -530,7 +559,10 @@ pub fn extract_scope(ev: Event) -> List(String) {
   }
 }
 
-/// Extract the id from an event (local widget ID).
+/// Extract the local widget ID from an event.
+///
+/// Returns an empty string for events that don't carry an ID
+/// (system events, timer events, etc.).
 pub fn extract_id(ev: Event) -> String {
   case ev {
     // Widget events
@@ -619,10 +651,22 @@ fn rebuild_entry(def: a, props: b, state: c) -> RegistryEntry {
   make_entry(typed_def, props, state)
 }
 
-/// Identity coercion for internal use. These are safe because:
-/// - coerce_to_prop/coerce_from_prop round-trip through the same
-///   PropValue slot within a single normalization cycle
-/// - coerce recovers typed values stored by make_entry
+/// Identity coercion for internal canvas_widget plumbing.
+///
+/// These bypass the type system to store heterogeneous widget types
+/// in a single registry. Safety relies on two invariants:
+///
+/// 1. coerce_to_prop/coerce_from_prop round-trip: a value stored via
+///    coerce_to_prop in render_placeholder is recovered via
+///    coerce_from_prop in derive_registry within the same tree.
+///
+/// 2. coerce/coerce_from_dynamic recover values stored by make_entry:
+///    the CanvasWidgetDef, props, and state are coerced to Dynamic on
+///    entry creation and recovered when rebuilding the entry. The types
+///    are guaranteed to match because the def is the same object that
+///    originally created the state.
+///
+/// These functions are private. Widget authors never interact with them.
 @external(erlang, "plushie_ffi", "identity")
 @external(javascript, "../plushie_platform_ffi.mjs", "identity")
 fn coerce_to_prop(value: a) -> PropValue

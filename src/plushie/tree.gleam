@@ -74,18 +74,20 @@ fn normalize_ctx(
       case canvas_widget.render_placeholder(node, scoped_id, registry) {
         Some(#(rendered_node, _entry)) -> {
           // The rendered node already has the scoped_id set and metadata
-          // attached. Normalize its children at the same scope position.
+          // attached. Normalize its children at the same scope position
+          // and resolve a11y references in its props.
           let child_scope = case rendered_node.kind, rendered_node.id {
             "window", _ -> ""
             _, "" -> scope
             _, _ -> scoped_id
           }
+          let props = resolve_a11y_refs(rendered_node.props, scope)
           let children =
             list.map(rendered_node.children, fn(child) {
               normalize_ctx(child, child_scope, registry)
             })
           check_duplicate_sibling_ids(children)
-          Node(..rendered_node, children:)
+          Node(..rendered_node, props:, children:)
         }
         _ -> {
           // Fallback: normalize as a regular node
