@@ -55,6 +55,8 @@ import plushie/binary
 @target(erlang)
 import plushie/event.{type Event}
 @target(erlang)
+import plushie/key
+@target(erlang)
 import plushie/node.{type Node, StringVal}
 @target(erlang)
 import plushie/protocol
@@ -368,6 +370,26 @@ pub fn move_to(subject: Subject(RendererMessage), x: Float, y: Float) -> Nil {
 pub fn type_key(subject: Subject(RendererMessage), key: String) -> Nil {
   let payload = parse_key(key)
   interact(subject, "type_key", None, payload)
+}
+
+@target(erlang)
+/// Press on a canvas widget at (x, y) coordinates.
+pub fn canvas_press(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_press",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
+      #("button", "left"),
+    ]),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1001,12 +1023,26 @@ fn classify_port_message(
 }
 
 @target(erlang)
-fn parse_key(key: String) -> Dict(String, String) {
-  let parts = string.split(key, "+")
+fn parse_key(key_str: String) -> Dict(String, String) {
+  let parts = string.split(key_str, "+")
   let #(mods, key_parts) = list.split(parts, list.length(parts) - 1)
   let key_name = case key_parts {
     [k] -> k
-    _ -> key
+    _ -> key_str
+  }
+
+  // Validate key name against known keys. Catches typos at the
+  // test call site instead of silently sending garbage to the
+  // renderer. Mirrors the Elixir SDK's key validation (5ee2bf1).
+  case key.is_valid(key_name) {
+    True -> Nil
+    False ->
+      panic as {
+        "unknown key \""
+        <> key_name
+        <> "\". Use PascalCase named keys (e.g., \"ArrowRight\", \"Escape\") "
+        <> "or single characters. See plushie/key.gleam for the full list."
+      }
   }
 
   let base = dict.from_list([#("key", key_name)])

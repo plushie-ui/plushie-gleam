@@ -124,6 +124,33 @@ pub fn slide(
   TestContext(..ctx, session: ctx.backend.slide(ctx.session, id, value))
 }
 
+/// Simulate a key press. Key string uses PascalCase wire format
+/// (e.g., "ArrowRight", "Escape", "Tab") with optional modifier
+/// prefixes ("ctrl+s", "shift+Tab").
+pub fn press_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.press_key(ctx.session, key))
+}
+
+/// Simulate a key release.
+pub fn release_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.release_key(ctx.session, key))
+}
+
+/// Simulate a key press and release.
+pub fn type_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.type_key(ctx.session, key))
+}
+
+/// Simulate a mouse press on a canvas widget at (x, y) coordinates.
+pub fn canvas_press(
+  ctx: TestContext(model),
+  id: String,
+  x: Float,
+  y: Float,
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.canvas_press(ctx.session, id, x, y))
+}
+
 /// Simulate selection on a widget by ID.
 pub fn select(
   ctx: TestContext(model),

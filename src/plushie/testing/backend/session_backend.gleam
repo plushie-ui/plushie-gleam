@@ -57,6 +57,69 @@ pub fn backend() -> TestBackend(model) {
     slide: fn(sess, id, value) {
       session.send_event(sess, event.WidgetSlide(id:, value:, scope: []))
     },
+    press_key: fn(sess, key) {
+      session.send_event(
+        sess,
+        event.KeyPress(
+          key:,
+          modified_key: key,
+          modifiers: event.modifiers_none(),
+          physical_key: None,
+          location: event.Standard,
+          text: None,
+          repeat: False,
+          captured: False,
+        ),
+      )
+    },
+    release_key: fn(sess, key) {
+      session.send_event(
+        sess,
+        event.KeyRelease(
+          key:,
+          modified_key: key,
+          modifiers: event.modifiers_none(),
+          physical_key: None,
+          location: event.Standard,
+          text: None,
+          captured: False,
+        ),
+      )
+    },
+    type_key: fn(sess, key) {
+      let sess =
+        session.send_event(
+          sess,
+          event.KeyPress(
+            key:,
+            modified_key: key,
+            modifiers: event.modifiers_none(),
+            physical_key: None,
+            location: event.Standard,
+            text: None,
+            repeat: False,
+            captured: False,
+          ),
+        )
+      session.send_event(
+        sess,
+        event.KeyRelease(
+          key:,
+          modified_key: key,
+          modifiers: event.modifiers_none(),
+          physical_key: None,
+          location: event.Standard,
+          text: None,
+          captured: False,
+        ),
+      )
+    },
+    canvas_press: fn(sess, id, x, y) {
+      session.send_event(
+        sess,
+        event.CanvasPress(id:, scope: [], x:, y:, button: "left"),
+      )
+    },
     model: fn(sess) { session.model(sess) },
     tree: fn(sess) { session.current_tree(sess) },
     reset: fn(sess) {

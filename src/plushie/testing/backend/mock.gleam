@@ -125,6 +125,28 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
         dict.from_list([#("value", node.FloatVal(value))]),
       )
     },
+    press_key: fn(sess, key) {
+      do_interact(sess, pool, "press", None, parse_key_payload(key))
+    },
+    release_key: fn(sess, key) {
+      do_interact(sess, pool, "release", None, parse_key_payload(key))
+    },
+    type_key: fn(sess, key) {
+      do_interact(sess, pool, "type_key", None, parse_key_payload(key))
+    },
+    canvas_press: fn(sess, id, x, y) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_press",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+          #("button", node.StringVal("left")),
+        ]),
+      )
+    },
     model: fn(sess) { session.model(sess) },
     tree: fn(sess) { session.current_tree(sess) },
     reset: fn(sess) {
@@ -528,6 +550,28 @@ fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
 /// Cast Event to msg for simple apps where msg = Event.
 @external(erlang, "plushie_test_ffi", "identity")
 fn event_to_msg(value: Event) -> msg
+
+@target(erlang)
+/// Parse a key string ("ctrl+s", "ArrowRight") into an interact payload.
+fn parse_key_payload(key: String) -> Dict(String, node.PropValue) {
+  let parts = string.split(key, "+")
+  let #(mods, key_parts) = list.split(parts, list.length(parts) - 1)
+  let key_name = case key_parts {
+    [k] -> k
+    _ -> key
+  }
+  let base = dict.from_list([#("key", node.StringVal(key_name))])
+  list.fold(mods, base, fn(acc, m) {
+    case m {
+      "ctrl" -> dict.insert(acc, "ctrl", node.StringVal("true"))
+      "shift" -> dict.insert(acc, "shift", node.StringVal("true"))
+      "alt" -> dict.insert(acc, "alt", node.StringVal("true"))
+      "logo" -> dict.insert(acc, "logo", node.StringVal("true"))
+      "command" -> dict.insert(acc, "command", node.StringVal("true"))
+      _ -> acc
+    }
+  })
+}
 
 @target(erlang)
 import plushie/testing/element

@@ -48,6 +48,13 @@ pub type TestBackend(model) {
       TestSession(model, Event),
     slide: fn(TestSession(model, Event), String, Float) ->
       TestSession(model, Event),
+    press_key: fn(TestSession(model, Event), String) ->
+      TestSession(model, Event),
+    release_key: fn(TestSession(model, Event), String) ->
+      TestSession(model, Event),
+    type_key: fn(TestSession(model, Event), String) -> TestSession(model, Event),
+    canvas_press: fn(TestSession(model, Event), String, Float, Float) ->
+      TestSession(model, Event),
     model: fn(TestSession(model, Event)) -> model,
     tree: fn(TestSession(model, Event)) -> Node,
     reset: fn(TestSession(model, Event)) -> TestSession(model, Event),

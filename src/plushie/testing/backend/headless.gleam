@@ -107,6 +107,26 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
       renderer.slide(subj, "#" <> id, value)
       sess
     },
+    press_key: fn(sess, key) {
+      let subj = require_renderer()
+      renderer.press(subj, key)
+      sess
+    },
+    release_key: fn(sess, key) {
+      let subj = require_renderer()
+      renderer.release(subj, key)
+      sess
+    },
+    type_key: fn(sess, key) {
+      let subj = require_renderer()
+      renderer.type_key(subj, key)
+      sess
+    },
+    canvas_press: fn(sess, id, x, y) {
+      let subj = require_renderer()
+      renderer.canvas_press(subj, "#" <> id, x, y)
+      sess
+    },
     model: fn(_sess) {
       let subj = require_renderer()
       from_dynamic(renderer.model(subj))
