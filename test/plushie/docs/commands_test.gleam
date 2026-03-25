@@ -296,33 +296,26 @@ pub fn commands_pane_split_construct_test() {
   let cmd =
     command.PaneSplit(
       pane_grid_id: "pane_grid",
-      pane_id: dynamic.string("editor"),
+      pane_id: "editor",
       axis: "horizontal",
-      new_pane_id: dynamic.string("new_editor"),
+      new_pane_id: "new_editor",
     )
   cmd.pane_grid_id |> should.equal("pane_grid")
   cmd.axis |> should.equal("horizontal")
 }
 
 pub fn commands_pane_close_construct_test() {
-  let cmd =
-    command.PaneClose(pane_grid_id: "grid", pane_id: dynamic.string("p1"))
+  let cmd = command.PaneClose(pane_grid_id: "grid", pane_id: "p1")
   cmd.pane_grid_id |> should.equal("grid")
 }
 
 pub fn commands_pane_swap_construct_test() {
-  let cmd =
-    command.PaneSwap(
-      pane_grid_id: "grid",
-      pane_a: dynamic.string("a"),
-      pane_b: dynamic.string("b"),
-    )
+  let cmd = command.PaneSwap(pane_grid_id: "grid", pane_a: "a", pane_b: "b")
   cmd.pane_grid_id |> should.equal("grid")
 }
 
 pub fn commands_pane_maximize_construct_test() {
-  let cmd =
-    command.PaneMaximize(pane_grid_id: "grid", pane_id: dynamic.string("p1"))
+  let cmd = command.PaneMaximize(pane_grid_id: "grid", pane_id: "p1")
   cmd.pane_grid_id |> should.equal("grid")
 }
 

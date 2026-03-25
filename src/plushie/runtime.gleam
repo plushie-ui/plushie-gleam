@@ -8,8 +8,6 @@ import gleam/dict.{type Dict}
 @target(erlang)
 import gleam/dynamic.{type Dynamic}
 @target(erlang)
-import gleam/dynamic/decode as dyn_decode
-@target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
 @target(erlang)
 import gleam/int
@@ -1390,16 +1388,17 @@ fn execute_commands(
       state
     }
 
-    command.ScrollTo(widget_id:, offset:) -> {
-      send_widget_op(
-        state.bridge,
-        "scroll_to",
-        [
-          #("target", StringVal(widget_id)),
-          #("offset_y", dynamic_to_prop_value(offset)),
-        ],
-        state.opts,
-      )
+    command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
+      let payload = [#("target", StringVal(widget_id))]
+      let payload = case offset_x {
+        option.Some(x) -> [#("offset_x", FloatVal(x)), ..payload]
+        option.None -> payload
+      }
+      let payload = case offset_y {
+        option.Some(y) -> [#("offset_y", FloatVal(y)), ..payload]
+        option.None -> payload
+      }
+      send_widget_op(state.bridge, "scroll_to", payload, state.opts)
       state
     }
 
@@ -1972,9 +1971,9 @@ fn execute_commands(
         "pane_split",
         [
           #("target", StringVal(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", StringVal(pane_id)),
           #("axis", StringVal(axis)),
-          #("new_pane_id", dynamic_to_prop_value(new_pane_id)),
+          #("new_pane_id", StringVal(new_pane_id)),
         ],
         state.opts,
       )
@@ -1987,7 +1986,7 @@ fn execute_commands(
         "pane_close",
         [
           #("target", StringVal(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", StringVal(pane_id)),
         ],
         state.opts,
       )
@@ -2000,8 +1999,8 @@ fn execute_commands(
         "pane_swap",
         [
           #("target", StringVal(pane_grid_id)),
-          #("a", dynamic_to_prop_value(pane_a)),
-          #("b", dynamic_to_prop_value(pane_b)),
+          #("a", StringVal(pane_a)),
+          #("b", StringVal(pane_b)),
         ],
         state.opts,
       )
@@ -2014,7 +2013,7 @@ fn execute_commands(
         "pane_maximize",
         [
           #("target", StringVal(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", StringVal(pane_id)),
         ],
         state.opts,
       )
@@ -2196,24 +2195,6 @@ fn send_image_op(
 
 @external(erlang, "base64", "encode")
 fn encode_base64(data: BitArray) -> String
-
-@target(erlang)
-/// Convert a Dynamic value to a PropValue for wire encoding.
-/// Tries string, then int, then float; falls back to classifying the type.
-fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
-  case dyn_decode.run(d, dyn_decode.string) {
-    Ok(s) -> StringVal(s)
-    Error(_) ->
-      case dyn_decode.run(d, dyn_decode.int) {
-        Ok(n) -> IntVal(n)
-        Error(_) ->
-          case dyn_decode.run(d, dyn_decode.float) {
-            Ok(f) -> FloatVal(f)
-            Error(_) -> StringVal(dynamic.classify(d))
-          }
-      }
-  }
-}
 
 // -- Subscription management -------------------------------------------------
 

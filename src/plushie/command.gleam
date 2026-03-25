@@ -54,7 +54,8 @@ pub type Command(msg) {
   SelectRange(widget_id: String, start: Int, end: Int)
 
   /// Scroll a scrollable widget to an absolute offset.
-  ScrollTo(widget_id: String, offset: Dynamic)
+  /// Both axes are optional and default to 0.0.
+  ScrollTo(widget_id: String, offset_x: Option(Float), offset_y: Option(Float))
   /// Snap a scrollable widget to an absolute x/y offset instantly
   /// (no smooth scrolling).
   SnapTo(widget_id: String, x: Float, y: Float)
@@ -172,16 +173,16 @@ pub type Command(msg) {
   /// ("horizontal" or "vertical"), creating a new pane.
   PaneSplit(
     pane_grid_id: String,
-    pane_id: Dynamic,
+    pane_id: String,
     axis: String,
-    new_pane_id: Dynamic,
+    new_pane_id: String,
   )
   /// Close a pane in a pane_grid widget.
-  PaneClose(pane_grid_id: String, pane_id: Dynamic)
+  PaneClose(pane_grid_id: String, pane_id: String)
   /// Swap two panes in a pane_grid widget.
-  PaneSwap(pane_grid_id: String, pane_a: Dynamic, pane_b: Dynamic)
+  PaneSwap(pane_grid_id: String, pane_a: String, pane_b: String)
   /// Maximize a single pane to fill the entire pane_grid.
-  PaneMaximize(pane_grid_id: String, pane_id: Dynamic)
+  PaneMaximize(pane_grid_id: String, pane_id: String)
   /// Restore all panes from maximized state in a pane_grid.
   PaneRestore(pane_grid_id: String)
 

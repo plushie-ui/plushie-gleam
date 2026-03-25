@@ -28,8 +28,6 @@ import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
 @target(javascript)
-import gleam/dynamic/decode as dyn_decode
-@target(javascript)
 import gleam/int
 @target(javascript)
 import gleam/list
@@ -608,16 +606,18 @@ fn execute_commands(
         ],
         session,
       )
-    command.ScrollTo(widget_id:, offset:) ->
-      wop(
-        handle,
-        "scroll_to",
-        [
-          #("target", sv(widget_id)),
-          #("offset_y", dynamic_to_prop_value(offset)),
-        ],
-        session,
-      )
+    command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
+      let payload = [#("target", sv(widget_id))]
+      let payload = case offset_x {
+        Some(x) -> [#("offset_x", node.FloatVal(x)), ..payload]
+        None -> payload
+      }
+      let payload = case offset_y {
+        Some(y) -> [#("offset_y", node.FloatVal(y)), ..payload]
+        None -> payload
+      }
+      wop(handle, "scroll_to", payload, session)
+    }
     command.SnapTo(widget_id:, x:, y:) ->
       wop(
         handle,
@@ -677,9 +677,9 @@ fn execute_commands(
         "pane_split",
         [
           #("target", sv(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", sv(pane_id)),
           #("axis", sv(axis)),
-          #("new_pane_id", dynamic_to_prop_value(new_pane_id)),
+          #("new_pane_id", sv(new_pane_id)),
         ],
         session,
       )
@@ -689,7 +689,7 @@ fn execute_commands(
         "pane_close",
         [
           #("target", sv(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", sv(pane_id)),
         ],
         session,
       )
@@ -699,8 +699,8 @@ fn execute_commands(
         "pane_swap",
         [
           #("target", sv(pane_grid_id)),
-          #("a", dynamic_to_prop_value(pane_a)),
-          #("b", dynamic_to_prop_value(pane_b)),
+          #("a", sv(pane_a)),
+          #("b", sv(pane_b)),
         ],
         session,
       )
@@ -710,7 +710,7 @@ fn execute_commands(
         "pane_maximize",
         [
           #("target", sv(pane_grid_id)),
-          #("pane", dynamic_to_prop_value(pane_id)),
+          #("pane", sv(pane_id)),
         ],
         session,
       )
@@ -984,23 +984,6 @@ fn execute_commands(
         encode.encode_advance_frame(timestamp, session, Json)
       do_send(handle, bytes)
     }
-  }
-}
-
-@target(javascript)
-/// Convert a Dynamic value to a PropValue for wire encoding.
-fn dynamic_to_prop_value(d: Dynamic) -> PropValue {
-  case dyn_decode.run(d, dyn_decode.string) {
-    Ok(s) -> node.StringVal(s)
-    Error(_) ->
-      case dyn_decode.run(d, dyn_decode.int) {
-        Ok(n) -> node.IntVal(n)
-        Error(_) ->
-          case dyn_decode.run(d, dyn_decode.float) {
-            Ok(f) -> node.FloatVal(f)
-            Error(_) -> node.StringVal(dynamic.classify(d))
-          }
-      }
   }
 }
 
