@@ -366,6 +366,24 @@ pub fn decode_test_event(
         scope:,
         element_id: get_string(data, "element_id", ""),
       ))
+    "canvas_element_key_press" ->
+      Ok(event.CanvasElementKeyPress(
+        id: local,
+        scope:,
+        element_id: get_string(data, "element_id", ""),
+        key: get_string(data, "key", ""),
+        modifiers: decode_modifiers(data),
+        captured: False,
+      ))
+    "canvas_element_key_release" ->
+      Ok(event.CanvasElementKeyRelease(
+        id: local,
+        scope:,
+        element_id: get_string(data, "element_id", ""),
+        key: get_string(data, "key", ""),
+        modifiers: decode_modifiers(data),
+        captured: False,
+      ))
     "canvas_focused" -> Ok(event.CanvasFocused(id: local, scope:))
     "canvas_blurred" -> Ok(event.CanvasBlurred(id: local, scope:))
     "canvas_group_focused" ->

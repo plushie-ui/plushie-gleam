@@ -607,6 +607,8 @@ fn decode_event(
     "canvas_element_drag_end" -> decode_canvas_element_drag_end(map)
     "canvas_element_focused" -> decode_canvas_element_focused(map)
     "canvas_element_blurred" -> decode_canvas_element_blurred(map)
+    "canvas_element_key_press" -> decode_canvas_element_key_press(map)
+    "canvas_element_key_release" -> decode_canvas_element_key_release(map)
     "canvas_focused" -> decode_canvas_focused(map)
     "canvas_blurred" -> decode_canvas_blurred(map)
     "canvas_group_focused" -> decode_canvas_group_focused(map)
@@ -1322,6 +1324,50 @@ fn decode_canvas_element_blurred(
   let element_id = get_string_or(data, "element_id", "")
   let #(local, scope) = split_scoped_id(id)
   Ok(EventMessage(event.CanvasElementBlurred(id: local, scope:, element_id:)))
+}
+
+fn decode_canvas_element_key_press(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let data = get_map(map, "data")
+  let element_id = get_string_or(data, "element_id", "")
+  let key = get_string_or(data, "key", "")
+  let modifiers = parse_modifiers(data)
+  let captured = get_bool_or(map, "captured", False)
+  let #(local, scope) = split_scoped_id(id)
+  Ok(
+    EventMessage(event.CanvasElementKeyPress(
+      id: local,
+      scope:,
+      element_id:,
+      key:,
+      modifiers:,
+      captured:,
+    )),
+  )
+}
+
+fn decode_canvas_element_key_release(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  let data = get_map(map, "data")
+  let element_id = get_string_or(data, "element_id", "")
+  let key = get_string_or(data, "key", "")
+  let modifiers = parse_modifiers(data)
+  let captured = get_bool_or(map, "captured", False)
+  let #(local, scope) = split_scoped_id(id)
+  Ok(
+    EventMessage(event.CanvasElementKeyRelease(
+      id: local,
+      scope:,
+      element_id:,
+      key:,
+      modifiers:,
+      captured:,
+    )),
+  )
 }
 
 fn decode_canvas_focused(

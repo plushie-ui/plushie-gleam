@@ -395,6 +395,24 @@ pub type Event {
   )
   /// An interactive element lost keyboard focus.
   CanvasElementBlurred(id: String, scope: List(String), element_id: String)
+  /// A focused canvas element received a key press (arrow_mode "none").
+  CanvasElementKeyPress(
+    id: String,
+    scope: List(String),
+    element_id: String,
+    key: String,
+    modifiers: Modifiers,
+    captured: Bool,
+  )
+  /// A focused canvas element received a key release (arrow_mode "none").
+  CanvasElementKeyRelease(
+    id: String,
+    scope: List(String),
+    element_id: String,
+    key: String,
+    modifiers: Modifiers,
+    captured: Bool,
+  )
   /// The canvas widget gained iced-level focus.
   CanvasFocused(id: String, scope: List(String))
   /// The canvas widget lost iced-level focus.
