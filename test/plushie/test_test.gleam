@@ -165,6 +165,26 @@ pub fn sessions_are_immutable_test() {
   should.equal(testing.model(s1).count, 1)
 }
 
+// -- Session reuse (regression test for reset_response handling) ---------------
+
+pub fn sequential_sessions_reuse_pool_test() {
+  // Start a session, interact, stop -- then start a new one.
+  // This exercises the session reset path in the pool (the second
+  // start sends a reset to the renderer before reusing the session).
+  let ctx1 = testing.start(counter_app())
+  let ctx1 = testing.click(ctx1, "inc")
+  let ctx1 = testing.click(ctx1, "inc")
+  should.equal(testing.model(ctx1).count, 2)
+  testing.stop(ctx1)
+
+  // Second session: state should be fresh, not carry over from first
+  let ctx2 = testing.start(counter_app())
+  should.equal(testing.model(ctx2).count, 0)
+  let ctx2 = testing.click(ctx2, "inc")
+  should.equal(testing.model(ctx2).count, 1)
+  testing.stop(ctx2)
+}
+
 // -- Todo app (tests text input, toggle, submit) ------------------------------
 
 type TodoModel {

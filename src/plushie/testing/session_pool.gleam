@@ -167,7 +167,11 @@ type SessionEntry {
 
 @target(erlang)
 type PendingValue {
-  PendingValue(response_type: String, reply: Subject(SendReply))
+  PendingValue(
+    response_type: String,
+    on_reply: fn(Dynamic) -> Nil,
+    on_error: fn(String) -> Nil,
+  )
 }
 
 @target(erlang)
@@ -440,7 +444,10 @@ fn handle_unregister(
   let pending_value =
     PendingValue(
       response_type: "reset_response",
-      reply: cast_reply_subject(reply),
+      on_reply: fn(_raw) { process.send(reply, Unregistered) },
+      on_error: fn(_reason) {
+        process.send(reply, UnregisterError("reset failed"))
+      },
     )
   let pending = dict.insert(state.pending, pending_key, pending_value)
   let sessions = dict.delete(state.sessions, session_id)
@@ -474,7 +481,12 @@ fn handle_send_sync(
   send_to_port(state.port, state.format, msg)
 
   let pending_key = session_id <> ":" <> req_id
-  let pending_value = PendingValue(response_type:, reply:)
+  let pending_value =
+    PendingValue(
+      response_type:,
+      on_reply: fn(raw) { process.send(reply, SendOk(raw)) },
+      on_error: fn(reason) { process.send(reply, SendError(reason)) },
+    )
   let pending = dict.insert(state.pending, pending_key, pending_value)
 
   actor.continue(PoolState(..state, pending:, next_id: state.next_id + 1))
@@ -527,7 +539,7 @@ fn handle_owner_down(
     dict.fold(state.pending, state.pending, fn(acc, key, pv) {
       case starts_with_session(key, session_id) {
         True -> {
-          process.send(pv.reply, SendError("session owner died"))
+          pv.on_error("session owner died")
           dict.delete(acc, key)
         }
         False -> acc
@@ -583,9 +595,7 @@ fn handle_port_exit(
   )
 
   // Reply to all pending callers with an error
-  dict.each(state.pending, fn(_key, pv) {
-    process.send(pv.reply, SendError("renderer exited"))
-  })
+  dict.each(state.pending, fn(_key, pv) { pv.on_error("renderer exited") })
 
   actor.stop()
 }
@@ -639,7 +649,7 @@ fn dispatch_raw(state: PoolState, raw: Dynamic) -> PoolState {
       let pending_key = session_id <> ":" <> req_id
       case dict.get(state.pending, pending_key) {
         Ok(pv) -> {
-          process.send(pv.reply, SendOk(raw))
+          pv.on_reply(raw)
           PoolState(..state, pending: dict.delete(state.pending, pending_key))
         }
         Error(_) -> forward_to_session(state, session_id, raw)
@@ -778,12 +788,6 @@ fn plushie_binary_find() -> Result(String, Nil) {
     Error(_) -> Error(Nil)
   }
 }
-
-@target(erlang)
-/// Cast UnregisterReply subject to SendReply subject for the shared
-/// pending map. Both are processed through the same reply path.
-@external(erlang, "plushie_test_ffi", "identity")
-fn cast_reply_subject(value: Subject(UnregisterReply)) -> Subject(SendReply)
 
 @target(erlang)
 import plushie/binary

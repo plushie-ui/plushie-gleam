@@ -32,7 +32,6 @@ gleam_json = ">= 3.1.0 and < 4.0.0"
 glepack = ">= 0.1.0 and < 1.0.0"
 telemetry = ">= 1.0.0 and < 2.0.0"
 file_system = ">= 1.0.0 and < 2.0.0"
-gleam_javascript = ">= 1.0.0 and < 2.0.0"
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
