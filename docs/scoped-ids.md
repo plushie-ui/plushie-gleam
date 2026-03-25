@@ -78,6 +78,43 @@ fn update(model, event) {
 Subscription events (key, mouse, touch, IME, modifiers) are global and
 do not carry scope.
 
+## Canvas element scoped IDs
+
+Canvas elements participate in the same scoping mechanism as regular
+widgets. When a canvas element emits an event, the renderer uses
+`canvas_id/element_id` as the wire ID. The SDK splits this into
+`id: element_id, scope: [canvas_id, ...]`, making canvas elements
+look like regular widgets inside a container from the event
+perspective.
+
+```
+canvas "drawing"                ->  id: "drawing"
+  rect("bg", ...)              ->  id: "drawing/bg"
+  interactive "handle" ...     ->  id: "drawing/handle"
+```
+
+Events from interactive canvas elements follow the same pattern:
+
+```gleam
+// Canvas element click arrives as:
+// CanvasElementClick(id: "handle", scope: ["drawing"], ...)
+
+// Match with scope context:
+CanvasElementClick(id: "handle", scope: ["drawing", ..], ..) -> {
+  // handle in drawing canvas
+}
+
+// Bind the canvas ID for dynamic canvases:
+CanvasElementClick(id: "handle", scope: [canvas_id, ..], ..) -> {
+  handle_click(model, canvas_id)
+}
+```
+
+This means canvas elements, canvas widgets, and regular widgets all
+use the same scoping and event dispatch model. A canvas widget that
+emits a `WidgetClick` event produces an event indistinguishable from
+a button click inside a named container.
+
 ## Tree search
 
 `tree.find` and `tree.exists` support both full scoped paths and

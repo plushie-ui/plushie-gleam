@@ -131,6 +131,93 @@ pub fn labeled_input(
 }
 ```
 
+### Canvas widgets -- canvas-based widgets with internal state
+
+Use `canvas_widget.CanvasWidgetDef` for widgets that render via canvas
+shapes, manage their own internal state, and transform raw canvas events
+into semantic events. No Rust code needed. This sits between composite
+widgets (pure composition, no state) and native widgets (Rust-backed).
+
+Canvas widgets have three capabilities that composite widgets do not:
+
+- **Internal state** -- initialized by `init`, managed by the runtime.
+  The widget tree is the source of truth; state is keyed by scoped
+  widget ID.
+- **Event transformation** -- `handle_event` intercepts events at the
+  widget's scope boundary before they reach `app.update`. Raw canvas
+  events become semantic events that are indistinguishable from built-in
+  widget events.
+- **Widget-scoped subscriptions** -- `subscriptions` returns subscriptions
+  scoped to this widget instance. Timer events route to `handle_event`,
+  not the app's `update`.
+
+```gleam
+import plushie/canvas_widget.{CanvasWidgetDef, Consumed, Emit, Ignored}
+import plushie/event.{type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave}
+
+type StarState { StarState(hover: String) }
+type StarProps { StarProps(rating: Int, max: Int) }
+
+pub fn star_rating_def() -> CanvasWidgetDef(StarState, StarProps) {
+  CanvasWidgetDef(
+    init: fn() { StarState(hover: "") },
+    render: render_stars,
+    handle_event: handle_star_event,
+    subscriptions: fn(_, _) { [] },
+  )
+}
+
+fn handle_star_event(ev: Event, state: StarState) -> #(canvas_widget.EventAction, StarState) {
+  case ev {
+    CanvasElementEnter(element_id:, ..) ->
+      #(Consumed, StarState(..state, hover: element_id))
+    CanvasElementLeave(..) ->
+      #(Consumed, StarState(..state, hover: ""))
+    CanvasElementClick(element_id:, ..) ->
+      #(Emit(event.WidgetClick(id: element_id, scope: [])), state)
+    _ -> #(Ignored, state)
+  }
+}
+
+// In your view function:
+pub fn star_rating(id: String, props: StarProps) -> Node {
+  canvas_widget.build(star_rating_def(), id, props)
+}
+```
+
+#### `handle_event` return values
+
+`handle_event` receives the raw event and the widget's current
+internal state. It follows iced's captured/ignored model:
+
+| Action | Effect |
+|---|---|
+| `Ignored` | Event passes through to the app's `update` unchanged |
+| `Consumed` | Event is suppressed -- neither the app nor other widgets see it |
+| `Emit(event)` | Suppress the raw event; emit a replacement event that continues through the chain |
+
+#### Subscriptions
+
+Optional. The `subscriptions` callback returns subscriptions scoped to
+this widget instance. Timer events from these subscriptions route to
+`handle_event`, not the app's `update`.
+
+```gleam
+subscriptions: fn(_props, state) {
+  case state.animating {
+    True -> [subscription.every(16, "tick")]
+    False -> []
+  }
+}
+```
+
+#### Lifecycle
+
+Internal state is initialized by `init` when the widget first appears
+in the tree. When the widget is removed from the tree, its state is
+cleaned up. Multiple instances of the same canvas widget each get
+independent state, keyed by their scoped widget ID.
+
 ## DSL reference
 
 | Field | Required | Description |

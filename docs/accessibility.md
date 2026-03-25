@@ -148,7 +148,7 @@ For cases where auto-inference is insufficient, every widget accepts an
 | `expanded` | `a11y.expanded(b)` | Expanded/collapsed state (menus, disclosures) |
 | `required` | `a11y.required(b)` | Mark form field as required |
 | `level` | `a11y.level(n)` | Heading level (1-6, only meaningful with `Heading` role) |
-| `busy` | `a11y.busy(b)` | Loading/processing state (AT announces when done) |
+| `busy` | `a11y.busy(b)` | Suppresses AT announcements until cleared (auto-managed by sliders during drag; set explicitly for custom continuous interactions) |
 | `invalid` | `a11y.invalid(b)` | Form validation failure |
 | `modal` | `a11y.modal(b)` | Dialog is modal (AT restricts navigation to this container) |
 | `read_only` | `a11y.read_only(b)` | Can be read but not edited |
@@ -401,6 +401,32 @@ ui.text("counter", "Count: " <> int.to_string(model.count), [
 **Tip:** Only mark the element that changes as live, not its parent
 container. Marking a large container as live causes the entire container's
 text to be re-announced on every change.
+
+### Busy state and continuous interactions
+
+When a value changes rapidly (e.g. during a slider drag or canvas
+interaction), setting `busy(True)` on the node suppresses AT
+announcements until `busy` clears. AT then announces the final
+value once, avoiding a flood of intermediate announcements. This
+maps to WAI-ARIA `aria-busy`.
+
+**Built-in widgets handle this automatically.** Sliders set
+`busy: true` during drag and clear it on release. No SDK code
+needed.
+
+**For app-managed live regions** that reflect values from a
+continuous interaction (e.g. a text display showing a hex color
+while the user drags a canvas), set `busy` explicitly based on
+whether the interaction is active:
+
+```gleam
+ui.text("hex", hex_value, [
+  text.A11y(a11y.new() |> a11y.live("polite") |> a11y.busy(model.drag != None)),
+])
+```
+
+When the drag ends, `busy` clears and the screen reader announces
+the final hex value.
 
 ### Forms
 

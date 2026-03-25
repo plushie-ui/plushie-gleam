@@ -295,7 +295,7 @@ Additional modules:
 All tests work on all backends. Write tests once, swap backends without
 changing assertions.
 
-### Three backends
+### Backend modes
 
 | | `:pooled_mock` | `:headless` | `:windowed` |
 |---|---|---|---|
@@ -343,8 +343,8 @@ difference is important.
 ### Structural tree hashes (`assert_tree_hash`)
 
 `tree_hash.assert_tree_hash` captures a SHA-256 hash of the serialized UI
-tree and compares it against a golden file. It works on all three backends
-because every backend can produce a tree.
+tree and compares it against a golden file. It works on all backend modes
+because every mode can produce a tree.
 
 ```gleam
 import plushie/testing as test
@@ -548,9 +548,9 @@ pub fn clicking_fetch_starts_async_load_test() {
 
 ### On headless and windowed backends
 
-All three backends now use the shared `CommandProcessor` to execute async
-commands synchronously. Async results are available immediately on all
-backends because the commands have already completed.
+All backend modes execute async commands synchronously. Async results
+are available immediately on all modes because the commands have already
+completed.
 
 
 ## Debugging and error messages
