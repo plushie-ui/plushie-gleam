@@ -152,7 +152,8 @@ Canvas widgets have three capabilities that composite widgets do not:
   not the app's `update`.
 
 ```gleam
-import plushie/canvas_widget.{CanvasWidgetDef, Consumed, Emit, Ignored}
+import gleam/dynamic
+import plushie/canvas_widget.{CanvasWidgetDef, Consumed, Emit, Ignored, UpdateState}
 import plushie/event.{type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave}
 
 type StarState { StarState(hover: String) }
@@ -170,11 +171,13 @@ pub fn star_rating_def() -> CanvasWidgetDef(StarState, StarProps) {
 fn handle_star_event(ev: Event, state: StarState) -> #(canvas_widget.EventAction, StarState) {
   case ev {
     CanvasElementEnter(element_id:, ..) ->
-      #(Consumed, StarState(..state, hover: element_id))
+      #(UpdateState, StarState(..state, hover: element_id))
     CanvasElementLeave(..) ->
-      #(Consumed, StarState(..state, hover: ""))
+      #(UpdateState, StarState(..state, hover: ""))
     CanvasElementClick(element_id:, ..) ->
-      #(Emit(event.WidgetClick(id: element_id, scope: [])), state)
+      // Emit a "select" event -- the runtime fills in id/scope
+      // automatically from this widget's position in the tree.
+      #(Emit(kind: "select", data: dynamic.from(element_id)), state)
     _ -> #(Ignored, state)
   }
 }
@@ -194,7 +197,8 @@ internal state. It follows iced's captured/ignored model:
 |---|---|
 | `Ignored` | Event passes through to the app's `update` unchanged |
 | `Consumed` | Event is suppressed -- neither the app nor other widgets see it |
-| `Emit(event)` | Suppress the raw event; emit a replacement event that continues through the chain |
+| `UpdateState` | Internal state updated, no output event -- triggers re-render |
+| `Emit(kind, data)` | Emit a WidgetEvent with the given family and data; id/scope are filled in by the runtime |
 
 #### Subscriptions
 

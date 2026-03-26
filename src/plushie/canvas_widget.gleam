@@ -40,7 +40,9 @@
 //// Events flow through the scope chain before reaching `app.update`.
 //// Each canvas widget in the chain gets a chance to handle the event:
 //// `Ignored` passes through, `Consumed` stops the chain, and
-//// `Emit(event)` replaces the event and continues.
+//// `Emit(kind, data)` replaces the event with a WidgetEvent and
+//// continues. The runtime fills in `id` and `scope` automatically
+//// from the widget's position in the tree.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
@@ -77,8 +79,14 @@ pub type EventAction {
   Ignored
   /// Captured, no output -- stop chain, don't dispatch to app.
   Consumed
-  /// Captured with semantic event -- replace and continue chain.
-  Emit(event: Event)
+  /// Captured with semantic event. The runtime constructs a
+  /// WidgetEvent with the widget's id/scope filled in automatically.
+  /// `kind` is the event family (e.g., "click", "select", "change").
+  /// `data` carries event-specific payload as Dynamic.
+  Emit(kind: String, data: Dynamic)
+  /// Captured with internal state change only. Like Consumed but
+  /// signals that the widget's state was updated (triggers re-render).
+  UpdateState
 }
 
 // -- Placeholder node --------------------------------------------------------
@@ -365,7 +373,15 @@ fn walk_chain(
               case action {
                 Ignored -> walk_chain(registry, ev, rest)
                 Consumed -> #(None, registry)
-                Emit(new_event) -> walk_chain(registry, new_event, rest)
+                UpdateState -> #(None, registry)
+                Emit(kind:, data:) -> {
+                  // Construct the full event with id/scope resolved
+                  // from the interception context.
+                  let #(id, scope) = resolve_emit_identity(ev, widget_id)
+                  let emitted =
+                    event.WidgetEvent(kind:, id:, scope:, value: data, data:)
+                  walk_chain(registry, emitted, rest)
+                }
               }
             }
             Error(_) -> {
@@ -458,7 +474,14 @@ pub fn handle_widget_timer(
               case action {
                 Ignored -> #(None, registry)
                 Consumed -> #(None, registry)
-                Emit(new_event) -> dispatch_through_widgets(registry, new_event)
+                UpdateState -> #(None, registry)
+                Emit(kind:, data:) -> {
+                  let #(id, scope) =
+                    resolve_emit_identity(timer_event, widget_id)
+                  let emitted =
+                    event.WidgetEvent(kind:, id:, scope:, value: data, data:)
+                  dispatch_through_widgets(registry, emitted)
+                }
               }
             }
             Error(_) -> {
@@ -478,6 +501,40 @@ pub fn handle_widget_timer(
 }
 
 // -- Metadata stripping ------------------------------------------------------
+
+/// Resolve the id and scope for an emitted event from the
+/// interception context. Matches the Elixir SDK's resolve_emit_identity.
+///
+/// For widget events with scope: the innermost scope element is the
+/// canvas widget's local ID; remaining elements are the parent scope.
+/// For non-widget events (timers): split the registered widget_id
+/// on "/" to derive id/scope.
+fn resolve_emit_identity(
+  ev: Event,
+  widget_id: String,
+) -> #(String, List(String)) {
+  let scope = extract_scope(ev)
+  case scope {
+    [canvas_id, ..parent_scope] -> #(canvas_id, parent_scope)
+    [] -> {
+      let id = extract_id(ev)
+      case id {
+        "" -> split_widget_id(widget_id)
+        _ -> #(id, [])
+      }
+    }
+  }
+}
+
+/// Split a scoped widget ID ("form/stars") into local ID and
+/// reversed scope: #("stars", ["form"]).
+fn split_widget_id(widget_id: String) -> #(String, List(String)) {
+  let parts = string.split(widget_id, "/")
+  case list.reverse(parts) {
+    [local, ..parent_parts] -> #(local, parent_parts)
+    _ -> #(widget_id, [])
+  }
+}
 
 // strip_metadata is no longer needed -- metadata lives in the
 // separate `meta` field on Node, which is never included in
