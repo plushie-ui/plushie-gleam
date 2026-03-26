@@ -101,6 +101,8 @@ pub type StartOpts {
     session: String,
     /// Application options passed to init/1. Default: dynamic.nil().
     app_opts: Dynamic,
+    /// Native extensions this app expects the renderer to have loaded.
+    required_extensions: List(String),
     /// Extra CLI arguments prepended to the renderer command.
     renderer_args: List(String),
     /// Transport mode. Default: Spawn.
@@ -124,6 +126,7 @@ pub fn default_start_opts() -> StartOpts {
     daemon: False,
     session: "",
     app_opts: dynamic.nil(),
+    required_extensions: [],
     renderer_args: [],
     transport: Spawn,
     dev: False,
@@ -199,6 +202,7 @@ pub fn start(
       session: opts.session,
       daemon: opts.daemon,
       app_opts: opts.app_opts,
+      required_extensions: opts.required_extensions,
       renderer_args: opts.renderer_args,
       token: opts.token,
     )

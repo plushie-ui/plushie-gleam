@@ -1563,6 +1563,25 @@ fn decode_error_event(
       }
       Ok(EventMessage(event.DuplicateNodeIds(details:)))
     }
-    _ -> decode_generic_widget_event(map, "error")
+    "extension_command" -> {
+      let data = case dict.get(map, "data") {
+        Ok(PMap(data)) -> data
+        _ -> dict.new()
+      }
+      Ok(EventMessage(event.ExtensionCommandError(
+        reason: get_string_or(data, "reason", ""),
+        node_id: get_optional_string(data, "node_id"),
+        op: get_optional_string(data, "op"),
+        extension: get_optional_string(data, "extension"),
+        message: get_optional_string(data, "message"),
+      )))
+    }
+    _ -> {
+      let data = case dict.get(map, "data") {
+        Ok(v) -> prop_to_dynamic(v)
+        Error(_) -> dynamic.nil()
+      }
+      Ok(EventMessage(event.RendererError(id: error_id, data:)))
+    }
   }
 }

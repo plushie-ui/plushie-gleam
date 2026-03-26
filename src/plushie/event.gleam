@@ -490,6 +490,18 @@ pub type Event {
   /// offending IDs. Usually indicates a bug in the view function.
   DuplicateNodeIds(details: Dynamic)
 
+  /// Renderer error for an extension_command.
+  ExtensionCommandError(
+    reason: String,
+    node_id: Option(String),
+    op: Option(String),
+    extension: Option(String),
+    message: Option(String),
+  )
+
+  /// Generic renderer error event.
+  RendererError(id: String, data: Dynamic)
+
   /// Diagnostic message from the renderer (warnings, errors).
   Diagnostic(level: String, element_id: String, code: String, message: String)
 

@@ -676,6 +676,23 @@ pub fn decode_duplicate_node_ids_json_test() {
   }
 }
 
+pub fn decode_extension_command_error_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"extension_command\",\"data\":{\"reason\":\"unknown_node\",\"node_id\":\"g1\",\"op\":\"set_value\",\"message\":\"no extension handles node `g1`\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.ExtensionCommandError(reason:, node_id:, op:, message:, ..) -> {
+      should.equal(reason, "unknown_node")
+      should.equal(node_id, Some("g1"))
+      should.equal(op, Some("set_value"))
+      should.equal(message, Some("no extension handles node `g1`"))
+    }
+    _ -> should.fail()
+  }
+}
+
 // ---------------------------------------------------------------------------
 // WindowOpened with no position
 // ---------------------------------------------------------------------------

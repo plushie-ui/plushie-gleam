@@ -119,6 +119,7 @@ pub type RuntimeOpts {
     session: String,
     daemon: Bool,
     app_opts: Dynamic,
+    required_extensions: List(String),
     renderer_args: List(String),
     token: Option(String),
   )
@@ -132,9 +133,14 @@ pub fn default_opts() -> RuntimeOpts {
     session: "",
     daemon: False,
     app_opts: dynamic.nil(),
+    required_extensions: [],
     renderer_args: [],
     token: None,
   )
+}
+
+fn missing_extensions(required: List(String), available: List(String)) -> List(String) {
+  list.filter(required, fn(key) { !list.contains(available, key) })
 }
 
 @target(erlang)
@@ -427,12 +433,25 @@ fn handle_message(
       }
     }
 
-    FromBridge(InboundEvent(Hello(protocol: proto, ..))) -> {
+    FromBridge(InboundEvent(Hello(protocol: proto, extensions:, ..))) -> {
       case proto == protocol.protocol_version {
-        True -> {
-          let state = LoopState(..state, restart_count: 0)
-          actor.continue(state)
-        }
+        True ->
+          case missing_extensions(state.opts.required_extensions, extensions) {
+            [] -> {
+              let state = LoopState(..state, restart_count: 0)
+              actor.continue(state)
+            }
+            missing -> {
+              platform.log_error(
+                "plushie: renderer is missing required extensions "
+                <> string.inspect(missing)
+                <> " (reported "
+                <> string.inspect(extensions)
+                <> ") -- stopping runtime",
+              )
+              actor.stop()
+            }
+          }
         False -> {
           platform.log_error(
             "plushie: protocol version mismatch (expected "
