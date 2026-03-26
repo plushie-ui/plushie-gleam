@@ -447,28 +447,16 @@ fn handle_message(
     }
 
     FromBridge(InboundEvent(InteractStep(_id, events))) -> {
-      // Process events from interact step as a batch without
-      // intermediate patches. The final snapshot is sent after all
-      // events are processed.
+      // Process events from interact step as a batch.
       let state =
-        list.fold(events, state, fn(state, raw_event) {
-          case decode.decode_raw_event(raw_event) {
-            Ok(EventMessage(ev)) -> handle_event(state, ev)
-            _ -> state
-          }
-        })
+        list.fold(events, state, fn(state, ev) { handle_event(state, ev) })
       actor.continue(state)
     }
 
     FromBridge(InboundEvent(InteractResponse(_id, events))) -> {
-      // Process any final events from the interact response
+      // Process any final events from the interact response.
       let state =
-        list.fold(events, state, fn(state, raw_event) {
-          case decode.decode_raw_event(raw_event) {
-            Ok(EventMessage(ev)) -> handle_event(state, ev)
-            _ -> state
-          }
-        })
+        list.fold(events, state, fn(state, ev) { handle_event(state, ev) })
       // Reply to the waiting caller
       let state = case state.pending_interact {
         Some(#(reply, _)) -> {
@@ -793,6 +781,15 @@ fn handle_message(
             process.send(reply, Nil)
           })
           let state = LoopState(..state, pending_stub_acks: dict.new())
+
+          // Fail pending interact (old renderer is gone).
+          let state = case state.pending_interact {
+            Some(#(reply, _)) -> {
+              process.send(reply, Error("renderer_restarted"))
+              LoopState(..state, pending_interact: None)
+            }
+            None -> state
+          }
 
           // Stop old subscription timers (sync_subscriptions won't
           // see them since we pass dict.new() as current)

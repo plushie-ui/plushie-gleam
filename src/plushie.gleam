@@ -400,6 +400,15 @@ pub fn get_prop_warnings(
 ///
 /// Actions: "click", "type_text", "toggle", "select", "slide",
 /// "submit", "press", "release", "type_key", "canvas_press", etc.
+///
+/// Selector format (Dict keys):
+/// - By ID: `{"by": "id", "value": "widget_id"}`
+/// - By role: `{"by": "role", "value": "button"}`
+/// - By label: `{"by": "label", "value": "Email"}`
+/// - Focused: `{"by": "focused"}`
+///
+/// Payload is action-specific (e.g., `{"text": "hello"}` for type_text,
+/// `{"value": "3.5"}` for slide).
 pub fn interact(
   instance: Instance(_),
   action: String,

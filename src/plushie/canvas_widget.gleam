@@ -379,7 +379,13 @@ fn walk_chain(
                   // from the interception context.
                   let #(id, scope) = resolve_emit_identity(ev, widget_id)
                   let emitted =
-                    event.WidgetEvent(kind:, id:, scope:, value: data, data:)
+                    event.WidgetEvent(
+                      kind:,
+                      id:,
+                      scope:,
+                      value: coerce(Nil),
+                      data:,
+                    )
                   walk_chain(registry, emitted, rest)
                 }
               }
@@ -479,7 +485,13 @@ pub fn handle_widget_timer(
                   let #(id, scope) =
                     resolve_emit_identity(timer_event, widget_id)
                   let emitted =
-                    event.WidgetEvent(kind:, id:, scope:, value: data, data:)
+                    event.WidgetEvent(
+                      kind:,
+                      id:,
+                      scope:,
+                      value: coerce(Nil),
+                      data:,
+                    )
                   dispatch_through_widgets(registry, emitted)
                 }
               }

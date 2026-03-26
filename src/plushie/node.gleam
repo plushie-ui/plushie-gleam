@@ -35,6 +35,7 @@ pub type PropValue {
 /// - `kind`: widget type string ("button", "column", etc.)
 /// - `props`: encoded property values (string-keyed)
 /// - `children`: child nodes
+/// - `meta`: runtime-only metadata, never sent to the renderer
 pub type Node {
   Node(
     id: String,
