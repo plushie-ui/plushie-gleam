@@ -73,19 +73,13 @@ pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
 /// Convert a Node tree to a nested PropValue (DictVal).
 /// Maps `kind` to the wire key `"type"`.
 pub fn node_to_prop_value(n: Node) -> PropValue {
-  // Strip canvas_widget runtime metadata before wire encoding.
-  // These props are used internally by the runtime and tree
-  // normalization -- the renderer doesn't understand them.
-  let props =
-    n.props
-    |> dict.delete("__canvas_widget__")
-    |> dict.delete("__canvas_widget_props__")
-    |> dict.delete("__canvas_widget_state__")
+  // Meta is not included -- it's runtime-only data (canvas_widget
+  // state, def) that the renderer doesn't understand.
   DictVal(
     dict.from_list([
       #("id", StringVal(n.id)),
       #("type", StringVal(n.kind)),
-      #("props", DictVal(props)),
+      #("props", DictVal(n.props)),
       #("children", ListVal(list.map(n.children, node_to_prop_value))),
     ]),
   )

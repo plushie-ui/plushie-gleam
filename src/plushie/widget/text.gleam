@@ -197,5 +197,5 @@ pub fn build(text: Text) -> Node {
       StringVal(style_to_string(s))
     })
     |> build.put_optional("a11y", text.a11y, a11y.to_prop_value)
-  Node(id: text.id, kind: "text", props:, children: [])
+  Node(id: text.id, kind: "text", props:, children: [], meta: dict.new())
 }

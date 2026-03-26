@@ -234,5 +234,5 @@ pub fn build(te: TextEditor) -> Node {
       color.to_prop_value,
     )
     |> build.put_optional("a11y", te.a11y, a11y.to_prop_value)
-  Node(id: te.id, kind: "text_editor", props:, children: [])
+  Node(id: te.id, kind: "text_editor", props:, children: [], meta: dict.new())
 }

@@ -98,5 +98,5 @@ pub fn build(s: Sensor) -> Node {
     |> build.put_optional_string("on_resize", s.on_resize)
     |> build.put_optional_int("event_rate", s.event_rate)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
-  Node(id: s.id, kind: "sensor", props:, children: s.children)
+  Node(id: s.id, kind: "sensor", props:, children: s.children, meta: dict.new())
 }

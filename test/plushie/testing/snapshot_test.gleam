@@ -43,10 +43,16 @@ pub fn node_to_json_with_children_test() {
   let child1 = node.new("c1", "text")
   let child2 = node.new("c2", "button")
   let tree =
-    node.Node(id: "root", kind: "column", props: dict.new(), children: [
-      child1,
-      child2,
-    ])
+    node.Node(
+      id: "root",
+      kind: "column",
+      props: dict.new(),
+      children: [
+        child1,
+        child2,
+      ],
+      meta: dict.new(),
+    )
   let json_str = snapshot.node_to_json(tree) |> json.to_string()
   should.be_true(string.contains(json_str, "\"id\":\"c1\""))
   should.be_true(string.contains(json_str, "\"id\":\"c2\""))

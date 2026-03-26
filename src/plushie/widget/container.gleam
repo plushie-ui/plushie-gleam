@@ -225,5 +225,11 @@ pub fn build(c: Container) -> Node {
     |> build.put_optional("shadow", c.shadow, shadow.to_prop_value)
     |> build.put_optional_string("style", c.style)
     |> build.put_optional("a11y", c.a11y, a11y.to_prop_value)
-  Node(id: c.id, kind: "container", props:, children: c.children)
+  Node(
+    id: c.id,
+    kind: "container",
+    props:,
+    children: c.children,
+    meta: dict.new(),
+  )
 }

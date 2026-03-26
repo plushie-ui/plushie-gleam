@@ -164,5 +164,5 @@ pub fn build(r: Radio) -> Node {
     |> build.put_optional("wrapping", r.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("style", r.style)
     |> build.put_optional("a11y", r.a11y, a11y.to_prop_value)
-  Node(id: r.id, kind: "radio", props:, children: [])
+  Node(id: r.id, kind: "radio", props:, children: [], meta: dict.new())
 }

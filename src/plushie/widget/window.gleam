@@ -255,5 +255,5 @@ pub fn build(w: Window) -> Node {
     })
     |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
     |> build.put_optional("a11y", w.a11y, a11y.to_prop_value)
-  Node(id: w.id, kind: "window", props:, children: w.children)
+  Node(id: w.id, kind: "window", props:, children: w.children, meta: dict.new())
 }

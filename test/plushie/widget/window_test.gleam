@@ -55,7 +55,14 @@ pub fn bool_props_test() {
 }
 
 pub fn push_adds_child_test() {
-  let child = Node(id: "c1", kind: "text", props: dict.new(), children: [])
+  let child =
+    Node(
+      id: "c1",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     window.new("main")
     |> window.push(child)
@@ -65,8 +72,22 @@ pub fn push_adds_child_test() {
 }
 
 pub fn extend_adds_multiple_children_test() {
-  let c1 = Node(id: "c1", kind: "text", props: dict.new(), children: [])
-  let c2 = Node(id: "c2", kind: "button", props: dict.new(), children: [])
+  let c1 =
+    Node(
+      id: "c1",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
+  let c2 =
+    Node(
+      id: "c2",
+      kind: "button",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     window.new("main")
     |> window.extend([c1, c2])

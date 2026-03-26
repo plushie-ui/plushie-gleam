@@ -74,7 +74,14 @@ pub fn on_scroll_sets_bool_prop_test() {
 }
 
 pub fn push_adds_child_test() {
-  let child = Node(id: "item", kind: "text", props: dict.new(), children: [])
+  let child =
+    Node(
+      id: "item",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     scrollable.new("scroll")
     |> scrollable.push(child)
@@ -84,8 +91,22 @@ pub fn push_adds_child_test() {
 }
 
 pub fn extend_adds_multiple_children_test() {
-  let c1 = Node(id: "c1", kind: "text", props: dict.new(), children: [])
-  let c2 = Node(id: "c2", kind: "text", props: dict.new(), children: [])
+  let c1 =
+    Node(
+      id: "c1",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
+  let c2 =
+    Node(
+      id: "c2",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     scrollable.new("scroll")
     |> scrollable.extend([c1, c2])
@@ -101,6 +122,7 @@ pub fn push_preserves_order_test() {
       kind: "text",
       props: dict.from_list([#("content", StringVal("A"))]),
       children: [],
+      meta: dict.new(),
     )
   let c2 =
     Node(
@@ -108,6 +130,7 @@ pub fn push_preserves_order_test() {
       kind: "text",
       props: dict.from_list([#("content", StringVal("B"))]),
       children: [],
+      meta: dict.new(),
     )
   let node =
     scrollable.new("scroll")

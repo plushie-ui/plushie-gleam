@@ -100,5 +100,5 @@ pub fn build(s: Stack) -> Node {
     |> build.put_optional("padding", s.padding, padding.to_prop_value)
     |> build.put_optional_bool("clip", s.clip)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
-  Node(id: s.id, kind: "stack", props:, children: s.children)
+  Node(id: s.id, kind: "stack", props:, children: s.children, meta: dict.new())
 }

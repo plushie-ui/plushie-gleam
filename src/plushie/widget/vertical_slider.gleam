@@ -158,5 +158,11 @@ pub fn build(vs: VerticalSlider) -> Node {
     |> build.put_optional_string("label", vs.label)
     |> build.put_optional_int("event_rate", vs.event_rate)
     |> build.put_optional("a11y", vs.a11y, a11y.to_prop_value)
-  Node(id: vs.id, kind: "vertical_slider", props:, children: [])
+  Node(
+    id: vs.id,
+    kind: "vertical_slider",
+    props:,
+    children: [],
+    meta: dict.new(),
+  )
 }

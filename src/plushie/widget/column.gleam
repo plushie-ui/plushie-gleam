@@ -141,5 +141,11 @@ pub fn build(col: Column) -> Node {
     |> build.put_optional_bool("clip", col.clip)
     |> build.put_optional_bool("wrap", col.wrap)
     |> build.put_optional("a11y", col.a11y, a11y.to_prop_value)
-  Node(id: col.id, kind: "column", props:, children: col.children)
+  Node(
+    id: col.id,
+    kind: "column",
+    props:,
+    children: col.children,
+    meta: dict.new(),
+  )
 }

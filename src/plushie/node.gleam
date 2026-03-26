@@ -41,6 +41,10 @@ pub type Node {
     kind: String,
     props: Dict(String, PropValue),
     children: List(Node),
+    /// Runtime-only metadata. Not sent to the renderer. Used by
+    /// canvas_widget for state/def storage during normalization.
+    /// Widget builders should leave this as `dict.new()`.
+    meta: Dict(String, PropValue),
   )
 }
 
@@ -48,7 +52,7 @@ pub type Node {
 
 /// Create a node with no props and no children.
 pub fn new(id: String, kind: String) -> Node {
-  Node(id:, kind:, props: dict.new(), children: [])
+  Node(id:, kind:, props: dict.new(), children: [], meta: dict.new())
 }
 
 /// Set a single prop on a node.

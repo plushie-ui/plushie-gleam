@@ -151,5 +151,11 @@ pub fn build(row: Row) -> Node {
     |> build.put_optional_bool("clip", row.clip)
     |> build.put_optional_bool("wrap", row.wrap)
     |> build.put_optional("a11y", row.a11y, a11y.to_prop_value)
-  Node(id: row.id, kind: "row", props:, children: row.children)
+  Node(
+    id: row.id,
+    kind: "row",
+    props:,
+    children: row.children,
+    meta: dict.new(),
+  )
 }

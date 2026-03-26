@@ -246,5 +246,11 @@ pub fn build(ma: MouseArea) -> Node {
     |> build.put_optional_bool("on_scroll", ma.on_scroll)
     |> build.put_optional_int("event_rate", ma.event_rate)
     |> build.put_optional("a11y", ma.a11y, a11y.to_prop_value)
-  Node(id: ma.id, kind: "mouse_area", props:, children: ma.children)
+  Node(
+    id: ma.id,
+    kind: "mouse_area",
+    props:,
+    children: ma.children,
+    meta: dict.new(),
+  )
 }

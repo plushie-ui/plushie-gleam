@@ -290,5 +290,5 @@ pub fn build(t: Table) -> Node {
       color.to_prop_value,
     )
     |> build.put_optional("a11y", t.a11y, a11y.to_prop_value)
-  Node(id: t.id, kind: "table", props:, children: [])
+  Node(id: t.id, kind: "table", props:, children: [], meta: dict.new())
 }

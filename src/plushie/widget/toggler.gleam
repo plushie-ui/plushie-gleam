@@ -171,5 +171,5 @@ pub fn build(t: Toggler) -> Node {
     |> build.put_optional_string("style", t.style)
     |> build.put_optional_bool("disabled", t.disabled)
     |> build.put_optional("a11y", t.a11y, a11y.to_prop_value)
-  Node(id: t.id, kind: "toggler", props:, children: [])
+  Node(id: t.id, kind: "toggler", props:, children: [], meta: dict.new())
 }

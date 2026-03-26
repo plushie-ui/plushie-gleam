@@ -206,5 +206,5 @@ pub fn build(img: Image) -> Node {
     |> build.put_optional_string("description", img.description)
     |> build.put_optional_bool("decorative", img.decorative)
     |> build.put_optional("a11y", img.a11y, a11y.to_prop_value)
-  Node(id: img.id, kind: "image", props:, children: [])
+  Node(id: img.id, kind: "image", props:, children: [], meta: dict.new())
 }

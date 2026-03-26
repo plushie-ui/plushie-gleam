@@ -163,5 +163,11 @@ pub fn build(o: Overlay) -> Node {
     })
     |> build.put_optional("width", o.width, length.to_prop_value)
     |> build.put_optional("a11y", o.a11y, a11y.to_prop_value)
-  Node(id: o.id, kind: "overlay", props:, children: o.children)
+  Node(
+    id: o.id,
+    kind: "overlay",
+    props:,
+    children: o.children,
+    meta: dict.new(),
+  )
 }

@@ -190,5 +190,11 @@ pub fn build(s: Scrollable) -> Node {
       color.to_prop_value,
     )
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
-  Node(id: s.id, kind: "scrollable", props:, children: s.children)
+  Node(
+    id: s.id,
+    kind: "scrollable",
+    props:,
+    children: s.children,
+    meta: dict.new(),
+  )
 }

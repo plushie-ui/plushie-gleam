@@ -123,5 +123,11 @@ pub fn build(tt: Tooltip) -> Node {
     |> build.put_optional_int("delay", tt.delay)
     |> build.put_optional_string("style", tt.style)
     |> build.put_optional("a11y", tt.a11y, a11y.to_prop_value)
-  Node(id: tt.id, kind: "tooltip", props:, children: tt.children)
+  Node(
+    id: tt.id,
+    kind: "tooltip",
+    props:,
+    children: tt.children,
+    meta: dict.new(),
+  )
 }

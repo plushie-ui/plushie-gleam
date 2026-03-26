@@ -155,5 +155,11 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional_float("leeway", pg.leeway)
     |> build.put_optional_int("event_rate", pg.event_rate)
     |> build.put_optional("a11y", pg.a11y, a11y.to_prop_value)
-  Node(id: pg.id, kind: "pane_grid", props:, children: pg.children)
+  Node(
+    id: pg.id,
+    kind: "pane_grid",
+    props:,
+    children: pg.children,
+    meta: dict.new(),
+  )
 }

@@ -203,5 +203,5 @@ pub fn build(c: Canvas) -> Node {
     |> build.put_optional_string("arrow_mode", c.arrow_mode)
     |> build.put_optional_int("event_rate", c.event_rate)
     |> build.put_optional("a11y", c.a11y, a11y.to_prop_value)
-  Node(id: c.id, kind: "canvas", props:, children: [])
+  Node(id: c.id, kind: "canvas", props:, children: [], meta: dict.new())
 }

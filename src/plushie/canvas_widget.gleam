@@ -103,14 +103,14 @@ pub fn build(
   id: String,
   props: props,
 ) -> Node {
-  // Store the def and props as Dynamic in metadata props.
-  // These are consumed during normalization and never reach the wire.
-  let meta_props =
+  // Store the def and props in the meta field (not props).
+  // Meta is never sent to the renderer or included in tree diffs.
+  let meta =
     dict.from_list([
       #(meta_key, to_dynamic_prop(def)),
       #(props_key, to_dynamic_prop(props)),
     ])
-  Node(id:, kind: "canvas", props: meta_props, children: [])
+  Node(id:, kind: "canvas", props: dict.new(), children: [], meta:)
 }
 
 // -- Registry ----------------------------------------------------------------
@@ -168,7 +168,7 @@ pub fn make_entry(
 
 /// Check if a node is a canvas widget placeholder (has metadata props).
 pub fn is_placeholder(node: Node) -> Bool {
-  dict.has_key(node.props, meta_key)
+  dict.has_key(node.meta, meta_key)
 }
 
 /// Render a canvas widget placeholder using the registry.
@@ -182,7 +182,7 @@ pub fn render_placeholder(
   local_id: String,
   registry: Registry,
 ) -> Option(#(Node, RegistryEntry)) {
-  case dict.get(node.props, meta_key), dict.get(node.props, props_key) {
+  case dict.get(node.meta, meta_key), dict.get(node.meta, props_key) {
     Ok(def_prop), Ok(props_prop) -> {
       // Look up existing state or create initial
       let entry = case dict.get(registry, scoped_id) {
@@ -210,14 +210,13 @@ pub fn render_placeholder(
       // Attach metadata to the rendered node for registry derivation.
       // Use the scoped_id as the node ID (it was already computed by
       // normalize). Keep the rendered node's kind and children.
-      let meta =
+      let widget_meta =
         dict.from_list([
           #(meta_key, def_prop),
           #(props_key, props_prop),
           #(state_key, to_dynamic_prop(entry.state)),
         ])
-      let final_props = dict.merge(rendered.props, meta)
-      let final_node = Node(..rendered, id: scoped_id, props: final_props)
+      let final_node = Node(..rendered, id: scoped_id, meta: widget_meta)
       Some(#(final_node, entry))
     }
     _, _ -> None
@@ -235,9 +234,9 @@ pub fn derive_registry(tree: Node) -> Registry {
 
 fn derive_from_node(node: Node, acc: Registry) -> Registry {
   let acc = case
-    dict.get(node.props, meta_key),
-    dict.get(node.props, props_key),
-    dict.get(node.props, state_key)
+    dict.get(node.meta, meta_key),
+    dict.get(node.meta, props_key),
+    dict.get(node.meta, state_key)
   {
     Ok(def_prop), Ok(props_prop), Ok(state_prop) -> {
       let entry =
@@ -480,18 +479,9 @@ pub fn handle_widget_timer(
 
 // -- Metadata stripping ------------------------------------------------------
 
-/// Strip canvas widget metadata props from a node tree recursively.
-/// These are runtime-only props that the renderer doesn't understand.
-/// Called by protocol/encode.gleam before wire serialization.
-pub fn strip_metadata(node: Node) -> Node {
-  let props =
-    node.props
-    |> dict.delete(meta_key)
-    |> dict.delete(props_key)
-    |> dict.delete(state_key)
-  let children = list.map(node.children, strip_metadata)
-  Node(..node, props:, children:)
-}
+// strip_metadata is no longer needed -- metadata lives in the
+// separate `meta` field on Node, which is never included in
+// props diffing or wire encoding.
 
 // -- Scope extraction --------------------------------------------------------
 

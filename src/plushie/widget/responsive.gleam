@@ -73,5 +73,11 @@ pub fn build(r: Responsive) -> Node {
     |> build.put_optional("width", r.width, length.to_prop_value)
     |> build.put_optional("height", r.height, length.to_prop_value)
     |> build.put_optional("a11y", r.a11y, a11y.to_prop_value)
-  Node(id: r.id, kind: "responsive", props:, children: r.children)
+  Node(
+    id: r.id,
+    kind: "responsive",
+    props:,
+    children: r.children,
+    meta: dict.new(),
+  )
 }

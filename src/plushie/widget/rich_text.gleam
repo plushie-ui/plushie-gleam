@@ -324,5 +324,5 @@ pub fn build(rt: RichText) -> Node {
     |> build.put_optional("wrapping", rt.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("ellipsis", rt.ellipsis)
     |> build.put_optional("a11y", rt.a11y, a11y.to_prop_value)
-  Node(id: rt.id, kind: "rich_text", props:, children: [])
+  Node(id: rt.id, kind: "rich_text", props:, children: [], meta: dict.new())
 }

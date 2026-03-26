@@ -107,5 +107,5 @@ pub fn build(pb: ProgressBar) -> Node {
     |> build.put_optional_bool("vertical", pb.vertical)
     |> build.put_optional_string("label", pb.label)
     |> build.put_optional("a11y", pb.a11y, a11y.to_prop_value)
-  Node(id: pb.id, kind: "progress_bar", props:, children: [])
+  Node(id: pb.id, kind: "progress_bar", props:, children: [], meta: dict.new())
 }

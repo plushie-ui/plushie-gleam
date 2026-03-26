@@ -150,7 +150,13 @@ pub fn build(
   id: String,
   props: List(#(String, PropValue)),
 ) -> Node {
-  Node(id:, kind: def.kind, props: dict.from_list(props), children: [])
+  Node(
+    id:,
+    kind: def.kind,
+    props: dict.from_list(props),
+    children: [],
+    meta: dict.new(),
+  )
 }
 
 /// Build a container node for a native extension widget with children.
@@ -160,7 +166,13 @@ pub fn build_container(
   props: List(#(String, PropValue)),
   children: List(Node),
 ) -> Node {
-  Node(id:, kind: def.kind, props: dict.from_list(props), children:)
+  Node(
+    id:,
+    kind: def.kind,
+    props: dict.from_list(props),
+    children:,
+    meta: dict.new(),
+  )
 }
 
 /// Create an extension command targeting a specific widget instance.

@@ -99,5 +99,5 @@ pub fn build(p: Pin) -> Node {
     |> build.put_optional("width", p.width, length.to_prop_value)
     |> build.put_optional("height", p.height, length.to_prop_value)
     |> build.put_optional("a11y", p.a11y, a11y.to_prop_value)
-  Node(id: p.id, kind: "pin", props:, children: p.children)
+  Node(id: p.id, kind: "pin", props:, children: p.children, meta: dict.new())
 }

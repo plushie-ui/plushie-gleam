@@ -217,5 +217,5 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional_bool("on_submit", cb.on_submit)
     |> build.put_optional_string("style", cb.style)
     |> build.put_optional("a11y", cb.a11y, a11y.to_prop_value)
-  Node(id: cb.id, kind: "combo_box", props:, children: [])
+  Node(id: cb.id, kind: "combo_box", props:, children: [], meta: dict.new())
 }

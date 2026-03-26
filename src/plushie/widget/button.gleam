@@ -124,7 +124,7 @@ pub fn build(button: Button) -> Node {
     |> build.put_optional_bool("clip", button.clip)
     |> build.put_optional_bool("disabled", button.disabled)
     |> build.put_optional("a11y", button.a11y, a11y.to_prop_value)
-  Node(id: button.id, kind: "button", props:, children: [])
+  Node(id: button.id, kind: "button", props:, children: [], meta: dict.new())
 }
 
 fn style_to_string(s: ButtonStyle) -> String {

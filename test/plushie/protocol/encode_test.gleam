@@ -103,6 +103,7 @@ pub fn node_to_prop_value_maps_kind_to_type_test() {
       kind: "button",
       props: dict.from_list([#("label", StringVal("Click"))]),
       children: [],
+      meta: dict.new(),
     )
   let result = encode.node_to_prop_value(n)
   let assert DictVal(d) = result
@@ -116,9 +117,22 @@ pub fn node_to_prop_value_maps_kind_to_type_test() {
 }
 
 pub fn node_to_prop_value_nested_children_test() {
-  let child = Node(id: "t", kind: "text", props: dict.new(), children: [])
+  let child =
+    Node(
+      id: "t",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let parent =
-    Node(id: "col", kind: "column", props: dict.new(), children: [child])
+    Node(
+      id: "col",
+      kind: "column",
+      props: dict.new(),
+      children: [child],
+      meta: dict.new(),
+    )
   let result = encode.node_to_prop_value(parent)
   let assert DictVal(d) = result
   let assert Ok(ListVal([DictVal(child_dict)])) = dict.get(d, "children")
@@ -224,6 +238,7 @@ pub fn encode_snapshot_wraps_tree_test() {
       kind: "window",
       props: dict.from_list([#("title", StringVal("App"))]),
       children: [],
+      meta: dict.new(),
     )
   let assert Ok(bytes) = encode.encode_snapshot(tree, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
@@ -233,7 +248,14 @@ pub fn encode_snapshot_wraps_tree_test() {
 }
 
 pub fn encode_snapshot_msgpack_round_trip_test() {
-  let tree = Node(id: "r", kind: "container", props: dict.new(), children: [])
+  let tree =
+    Node(
+      id: "r",
+      kind: "container",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let assert Ok(bytes) = encode.encode_snapshot(tree, "", protocol.Msgpack)
   let assert Ok(#(decoded, _)) = glepack.unpack(bytes)
   let assert data.Map(m) = decoded
@@ -260,7 +282,13 @@ pub fn encode_patch_update_props_test() {
 
 pub fn encode_patch_replace_node_test() {
   let replacement =
-    Node(id: "new", kind: "text", props: dict.new(), children: [])
+    Node(
+      id: "new",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let ops = [patch.ReplaceNode(path: [], node: replacement)]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
@@ -269,7 +297,14 @@ pub fn encode_patch_replace_node_test() {
 }
 
 pub fn encode_patch_insert_child_test() {
-  let child = Node(id: "added", kind: "button", props: dict.new(), children: [])
+  let child =
+    Node(
+      id: "added",
+      kind: "button",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let ops = [patch.InsertChild(path: [0], index: 2, node: child)]
   let assert Ok(bytes) = encode.encode_patch(ops, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)

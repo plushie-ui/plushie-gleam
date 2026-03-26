@@ -52,5 +52,11 @@ pub fn build(th: Themer) -> Node {
     dict.new()
     |> dict.insert("theme", theme.to_prop_value(th.theme))
     |> build.put_optional("a11y", th.a11y, a11y.to_prop_value)
-  Node(id: th.id, kind: "themer", props:, children: th.children)
+  Node(
+    id: th.id,
+    kind: "themer",
+    props:,
+    children: th.children,
+    meta: dict.new(),
+  )
 }

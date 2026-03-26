@@ -34,7 +34,14 @@ pub fn padding_sets_padding_prop_test() {
 }
 
 pub fn push_adds_child_test() {
-  let child = Node(id: "c1", kind: "text", props: dict.new(), children: [])
+  let child =
+    Node(
+      id: "c1",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     column.new("col")
     |> column.push(child)
@@ -50,6 +57,7 @@ pub fn extend_adds_multiple_children_test() {
       kind: "text",
       props: dict.from_list([#("content", StringVal("A"))]),
       children: [],
+      meta: dict.new(),
     )
   let c2 =
     Node(
@@ -57,6 +65,7 @@ pub fn extend_adds_multiple_children_test() {
       kind: "text",
       props: dict.from_list([#("content", StringVal("B"))]),
       children: [],
+      meta: dict.new(),
     )
   let node =
     column.new("col")
@@ -67,8 +76,22 @@ pub fn extend_adds_multiple_children_test() {
 }
 
 pub fn push_preserves_order_test() {
-  let c1 = Node(id: "c1", kind: "text", props: dict.new(), children: [])
-  let c2 = Node(id: "c2", kind: "text", props: dict.new(), children: [])
+  let c1 =
+    Node(
+      id: "c1",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
+  let c2 =
+    Node(
+      id: "c2",
+      kind: "text",
+      props: dict.new(),
+      children: [],
+      meta: dict.new(),
+    )
   let node =
     column.new("col")
     |> column.push(c1)

@@ -62,5 +62,5 @@ pub fn build(s: Space) -> Node {
     |> build.put_optional("width", s.width, length.to_prop_value)
     |> build.put_optional("height", s.height, length.to_prop_value)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
-  Node(id: s.id, kind: "space", props:, children: [])
+  Node(id: s.id, kind: "space", props:, children: [], meta: dict.new())
 }

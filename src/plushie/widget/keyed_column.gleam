@@ -121,5 +121,11 @@ pub fn build(kc: KeyedColumn) -> Node {
     |> build.put_optional_float("max_width", kc.max_width)
     |> build.put_optional("align_x", kc.align_x, alignment.to_prop_value)
     |> build.put_optional("a11y", kc.a11y, a11y.to_prop_value)
-  Node(id: kc.id, kind: "keyed_column", props:, children: kc.children)
+  Node(
+    id: kc.id,
+    kind: "keyed_column",
+    props:,
+    children: kc.children,
+    meta: dict.new(),
+  )
 }

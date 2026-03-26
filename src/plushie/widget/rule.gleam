@@ -82,5 +82,5 @@ pub fn build(r: Rule) -> Node {
     })
     |> build.put_optional_string("style", r.style)
     |> build.put_optional("a11y", r.a11y, a11y.to_prop_value)
-  Node(id: r.id, kind: "rule", props:, children: [])
+  Node(id: r.id, kind: "rule", props:, children: [], meta: dict.new())
 }

@@ -124,7 +124,7 @@ fn normalize_regular(
   // Warn on duplicate sibling IDs
   check_duplicate_sibling_ids(children)
 
-  Node(id: scoped_id, kind: node.kind, props:, children:)
+  Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new())
 }
 
 fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {

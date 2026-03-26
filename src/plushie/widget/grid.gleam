@@ -150,5 +150,5 @@ pub fn build(g: Grid) -> Node {
     |> build.put_optional("row_height", g.row_height, length.to_prop_value)
     |> build.put_optional_float("fluid", g.fluid)
     |> build.put_optional("a11y", g.a11y, a11y.to_prop_value)
-  Node(id: g.id, kind: "grid", props:, children: g.children)
+  Node(id: g.id, kind: "grid", props:, children: g.children, meta: dict.new())
 }

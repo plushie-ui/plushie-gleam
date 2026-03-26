@@ -200,5 +200,5 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional_bool("on_close", pl.on_close)
     |> build.put_optional_string("style", pl.style)
     |> build.put_optional("a11y", pl.a11y, a11y.to_prop_value)
-  Node(id: pl.id, kind: "pick_list", props:, children: [])
+  Node(id: pl.id, kind: "pick_list", props:, children: [], meta: dict.new())
 }
