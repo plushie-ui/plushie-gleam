@@ -390,6 +390,22 @@ pub fn get_prop_warnings(
 }
 
 @target(erlang)
+/// Wait for an async task with the given tag to complete.
+///
+/// If the task has already completed, returns immediately. Otherwise
+/// blocks until the task finishes and its result has been processed
+/// through update.
+pub fn await_async(
+  instance: Instance(_),
+  tag: String,
+  timeout: Int,
+) -> Result(Nil, Nil) {
+  let reply = process.new_subject()
+  process.send(instance.runtime, runtime.AwaitAsync(tag:, reply:))
+  process.receive(reply, timeout)
+}
+
+@target(erlang)
 /// Block the caller until the plushie application exits.
 ///
 /// Monitors the supervisor process and returns when it stops.

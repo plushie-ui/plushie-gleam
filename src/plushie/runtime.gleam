@@ -96,6 +96,9 @@ pub type RuntimeMessage {
   UnregisterEffectStub(kind: String, reply: Subject(Nil))
   /// Query accumulated prop validation warnings and clear them.
   GetPropWarnings(reply: Subject(List(#(String, String, List(String)))))
+  /// Wait for an async task to complete. Replies when the task with
+  /// the given tag finishes, or immediately if already done.
+  AwaitAsync(tag: String, reply: Subject(Nil))
 }
 
 @target(erlang)
@@ -197,6 +200,8 @@ type LoopState(model, msg) {
     prop_warnings: List(#(String, String, List(String))),
     // Canvas widget state registry (scoped ID -> entry)
     cw_registry: canvas_widget.Registry,
+    // Callers waiting for async task completion, keyed by tag
+    pending_await_async: Dict(String, Subject(Nil)),
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -302,6 +307,7 @@ fn init_runtime(
       pending_stub_acks: dict.new(),
       prop_warnings: [],
       cw_registry: initial_cw_registry,
+      pending_await_async: dict.new(),
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -546,10 +552,12 @@ fn handle_message(
         Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
           process.demonitor_process(monitor)
           let new_state = handle_event(state, event.AsyncResult(tag:, result:))
-          LoopState(
-            ..new_state,
-            async_tasks: dict.delete(new_state.async_tasks, tag),
-          )
+          let new_state =
+            LoopState(
+              ..new_state,
+              async_tasks: dict.delete(new_state.async_tasks, tag),
+            )
+          notify_await_async(new_state, tag)
           |> actor.continue()
         }
         _ -> actor.continue(state)
@@ -640,6 +648,7 @@ fn handle_message(
                   ..state,
                   async_tasks: dict.delete(state.async_tasks, tag),
                 )
+              let state = notify_await_async(state, tag)
               case reason {
                 process.Normal -> actor.continue(state)
                 _ -> {
@@ -967,6 +976,22 @@ fn handle_message(
       process.send(reply, state.prop_warnings)
       LoopState(..state, prop_warnings: [])
       |> actor.continue()
+    }
+
+    AwaitAsync(tag:, reply:) -> {
+      case dict.has_key(state.async_tasks, tag) {
+        True -> {
+          // Task still running -- store caller and reply when done
+          let pending = dict.insert(state.pending_await_async, tag, reply)
+          LoopState(..state, pending_await_async: pending)
+          |> actor.continue()
+        }
+        False -> {
+          // Task already completed (or never existed)
+          process.send(reply, Nil)
+          actor.continue(state)
+        }
+      }
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
@@ -1546,7 +1571,29 @@ fn cancel_existing_task(
     Ok(#(pid, _nonce, monitor)) -> {
       process.demonitor_process(monitor)
       process.kill(pid)
-      LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+      let state =
+        LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+      notify_await_async(state, tag)
+    }
+    Error(_) -> state
+  }
+}
+
+// -- Await async notification ------------------------------------------------
+
+@target(erlang)
+/// Notify any caller waiting on an async task via AwaitAsync.
+fn notify_await_async(
+  state: LoopState(model, msg),
+  tag: String,
+) -> LoopState(model, msg) {
+  case dict.get(state.pending_await_async, tag) {
+    Ok(reply) -> {
+      process.send(reply, Nil)
+      LoopState(
+        ..state,
+        pending_await_async: dict.delete(state.pending_await_async, tag),
+      )
     }
     Error(_) -> state
   }
