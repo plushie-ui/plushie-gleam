@@ -447,9 +447,12 @@ fn handle_message(
     }
 
     FromBridge(InboundEvent(InteractStep(_id, events))) -> {
-      // Process events from interact step as a batch.
+      // Process events through update+commands WITHOUT rendering after
+      // each one. Matches Elixir's apply_event which defers view/render.
       let state =
-        list.fold(events, state, fn(state, ev) { handle_event(state, ev) })
+        list.fold(events, state, fn(state, ev) { apply_event(state, ev) })
+      // Render once and send a single snapshot (headless step protocol).
+      let state = rerender(state)
       actor.continue(state)
     }
 
@@ -1291,6 +1294,34 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
       )
       state
     }
+  }
+}
+
+@target(erlang)
+/// Process an event through update + commands WITHOUT rendering.
+/// Used by interact_step to batch events before a single render.
+/// Matches Elixir's apply_event (runtime.ex lines 972-987).
+fn apply_event(
+  state: LoopState(model, msg),
+  event: Event,
+) -> LoopState(model, msg) {
+  // Route through canvas_widget scope chain
+  let #(maybe_event, new_registry) =
+    canvas_widget.dispatch_through_widgets(state.cw_registry, event)
+  let state = LoopState(..state, cw_registry: new_registry)
+  case maybe_event {
+    Some(ev) -> {
+      let mapped_msg = runtime_core.map_event(state.app, ev)
+      let update_fn = app.get_update(state.app)
+      case platform.try_call(fn() { update_fn(state.model, mapped_msg) }) {
+        Ok(#(new_model, commands)) -> {
+          let state = LoopState(..state, model: new_model)
+          execute_commands(commands, state)
+        }
+        Error(_) -> state
+      }
+    }
+    None -> state
   }
 }
 
