@@ -1,23 +1,29 @@
 //// Canvas-based HSV color picker widget.
 ////
-//// Renders a hue ring surrounding a saturation/value square. The ring
-//// is built from path segments covering the hue spectrum. The SV square
-//// uses overlapping linear gradients (hue-to-white horizontal,
-//// transparent-to-black vertical). Cursor circles mark the current hue
-//// position on the ring and the current SV position in the square.
+//// A hue ring surrounds a saturation/value square. Drag the ring to
+//// select a hue; drag the square to adjust saturation and value.
+//// Keyboard accessible: Tab to focus cursors, arrow keys to adjust.
 ////
-////     color_picker_widget.render("picker", model.hue, model.saturation, model.value)
+////     color_picker_widget.widget("picker")
 ////
-//// Events: `CanvasPress`, `CanvasMove`, `CanvasRelease` with absolute
-//// x/y coordinates. The consuming app computes hue angles and SV
-//// positions from the geometry accessors.
+//// Events:
+//// - `WidgetEvent(kind: "change")` with data containing hue, saturation, value
 
 import gleam/dict
+import gleam/dynamic
 import gleam/float
 import gleam/int
 import gleam/list
 import plushie/canvas/shape
-import plushie/node.{type Node, type PropValue}
+import plushie/canvas_widget.{
+  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+  UpdateState,
+}
+import plushie/event.{
+  type Event, CanvasElementKeyPress, CanvasMove, CanvasPress, CanvasRelease,
+}
+import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
+import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget/canvas
 
@@ -37,47 +43,207 @@ const segments = 72
 
 const cursor_radius = 7.0
 
-// -- Geometry accessors (for consumers doing hit testing) ----------------------
+const fine_step = 1.0
 
-/// Canvas size in pixels (square).
-pub fn canvas_size() -> Int {
-  canvas_sz
+const coarse_step = 15.0
+
+const sv_fine_step = 0.01
+
+const sv_coarse_step = 0.1
+
+// -- Types --------------------------------------------------------------------
+
+pub type DragTarget {
+  DragNone
+  DragRing
+  DragSquare
 }
 
-/// Centre x coordinate.
-pub fn cx() -> Float {
+pub type PickerState {
+  PickerState(hue: Float, saturation: Float, value: Float, drag: DragTarget)
+}
+
+// -- Widget definition --------------------------------------------------------
+
+pub fn def() -> CanvasWidgetDef(PickerState, Nil) {
+  CanvasWidgetDef(
+    init: fn() {
+      PickerState(hue: 0.0, saturation: 1.0, value: 1.0, drag: DragNone)
+    },
+    render: render,
+    handle_event: handle_event,
+    subscriptions: fn(_, _) { [] },
+  )
+}
+
+/// Build a color picker canvas widget placeholder.
+pub fn widget(id: String) -> Node {
+  canvas_widget.build(def(), id, Nil)
+}
+
+// -- Geometry accessors (for consumers) ---------------------------------------
+
+fn cx() -> Float {
   int.to_float(canvas_sz) /. 2.0
 }
 
-/// Centre y coordinate.
-pub fn cy() -> Float {
+fn cy() -> Float {
   int.to_float(canvas_sz) /. 2.0
 }
 
-/// Inner radius of the hue ring.
-pub fn inner_r() -> Float {
-  inner_radius
+// -- Event handler ------------------------------------------------------------
+
+fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState) {
+  case event {
+    CanvasPress(x: x, y: y, button: "left", ..) -> {
+      let dx = x -. cx()
+      let dy = y -. cy()
+      let dist = sqrt(dx *. dx +. dy *. dy)
+      case dist >=. inner_radius && dist <=. outer_radius {
+        True -> {
+          let new_state =
+            PickerState(..state, drag: DragRing, hue: hue_from_point(dx, dy))
+          #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+        }
+        False ->
+          case in_square(x, y) {
+            True -> {
+              let new_state =
+                apply_sv(PickerState(..state, drag: DragSquare), x, y)
+              #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+            }
+            False -> #(Consumed, state)
+          }
+      }
+    }
+
+    CanvasMove(x: x, y: y, ..) ->
+      case state.drag {
+        DragRing -> {
+          let new_state =
+            PickerState(..state, hue: hue_from_point(x -. cx(), y -. cy()))
+          #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+        }
+        DragSquare -> {
+          let new_state = apply_sv(state, x, y)
+          #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+        }
+        DragNone -> #(Consumed, state)
+      }
+
+    CanvasRelease(..) -> #(UpdateState, PickerState(..state, drag: DragNone))
+
+    CanvasElementKeyPress(
+      element_id: "hue-cursor",
+      key: key,
+      modifiers: mods,
+      ..,
+    ) -> handle_hue_key(key, mods, state)
+
+    CanvasElementKeyPress(
+      element_id: "sv-cursor",
+      key: key,
+      modifiers: mods,
+      ..,
+    ) -> handle_sv_key(key, mods, state)
+
+    _ -> #(Consumed, state)
+  }
 }
 
-/// Outer radius of the hue ring.
-pub fn outer_r() -> Float {
-  outer_radius
+// -- Keyboard ----------------------------------------------------------------
+
+fn handle_hue_key(
+  key: String,
+  mods: event.Modifiers,
+  state: PickerState,
+) -> #(EventAction, PickerState) {
+  let step = case mods.shift {
+    True -> coarse_step
+    False -> fine_step
+  }
+
+  let new_hue = case key {
+    "ArrowRight" | "ArrowUp" -> fmod(state.hue +. step, 360.0)
+    "ArrowLeft" | "ArrowDown" -> fmod(state.hue -. step +. 360.0, 360.0)
+    "PageUp" -> fmod(state.hue +. coarse_step, 360.0)
+    "PageDown" -> fmod(state.hue -. coarse_step +. 360.0, 360.0)
+    "Home" -> 0.0
+    "End" -> 359.0
+    _ -> state.hue
+  }
+
+  case new_hue != state.hue {
+    True -> {
+      let new_state = PickerState(..state, hue: new_hue)
+      #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+    }
+    False -> #(Consumed, state)
+  }
 }
 
-/// Origin (top-left x and y) of the SV square.
-pub fn sq_origin() -> Float {
-  sq_orig
+fn handle_sv_key(
+  key: String,
+  mods: event.Modifiers,
+  state: PickerState,
+) -> #(EventAction, PickerState) {
+  let step = case mods.shift {
+    True -> sv_coarse_step
+    False -> sv_fine_step
+  }
+
+  let #(new_s, new_v) = case key {
+    "ArrowRight" -> #(clamp(state.saturation +. step, 0.0, 1.0), state.value)
+    "ArrowLeft" -> #(clamp(state.saturation -. step, 0.0, 1.0), state.value)
+    "ArrowUp" -> #(state.saturation, clamp(state.value +. step, 0.0, 1.0))
+    "ArrowDown" -> #(state.saturation, clamp(state.value -. step, 0.0, 1.0))
+    "PageUp" ->
+      case mods.shift {
+        True -> #(
+          clamp(state.saturation +. sv_coarse_step, 0.0, 1.0),
+          state.value,
+        )
+        False -> #(
+          state.saturation,
+          clamp(state.value +. sv_coarse_step, 0.0, 1.0),
+        )
+      }
+    "PageDown" ->
+      case mods.shift {
+        True -> #(
+          clamp(state.saturation -. sv_coarse_step, 0.0, 1.0),
+          state.value,
+        )
+        False -> #(
+          state.saturation,
+          clamp(state.value -. sv_coarse_step, 0.0, 1.0),
+        )
+      }
+    "Home" ->
+      case mods.shift {
+        True -> #(0.0, state.value)
+        False -> #(state.saturation, 1.0)
+      }
+    "End" ->
+      case mods.shift {
+        True -> #(1.0, state.value)
+        False -> #(state.saturation, 0.0)
+      }
+    _ -> #(state.saturation, state.value)
+  }
+
+  case new_s != state.saturation || new_v != state.value {
+    True -> {
+      let new_state = PickerState(..state, saturation: new_s, value: new_v)
+      #(Emit(kind: "change", data: hsv_data(new_state)), new_state)
+    }
+    False -> #(Consumed, state)
+  }
 }
 
-/// Side length of the SV square.
-pub fn sq_size() -> Float {
-  sq_sz
-}
+// -- Render -------------------------------------------------------------------
 
-// -- Public render function ---------------------------------------------------
-
-/// Render the color picker canvas.
-pub fn render(id: String, hue: Float, saturation: Float, value: Float) -> Node {
+fn render(id: String, _props: Nil, state: PickerState) -> Node {
   canvas.new(
     id,
     length.Fixed(int.to_float(canvas_sz)),
@@ -86,15 +252,98 @@ pub fn render(id: String, hue: Float, saturation: Float, value: Float) -> Node {
   |> canvas.on_press(True)
   |> canvas.on_release(True)
   |> canvas.on_move(True)
+  |> canvas.alt("HSV color picker")
   |> canvas.layers(
     dict.from_list([
       #("a_ring", ring_layer()),
-      #("b_sv_hue", sv_hue_layer(hue)),
+      #("b_sv_hue", sv_hue_layer(state.hue)),
       #("c_sv_dark", sv_dark_layer()),
-      #("d_cursors", cursors_layer(hue, saturation, value)),
+      #("d_cursors", cursors_layer(state)),
     ]),
   )
   |> canvas.build()
+}
+
+// -- Cursors ------------------------------------------------------------------
+
+fn cursors_layer(state: PickerState) -> List(PropValue) {
+  let mid_r = { inner_radius +. outer_radius } /. 2.0
+  let angle = { state.hue -. 90.0 } *. pi() /. 180.0
+  let ring_x = cx() +. mid_r *. cos(angle)
+  let ring_y = cy() +. mid_r *. sin(angle)
+
+  let sv_x = sq_orig +. state.saturation *. sq_sz
+  let sv_y = sq_orig +. { 1.0 -. state.value } *. sq_sz
+
+  let cursor_stroke = shape.stroke("#333333", 2.0, [])
+  let focus_stroke =
+    DictVal(
+      dict.from_list([
+        #(
+          "stroke",
+          DictVal(
+            dict.from_list([
+              #("color", StringVal("#3b82f6")),
+              #("width", FloatVal(3.0)),
+            ]),
+          ),
+        ),
+      ]),
+    )
+
+  [
+    shape.group(
+      [
+        shape.circle(0.0, 0.0, cursor_radius, [
+          shape.Fill("#ffffff"),
+          shape.Stroke(cursor_stroke),
+        ]),
+      ],
+      [shape.X(ring_x), shape.Y(ring_y)],
+    )
+      |> shape.interactive("hue-cursor", [
+        shape.Focusable(True),
+        shape.OnClick(True),
+        shape.FocusStyle(focus_stroke),
+        shape.ShowFocusRing(False),
+        shape.A11y(
+          a11y.new()
+          |> a11y.role(a11y.Slider)
+          |> a11y.label("Hue")
+          |> a11y.value(int.to_string(float.round(state.hue)) <> " degrees")
+          |> a11y.orientation(a11y.Horizontal)
+          |> a11y.to_prop_value(),
+        ),
+      ]),
+    shape.group(
+      [
+        shape.circle(0.0, 0.0, cursor_radius, [
+          shape.Fill("#ffffff"),
+          shape.Stroke(cursor_stroke),
+        ]),
+      ],
+      [shape.X(sv_x), shape.Y(sv_y)],
+    )
+      |> shape.interactive("sv-cursor", [
+        shape.Focusable(True),
+        shape.OnClick(True),
+        shape.FocusStyle(focus_stroke),
+        shape.ShowFocusRing(False),
+        shape.A11y(
+          a11y.new()
+          |> a11y.role(a11y.Slider)
+          |> a11y.label("Saturation and brightness")
+          |> a11y.value(
+            int.to_string(float.round(state.saturation *. 100.0))
+            <> "% saturation, "
+            <> int.to_string(float.round(state.value *. 100.0))
+            <> "% brightness",
+          )
+          |> a11y.orientation(a11y.Horizontal)
+          |> a11y.to_prop_value(),
+        ),
+      ]),
+  ]
 }
 
 // -- Ring layer ---------------------------------------------------------------
@@ -164,29 +413,43 @@ fn sv_dark_layer() -> List(PropValue) {
   ]
 }
 
-// -- Cursors ------------------------------------------------------------------
+// -- Hit testing --------------------------------------------------------------
 
-fn cursors_layer(hue: Float, saturation: Float, value: Float) -> List(PropValue) {
-  let mid_r = { inner_radius +. outer_radius } /. 2.0
-  let angle = { hue -. 90.0 } *. pi() /. 180.0
-  let ring_x = cx() +. mid_r *. cos(angle)
-  let ring_y = cy() +. mid_r *. sin(angle)
+fn in_square(x: Float, y: Float) -> Bool {
+  x >=. sq_orig
+  && x <=. sq_orig +. sq_sz
+  && y >=. sq_orig
+  && y <=. sq_orig +. sq_sz
+}
 
-  let sv_x = sq_orig +. saturation *. sq_sz
-  let sv_y = sq_orig +. { 1.0 -. value } *. sq_sz
+// -- Coordinate math ----------------------------------------------------------
 
-  let cursor_stroke = shape.stroke("#333333", 2.0, [])
+fn hue_from_point(dx: Float, dy: Float) -> Float {
+  let angle = atan2(dy, dx)
+  let hue = angle +. pi() /. 2.0
+  let hue = case hue <. 0.0 {
+    True -> hue +. 2.0 *. pi()
+    False -> hue
+  }
+  hue *. 180.0 /. pi()
+}
 
-  [
-    shape.circle(ring_x, ring_y, cursor_radius, [
-      shape.Fill("#ffffff"),
-      shape.Stroke(cursor_stroke),
-    ]),
-    shape.circle(sv_x, sv_y, cursor_radius, [
-      shape.Fill("#ffffff"),
-      shape.Stroke(cursor_stroke),
-    ]),
-  ]
+fn apply_sv(state: PickerState, x: Float, y: Float) -> PickerState {
+  let s = clamp({ x -. sq_orig } /. sq_sz, 0.0, 1.0)
+  let v = clamp(1.0 -. { y -. sq_orig } /. sq_sz, 0.0, 1.0)
+  PickerState(..state, saturation: s, value: v)
+}
+
+fn clamp(val: Float, lo: Float, hi: Float) -> Float {
+  float.max(lo, float.min(hi, val))
+}
+
+fn hsv_data(state: PickerState) -> dynamic.Dynamic {
+  dynamic.properties([
+    #(dynamic.string("hue"), dynamic.float(state.hue)),
+    #(dynamic.string("saturation"), dynamic.float(state.saturation)),
+    #(dynamic.string("value"), dynamic.float(state.value)),
+  ])
 }
 
 // -- Color conversion ---------------------------------------------------------
@@ -257,6 +520,13 @@ fn float_abs(x: Float) -> Float {
   }
 }
 
+fn range_list(from: Int, to: Int) -> List(Int) {
+  case from > to {
+    True -> []
+    False -> [from, ..range_list(from + 1, to)]
+  }
+}
+
 // -- FFI (Erlang math) --------------------------------------------------------
 
 @external(erlang, "math", "cos")
@@ -265,13 +535,14 @@ fn cos(x: Float) -> Float
 @external(erlang, "math", "sin")
 fn sin(x: Float) -> Float
 
+@external(erlang, "math", "sqrt")
+fn sqrt(x: Float) -> Float
+
+@external(erlang, "math", "atan2")
+fn atan2(y: Float, x: Float) -> Float
+
 @external(erlang, "math", "pi")
 fn pi() -> Float
 
 @external(erlang, "math", "floor")
 fn float_floor(x: Float) -> Float
-
-fn range_list(from: Int, to: Int) -> List(Int) {
-  int.range(from: from, to: to, with: [], run: fn(acc, i) { [i, ..acc] })
-  |> list.reverse
-}

@@ -3,22 +3,25 @@
 //// Demonstrates custom canvas widgets (StarRating, ThemeToggle) composed
 //// with styled containers using the UI DSL. The "Dark humor" toggle
 //// animates the emoji and flips the entire page theme.
+////
+//// The review form showcases form validation with:
+//// - Per-field error state tracked in the model
+//// - Accessible error wiring via a11y (required, invalid, error_message)
+//// - Validate-on-submit with clear-on-change for responsive UX
 
 import examples/widgets/star_rating
 import examples/widgets/theme_toggle
-import gleam/dict
+import gleam/dict.{type Dict}
+import gleam/dynamic.{type Dynamic}
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
-import gleam/option.{type Option}
 import gleam/string
 import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave,
-  TimerTick, WidgetClick, WidgetInput, WidgetSubmit,
+  type Event, WidgetClick, WidgetEvent, WidgetInput, WidgetSubmit,
 }
 import plushie/node.{type Node, StringVal}
 import plushie/prop/a11y
@@ -95,10 +98,12 @@ type Theme {
     text: String,
     text_secondary: String,
     text_muted: String,
+    error_text: String,
+    error_border: String,
   )
 }
 
-fn theme(p: Float) -> Theme {
+fn build_theme(p: Float) -> Theme {
   Theme(
     page_bg: fade(#(248, 248, 250), #(19, 19, 31), p),
     card_bg: fade(#(255, 255, 255), #(28, 28, 50), p),
@@ -106,6 +111,8 @@ fn theme(p: Float) -> Theme {
     text: fade(#(26, 26, 26), #(240, 240, 245), p),
     text_secondary: fade(#(102, 102, 102), #(153, 153, 187), p),
     text_muted: fade(#(170, 170, 170), #(85, 85, 119), p),
+    error_text: fade(#(185, 28, 28), #(255, 100, 100), p),
+    error_border: fade(#(220, 38, 38), #(255, 80, 80), p),
   )
 }
 
@@ -114,28 +121,6 @@ fn fade(c1: #(Int, Int, Int), c2: #(Int, Int, Int), t: Float) -> String {
   let g = float.round(int.to_float(c1.1) +. int.to_float(c2.1 - c1.1) *. t)
   let b = float.round(int.to_float(c1.2) +. int.to_float(c2.2 - c1.2) *. t)
   "#" <> hex_byte(r) <> hex_byte(g) <> hex_byte(b)
-}
-
-fn smoothstep(t: Float) -> Float {
-  case t <=. 0.0 {
-    True -> 0.0
-    False ->
-      case t >=. 1.0 {
-        True -> 1.0
-        False -> t *. t *. { 3.0 -. 2.0 *. t }
-      }
-  }
-}
-
-fn approach(current: Float, target: Float, step: Float) -> Float {
-  case current <. target {
-    True -> float.min(current +. step, target)
-    False ->
-      case current >. target {
-        True -> float.max(current -. step, target)
-        False -> current
-      }
-  }
 }
 
 fn hex_byte(n: Int) -> String {
@@ -171,12 +156,11 @@ fn hex_digit(n: Int) -> String {
 pub type Model {
   Model(
     rating: Int,
-    hover_star: Option(Int),
-    toggle_progress: Float,
-    toggle_target: Float,
+    dark_mode: Bool,
     reviews: List(Review),
     review_name: String,
     review_comment: String,
+    errors: Dict(String, String),
   )
 }
 
@@ -184,12 +168,11 @@ fn init() {
   #(
     Model(
       rating: 0,
-      hover_star: option.None,
-      toggle_progress: 0.0,
-      toggle_target: 0.0,
+      dark_mode: False,
       reviews: initial_reviews,
       review_name: "",
       review_comment: "",
+      errors: dict.new(),
     ),
     command.none(),
   )
@@ -199,47 +182,38 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    // Star rating interactions
-    CanvasElementClick(id: "stars", element_id: element_id, ..) ->
-      case string.starts_with(element_id, "star-") {
-        True -> {
-          let n = parse_star_index(element_id)
-          #(Model(..model, rating: n + 1), command.none())
-        }
-        False -> #(model, command.none())
-      }
-
-    CanvasElementEnter(id: "stars", element_id: element_id, ..) ->
-      case string.starts_with(element_id, "star-") {
-        True -> {
-          let n = parse_star_index(element_id)
-          #(Model(..model, hover_star: option.Some(n + 1)), command.none())
-        }
-        False -> #(model, command.none())
-      }
-
-    CanvasElementLeave(id: "stars", ..) -> #(
-      Model(..model, hover_star: option.None),
-      command.none(),
-    )
-
-    // Theme toggle
-    CanvasElementClick(id: "theme-toggle", ..) -> {
-      let target = case model.toggle_target == 0.0 {
-        True -> 1.0
-        False -> 0.0
-      }
-      #(Model(..model, toggle_target: target), command.none())
+    // StarRating emits "select" with data = star count (1-5).
+    WidgetEvent(kind: "select", id: "stars", data: data, ..) -> {
+      let stars = coerce_int(data)
+      #(
+        Model(
+          ..model,
+          rating: stars,
+          errors: dict.delete(model.errors, "rating"),
+        ),
+        command.none(),
+      )
     }
 
-    // Review form
+    // ThemeToggle emits "toggle" with data = Bool.
+    // Animation is managed internally by the canvas_widget.
+    WidgetEvent(kind: "toggle", id: "theme-toggle", data: data, ..) -> {
+      let dark = coerce_bool(data)
+      #(Model(..model, dark_mode: dark), command.none())
+    }
+
+    // Review form inputs -- clear errors on change
     WidgetInput(id: "review-name", value: v, ..) -> #(
-      Model(..model, review_name: v),
+      Model(..model, review_name: v, errors: dict.delete(model.errors, "name")),
       command.none(),
     )
 
     WidgetInput(id: "review-comment", value: v, ..) -> #(
-      Model(..model, review_comment: v),
+      Model(
+        ..model,
+        review_comment: v,
+        errors: dict.delete(model.errors, "comment"),
+      ),
       command.none(),
     )
 
@@ -253,22 +227,17 @@ fn update(model: Model, event: Event) {
       command.none(),
     )
 
-    // Animation
-    TimerTick(tag: "animate", ..) -> {
-      let progress = approach(model.toggle_progress, model.toggle_target, 0.06)
-      #(Model(..model, toggle_progress: progress), command.none())
-    }
-
     _ -> #(model, command.none())
   }
 }
 
 fn submit_review(model: Model) -> Model {
-  let name = string.trim(model.review_name)
-  let comment = string.trim(model.review_comment)
+  let errors = validate_review(model)
 
-  case name != "" && comment != "" && model.rating > 0 {
+  case dict.size(errors) == 0 {
     True -> {
+      let name = string.trim(model.review_name)
+      let comment = string.trim(model.review_comment)
       let review =
         Review(stars: model.rating, user: name, time: "just now", text: comment)
       Model(
@@ -277,34 +246,60 @@ fn submit_review(model: Model) -> Model {
         review_name: "",
         review_comment: "",
         rating: 0,
+        errors: dict.new(),
       )
     }
-    False -> model
+    False -> Model(..model, errors: errors)
   }
 }
 
-fn parse_star_index(element_id: String) -> Int {
-  let suffix = string.drop_start(element_id, 5)
-  case int.parse(suffix) {
-    Ok(n) -> n
-    Error(_) -> 0
+fn validate_review(model: Model) -> Dict(String, String) {
+  dict.new()
+  |> validate_required("name", model.review_name, "Name is required")
+  |> validate_required(
+    "comment",
+    model.review_comment,
+    "Review text is required",
+  )
+  |> validate_rating(model.rating)
+}
+
+fn validate_required(
+  errors: Dict(String, String),
+  key: String,
+  value: String,
+  message: String,
+) -> Dict(String, String) {
+  case string.trim(value) == "" {
+    True -> dict.insert(errors, key, message)
+    False -> errors
+  }
+}
+
+fn validate_rating(
+  errors: Dict(String, String),
+  rating: Int,
+) -> Dict(String, String) {
+  case rating > 0 {
+    True -> errors
+    False -> dict.insert(errors, "rating", "Please select a rating")
   }
 }
 
 // -- Subscriptions ------------------------------------------------------------
 
-fn subscribe(model: Model) -> List(subscription.Subscription) {
-  case model.toggle_progress != model.toggle_target {
-    True -> [subscription.every(16, "animate")]
-    False -> []
-  }
+fn subscribe(_model: Model) -> List(subscription.Subscription) {
+  []
 }
 
 // -- View ---------------------------------------------------------------------
 
 fn view(model: Model) -> Node {
-  let p = smoothstep(model.toggle_progress)
-  let t = theme(p)
+  let p = case model.dark_mode {
+    True -> 1.0
+    False -> 0.0
+  }
+  let t = build_theme(p)
 
   let page_theme =
     theme.custom(
@@ -384,13 +379,27 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
           text.Size(14.0),
           text.Color(hex(t.text_secondary)),
         ]),
-        star_rating.render("stars", model.rating, [
-          star_rating.Hover(model.hover_star),
-          star_rating.ThemeProgress(p),
+        ui.column("stars-group", [column.Spacing(4)], [
+          star_rating.widget(
+            "stars",
+            star_rating.props(model.rating) |> star_rating.theme_progress(p),
+          ),
+          ..case dict.get(model.errors, "rating") {
+            Ok(error) -> [
+              ui.text("stars-error", error, [
+                text.Size(12.0),
+                text.Color(hex(t.error_text)),
+                text.A11y(
+                  a11y.new() |> a11y.role(a11y.Alert) |> a11y.live("polite"),
+                ),
+              ]),
+            ]
+            Error(_) -> []
+          }
         ]),
         ui.rule("divider", []),
-        review_form(model),
-        theme_row(model, t),
+        review_form(model, t),
+        theme_row(t),
       ]),
     ],
   )
@@ -398,30 +407,80 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
 
 // -- View: review form --------------------------------------------------------
 
-fn review_form(model: Model) -> Node {
+fn review_form(model: Model, t: Theme) -> Node {
+  let name_error = dict.get(model.errors, "name")
+  let comment_error = dict.get(model.errors, "comment")
+
   ui.column("review-form", [column.Spacing(12), column.Width(length.Fill)], [
-    ui.text_input("review-name", model.review_name, [
-      text_input.Placeholder("Your name"),
-      text_input.A11y(a11y.new() |> a11y.label("Your name")),
+    ui.column("name-field", [column.Spacing(4), column.Width(length.Fill)], [
+      ui.text_input("review-name", model.review_name, [
+        text_input.Placeholder("Your name"),
+        text_input.OnSubmit(True),
+        text_input.A11y(
+          a11y.new()
+          |> a11y.label("Your name")
+          |> a11y.required(True)
+          |> a11y.invalid(name_error != Error(Nil))
+          |> case name_error {
+            Ok(_) -> a11y.error_message(_, "review-name-error")
+            Error(_) -> fn(a) { a }
+          },
+        ),
+      ]),
+      ..case name_error {
+        Ok(error) -> [
+          ui.text("review-name-error", error, [
+            text.Size(12.0),
+            text.Color(hex(t.error_text)),
+            text.A11y(
+              a11y.new() |> a11y.role(a11y.Alert) |> a11y.live("polite"),
+            ),
+          ]),
+        ]
+        Error(_) -> []
+      }
     ]),
-    text_editor.new("review-comment", model.review_comment)
-      |> text_editor.placeholder("Write your review...")
-      |> text_editor.height(length.Fixed(80.0))
-      |> text_editor.a11y(a11y.new() |> a11y.label("Review text"))
-      |> text_editor.build(),
+    ui.column("comment-field", [column.Spacing(4), column.Width(length.Fill)], [
+      text_editor.new("review-comment", model.review_comment)
+        |> text_editor.placeholder("Write your review...")
+        |> text_editor.height(length.Fixed(80.0))
+        |> text_editor.a11y(
+          a11y.new()
+          |> a11y.label("Review text")
+          |> a11y.required(True)
+          |> a11y.invalid(comment_error != Error(Nil))
+          |> case comment_error {
+            Ok(_) -> a11y.error_message(_, "review-comment-error")
+            Error(_) -> fn(a) { a }
+          },
+        )
+        |> text_editor.build(),
+      ..case comment_error {
+        Ok(error) -> [
+          ui.text("review-comment-error", error, [
+            text.Size(12.0),
+            text.Color(hex(t.error_text)),
+            text.A11y(
+              a11y.new() |> a11y.role(a11y.Alert) |> a11y.live("polite"),
+            ),
+          ]),
+        ]
+        Error(_) -> []
+      }
+    ]),
     ui.button_("submit-review", "Submit Review"),
   ])
 }
 
 // -- View: theme toggle row ---------------------------------------------------
 
-fn theme_row(model: Model, t: Theme) -> Node {
+fn theme_row(t: Theme) -> Node {
   ui.row("theme-row", [row.AlignY(alignment.Center)], [
     ui.space("theme-spacer", [space.Width(length.Fill)]),
     ui.text("toggle-label", "Dark humor", [
       text.Color(hex(t.text_secondary)),
     ]),
-    theme_toggle.render("theme-toggle", model.toggle_progress),
+    theme_toggle.widget("theme-toggle"),
   ])
 }
 
@@ -456,11 +515,13 @@ fn review_card(review: Review, i: Int, p: Float, t: Theme) -> Node {
     ],
     [
       ui.row("rhdr-" <> idx, [row.Spacing(8), row.AlignY(alignment.Center)], [
-        star_rating.render("rstars-" <> idx, review.stars, [
-          star_rating.Readonly(True),
-          star_rating.Scale(0.4),
-          star_rating.ThemeProgress(p),
-        ]),
+        star_rating.widget(
+          "rstars-" <> idx,
+          star_rating.props(review.stars)
+            |> star_rating.readonly(True)
+            |> star_rating.scale(0.4)
+            |> star_rating.theme_progress(p),
+        ),
         ui.text("rname-" <> idx, review.user, [
           text.Size(12.0),
           text.Color(hex(t.text_secondary)),
@@ -484,6 +545,16 @@ fn hex(s: String) -> color.Color {
   c
 }
 
+// -- Coercion helpers for Dynamic values from canvas_widget Emit --------------
+// These are safe because we control the Emit data types in our own
+// canvas_widget definitions and know the exact runtime type.
+
+@external(erlang, "plushie_ffi", "identity")
+fn coerce_int(a: Dynamic) -> Int
+
+@external(erlang, "plushie_ffi", "identity")
+fn coerce_bool(a: Dynamic) -> Bool
+
 // -- Entry point --------------------------------------------------------------
 
 pub fn app() {
@@ -495,8 +566,8 @@ pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)
     Error(err) ->
-      io.println_error(
-        "Failed to start: " <> plushie.start_error_to_string(err),
-      )
+      plushie.start_error_to_string(err)
+      |> string.append("Failed to start: ", _)
+      |> panic
   }
 }

@@ -4,62 +4,148 @@
 //// rate, hover to preview, Tab/arrow to navigate, Enter/Space to select).
 //// Pass `Readonly(True)` for a display-only version.
 ////
-////     star_rating.render("my-rating", model.rating, [
-////       star_rating.Hover(model.hover_star),
-////       star_rating.ThemeProgress(p),
-////     ])
+////     star_rating.widget("my-rating", StarRatingProps(rating: 3, ..))
 ////
 ////     // Read-only (small, for review display)
-////     star_rating.render("review-stars", 4, [
-////       star_rating.Readonly(True),
-////       star_rating.Scale(0.4),
-////       star_rating.ThemeProgress(p),
-////     ])
+////     star_rating.widget("review-stars", StarRatingProps(
+////       rating: 4, readonly: True, scale: 0.5, ..
+////     ))
 ////
-//// Events: `CanvasElementClick` with element_id "star-0" through "star-4".
-//// Hover: `CanvasElementEnter`/`CanvasElementLeave` with the same element_ids.
-//// Focus: `CanvasElementFocused` with element_id for keyboard focus.
+//// Events:
+//// - `WidgetEvent(kind: "select")` with value = star count (1-5)
 
 import gleam/dict
+import gleam/dynamic
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{type Option}
+import gleam/string
 import plushie/canvas/shape
+import plushie/canvas_widget.{
+  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+  UpdateState,
+}
+import plushie/event.{
+  type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave,
+}
 import plushie/node.{type Node, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget/canvas
 
-pub type StarRatingOpt {
-  Hover(Option(Int))
-  ThemeProgress(Float)
-  Readonly(Bool)
-  Scale(Float)
+// -- Types --------------------------------------------------------------------
+
+pub type StarRatingProps {
+  StarRatingProps(
+    rating: Int,
+    readonly: Bool,
+    scale: Float,
+    theme_progress: Float,
+  )
 }
 
-/// Render a star rating canvas widget.
-///
-/// `rating` is the current selection (0-5).
-pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
-  let #(hover_star, theme_progress, readonly, scale) =
-    list.fold(opts, #(option.None, 0.0, False, 1.0), fn(acc, opt) {
-      let #(h, tp, ro, sc) = acc
-      case opt {
-        Hover(v) -> #(v, tp, ro, sc)
-        ThemeProgress(v) -> #(h, v, ro, sc)
-        Readonly(v) -> #(h, tp, v, sc)
-        Scale(v) -> #(h, tp, ro, v)
-      }
-    })
+pub type StarState {
+  StarState(hover: Int)
+}
 
-  let outer_r = 13.0 *. scale
-  let inner_r = 5.0 *. scale
-  let size = float.round(30.0 *. scale)
-  let gap = float.round(2.0 *. scale)
-  let display = case hover_star {
-    option.Some(h) -> h
-    option.None -> rating
+// -- Widget definition --------------------------------------------------------
+
+pub fn def() -> CanvasWidgetDef(StarState, StarRatingProps) {
+  CanvasWidgetDef(
+    init: fn() { StarState(hover: -1) },
+    render: render,
+    handle_event: handle_event,
+    subscriptions: fn(_, _) { [] },
+  )
+}
+
+/// Build a star rating canvas widget placeholder.
+pub fn widget(id: String, props: StarRatingProps) -> Node {
+  canvas_widget.build(def(), id, props)
+}
+
+// -- Default props constructor ------------------------------------------------
+
+/// Create props with defaults. Only `rating` is required.
+pub fn props(rating: Int) -> StarRatingProps {
+  StarRatingProps(
+    rating: rating,
+    readonly: False,
+    scale: 1.0,
+    theme_progress: 0.0,
+  )
+}
+
+/// Set readonly mode.
+pub fn readonly(p: StarRatingProps, v: Bool) -> StarRatingProps {
+  StarRatingProps(..p, readonly: v)
+}
+
+/// Set the scale factor.
+pub fn scale(p: StarRatingProps, v: Float) -> StarRatingProps {
+  StarRatingProps(..p, scale: v)
+}
+
+/// Set the theme interpolation progress (0.0 = light, 1.0 = dark).
+pub fn theme_progress(p: StarRatingProps, v: Float) -> StarRatingProps {
+  StarRatingProps(..p, theme_progress: v)
+}
+
+// -- Event handler ------------------------------------------------------------
+
+fn handle_event(event: Event, state: StarState) -> #(EventAction, StarState) {
+  case event {
+    // Click on a star -> emit :select with the 1-based star number.
+    CanvasElementClick(element_id: element_id, ..) ->
+      case parse_star_index(element_id) {
+        Ok(n) -> #(Emit(kind: "select", data: dynamic.int(n + 1)), state)
+        Error(_) -> #(Consumed, state)
+      }
+
+    // Hover enter -> update internal hover state for preview highlight.
+    CanvasElementEnter(element_id: element_id, ..) ->
+      case parse_star_index(element_id) {
+        Ok(n) -> #(UpdateState, StarState(hover: n + 1))
+        Error(_) -> #(Consumed, state)
+      }
+
+    // Hover leave -> clear preview highlight.
+    CanvasElementLeave(..) -> #(UpdateState, StarState(hover: -1))
+
+    // All other events consumed.
+    _ -> #(Consumed, state)
+  }
+}
+
+fn parse_star_index(element_id: String) -> Result(Int, Nil) {
+  case string.starts_with(element_id, "star-") {
+    True -> {
+      let suffix = string.drop_start(element_id, 5)
+      case int.parse(suffix) {
+        Ok(n) -> Ok(n)
+        Error(_) -> Error(Nil)
+      }
+    }
+    False -> Error(Nil)
+  }
+}
+
+// -- Render -------------------------------------------------------------------
+
+fn render(id: String, props: StarRatingProps, state: StarState) -> Node {
+  let rating = props.rating
+  let readonly = props.readonly
+  let scale_ = props.scale
+  let theme_progress_ = props.theme_progress
+
+  let outer_r = 13.0 *. scale_
+  let inner_r = 5.0 *. scale_
+  let size = float.round(30.0 *. scale_)
+  let gap = float.round(2.0 *. scale_)
+  let hover = state.hover
+  let display = case hover >= 0 {
+    True -> hover
+    False -> rating
   }
   let w = 5 * size + 4 * gap
 
@@ -84,7 +170,7 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
                 shape.group(
                   [
                     shape.path(commands, [
-                      shape.Fill(star_color(i < rating, False, theme_progress)),
+                      shape.Fill(star_color(i < rating, False, theme_progress_)),
                     ]),
                   ],
                   [shape.X(cx), shape.Y(cy)],
@@ -112,19 +198,12 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
                 let cx = int.to_float(i * { size + gap } + size / 2)
                 let cy = int.to_float(size / 2)
                 let filled = i < display
-                let preview =
-                  option.is_some(hover_star)
-                  && {
-                    case hover_star {
-                      option.Some(h) -> i < h && i >= rating
-                      option.None -> False
-                    }
-                  }
+                let preview = hover >= 0 && i < hover && i >= rating
 
                 shape.group(
                   [
                     shape.path(commands, [
-                      shape.Fill(star_color(filled, preview, theme_progress)),
+                      shape.Fill(star_color(filled, preview, theme_progress_)),
                     ]),
                   ],
                   [shape.X(cx), shape.Y(cy)],
@@ -141,7 +220,7 @@ pub fn render(id: String, rating: Int, opts: List(StarRatingOpt)) -> Node {
                           DictVal(
                             dict.from_list([
                               #("color", StringVal("#3b82f6")),
-                              #("width", FloatVal(2.0 *. scale)),
+                              #("width", FloatVal(2.0 *. scale_)),
                             ]),
                           ),
                         ),
@@ -178,12 +257,12 @@ fn star_commands(outer_r: Float, inner_r: Float) -> List(shape.PathCommand) {
   let points =
     range(0, 9)
     |> list.map(fn(i) {
-      let angle = int.to_float(i) *. { pi() /. 5.0 } -. { pi() /. 2.0 }
+      let angle = pi() /. 2.0 +. int.to_float(i) *. { pi() /. 5.0 }
       let r = case i % 2 == 0 {
         True -> outer_r
         False -> inner_r
       }
-      #(r *. cos(angle), r *. sin(angle))
+      #(r *. cos(angle), 0.0 -. r *. sin(angle))
     })
 
   case points {
@@ -195,19 +274,22 @@ fn star_commands(outer_r: Float, inner_r: Float) -> List(shape.PathCommand) {
 }
 
 fn star_color(filled: Bool, preview: Bool, progress: Float) -> String {
-  case filled, preview {
-    True, False -> "#f59e0b"
-    _, True -> "#fcd34d"
-    False, False -> {
-      let r = float.round(209.0 +. { 74.0 -. 209.0 } *. progress)
-      let g = float.round(213.0 +. { 74.0 -. 213.0 } *. progress)
-      let b = float.round(219.0 +. { 94.0 -. 219.0 } *. progress)
-      "#" <> hex_byte(r) <> hex_byte(g) <> hex_byte(b)
-    }
+  case preview, filled {
+    True, _ -> fade(#(255, 200, 50), #(200, 160, 80), progress)
+    False, True -> fade(#(255, 180, 0), #(255, 200, 50), progress)
+    False, False -> fade(#(224, 224, 224), #(60, 60, 80), progress)
   }
 }
 
+fn fade(c1: #(Int, Int, Int), c2: #(Int, Int, Int), t: Float) -> String {
+  let r = float.round(int.to_float(c1.0) +. int.to_float(c2.0 - c1.0) *. t)
+  let g = float.round(int.to_float(c1.1) +. int.to_float(c2.1 - c1.1) *. t)
+  let b = float.round(int.to_float(c1.2) +. int.to_float(c2.2 - c1.2) *. t)
+  "#" <> hex_byte(r) <> hex_byte(g) <> hex_byte(b)
+}
+
 fn hex_byte(n: Int) -> String {
+  let n = int.max(0, int.min(255, n))
   let hi = n / 16
   let lo = n % 16
   hex_digit(hi) <> hex_digit(lo)

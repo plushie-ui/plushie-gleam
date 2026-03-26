@@ -1,19 +1,21 @@
-//// HSV color picker using the extracted canvas widget.
+//// HSV color picker using a canvas_widget.
 ////
-//// A hue ring surrounds a saturation/value square. Drag the ring
-//// to select hue; drag the square to adjust saturation and value.
-//// Demonstrates composing a reusable canvas widget with app-level
-//// hit testing and coordinate math.
+//// The color picker widget handles all interaction internally (mouse drag,
+//// keyboard adjustment, focus tracking). The app receives semantic "change"
+//// events with the current HSV values.
 
 import examples/widgets/color_picker_widget
+import gleam/dynamic/decode
 import gleam/float
 import gleam/int
 import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, CanvasMove, CanvasPress, CanvasRelease}
+import plushie/event.{type Event, WidgetEvent}
 import plushie/node.{type Node}
+import plushie/prop/a11y
+import plushie/prop/border
 import plushie/prop/color
 import plushie/prop/length
 import plushie/prop/padding
@@ -26,105 +28,37 @@ import plushie/widget/window
 
 // -- Model --------------------------------------------------------------------
 
-pub type DragTarget {
-  DragNone
-  DragRing
-  DragSquare
-}
-
 pub type Model {
-  Model(hue: Float, saturation: Float, value: Float, drag: DragTarget)
+  Model(hue: Float, saturation: Float, value: Float)
 }
 
 fn init() {
-  #(
-    Model(hue: 0.0, saturation: 1.0, value: 1.0, drag: DragNone),
-    command.none(),
-  )
+  #(Model(hue: 0.0, saturation: 1.0, value: 1.0), command.none())
 }
 
 // -- Update -------------------------------------------------------------------
 
 fn update(model: Model, event: Event) {
   case event {
-    CanvasPress(id: "picker", x: x, y: y, button: "left", ..) -> {
-      let dx = x -. color_picker_widget.cx()
-      let dy = y -. color_picker_widget.cy()
-      let dist = sqrt(dx *. dx +. dy *. dy)
-      case
-        dist >=. color_picker_widget.inner_r()
-        && dist <=. color_picker_widget.outer_r()
-      {
-        True -> #(
-          Model(..model, drag: DragRing, hue: hue_from_point(dx, dy)),
+    // ColorPickerWidget emits "change" with { hue, saturation, value }.
+    WidgetEvent(kind: "change", id: "picker", data: data, ..) ->
+      case decode.run(data, hsv_decoder()) {
+        Ok(#(hue, saturation, value)) -> #(
+          Model(hue: hue, saturation: saturation, value: value),
           command.none(),
         )
-        False ->
-          case in_square(x, y) {
-            True -> #(
-              apply_sv(Model(..model, drag: DragSquare), x, y),
-              command.none(),
-            )
-            False -> #(model, command.none())
-          }
+        Error(_) -> #(model, command.none())
       }
-    }
-
-    CanvasMove(id: "picker", x: x, y: y, ..) ->
-      case model.drag {
-        DragRing -> #(
-          Model(
-            ..model,
-            hue: hue_from_point(
-              x -. color_picker_widget.cx(),
-              y -. color_picker_widget.cy(),
-            ),
-          ),
-          command.none(),
-        )
-        DragSquare -> #(apply_sv(model, x, y), command.none())
-        DragNone -> #(model, command.none())
-      }
-
-    CanvasRelease(id: "picker", ..) -> #(
-      Model(..model, drag: DragNone),
-      command.none(),
-    )
 
     _ -> #(model, command.none())
   }
 }
 
-// -- Hit testing --------------------------------------------------------------
-
-fn in_square(x: Float, y: Float) -> Bool {
-  let origin = color_picker_widget.sq_origin()
-  let size = color_picker_widget.sq_size()
-  x >=. origin && x <=. origin +. size && y >=. origin && y <=. origin +. size
-}
-
-// -- Coordinate math ----------------------------------------------------------
-
-fn hue_from_point(dx: Float, dy: Float) -> Float {
-  let angle = atan2(dy, dx)
-  let hue = angle +. pi() /. 2.0
-  let hue = case hue <. 0.0 {
-    True -> hue +. 2.0 *. pi()
-    False -> hue
-  }
-  hue *. 180.0 /. pi()
-}
-
-fn apply_sv(model: Model, x: Float, y: Float) -> Model {
-  let origin = color_picker_widget.sq_origin()
-  let size = color_picker_widget.sq_size()
-  let s = clamp({ x -. origin } /. size, 0.0, 1.0)
-  let v = clamp(1.0 -. { y -. origin } /. size, 0.0, 1.0)
-  Model(..model, saturation: s, value: v)
-}
-
-fn clamp(val: Float, lo: Float, hi: Float) -> Float {
-  float.max(lo, float.min(hi, val))
+fn hsv_decoder() -> decode.Decoder(#(Float, Float, Float)) {
+  use h <- decode.field("hue", decode.float)
+  use s <- decode.field("saturation", decode.float)
+  use v <- decode.field("value", decode.float)
+  decode.success(#(h, s, v))
 }
 
 // -- Color conversion (for display only) --------------------------------------
@@ -211,12 +145,7 @@ fn view(model: Model) -> Node {
         column.Spacing(16),
       ],
       [
-        color_picker_widget.render(
-          "picker",
-          model.hue,
-          model.saturation,
-          model.value,
-        ),
+        color_picker_widget.widget("picker"),
         ui.row("info", [row.Spacing(16)], [
           ui.container(
             "swatch",
@@ -224,11 +153,33 @@ fn view(model: Model) -> Node {
               container.Width(length.Fixed(48.0)),
               container.Height(length.Fixed(48.0)),
               container.BgColor(unsafe_color(hex)),
+              container.Border(
+                border.new()
+                |> border.width(1.0)
+                |> border.color(unsafe_color("#cccccc"))
+                |> border.radius(4.0),
+              ),
+              container.A11y(
+                a11y.new()
+                |> a11y.role(a11y.Image)
+                |> a11y.label("Selected color: " <> hex),
+              ),
             ],
             [],
           ),
           ui.column("color_info", [column.Spacing(4)], [
-            ui.text("hex_display", hex, [text.Size(18.0)]),
+            ui.text("hex_display", hex, [
+              text.Size(18.0),
+              text.A11y(
+                a11y.new()
+                |> a11y.live("polite")
+                |> a11y.busy(
+                  model.hue == 0.0
+                  && model.saturation == 1.0
+                  && model.value == 1.0,
+                ),
+              ),
+            ]),
             ui.text_(
               "hsv_display",
               "H: "
@@ -254,15 +205,6 @@ fn unsafe_color(hex: String) -> color.Color {
 }
 
 // -- FFI (Erlang math) --------------------------------------------------------
-
-@external(erlang, "math", "sqrt")
-fn sqrt(x: Float) -> Float
-
-@external(erlang, "math", "atan2")
-fn atan2(y: Float, x: Float) -> Float
-
-@external(erlang, "math", "pi")
-fn pi() -> Float
 
 @external(erlang, "math", "floor")
 fn float_floor(x: Float) -> Float

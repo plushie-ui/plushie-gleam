@@ -2,19 +2,26 @@
 ////
 //// A toggle switch where the thumb has a drawn face. Light mode shows a
 //// smiley; dark mode shows the face rotated upside down. The face rotates
-//// during the transition.
+//// during the transition. Animation is managed internally.
 ////
-////     theme_toggle.render("my-toggle", model.toggle_progress)
+////     theme_toggle.widget("my-toggle")
 ////
-//// Events: `CanvasElementClick` with element_id "switch".
-//// Drive `progress` from 0.0 (light) to 1.0 (dark) with a timer.
+//// Events:
+//// - `WidgetEvent(kind: "toggle")` with value = Bool (new dark mode state)
 
 import gleam/dict
+import gleam/dynamic
 import gleam/float
 import gleam/int
 import plushie/canvas/shape
+import plushie/canvas_widget.{
+  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+  UpdateState,
+}
+import plushie/event.{type Event, CanvasElementClick, TimerTick}
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/length
+import plushie/subscription
 import plushie/widget/canvas
 
 const track_w = 64
@@ -23,10 +30,65 @@ const track_h = 32
 
 const thumb_r = 13.0
 
-/// Render the theme toggle canvas widget.
-///
-/// `progress` ranges from 0.0 (light) to 1.0 (dark).
-pub fn render(id: String, progress: Float) -> Node {
+// -- Types --------------------------------------------------------------------
+
+pub type ToggleState {
+  ToggleState(progress: Float, target: Float)
+}
+
+// -- Widget definition --------------------------------------------------------
+
+pub fn def() -> CanvasWidgetDef(ToggleState, Nil) {
+  CanvasWidgetDef(
+    init: fn() { ToggleState(progress: 0.0, target: 0.0) },
+    render: render,
+    handle_event: handle_event,
+    subscriptions: fn(_, state) {
+      case state.progress != state.target {
+        True -> [subscription.every(16, "animate")]
+        False -> []
+      }
+    },
+  )
+}
+
+/// Build a theme toggle canvas widget placeholder.
+pub fn widget(id: String) -> Node {
+  canvas_widget.build(def(), id, Nil)
+}
+
+// -- Event handler ------------------------------------------------------------
+
+fn handle_event(event: Event, state: ToggleState) -> #(EventAction, ToggleState) {
+  case event {
+    // Click on the switch group -> emit :toggle with the new boolean state
+    // and flip the animation target.
+    CanvasElementClick(element_id: "switch", ..) -> {
+      let new_target = case state.target == 0.0 {
+        True -> 1.0
+        False -> 0.0
+      }
+      #(
+        Emit(kind: "toggle", data: dynamic.bool(new_target >=. 0.5)),
+        ToggleState(..state, target: new_target),
+      )
+    }
+
+    // Animation tick -> step progress toward the target value.
+    TimerTick(tag: "animate", ..) -> {
+      let new_progress = approach(state.progress, state.target, 0.06)
+      #(UpdateState, ToggleState(..state, progress: new_progress))
+    }
+
+    // All other events consumed.
+    _ -> #(Consumed, state)
+  }
+}
+
+// -- Render -------------------------------------------------------------------
+
+fn render(id: String, _props: Nil, state: ToggleState) -> Node {
+  let progress = state.progress
   let eased = smoothstep(progress)
   let half_h = int.to_float(track_h) /. 2.0
   let thumb_x = lerp(half_h, int.to_float(track_w) -. half_h, eased)
@@ -37,7 +99,6 @@ pub fn render(id: String, progress: Float) -> Node {
     False -> "#4c1d95"
   }
 
-  // Padding for the outset focus ring.
   let ring_pad = 4
 
   let shapes = [
@@ -54,11 +115,8 @@ pub fn render(id: String, progress: Float) -> Node {
         // Face drawn inside a transform group (rotates during transition)
         shape.group(
           [
-            // Left eye
             shape.circle(-3.5, -3.0, 2.0, [shape.Fill(face_color)]),
-            // Right eye
             shape.circle(3.5, -3.0, 2.0, [shape.Fill(face_color)]),
-            // Mouth (smile drawn as a path)
             shape.path(smile_path(), [
               shape.Stroke(shape.stroke(face_color, 2.0, [])),
             ]),
@@ -121,6 +179,17 @@ fn smoothstep(t: Float) -> Float {
       case t >=. 1.0 {
         True -> 1.0
         False -> t *. t *. { 3.0 -. 2.0 *. t }
+      }
+  }
+}
+
+fn approach(current: Float, target: Float, step: Float) -> Float {
+  case current <. target {
+    True -> float.min(current +. step, target)
+    False ->
+      case current >. target {
+        True -> float.max(current -. step, target)
+        False -> current
       }
   }
 }
