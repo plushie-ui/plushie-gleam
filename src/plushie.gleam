@@ -39,6 +39,8 @@
 //// ```
 
 @target(erlang)
+import gleam/dict.{type Dict}
+@target(erlang)
 import gleam/dynamic.{type Dynamic}
 @target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
@@ -387,6 +389,33 @@ pub fn get_prop_warnings(
   let reply = process.new_subject()
   process.send(instance.runtime, runtime.GetPropWarnings(reply:))
   process.receive(reply, 5000)
+}
+
+@target(erlang)
+/// Perform a synchronous interaction on the running app.
+///
+/// Sends an interact request to the renderer which executes the
+/// action against the widget tree. Used by scripting engines and
+/// testing infrastructure for programmatic UI interactions.
+///
+/// Actions: "click", "type_text", "toggle", "select", "slide",
+/// "submit", "press", "release", "type_key", "canvas_press", etc.
+pub fn interact(
+  instance: Instance(_),
+  action: String,
+  selector: Dict(String, node.PropValue),
+  payload: Dict(String, node.PropValue),
+  timeout: Int,
+) -> Result(Nil, String) {
+  let reply = process.new_subject()
+  process.send(
+    instance.runtime,
+    runtime.Interact(action:, selector:, payload:, reply:),
+  )
+  case process.receive(reply, timeout) {
+    Ok(result) -> result
+    Error(_) -> Error("interact timed out")
+  }
 }
 
 @target(erlang)

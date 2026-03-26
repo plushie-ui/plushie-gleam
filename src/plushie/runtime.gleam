@@ -43,7 +43,9 @@ import plushie/runtime_core
 @target(erlang)
 import plushie/protocol
 @target(erlang)
-import plushie/protocol/decode.{EffectStubAck, EventMessage, Hello}
+import plushie/protocol/decode.{
+  EffectStubAck, EventMessage, Hello, InteractResponse, InteractStep,
+}
 @target(erlang)
 import plushie/protocol/encode
 @target(erlang)
@@ -99,6 +101,14 @@ pub type RuntimeMessage {
   /// Wait for an async task to complete. Replies when the task with
   /// the given tag finishes, or immediately if already done.
   AwaitAsync(tag: String, reply: Subject(Nil))
+  /// Synchronous interact request (click, type_text, press, etc.).
+  /// Sends the interact to the renderer and replies when complete.
+  Interact(
+    action: String,
+    selector: Dict(String, node.PropValue),
+    payload: Dict(String, node.PropValue),
+    reply: Subject(Result(Nil, String)),
+  )
 }
 
 @target(erlang)
@@ -202,6 +212,8 @@ type LoopState(model, msg) {
     cw_registry: canvas_widget.Registry,
     // Callers waiting for async task completion, keyed by tag
     pending_await_async: Dict(String, Subject(Nil)),
+    // Pending interact: (caller_reply, request_id)
+    pending_interact: Option(#(Subject(Result(Nil, String)), String)),
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -308,6 +320,7 @@ fn init_runtime(
       prop_warnings: [],
       cw_registry: initial_cw_registry,
       pending_await_async: dict.new(),
+      pending_interact: None,
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -431,6 +444,40 @@ fn handle_message(
           actor.stop()
         }
       }
+    }
+
+    FromBridge(InboundEvent(InteractStep(_id, events))) -> {
+      // Process events from interact step as a batch without
+      // intermediate patches. The final snapshot is sent after all
+      // events are processed.
+      let state =
+        list.fold(events, state, fn(state, raw_event) {
+          case decode.decode_raw_event(raw_event) {
+            Ok(EventMessage(ev)) -> handle_event(state, ev)
+            _ -> state
+          }
+        })
+      actor.continue(state)
+    }
+
+    FromBridge(InboundEvent(InteractResponse(_id, events))) -> {
+      // Process any final events from the interact response
+      let state =
+        list.fold(events, state, fn(state, raw_event) {
+          case decode.decode_raw_event(raw_event) {
+            Ok(EventMessage(ev)) -> handle_event(state, ev)
+            _ -> state
+          }
+        })
+      // Reply to the waiting caller
+      let state = case state.pending_interact {
+        Some(#(reply, _)) -> {
+          process.send(reply, Ok(Nil))
+          LoopState(..state, pending_interact: None)
+        }
+        None -> state
+      }
+      actor.continue(state)
     }
 
     FromBridge(InboundEvent(EffectStubAck(kind:))) -> {
@@ -992,6 +1039,28 @@ fn handle_message(
           actor.continue(state)
         }
       }
+    }
+
+    Interact(action:, selector:, payload:, reply:) -> {
+      let req_id = "interact_" <> int.to_string(state.nonce_counter)
+      let state =
+        LoopState(
+          ..state,
+          nonce_counter: state.nonce_counter + 1,
+          pending_interact: Some(#(reply, req_id)),
+        )
+      send_encoded(
+        state.bridge,
+        encode.encode_interact(
+          req_id,
+          action,
+          selector,
+          payload,
+          state.opts.session,
+          state.opts.format,
+        ),
+      )
+      actor.continue(state)
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {

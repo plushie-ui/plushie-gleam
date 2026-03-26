@@ -394,3 +394,24 @@ pub fn encode_unregister_effect_stub(
   let fields = [#("kind", StringVal(kind))]
   serialize(message("unregister_effect_stub", session, fields), format)
 }
+
+/// Encode an interact request (click, type_text, press, etc.).
+///
+/// Used by the scripting engine and testing infrastructure to perform
+/// renderer-side interactions on the widget tree.
+pub fn encode_interact(
+  id: String,
+  action: String,
+  selector: Dict(String, PropValue),
+  payload: Dict(String, PropValue),
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [
+    #("id", StringVal(id)),
+    #("action", StringVal(action)),
+    #("selector", DictVal(selector)),
+    #("payload", DictVal(payload)),
+  ]
+  serialize(message("interact", session, fields), format)
+}
