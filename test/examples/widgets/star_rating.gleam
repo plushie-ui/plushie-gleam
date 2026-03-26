@@ -19,6 +19,7 @@ import gleam/dynamic
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/canvas/shape
 import plushie/canvas_widget.{
@@ -45,14 +46,14 @@ pub type StarRatingProps {
 }
 
 pub type StarState {
-  StarState(hover: Int)
+  StarState(hover: Option(Int))
 }
 
 // -- Widget definition --------------------------------------------------------
 
 pub fn def() -> CanvasWidgetDef(StarState, StarRatingProps) {
   CanvasWidgetDef(
-    init: fn() { StarState(hover: -1) },
+    init: fn() { StarState(hover: None) },
     render: render,
     handle_event: handle_event,
     subscriptions: fn(_, _) { [] },
@@ -105,12 +106,12 @@ fn handle_event(event: Event, state: StarState) -> #(EventAction, StarState) {
     // Hover enter -> update internal hover state for preview highlight.
     CanvasElementEnter(element_id: element_id, ..) ->
       case parse_star_index(element_id) {
-        Ok(n) -> #(UpdateState, StarState(hover: n + 1))
+        Ok(n) -> #(UpdateState, StarState(hover: Some(n + 1)))
         Error(_) -> #(Consumed, state)
       }
 
     // Hover leave -> clear preview highlight.
-    CanvasElementLeave(..) -> #(UpdateState, StarState(hover: -1))
+    CanvasElementLeave(..) -> #(UpdateState, StarState(hover: None))
 
     // All other events consumed.
     _ -> #(Consumed, state)
@@ -142,10 +143,9 @@ fn render(id: String, props: StarRatingProps, state: StarState) -> Node {
   let inner_r = 5.0 *. scale_
   let size = float.round(30.0 *. scale_)
   let gap = float.round(2.0 *. scale_)
-  let hover = state.hover
-  let display = case hover >= 0 {
-    True -> hover
-    False -> rating
+  let display = case state.hover {
+    Some(h) -> h
+    None -> rating
   }
   let w = 5 * size + 4 * gap
 
@@ -198,7 +198,10 @@ fn render(id: String, props: StarRatingProps, state: StarState) -> Node {
                 let cx = int.to_float(i * { size + gap } + size / 2)
                 let cy = int.to_float(size / 2)
                 let filled = i < display
-                let preview = hover >= 0 && i < hover && i >= rating
+                let preview = case state.hover {
+                  Some(h) -> i < h && i >= rating
+                  None -> False
+                }
 
                 shape.group(
                   [
