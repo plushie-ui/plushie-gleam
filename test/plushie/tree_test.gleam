@@ -5,6 +5,7 @@ import gleeunit/should
 import plushie/node.{DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import plushie/platform
+import plushie/support
 import plushie/tree
 
 // --- normalize ---------------------------------------------------------------
@@ -124,7 +125,7 @@ pub fn normalize_warns_on_slash_in_user_id_test() {
   // A node with "/" in its user-provided ID should still normalize
   // (we warn, not crash), but the ID ends up in the tree as-is.
   let n = node.new("bad/id", "button")
-  let result = tree.normalize(n)
+  let result = support.quiet_logs(fn() { tree.normalize(n) })
   // Normalization continues despite the warning
   should.equal(result.id, "bad/id")
 }

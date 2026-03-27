@@ -30,12 +30,6 @@ run_step() {
 
 run_step "gleam format --check"
 
-# Binary check (warning only -- tests don't need the binary)
-if [ ! -f priv/bin/plushie-renderer ] && [ -z "${PLUSHIE_BINARY_PATH:-}" ]; then
-    echo "Warning: plushie-renderer binary not found at priv/bin/plushie-renderer"
-    echo "Run 'gleam run -m plushie/download' or 'gleam run -m plushie/build' first"
-fi
-
 run_step "gleam build"
 
 # JS target: check that source modules compile. Test files may

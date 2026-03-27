@@ -367,20 +367,22 @@ pub fn stream_emits_intermediate_values_test() -> Nil {
 /// Exception in update doesn't crash the runtime. The runtime
 /// survives and can process subsequent events normally.
 pub fn update_exception_does_not_crash_runtime_test() -> Nil {
-  let rt = support.start(error_app(), [])
-  support.dispatch_event(
-    rt,
-    event.WidgetClick(window_id: "main", id: "crash", scope: []),
-  )
-  process.sleep(50)
-  support.dispatch_event(
-    rt,
-    event.WidgetClick(window_id: "main", id: "inc", scope: []),
-  )
-  let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
-  support.stop(rt)
-  let assert Ok(_) = result
-  Nil
+  support.quiet_logs(fn() {
+    let rt = support.start(error_app(), [])
+    support.dispatch_event(
+      rt,
+      event.WidgetClick(window_id: "main", id: "crash", scope: []),
+    )
+    process.sleep(50)
+    support.dispatch_event(
+      rt,
+      event.WidgetClick(window_id: "main", id: "inc", scope: []),
+    )
+    let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
+    support.stop(rt)
+    let assert Ok(_) = result
+    Nil
+  })
 }
 
 /// Done command delivers an already-resolved value immediately
@@ -397,18 +399,20 @@ pub fn done_delivers_value_immediately_test() -> Nil {
 /// preserves the previous tree and can recover on the next
 /// successful view render.
 pub fn view_exception_does_not_crash_runtime_test() -> Nil {
-  let rt = support.start(view_crash_app(), [])
-  support.dispatch_event(
-    rt,
-    event.WidgetClick(window_id: "main", id: "crash_view", scope: []),
-  )
-  process.sleep(50)
-  support.dispatch_event(
-    rt,
-    event.WidgetClick(window_id: "main", id: "fix_view", scope: []),
-  )
-  let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
-  support.stop(rt)
-  let assert Ok(_) = result
-  Nil
+  support.quiet_logs(fn() {
+    let rt = support.start(view_crash_app(), [])
+    support.dispatch_event(
+      rt,
+      event.WidgetClick(window_id: "main", id: "crash_view", scope: []),
+    )
+    process.sleep(50)
+    support.dispatch_event(
+      rt,
+      event.WidgetClick(window_id: "main", id: "fix_view", scope: []),
+    )
+    let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
+    support.stop(rt)
+    let assert Ok(_) = result
+    Nil
+  })
 }

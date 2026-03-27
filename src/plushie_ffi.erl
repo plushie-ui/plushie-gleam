@@ -19,6 +19,7 @@
     monotonic_time_ms/0,
     telemetry_execute/3,
     telemetry_attach/4,
+    telemetry_handler/4,
     telemetry_detach/1,
     stdio_port_options_msgpack/0,
     stdio_port_options_json/0,
@@ -37,6 +38,7 @@
     zlib_compress/1,
     shutdown_pid/1,
     identity/1,
+    with_logger_level/2,
     log_info/1,
     log_warning/1,
     log_error/1
@@ -151,24 +153,34 @@ telemetry_execute(EventName, Measurements, Metadata) ->
     telemetry:execute(AtomName, AtomMeasurements, AtomMetadata),
     nil.
 
+telemetry_handler(Event, Measurements, Metadata, HandlerId) ->
+    case persistent_term:get({plushie_telemetry_handler, HandlerId}, undefined) of
+        undefined ->
+            nil;
+        Handler ->
+            StringEvent = [atom_to_binary(A, utf8) || A <- Event],
+            StringMeasurements = atom_map_to_gleam_dict(Measurements),
+            StringMetadata = atom_map_to_gleam_dict(Metadata),
+            Handler(StringEvent, StringMeasurements, StringMetadata)
+    end.
+
 %% Telemetry: attach a handler.
 %% The Gleam handler takes (List(String), Dict, Dict) -> Nil.
-%% We wrap it to convert from atoms back to strings for the callback.
+%% Store it in persistent_term and attach a module function so
+%% telemetry doesn't log warnings about local handlers.
 telemetry_attach(HandlerId, EventName, Handler, _Config) ->
     AtomName = [binary_to_atom(N, utf8) || N <- EventName],
-    WrappedHandler = fun(Event, Measurements, Metadata, _Cfg) ->
-        StringEvent = [atom_to_binary(A, utf8) || A <- Event],
-        StringMeasurements = atom_map_to_gleam_dict(Measurements),
-        StringMetadata = atom_map_to_gleam_dict(Metadata),
-        Handler(StringEvent, StringMeasurements, StringMetadata)
-    end,
-    case telemetry:attach(HandlerId, AtomName, WrappedHandler, nil) of
+    persistent_term:put({plushie_telemetry_handler, HandlerId}, Handler),
+    case telemetry:attach(HandlerId, AtomName, fun ?MODULE:telemetry_handler/4, HandlerId) of
         ok -> {ok, nil};
-        {error, Reason} -> {error, Reason}
+        {error, Reason} ->
+            persistent_term:erase({plushie_telemetry_handler, HandlerId}),
+            {error, Reason}
     end.
 
 %% Telemetry: detach a handler.
 telemetry_detach(HandlerId) ->
+    persistent_term:erase({plushie_telemetry_handler, HandlerId}),
     telemetry:detach(HandlerId),
     nil.
 
@@ -300,7 +312,16 @@ shutdown_pid(Pid) ->
 identity(X) -> X.
 
 %% Erlang logger wrappers that return nil instead of ok.
+with_logger_level(Level, Fun) ->
+    PrevConfig = logger:get_primary_config(),
+    PrevLevel = maps:get(level, PrevConfig, notice),
+    logger:set_primary_config(level, binary_to_atom(Level, utf8)),
+    try
+        Fun()
+    after
+        logger:set_primary_config(level, PrevLevel)
+    end.
+
 log_info(Msg) -> logger:info(Msg), nil.
 log_warning(Msg) -> logger:warning(Msg), nil.
 log_error(Msg) -> logger:error(Msg), nil.
-

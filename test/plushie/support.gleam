@@ -144,6 +144,11 @@ pub fn stop(rt: TestApp(_)) -> Nil {
   process.send(rt.stop_signal, Nil)
 }
 
+/// Run a function with warning and info logs muted.
+pub fn quiet_logs(f: fn() -> a) -> a {
+  with_logger_level("error", f)
+}
+
 /// Poll the model until a condition is met or timeout expires.
 ///
 /// Queries the runtime model every 10ms and passes it to the
@@ -182,3 +187,6 @@ fn poll(
 
 @external(erlang, "plushie_ffi", "monotonic_time_ms")
 fn monotonic_time_ms() -> Int
+
+@external(erlang, "plushie_ffi", "with_logger_level")
+fn with_logger_level(level: String, f: fn() -> a) -> a
