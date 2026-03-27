@@ -4,6 +4,7 @@ import gleam/option
 import gleeunit/should
 import plushie/node.{DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
+import plushie/platform
 import plushie/tree
 
 // --- normalize ---------------------------------------------------------------
@@ -136,19 +137,15 @@ pub fn normalize_no_warning_on_empty_id_test() {
 }
 
 pub fn normalize_warns_on_duplicate_sibling_ids_test() {
-  // Two children with the same ID should still normalize but trigger a warning.
+  // Two children with the same ID should fail loudly instead of drifting into diffing.
   let a = node.new("dup", "text")
   let b = node.new("dup", "text")
   let root =
     node.new("root", "container")
     |> node.with_children([a, b])
 
-  let result = tree.normalize(root)
-  // Both children are present despite the warning
-  should.equal(result.children |> list.map(fn(c) { c.id }), [
-    "root/dup",
-    "root/dup",
-  ])
+  platform.try_call(fn() { tree.normalize(root) })
+  |> should.be_error
 }
 
 pub fn normalize_no_warning_on_unique_sibling_ids_test() {

@@ -164,7 +164,7 @@ fn normalize_regular(
       normalize_ctx(child, child_scope, window_id, registry)
     })
 
-  // Warn on duplicate sibling IDs
+  // Reject duplicate sibling IDs before diffing.
   check_duplicate_sibling_ids(children)
 
   Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new())
@@ -187,10 +187,10 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
         })
         |> fn(pair) { pair.1 }
         |> list.unique
-      platform.log_warning(
+      let message =
         "plushie: duplicate sibling IDs detected during normalize: "
-        <> string.inspect(dupes),
-      )
+        <> string.inspect(dupes)
+      panic as message
     }
   }
 }

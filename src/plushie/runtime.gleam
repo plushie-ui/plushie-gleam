@@ -1601,6 +1601,16 @@ fn execute_commands(
       state
     }
 
+    command_encode.SystemOp(op, settings) -> {
+      send_system_op(state.bridge, op, settings, state.opts)
+      state
+    }
+
+    command_encode.SystemQuery(op, tag) -> {
+      send_system_query(state.bridge, op, tag, state.opts)
+      state
+    }
+
     command_encode.ImageOp(op, payload) -> {
       send_image_op(state.bridge, op, payload, state.opts)
       state
@@ -1784,6 +1794,42 @@ fn send_window_query(
     encode.encode_window_op(
       op,
       window_id,
+      dict.from_list([#("tag", StringVal(tag))]),
+      opts.session,
+      opts.format,
+    ),
+  )
+}
+
+@target(erlang)
+fn send_system_op(
+  bridge: Subject(BridgeMessage),
+  op: String,
+  settings: List(#(String, PropValue)),
+  opts: RuntimeOpts,
+) -> Nil {
+  send_encoded(
+    bridge,
+    encode.encode_system_op(
+      op,
+      dict.from_list(settings),
+      opts.session,
+      opts.format,
+    ),
+  )
+}
+
+@target(erlang)
+fn send_system_query(
+  bridge: Subject(BridgeMessage),
+  op: String,
+  tag: String,
+  opts: RuntimeOpts,
+) -> Nil {
+  send_encoded(
+    bridge,
+    encode.encode_system_query(
+      op,
       dict.from_list([#("tag", StringVal(tag))]),
       opts.session,
       opts.format,

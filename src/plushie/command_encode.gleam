@@ -40,6 +40,10 @@ pub type WireOp(msg) {
   WindowOp(op: String, window_id: String, settings: List(#(String, PropValue)))
   /// Window query (get_size, get_position, etc.) -- a window_op with a tag.
   WindowQuery(op: String, window_id: String, tag: String)
+  /// System-wide operation not tied to a specific window.
+  SystemOp(op: String, settings: List(#(String, PropValue)))
+  /// System-wide query.
+  SystemQuery(op: String, tag: String)
   /// Image operation (create, update, delete).
   ImageOp(op: String, payload: List(#(String, PropValue)))
   /// Platform effect request (file dialog, clipboard, notification).
@@ -233,7 +237,7 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WindowOp("set_resize_increments", window_id, payload)
     }
     command.AllowAutomaticTabbing(enabled:) ->
-      WindowOp("allow_automatic_tabbing", "_global", [
+      SystemOp("allow_automatic_tabbing", [
         #("enabled", BoolVal(enabled)),
       ])
     command.SetIcon(window_id:, rgba_data:, width:, height:) ->
@@ -259,10 +263,8 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WindowQuery("raw_id", window_id, tag)
     command.MonitorSize(window_id:, tag:) ->
       WindowQuery("monitor_size", window_id, tag)
-    command.GetSystemTheme(tag:) ->
-      WindowQuery("get_system_theme", "_system", tag)
-    command.GetSystemInfo(tag:) ->
-      WindowQuery("get_system_info", "_system", tag)
+    command.GetSystemTheme(tag:) -> SystemQuery("get_system_theme", tag)
+    command.GetSystemInfo(tag:) -> SystemQuery("get_system_info", tag)
 
     // -- Image ops --
     command.CreateImage(handle:, data:) ->

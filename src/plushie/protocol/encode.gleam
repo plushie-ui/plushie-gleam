@@ -314,6 +314,34 @@ pub fn encode_window_op(
   serialize(message("window_op", session, fields), format)
 }
 
+/// Encode a system-wide operation.
+pub fn encode_system_op(
+  op: String,
+  settings: Dict(String, PropValue),
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [
+    #("op", StringVal(op)),
+    #("settings", DictVal(settings)),
+  ]
+  serialize(message("system_op", session, fields), format)
+}
+
+/// Encode a system-wide query.
+pub fn encode_system_query(
+  op: String,
+  settings: Dict(String, PropValue),
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [
+    #("op", StringVal(op)),
+    #("settings", DictVal(settings)),
+  ]
+  serialize(message("system_query", session, fields), format)
+}
+
 /// Encode a platform effect request (file dialog, clipboard, etc.).
 pub fn encode_effect(
   id: String,

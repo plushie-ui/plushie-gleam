@@ -47,7 +47,7 @@ import plushie/command_encode
 @target(javascript)
 import plushie/event.{type Event}
 @target(javascript)
-import plushie/node.{type Node, type PropValue}
+import plushie/node.{type Node, type PropValue, StringVal}
 @target(javascript)
 import plushie/platform
 @target(javascript)
@@ -559,6 +559,23 @@ fn execute_commands(
 
     command_encode.WindowQuery(op, window_id, tag) ->
       winquery(handle, op, window_id, tag, session)
+
+    command_encode.SystemOp(op, settings) -> {
+      let assert Ok(bytes) =
+        encode.encode_system_op(op, dict.from_list(settings), session, Json)
+      do_send(handle, bytes)
+    }
+
+    command_encode.SystemQuery(op, tag) -> {
+      let assert Ok(bytes) =
+        encode.encode_system_query(
+          op,
+          dict.from_list([#("tag", StringVal(tag))]),
+          session,
+          Json,
+        )
+      do_send(handle, bytes)
+    }
 
     command_encode.ImageOp(op, payload) -> imgop(handle, op, payload, session)
 

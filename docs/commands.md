@@ -519,7 +519,9 @@ interprets them:
 - **Window commands** are encoded as wire messages to the renderer.
 - **Window property queries** are sent as window_op wire messages. The
   renderer responds with an `EffectResponse` keyed by window_id.
-  **System queries** use a separate wire message keyed by tag.
+- **System ops** are sent as `system_op` wire messages.
+- **System queries** use `system_query` wire messages. The renderer
+  responds with an `OpQueryResponse` keyed by tag.
 - **Image operations** are encoded as wire messages to the renderer.
 - **PaneGrid operations** are encoded as widget ops sent to the renderer.
 - **Timers** use Erlang's `send_after` under the hood.
