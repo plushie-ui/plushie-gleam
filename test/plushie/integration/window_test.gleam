@@ -32,7 +32,7 @@ fn window_update(
   event: Event,
 ) -> #(WindowModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "toggle", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "toggle", ..) -> #(
       WindowModel(show_secondary: !model.show_secondary),
       command.none(),
     )
@@ -85,12 +85,18 @@ pub fn conditional_window_toggle_test() -> Nil {
   let rt = support.start(window_app(), [])
 
   // Open secondary window
-  support.dispatch_event(rt, event.WidgetClick(id: "toggle", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "toggle", scope: []),
+  )
   let result = support.await(rt, fn(m) { m.show_secondary }, 500)
   let assert Ok(_) = result
 
   // Close secondary window
-  support.dispatch_event(rt, event.WidgetClick(id: "toggle", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "toggle", scope: []),
+  )
   let result = support.await(rt, fn(m) { !m.show_secondary }, 500)
   support.stop(rt)
   let assert Ok(_) = result

@@ -5,8 +5,9 @@ import gleeunit/should
 import plushie/app
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
-import plushie/node
 import plushie/subscription
+import plushie/ui
+import plushie/widget/window
 
 type Model {
   Model(count: Int)
@@ -18,7 +19,7 @@ fn test_init() {
 
 fn test_update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "inc", ..) -> #(
+    WidgetClick(window_id: "main", id: "inc", ..) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
@@ -27,7 +28,7 @@ fn test_update(model: Model, event: Event) {
 }
 
 fn test_view(_model: Model) {
-  node.new("root", "container")
+  ui.window("main", [window.Title("App Test")], [])
 }
 
 pub fn simple_creates_app_test() {
@@ -87,7 +88,10 @@ pub fn update_through_accessor_test() {
   let my_app = app.simple(test_init, test_update, test_view)
   let update = app.get_update(my_app)
   let #(model, _cmd) =
-    update(Model(count: 5), WidgetClick(id: "inc", scope: []))
+    update(
+      Model(count: 5),
+      WidgetClick(window_id: "main", id: "inc", scope: []),
+    )
   should.equal(model.count, 6)
 }
 
@@ -95,7 +99,7 @@ pub fn view_through_accessor_test() {
   let my_app = app.simple(test_init, test_update, test_view)
   let view = app.get_view(my_app)
   let tree = view(Model(count: 0))
-  should.equal(tree.id, "root")
+  should.equal(tree.id, "main")
 }
 
 pub fn window_config_default_empty_test() {
@@ -116,7 +120,7 @@ fn msg_init() {
 
 fn msg_update(model: Model, msg: Msg) {
   case msg {
-    TodoEvent(WidgetClick(id: "inc", ..)) -> #(
+    TodoEvent(WidgetClick(window_id: "main", id: "inc", ..)) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
@@ -125,7 +129,7 @@ fn msg_update(model: Model, msg: Msg) {
 }
 
 fn msg_view(_model: Model) {
-  node.new("root", "container")
+  ui.window("main", [window.Title("App Test")], [])
 }
 
 pub fn application_stores_on_event_test() {
@@ -148,7 +152,7 @@ pub fn application_update_with_mapped_event_test() {
     option.Some(f) -> f
     option.None -> panic as "expected on_event"
   }
-  let mapped = on_event(WidgetClick(id: "inc", scope: []))
+  let mapped = on_event(WidgetClick(window_id: "main", id: "inc", scope: []))
   let update = app.get_update(my_app)
   let #(model, _cmd) = update(Model(count: 0), mapped)
   should.equal(model.count, 1)

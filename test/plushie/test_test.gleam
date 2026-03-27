@@ -12,6 +12,7 @@ import plushie/testing
 import plushie/testing/element
 import plushie/ui
 import plushie/widget/column
+import plushie/widget/window
 
 // -- Counter app for testing --------------------------------------------------
 
@@ -25,11 +26,11 @@ fn counter_init() {
 
 fn counter_update(model: CounterModel, event: Event) {
   case event {
-    WidgetClick(id: "inc", ..) -> #(
+    WidgetClick(window_id: "main", id: "inc", ..) -> #(
       CounterModel(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(id: "dec", ..) -> #(
+    WidgetClick(window_id: "main", id: "dec", ..) -> #(
       CounterModel(count: model.count - 1),
       command.none(),
     )
@@ -38,10 +39,12 @@ fn counter_update(model: CounterModel, event: Event) {
 }
 
 fn counter_view(model: CounterModel) -> Node {
-  ui.column("root", [column.Padding(padding.all(16.0))], [
-    ui.text_("label", "Count: " <> int.to_string(model.count)),
-    ui.button_("inc", "+"),
-    ui.button_("dec", "-"),
+  ui.window("main", [window.Title("Counter Test")], [
+    ui.column("root", [column.Padding(padding.all(16.0))], [
+      ui.text_("label", "Count: " <> int.to_string(model.count)),
+      ui.button_("inc", "+"),
+      ui.button_("dec", "-"),
+    ]),
   ])
 }
 
@@ -60,9 +63,11 @@ pub fn start_creates_initial_state_test() {
 pub fn initial_tree_is_normalized_test() {
   let ctx = testing.start(counter_app())
   let tree = testing.tree(ctx)
-  should.equal(tree.id, "root")
+  should.equal(tree.id, "main")
 
-  let assert [label, inc, dec] = tree.children
+  let assert [root] = tree.children
+  should.equal(root.id, "root")
+  let assert [label, inc, dec] = root.children
   // Children get scoped IDs
   should.equal(label.id, "root/label")
   should.equal(inc.id, "root/inc")
@@ -95,7 +100,8 @@ pub fn tree_updates_after_click_test() {
   let ctx = testing.start(counter_app())
   let ctx = testing.click(ctx, "inc")
   let tree = testing.tree(ctx)
-  let assert [label, ..] = tree.children
+  let assert [root] = tree.children
+  let assert [label, ..] = root.children
   let assert Ok(StringVal(content)) =
     node.Node(..label, props: label.props).props
     |> gleam_dict_get("content")
@@ -151,8 +157,48 @@ pub fn element_prop_test() {
 
 pub fn send_raw_event_test() {
   let ctx = testing.start(counter_app())
-  let ctx = testing.send_event(ctx, WidgetClick(id: "inc", scope: ["root"]))
+  let ctx =
+    testing.send_event(
+      ctx,
+      WidgetClick(window_id: "main", id: "inc", scope: ["root"]),
+    )
   should.equal(testing.model(ctx).count, 1)
+}
+
+type ScopedModel {
+  ScopedModel(last_scope: List(String))
+}
+
+fn scoped_init() {
+  #(ScopedModel(last_scope: []), command.none())
+}
+
+fn scoped_update(model: ScopedModel, event: Event) {
+  case event {
+    WidgetClick(window_id: "main", id: "save", scope: ["form", "panel"]) -> #(
+      ScopedModel(last_scope: ["form", "panel"]),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn scoped_view(_model: ScopedModel) -> Node {
+  ui.window("main", [window.Title("Scoped Test")], [
+    ui.container("panel", [], [
+      ui.container("form", [], [ui.button_("save", "Save")]),
+    ]),
+  ])
+}
+
+fn scoped_app() {
+  app.simple(scoped_init, scoped_update, scoped_view)
+}
+
+pub fn click_preserves_nearest_parent_first_scope_test() {
+  let ctx = testing.start(scoped_app())
+  let ctx = testing.click(ctx, "panel/form/save")
+  should.equal(testing.model(ctx).last_scope, ["form", "panel"])
 }
 
 // -- State immutability -------------------------------------------------------
@@ -201,11 +247,11 @@ fn todo_init() {
 
 fn todo_update(model: TodoModel, event: Event) {
   case event {
-    WidgetInput(id: "input", value:, ..) -> #(
+    WidgetInput(window_id: "main", id: "input", value:, ..) -> #(
       TodoModel(..model, input: value),
       command.none(),
     )
-    WidgetSubmit(id: "input", ..) -> {
+    WidgetSubmit(window_id: "main", id: "input", ..) -> {
       case model.input {
         "" -> #(model, command.none())
         text -> #(
@@ -217,7 +263,7 @@ fn todo_update(model: TodoModel, event: Event) {
         )
       }
     }
-    WidgetToggle(id: "toggle-0", value:, ..) -> {
+    WidgetToggle(window_id: "main", id: "toggle-0", value:, ..) -> {
       let items = case model.items {
         [first, ..rest] -> [TodoItem(..first, done: value), ..rest]
         other -> other
@@ -235,7 +281,12 @@ fn todo_view(model: TodoModel) -> Node {
       ui.checkbox(id_str, item.text, item.done, [])
     })
 
-  ui.column("root", [], [ui.text_input("input", model.input, []), ..item_nodes])
+  ui.window("main", [window.Title("Todo Test")], [
+    ui.column("root", [], [
+      ui.text_input("input", model.input, []),
+      ..item_nodes
+    ]),
+  ])
 }
 
 fn todo_app() {
@@ -289,20 +340,25 @@ fn cmd_init() {
   #(
     CmdModel(value: "init"),
     command.done(dynamic.string("from_init"), fn(_d) {
-      WidgetClick(id: "from_init", scope: [])
+      WidgetClick(window_id: "main", id: "from_init", scope: [])
     }),
   )
 }
 
 fn cmd_update(model: CmdModel, event: Event) {
   case event {
-    WidgetClick(id: value, ..) -> #(CmdModel(value:), command.none())
+    WidgetClick(window_id: "main", id: value, ..) -> #(
+      CmdModel(value:),
+      command.none(),
+    )
     _ -> #(model, command.none())
   }
 }
 
 fn cmd_view(model: CmdModel) -> Node {
-  ui.text_("label", model.value)
+  ui.window("main", [window.Title("Command Test")], [
+    ui.text_("label", model.value),
+  ])
 }
 
 fn cmd_app() {

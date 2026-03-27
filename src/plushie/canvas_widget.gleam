@@ -143,7 +143,7 @@ pub type RegistryEntry {
   )
 }
 
-/// The canvas widget registry: maps scoped widget IDs to entries.
+/// The canvas widget registry: maps window-aware widget keys to entries.
 pub type Registry =
   Dict(String, RegistryEntry)
 
@@ -186,14 +186,16 @@ pub fn is_placeholder(node: Node) -> Bool {
 /// the widget isn't in the registry.
 pub fn render_placeholder(
   node: Node,
+  window_id: String,
   scoped_id: String,
   local_id: String,
   registry: Registry,
 ) -> Option(#(Node, RegistryEntry)) {
   case dict.get(node.meta, meta_key), dict.get(node.meta, props_key) {
     Ok(def_prop), Ok(props_prop) -> {
+      let key = widget_key(window_id, scoped_id)
       // Look up existing state or create initial
-      let entry = case dict.get(registry, scoped_id) {
+      let entry = case dict.get(registry, key) {
         Ok(existing) -> {
           // Update the entry with fresh def and props from the
           // placeholder while keeping existing state
@@ -237,10 +239,15 @@ pub fn render_placeholder(
 /// Returns a fresh registry with entries for all canvas widgets
 /// found in the tree.
 pub fn derive_registry(tree: Node) -> Registry {
-  derive_from_node(tree, dict.new())
+  derive_from_node(tree, "", dict.new())
 }
 
-fn derive_from_node(node: Node, acc: Registry) -> Registry {
+fn derive_from_node(node: Node, window_id: String, acc: Registry) -> Registry {
+  let current_window_id = case node.kind {
+    "window" -> node.id
+    _ -> window_id
+  }
+
   let acc = case
     dict.get(node.meta, meta_key),
     dict.get(node.meta, props_key),
@@ -253,12 +260,14 @@ fn derive_from_node(node: Node, acc: Registry) -> Registry {
           from_dynamic_prop(props_prop),
           from_dynamic_prop(state_prop),
         )
-      dict.insert(acc, node.id, entry)
+      dict.insert(acc, widget_key(current_window_id, node.id), entry)
     }
     _, _, _ -> acc
   }
 
-  list.fold(node.children, acc, fn(acc, child) { derive_from_node(child, acc) })
+  list.fold(node.children, acc, fn(acc, child) {
+    derive_from_node(child, current_window_id, acc)
+  })
 }
 
 // -- Event dispatch ----------------------------------------------------------
@@ -272,11 +281,12 @@ pub fn dispatch_through_widgets(
   registry: Registry,
   ev: Event,
 ) -> #(Option(Event), Registry) {
+  let window_id = extract_window_id(ev)
   let scope = extract_scope(ev)
   let event_id = extract_id(ev)
 
   // Build handler chain: walk scope innermost to outermost
-  let chain = build_handler_chain(registry, scope, event_id)
+  let chain = build_handler_chain(registry, window_id, scope, event_id)
 
   case chain {
     [] -> #(Some(ev), registry)
@@ -292,11 +302,13 @@ pub fn dispatch_through_widgets(
 /// target may be a canvas widget).
 fn build_handler_chain(
   registry: Registry,
+  window_id: String,
   scope: List(String),
   event_id: String,
 ) -> List(String) {
   let chain =
     scope_to_widget_ids(scope)
+    |> list.map(fn(id) { widget_key(window_id, id) })
     |> list.filter(fn(id) { dict.has_key(registry, id) })
 
   case chain {
@@ -304,7 +316,7 @@ fn build_handler_chain(
       // No parent canvas_widgets in scope. Check if the event's
       // target itself is a canvas_widget. Reconstruct the full
       // scoped ID: scope (reversed to forward order) + event id.
-      let target_id = scope_to_id(scope, event_id)
+      let target_id = widget_key(window_id, scope_to_id(scope, event_id))
       case dict.has_key(registry, target_id) {
         True -> [target_id]
         False -> []
@@ -377,10 +389,12 @@ fn walk_chain(
                 Emit(kind:, data:) -> {
                   // Construct the full event with id/scope resolved
                   // from the interception context.
-                  let #(id, scope) = resolve_emit_identity(ev, widget_id)
+                  let #(window_id, id, scope) =
+                    resolve_emit_identity(ev, widget_id)
                   let emitted =
                     event.WidgetEvent(
                       kind:,
+                      window_id:,
                       id:,
                       scope:,
                       value: coerce(Nil),
@@ -416,17 +430,17 @@ const cw_tag_prefix = "__cw:"
 /// Each subscription's tag is namespaced with the widget's scoped ID
 /// so the runtime can route timer events back to the correct widget.
 pub fn collect_subscriptions(registry: Registry) -> List(Subscription) {
-  dict.fold(registry, [], fn(acc, widget_id, entry) {
+  dict.fold(registry, [], fn(acc, widget_key, entry) {
     let subs = entry.subscriptions()
-    let namespaced = list.map(subs, fn(sub) { namespace_tag(sub, widget_id) })
+    let namespaced = list.map(subs, fn(sub) { namespace_tag(sub, widget_key) })
     list.append(acc, namespaced)
   })
 }
 
 /// Namespace a subscription's tag for a canvas widget.
-fn namespace_tag(sub: Subscription, widget_id: String) -> Subscription {
+fn namespace_tag(sub: Subscription, widget_key: String) -> Subscription {
   let old_tag = subscription.tag(sub)
-  let new_tag = cw_tag_prefix <> widget_id <> ":" <> old_tag
+  let new_tag = cw_tag_prefix <> widget_key <> key_sep <> old_tag
   subscription.set_tag(sub, new_tag)
 }
 
@@ -442,11 +456,9 @@ pub fn parse_widget_tag(tag: String) -> Option(#(String, String)) {
     False -> None
     True -> {
       let rest = string.drop_start(tag, string.length(cw_tag_prefix))
-      // Find the last ":" which separates widget_id from inner_tag.
-      // Widget IDs can contain "/" but not ":". Inner tags can be anything.
-      case string.split_once(rest, ":") {
-        Ok(#(widget_id, inner_tag)) -> Some(#(widget_id, inner_tag))
-        Error(_) -> None
+      case string.split(rest, key_sep) {
+        [widget_key, inner_tag] -> Some(#(widget_key, inner_tag))
+        _ -> None
       }
     }
   }
@@ -482,11 +494,12 @@ pub fn handle_widget_timer(
                 Consumed -> #(None, registry)
                 UpdateState -> #(None, registry)
                 Emit(kind:, data:) -> {
-                  let #(id, scope) =
+                  let #(window_id, id, scope) =
                     resolve_emit_identity(timer_event, widget_id)
                   let emitted =
                     event.WidgetEvent(
                       kind:,
+                      window_id:,
                       id:,
                       scope:,
                       value: coerce(Nil),
@@ -524,23 +537,36 @@ pub fn handle_widget_timer(
 fn resolve_emit_identity(
   ev: Event,
   widget_id: String,
-) -> #(String, List(String)) {
+) -> #(String, String, List(String)) {
+  let window_id = extract_window_id(ev)
   let scope = extract_scope(ev)
   case scope {
-    [canvas_id, ..parent_scope] -> #(canvas_id, parent_scope)
+    [canvas_id, ..parent_scope] -> #(window_id, canvas_id, parent_scope)
     [] -> {
       let id = extract_id(ev)
       case id {
-        "" -> split_widget_id(widget_id)
-        _ -> #(id, [])
+        "" -> {
+          let #(widget_window_id, local_id, widget_scope) =
+            split_widget_key(widget_id)
+          #(widget_window_id, local_id, widget_scope)
+        }
+        _ -> #(window_id, id, [])
       }
     }
   }
 }
 
-/// Split a scoped widget ID ("form/stars") into local ID and
-/// reversed scope: #("stars", ["form"]).
-fn split_widget_id(widget_id: String) -> #(String, List(String)) {
+fn split_widget_key(widget_key: String) -> #(String, String, List(String)) {
+  case string.split(widget_key, key_sep) {
+    [window_id, scoped_id] -> {
+      let #(local, scope) = split_scoped_widget_id(scoped_id)
+      #(window_id, local, scope)
+    }
+    _ -> #("", widget_key, [])
+  }
+}
+
+fn split_scoped_widget_id(widget_id: String) -> #(String, List(String)) {
   let parts = string.split(widget_id, "/")
   case list.reverse(parts) {
     [local, ..parent_parts] -> #(local, parent_parts)
@@ -682,6 +708,64 @@ pub fn extract_id(ev: Event) -> String {
     event.PaneFocusCycle(id:, ..) -> id
     _ -> ""
   }
+}
+
+pub fn extract_window_id(ev: Event) -> String {
+  case ev {
+    event.WidgetClick(window_id:, ..) -> window_id
+    event.WidgetInput(window_id:, ..) -> window_id
+    event.WidgetSubmit(window_id:, ..) -> window_id
+    event.WidgetToggle(window_id:, ..) -> window_id
+    event.WidgetSelect(window_id:, ..) -> window_id
+    event.WidgetSlide(window_id:, ..) -> window_id
+    event.WidgetSlideRelease(window_id:, ..) -> window_id
+    event.WidgetPaste(window_id:, ..) -> window_id
+    event.WidgetScroll(window_id:, ..) -> window_id
+    event.WidgetOpen(window_id:, ..) -> window_id
+    event.WidgetClose(window_id:, ..) -> window_id
+    event.WidgetOptionHovered(window_id:, ..) -> window_id
+    event.WidgetSort(window_id:, ..) -> window_id
+    event.WidgetKeyBinding(window_id:, ..) -> window_id
+    event.WidgetEvent(window_id:, ..) -> window_id
+    event.SensorResize(window_id:, ..) -> window_id
+    event.MouseAreaRightPress(window_id:, ..) -> window_id
+    event.MouseAreaRightRelease(window_id:, ..) -> window_id
+    event.MouseAreaMiddlePress(window_id:, ..) -> window_id
+    event.MouseAreaMiddleRelease(window_id:, ..) -> window_id
+    event.MouseAreaDoubleClick(window_id:, ..) -> window_id
+    event.MouseAreaEnter(window_id:, ..) -> window_id
+    event.MouseAreaExit(window_id:, ..) -> window_id
+    event.MouseAreaMove(window_id:, ..) -> window_id
+    event.MouseAreaScroll(window_id:, ..) -> window_id
+    event.CanvasPress(window_id:, ..) -> window_id
+    event.CanvasRelease(window_id:, ..) -> window_id
+    event.CanvasMove(window_id:, ..) -> window_id
+    event.CanvasScroll(window_id:, ..) -> window_id
+    event.CanvasElementEnter(window_id:, ..) -> window_id
+    event.CanvasElementLeave(window_id:, ..) -> window_id
+    event.CanvasElementClick(window_id:, ..) -> window_id
+    event.CanvasElementDrag(window_id:, ..) -> window_id
+    event.CanvasElementDragEnd(window_id:, ..) -> window_id
+    event.CanvasElementFocused(window_id:, ..) -> window_id
+    event.CanvasElementBlurred(window_id:, ..) -> window_id
+    event.CanvasElementKeyPress(window_id:, ..) -> window_id
+    event.CanvasElementKeyRelease(window_id:, ..) -> window_id
+    event.CanvasFocused(window_id:, ..) -> window_id
+    event.CanvasBlurred(window_id:, ..) -> window_id
+    event.CanvasGroupFocused(window_id:, ..) -> window_id
+    event.CanvasGroupBlurred(window_id:, ..) -> window_id
+    event.PaneResized(window_id:, ..) -> window_id
+    event.PaneDragged(window_id:, ..) -> window_id
+    event.PaneClicked(window_id:, ..) -> window_id
+    event.PaneFocusCycle(window_id:, ..) -> window_id
+    _ -> ""
+  }
+}
+
+const key_sep = "\u{001F}"
+
+fn widget_key(window_id: String, scoped_id: String) -> String {
+  window_id <> key_sep <> scoped_id
 }
 
 // -- Internal helpers --------------------------------------------------------

@@ -139,7 +139,10 @@ pub fn default_opts() -> RuntimeOpts {
   )
 }
 
-fn missing_extensions(required: List(String), available: List(String)) -> List(String) {
+fn missing_extensions(
+  required: List(String),
+  available: List(String),
+) -> List(String) {
   list.filter(required, fn(key) { !list.contains(available, key) })
 }
 
@@ -214,7 +217,7 @@ type LoopState(model, msg) {
     pending_stub_acks: Dict(String, Subject(Nil)),
     // Accumulated prop validation warnings from the renderer
     prop_warnings: List(#(String, String, List(String))),
-    // Canvas widget state registry (scoped ID -> entry)
+    // Canvas widget state registry (window-aware widget key -> entry)
     cw_registry: canvas_widget.Registry,
     // Callers waiting for async task completion, keyed by tag
     pending_await_async: Dict(String, Subject(Nil)),
@@ -277,7 +280,7 @@ fn init_runtime(
   // Render initial view
   let initial_tree =
     app.get_view(app)(model)
-    |> tree.normalize_with_registry(canvas_widget.empty_registry())
+    |> normalize_view_or_panic(canvas_widget.empty_registry())
   let initial_cw_registry = canvas_widget.derive_registry(initial_tree)
 
   // Send initial snapshot
@@ -843,8 +846,7 @@ fn handle_message(
             platform.try_call(fn() { view_fn(state.model) })
           {
             Ok(t) -> {
-              let normalized =
-                tree.normalize_with_registry(t, state.cw_registry)
+              let normalized = normalize_view_or_panic(t, state.cw_registry)
               #(Some(normalized), canvas_widget.derive_registry(normalized))
             }
             Error(_) -> #(state.tree, state.cw_registry)
@@ -919,7 +921,7 @@ fn handle_message(
       case platform.try_call(fn() { view_fn(state.model) }) {
         Ok(new_tree_raw) -> {
           let new_tree =
-            tree.normalize_with_registry(new_tree_raw, state.cw_registry)
+            normalize_view_or_panic(new_tree_raw, state.cw_registry)
           let new_cw_registry = canvas_widget.derive_registry(new_tree)
           // Diff and send patch (or snapshot if no previous tree)
           case state.tree {
@@ -1247,8 +1249,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let view_fn = app.get_view(state.app)
   case platform.try_call(fn() { view_fn(state.model) }) {
     Ok(new_tree_raw) -> {
-      let new_tree =
-        tree.normalize_with_registry(new_tree_raw, state.cw_registry)
+      let new_tree = normalize_view_or_panic(new_tree_raw, state.cw_registry)
       let new_cw_registry = canvas_widget.derive_registry(new_tree)
 
       // Diff and send patch
@@ -1389,10 +1390,7 @@ fn dispatch_update(
       case platform.try_call(fn() { view_fn(new_model) }) {
         Ok(new_tree_raw) -> {
           let new_tree =
-            tree.normalize_with_registry(
-              new_tree_raw,
-              state_after_cmds.cw_registry,
-            )
+            normalize_view_or_panic(new_tree_raw, state_after_cmds.cw_registry)
           let new_cw_registry = canvas_widget.derive_registry(new_tree)
 
           // Diff and send patch
@@ -2019,4 +2017,14 @@ fn sync_windows(
   }
 
   Nil
+}
+
+fn normalize_view_or_panic(
+  view_tree: Node,
+  registry: canvas_widget.Registry,
+) -> Node {
+  case tree.normalize_view(view_tree, registry) {
+    Ok(normalized) -> normalized
+    Error(message) -> panic as message
+  }
 }

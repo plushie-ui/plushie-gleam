@@ -13,7 +13,8 @@
 ////
 //// The JS runtime reuses the same pure functions as the BEAM runtime:
 //// - `app.get_update(app)(model, msg)` for the update step
-//// - `tree.normalize(raw_tree)` for scoped ID application
+//// - `tree.normalize_view(raw_tree, registry)` for scoped IDs and
+////   explicit-window validation
 //// - `tree.diff(old, new)` for incremental patching
 //// - `protocol/encode` (JSON path) for wire serialization
 ////
@@ -250,7 +251,7 @@ fn render_and_sync(
   case platform.try_call(fn() { view_fn(model) }) {
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
-      let new_tree = tree.normalize_with_registry(raw_tree, registry)
+      let new_tree = normalize_view_or_panic(raw_tree, registry)
       let new_registry = canvas_widget.derive_registry(new_tree)
       do_set_cw_registry(handle, new_registry)
       let old_tree = do_get_tree(handle)
@@ -283,6 +284,17 @@ fn render_and_sync(
       platform.log_warning("plushie: view error: " <> dynamic.classify(reason))
       Nil
     }
+  }
+}
+
+@target(javascript)
+fn normalize_view_or_panic(
+  view_tree: Node,
+  registry: canvas_widget.Registry,
+) -> Node {
+  case tree.normalize_view(view_tree, registry) {
+    Ok(normalized) -> normalized
+    Error(message) -> panic as message
   }
 }
 

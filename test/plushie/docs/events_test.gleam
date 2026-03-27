@@ -17,82 +17,99 @@ import plushie/event.{
 // -- Widget events -----------------------------------------------------------
 
 pub fn events_widget_click_construct_test() {
-  let event = WidgetClick(id: "save", scope: [])
+  let event = WidgetClick(window_id: "main", id: "save", scope: [])
   event.id |> should.equal("save")
   event.scope |> should.equal([])
 }
 
 pub fn events_widget_click_match_test() {
-  let event: Event = WidgetClick(id: "save", scope: [])
+  let event: Event = WidgetClick(window_id: "main", id: "save", scope: [])
   case event {
-    WidgetClick(id: "save", ..) -> should.be_true(True)
+    WidgetClick(window_id: "main", id: "save", ..) -> should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_click_scope_test() {
-  let event: Event = WidgetClick(id: "save", scope: ["form"])
+  let event: Event = WidgetClick(window_id: "main", id: "save", scope: ["form"])
   case event {
-    WidgetClick(id: "save", scope: ["form"]) -> should.be_true(True)
+    WidgetClick(window_id: "main", id: "save", scope: ["form"]) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_input_match_test() {
-  let event: Event = WidgetInput(id: "search", scope: [], value: "hello")
+  let event: Event =
+    WidgetInput(window_id: "main", id: "search", scope: [], value: "hello")
   case event {
-    WidgetInput(id: "search", value:, ..) -> value |> should.equal("hello")
+    WidgetInput(window_id: "main", id: "search", value:, ..) ->
+      value |> should.equal("hello")
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_submit_match_test() {
-  let event: Event = WidgetSubmit(id: "search", scope: [], value: "query")
+  let event: Event =
+    WidgetSubmit(window_id: "main", id: "search", scope: [], value: "query")
   case event {
-    WidgetSubmit(id: "search", value: query, ..) ->
+    WidgetSubmit(window_id: "main", id: "search", value: query, ..) ->
       query |> should.equal("query")
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_toggle_match_test() {
-  let event: Event = WidgetToggle(id: "dark_mode", scope: [], value: True)
+  let event: Event =
+    WidgetToggle(window_id: "main", id: "dark_mode", scope: [], value: True)
   case event {
-    WidgetToggle(id: "dark_mode", value: enabled, ..) ->
+    WidgetToggle(window_id: "main", id: "dark_mode", value: enabled, ..) ->
       enabled |> should.be_true()
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_select_match_test() {
-  let event: Event = WidgetSelect(id: "theme_picker", scope: [], value: "nord")
+  let event: Event =
+    WidgetSelect(
+      window_id: "main",
+      id: "theme_picker",
+      scope: [],
+      value: "nord",
+    )
   case event {
-    WidgetSelect(id: "theme_picker", value: theme, ..) ->
+    WidgetSelect(window_id: "main", id: "theme_picker", value: theme, ..) ->
       theme |> should.equal("nord")
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_slide_match_test() {
-  let event: Event = WidgetSlide(id: "volume", scope: [], value: 75.0)
+  let event: Event =
+    WidgetSlide(window_id: "main", id: "volume", scope: [], value: 75.0)
   case event {
-    WidgetSlide(id: "volume", value:, ..) -> value |> should.equal(75.0)
+    WidgetSlide(window_id: "main", id: "volume", value:, ..) ->
+      value |> should.equal(75.0)
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_slide_release_match_test() {
-  let event: Event = WidgetSlideRelease(id: "volume", scope: [], value: 75.0)
+  let event: Event =
+    WidgetSlideRelease(window_id: "main", id: "volume", scope: [], value: 75.0)
   case event {
-    WidgetSlideRelease(id: "volume", value:, ..) -> value |> should.equal(75.0)
+    WidgetSlideRelease(window_id: "main", id: "volume", value:, ..) ->
+      value |> should.equal(75.0)
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_key_binding_match_test() {
-  let event: Event = WidgetKeyBinding(id: "editor", scope: [], value: "save")
+  let event: Event =
+    WidgetKeyBinding(window_id: "main", id: "editor", scope: [], value: "save")
   case event {
-    WidgetKeyBinding(id: "editor", value: "save", ..) -> should.be_true(True)
+    WidgetKeyBinding(window_id: "main", id: "editor", value: "save", ..) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
@@ -100,6 +117,7 @@ pub fn events_widget_key_binding_match_test() {
 pub fn events_widget_scroll_match_test() {
   let event: Event =
     WidgetScroll(
+      window_id: "main",
       id: "log_view",
       scope: [],
       data: ScrollData(
@@ -114,7 +132,7 @@ pub fn events_widget_scroll_match_test() {
       ),
     )
   case event {
-    WidgetScroll(id: "log_view", data: viewport, ..) -> {
+    WidgetScroll(window_id: "main", id: "log_view", data: viewport, ..) -> {
       let at_bottom = viewport.relative_y >=. 0.99
       at_bottom |> should.be_false()
     }
@@ -123,40 +141,52 @@ pub fn events_widget_scroll_match_test() {
 }
 
 pub fn events_widget_paste_match_test() {
-  let event: Event = WidgetPaste(id: "url_input", scope: [], value: " text ")
+  let event: Event =
+    WidgetPaste(window_id: "main", id: "url_input", scope: [], value: " text ")
   case event {
-    WidgetPaste(id: "url_input", value: text, ..) ->
+    WidgetPaste(window_id: "main", id: "url_input", value: text, ..) ->
       text |> should.equal(" text ")
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_option_hovered_match_test() {
-  let event: Event = WidgetOptionHovered(id: "search", scope: [], value: "opt1")
+  let event: Event =
+    WidgetOptionHovered(
+      window_id: "main",
+      id: "search",
+      scope: [],
+      value: "opt1",
+    )
   case event {
-    WidgetOptionHovered(id: "search", value:, ..) ->
+    WidgetOptionHovered(window_id: "main", id: "search", value:, ..) ->
       value |> should.equal("opt1")
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_open_close_match_test() {
-  let open: Event = WidgetOpen(id: "country_picker", scope: [])
-  let close: Event = WidgetClose(id: "country_picker", scope: [])
+  let open: Event =
+    WidgetOpen(window_id: "main", id: "country_picker", scope: [])
+  let close: Event =
+    WidgetClose(window_id: "main", id: "country_picker", scope: [])
   case open {
-    WidgetOpen(id: "country_picker", ..) -> should.be_true(True)
+    WidgetOpen(window_id: "main", id: "country_picker", ..) ->
+      should.be_true(True)
     _ -> should.fail()
   }
   case close {
-    WidgetClose(id: "country_picker", ..) -> should.be_true(True)
+    WidgetClose(window_id: "main", id: "country_picker", ..) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_widget_sort_match_test() {
-  let event: Event = WidgetSort(id: "users", scope: [], value: "name")
+  let event: Event =
+    WidgetSort(window_id: "main", id: "users", scope: [], value: "name")
   case event {
-    WidgetSort(id: "users", value: column_key, ..) ->
+    WidgetSort(window_id: "main", id: "users", value: column_key, ..) ->
       column_key |> should.equal("name")
     _ -> should.fail()
   }
@@ -165,18 +195,26 @@ pub fn events_widget_sort_match_test() {
 // -- Mouse area events -------------------------------------------------------
 
 pub fn events_mouse_area_enter_match_test() {
-  let event: Event = MouseAreaEnter(id: "hover_zone", scope: [])
+  let event: Event =
+    MouseAreaEnter(window_id: "main", id: "hover_zone", scope: [])
   case event {
-    MouseAreaEnter(id: "hover_zone", ..) -> should.be_true(True)
+    MouseAreaEnter(window_id: "main", id: "hover_zone", ..) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_mouse_area_move_match_test() {
   let event: Event =
-    MouseAreaMove(id: "canvas_area", scope: [], x: 10.0, y: 20.0)
+    MouseAreaMove(
+      window_id: "main",
+      id: "canvas_area",
+      scope: [],
+      x: 10.0,
+      y: 20.0,
+    )
   case event {
-    MouseAreaMove(id: "canvas_area", x:, y:, ..) -> {
+    MouseAreaMove(window_id: "main", id: "canvas_area", x:, y:, ..) -> {
       x |> should.equal(10.0)
       y |> should.equal(20.0)
     }
@@ -188,9 +226,16 @@ pub fn events_mouse_area_move_match_test() {
 
 pub fn events_canvas_press_match_test() {
   let event: Event =
-    CanvasPress(id: "draw_area", scope: [], x: 42.0, y: 100.0, button: "left")
+    CanvasPress(
+      window_id: "main",
+      id: "draw_area",
+      scope: [],
+      x: 42.0,
+      y: 100.0,
+      button: "left",
+    )
   case event {
-    CanvasPress(id: "draw_area", x:, y:, button: "left", ..) -> {
+    CanvasPress(window_id: "main", id: "draw_area", x:, y:, button: "left", ..) -> {
       x |> should.equal(42.0)
       y |> should.equal(100.0)
     }
@@ -199,9 +244,10 @@ pub fn events_canvas_press_match_test() {
 }
 
 pub fn events_canvas_move_match_test() {
-  let event: Event = CanvasMove(id: "draw_area", scope: [], x: 5.0, y: 10.0)
+  let event: Event =
+    CanvasMove(window_id: "main", id: "draw_area", scope: [], x: 5.0, y: 10.0)
   case event {
-    CanvasMove(id: "draw_area", x:, y:, ..) -> {
+    CanvasMove(window_id: "main", id: "draw_area", x:, y:, ..) -> {
       x |> should.equal(5.0)
       y |> should.equal(10.0)
     }
@@ -213,6 +259,7 @@ pub fn events_canvas_element_event_match_test() {
   let event: Event =
     WidgetEvent(
       kind: "canvas_element_click",
+      window_id: "main",
       id: "chart",
       scope: [],
       value: dynamic.nil(),
@@ -229,9 +276,15 @@ pub fn events_canvas_element_event_match_test() {
 
 pub fn events_sensor_resize_match_test() {
   let event: Event =
-    SensorResize(id: "content_area", scope: [], width: 800.0, height: 600.0)
+    SensorResize(
+      window_id: "main",
+      id: "content_area",
+      scope: [],
+      width: 800.0,
+      height: 600.0,
+    )
   case event {
-    SensorResize(id: "content_area", width:, height:, ..) -> {
+    SensorResize(window_id: "main", id: "content_area", width:, height:, ..) -> {
       width |> should.equal(800.0)
       height |> should.equal(600.0)
     }
@@ -244,22 +297,29 @@ pub fn events_sensor_resize_match_test() {
 pub fn events_pane_resized_match_test() {
   let event: Event =
     PaneResized(
+      window_id: "main",
       id: "editor",
       scope: [],
       split: dynamic.string("split_1"),
       ratio: 0.5,
     )
   case event {
-    PaneResized(id: "editor", ratio:, ..) -> ratio |> should.equal(0.5)
+    PaneResized(window_id: "main", id: "editor", ratio:, ..) ->
+      ratio |> should.equal(0.5)
     _ -> should.fail()
   }
 }
 
 pub fn events_pane_clicked_match_test() {
   let event: Event =
-    PaneClicked(id: "editor", scope: [], pane: dynamic.string("left"))
+    PaneClicked(
+      window_id: "main",
+      id: "editor",
+      scope: [],
+      pane: dynamic.string("left"),
+    )
   case event {
-    PaneClicked(id: "editor", ..) -> should.be_true(True)
+    PaneClicked(window_id: "main", id: "editor", ..) -> should.be_true(True)
     _ -> should.fail()
   }
 }
@@ -524,18 +584,20 @@ pub fn events_effect_response_error_match_test() {
 // -- Pattern matching tips ---------------------------------------------------
 
 pub fn events_pattern_prefix_match_test() {
-  let event: Event = WidgetClick(id: "nav:settings", scope: [])
+  let event: Event =
+    WidgetClick(window_id: "main", id: "nav:settings", scope: [])
   case event {
-    WidgetClick(id: "nav:" <> section, ..) ->
+    WidgetClick(window_id: "main", id: "nav:" <> section, ..) ->
       section |> should.equal("settings")
     _ -> should.fail()
   }
 }
 
 pub fn events_pattern_toggle_prefix_match_test() {
-  let event: Event = WidgetToggle(id: "setting:theme", scope: [], value: True)
+  let event: Event =
+    WidgetToggle(window_id: "main", id: "setting:theme", scope: [], value: True)
   case event {
-    WidgetToggle(id: "setting:" <> key, value:, ..) -> {
+    WidgetToggle(window_id: "main", id: "setting:" <> key, value:, ..) -> {
       key |> should.equal("theme")
       value |> should.be_true()
     }
@@ -546,25 +608,28 @@ pub fn events_pattern_toggle_prefix_match_test() {
 // -- Scope matching ----------------------------------------------------------
 
 pub fn events_scope_sidebar_match_test() {
-  let event: Event = WidgetClick(id: "save", scope: ["sidebar"])
+  let event: Event =
+    WidgetClick(window_id: "main", id: "save", scope: ["sidebar"])
   case event {
-    WidgetClick(id: "save", scope: ["sidebar", ..]) -> should.be_true(True)
+    WidgetClick(window_id: "main", id: "save", scope: ["sidebar", ..]) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_scope_main_match_test() {
-  let event: Event = WidgetClick(id: "save", scope: ["main"])
+  let event: Event = WidgetClick(window_id: "main", id: "save", scope: ["main"])
   case event {
-    WidgetClick(id: "save", scope: ["main", ..]) -> should.be_true(True)
+    WidgetClick(window_id: "main", id: "save", scope: ["main", ..]) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_catch_all_test() {
-  let event: Event = WidgetClick(id: "unknown", scope: [])
+  let event: Event = WidgetClick(window_id: "main", id: "unknown", scope: [])
   let result = case event {
-    WidgetClick(id: "save", ..) -> "save"
+    WidgetClick(window_id: "main", id: "save", ..) -> "save"
     _ -> "fallback"
   }
   result |> should.equal("fallback")

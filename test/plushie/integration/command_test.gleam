@@ -75,7 +75,7 @@ fn async_update(
   event: Event,
 ) -> #(AsyncModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "go", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "go", ..) -> #(
       model,
       command.async(fn() { to_dynamic(42) }, "compute"),
     )
@@ -151,7 +151,7 @@ fn stream_update(
   event: Event,
 ) -> #(StreamModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "go", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "go", ..) -> #(
       model,
       command.stream(
         fn(emit) {
@@ -201,8 +201,9 @@ fn error_update(
   event: Event,
 ) -> #(ErrorModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "crash", ..) -> panic as "intentional test crash"
-    event.WidgetClick(id: "inc", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "crash", ..) ->
+      panic as "intentional test crash"
+    event.WidgetClick(window_id: "main", id: "inc", ..) -> #(
       ErrorModel(count: model.count + 1),
       command.none(),
     )
@@ -234,11 +235,11 @@ fn view_crash_update(
   event: Event,
 ) -> #(ViewCrashModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "crash_view", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "crash_view", ..) -> #(
       ViewCrashModel(..model, crash_view: True),
       command.none(),
     )
-    event.WidgetClick(id: "fix_view", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "fix_view", ..) -> #(
       ViewCrashModel(crash_view: False, count: model.count + 1),
       command.none(),
     )
@@ -328,7 +329,10 @@ pub fn send_after_fires_from_init_test() -> Nil {
 /// Async command completes and result is dispatched through update.
 pub fn async_completes_and_dispatches_result_test() -> Nil {
   let rt = support.start(async_app(), [])
-  support.dispatch_event(rt, event.WidgetClick(id: "go", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "go", scope: []),
+  )
   let result = support.await(rt, fn(m) { m.result == 42 }, 500)
   support.stop(rt)
   let assert Ok(_) = result
@@ -348,7 +352,10 @@ pub fn batch_commands_all_execute_test() -> Nil {
 /// completes with an AsyncResult.
 pub fn stream_emits_intermediate_values_test() -> Nil {
   let rt = support.start(stream_app(), [])
-  support.dispatch_event(rt, event.WidgetClick(id: "go", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "go", scope: []),
+  )
   let result =
     support.await(rt, fn(m) { m.done && list.length(m.chunks) >= 3 }, 500)
   support.stop(rt)
@@ -361,9 +368,15 @@ pub fn stream_emits_intermediate_values_test() -> Nil {
 /// survives and can process subsequent events normally.
 pub fn update_exception_does_not_crash_runtime_test() -> Nil {
   let rt = support.start(error_app(), [])
-  support.dispatch_event(rt, event.WidgetClick(id: "crash", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "crash", scope: []),
+  )
   process.sleep(50)
-  support.dispatch_event(rt, event.WidgetClick(id: "inc", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "inc", scope: []),
+  )
   let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
   support.stop(rt)
   let assert Ok(_) = result
@@ -385,9 +398,15 @@ pub fn done_delivers_value_immediately_test() -> Nil {
 /// successful view render.
 pub fn view_exception_does_not_crash_runtime_test() -> Nil {
   let rt = support.start(view_crash_app(), [])
-  support.dispatch_event(rt, event.WidgetClick(id: "crash_view", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "crash_view", scope: []),
+  )
   process.sleep(50)
-  support.dispatch_event(rt, event.WidgetClick(id: "fix_view", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "fix_view", scope: []),
+  )
   let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
   support.stop(rt)
   let assert Ok(_) = result

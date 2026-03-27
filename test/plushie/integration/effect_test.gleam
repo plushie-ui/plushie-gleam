@@ -33,7 +33,10 @@ fn effect_update(
   event: Event,
 ) -> #(EffectModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(id: "read", ..) -> #(model, effects.clipboard_read())
+    event.WidgetClick(window_id: "main", id: "read", ..) -> #(
+      model,
+      effects.clipboard_read(),
+    )
     event.EffectResponse(result: event.EffectOk(data), ..) -> {
       let text = case dyn_decode.run(data, dyn_decode.string) {
         Ok(s) -> s
@@ -74,7 +77,10 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
     support.register_effect_stub(rt, "clipboard_read", StringVal("test data"))
 
   // Trigger the clipboard read
-  support.dispatch_event(rt, event.WidgetClick(id: "read", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "read", scope: []),
+  )
 
   let result =
     support.await(rt, fn(m) { m.clipboard_text == "test data" }, 2000)
@@ -95,7 +101,10 @@ pub fn unregister_removes_stub_test() -> Nil {
   let assert Ok(_) = support.unregister_effect_stub(rt, "clipboard_read")
 
   // Trigger the clipboard read -- should not get "first" back
-  support.dispatch_event(rt, event.WidgetClick(id: "read", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "read", scope: []),
+  )
 
   // Wait a bit for the response to arrive
   let result =

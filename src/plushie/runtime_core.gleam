@@ -28,7 +28,8 @@ import plushie/subscription.{type Subscription}
 pub fn coalesce_key(ev: Event) -> Option(String) {
   case ev {
     event.MouseMoved(..) -> Some("mouse_moved")
-    event.SensorResize(id:, ..) -> Some("sensor_resize:" <> id)
+    event.SensorResize(window_id:, id:, ..) ->
+      Some("sensor_resize:" <> window_id <> ":" <> id)
     _ -> None
   }
 }

@@ -28,11 +28,11 @@ fn counter_init() {
 
 fn counter_update(model: CounterModel, event: Event) {
   case event {
-    WidgetClick(id: "increment", ..) -> #(
+    WidgetClick(window_id: "main", id: "increment", ..) -> #(
       CounterModel(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(id: "decrement", ..) -> #(
+    WidgetClick(window_id: "main", id: "decrement", ..) -> #(
       CounterModel(count: model.count - 1),
       command.none(),
     )
@@ -72,18 +72,18 @@ fn todo_init() {
 
 fn todo_update(model: TodoModel, event: Event) {
   case event {
-    WidgetInput(id: "todo_input", value: val, ..) -> #(
+    WidgetInput(window_id: "main", id: "todo_input", value: val, ..) -> #(
       TodoModel(..model, input: val),
       command.none(),
     )
-    WidgetSubmit(id: "todo_input", value: val, ..) -> #(
+    WidgetSubmit(window_id: "main", id: "todo_input", value: val, ..) -> #(
       TodoModel(
         todos: list.append(model.todos, [Todo(text: val, done: False)]),
         input: "",
       ),
       command.Focus(widget_id: "todo_input"),
     )
-    WidgetClick(id: "add_todo", ..) -> #(
+    WidgetClick(window_id: "main", id: "add_todo", ..) -> #(
       TodoModel(
         todos: list.append(model.todos, [
           Todo(text: model.input, done: False),
@@ -117,7 +117,10 @@ fn todo_app() {
 pub fn testing_doc_adding_a_todo_appends_and_clears_input_test() {
   let model = TodoModel(todos: [], input: "Buy milk")
   let #(model, _cmd) =
-    todo_update(model, WidgetClick(id: "add_todo", scope: []))
+    todo_update(
+      model,
+      WidgetClick(window_id: "main", id: "add_todo", scope: []),
+    )
   should.equal(model.todos, [Todo(text: "Buy milk", done: False)])
   should.equal(model.input, "")
 }
@@ -131,7 +134,12 @@ pub fn testing_doc_submitting_todo_returns_focus_command_test() {
   let #(model, cmd) =
     todo_update(
       model,
-      WidgetSubmit(id: "todo_input", scope: [], value: "Buy milk"),
+      WidgetSubmit(
+        window_id: "main",
+        id: "todo_input",
+        scope: [],
+        value: "Buy milk",
+      ),
     )
   should.equal(list.length(model.todos), 1)
   let assert command.Focus(widget_id: "todo_input") = cmd

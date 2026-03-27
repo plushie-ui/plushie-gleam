@@ -37,7 +37,7 @@ fn tab_init() {
 
 fn tab_update(model: TabModel, event: Event) {
   case event {
-    WidgetClick(id: "tab:" <> name, ..) -> #(
+    WidgetClick(window_id: "main", id: "tab:" <> name, ..) -> #(
       TabModel(active_tab: name),
       command.None,
     )
@@ -79,7 +79,10 @@ pub fn tab_bar_init_test() {
 pub fn tab_bar_click_changes_active_tab_test() {
   let #(model, _) = tab_init()
   let #(model, _) =
-    tab_update(model, WidgetClick(id: "tab:settings", scope: []))
+    tab_update(
+      model,
+      WidgetClick(window_id: "main", id: "tab:settings", scope: []),
+    )
   should.equal(model.active_tab, "settings")
 }
 
@@ -123,7 +126,7 @@ fn sidebar_init() {
 
 fn sidebar_update(model: SidebarModel, event: Event) {
   case event {
-    WidgetClick(id: "nav:" <> name, ..) -> #(
+    WidgetClick(window_id: "main", id: "nav:" <> name, ..) -> #(
       SidebarModel(page: name),
       command.None,
     )
@@ -163,7 +166,10 @@ pub fn sidebar_init_test() {
 pub fn sidebar_click_changes_page_test() {
   let #(model, _) = sidebar_init()
   let #(model, _) =
-    sidebar_update(model, WidgetClick(id: "nav:sent", scope: []))
+    sidebar_update(
+      model,
+      WidgetClick(window_id: "main", id: "nav:sent", scope: []),
+    )
   should.equal(model.page, "sent")
 }
 
@@ -200,15 +206,15 @@ fn modal_init() {
 
 fn modal_update(model: ModalModel, event: Event) {
   case event {
-    WidgetClick(id: "open_modal", ..) -> #(
+    WidgetClick(window_id: "main", id: "open_modal", ..) -> #(
       ModalModel(..model, show_modal: True),
       command.None,
     )
-    WidgetClick(id: "confirm", ..) -> #(
+    WidgetClick(window_id: "main", id: "confirm", ..) -> #(
       ModalModel(show_modal: False, confirmed: True),
       command.None,
     )
-    WidgetClick(id: "cancel", ..) -> #(
+    WidgetClick(window_id: "main", id: "cancel", ..) -> #(
       ModalModel(..model, show_modal: False),
       command.None,
     )
@@ -288,20 +294,28 @@ pub fn modal_init_test() {
 pub fn modal_open_test() {
   let #(model, _) = modal_init()
   let #(model, _) =
-    modal_update(model, WidgetClick(id: "open_modal", scope: []))
+    modal_update(
+      model,
+      WidgetClick(window_id: "main", id: "open_modal", scope: []),
+    )
   should.equal(model.show_modal, True)
 }
 
 pub fn modal_confirm_test() {
   let model = ModalModel(show_modal: True, confirmed: False)
-  let #(model, _) = modal_update(model, WidgetClick(id: "confirm", scope: []))
+  let #(model, _) =
+    modal_update(
+      model,
+      WidgetClick(window_id: "main", id: "confirm", scope: []),
+    )
   should.equal(model.show_modal, False)
   should.equal(model.confirmed, True)
 }
 
 pub fn modal_cancel_test() {
   let model = ModalModel(show_modal: True, confirmed: False)
-  let #(model, _) = modal_update(model, WidgetClick(id: "cancel", scope: []))
+  let #(model, _) =
+    modal_update(model, WidgetClick(window_id: "main", id: "cancel", scope: []))
   should.equal(model.show_modal, False)
   should.equal(model.confirmed, False)
 }
@@ -438,7 +452,7 @@ type BreadcrumbModel {
 
 fn breadcrumb_update(model: BreadcrumbModel, event: Event) {
   case event {
-    WidgetClick(id: "crumb:" <> index_str, ..) -> {
+    WidgetClick(window_id: "main", id: "crumb:" <> index_str, ..) -> {
       let assert Ok(index) = int.parse(index_str)
       #(BreadcrumbModel(path: list.take(model.path, index + 1)), command.None)
     }
@@ -449,14 +463,20 @@ fn breadcrumb_update(model: BreadcrumbModel, event: Event) {
 pub fn breadcrumb_click_truncates_path_test() {
   let model = BreadcrumbModel(path: ["Home", "Projects", "Plushie", "Docs"])
   let #(model, _) =
-    breadcrumb_update(model, WidgetClick(id: "crumb:1", scope: []))
+    breadcrumb_update(
+      model,
+      WidgetClick(window_id: "main", id: "crumb:1", scope: []),
+    )
   should.equal(model.path, ["Home", "Projects"])
 }
 
 pub fn breadcrumb_click_first_keeps_root_test() {
   let model = BreadcrumbModel(path: ["Home", "Projects", "Plushie"])
   let #(model, _) =
-    breadcrumb_update(model, WidgetClick(id: "crumb:0", scope: []))
+    breadcrumb_update(
+      model,
+      WidgetClick(window_id: "main", id: "crumb:0", scope: []),
+    )
   should.equal(model.path, ["Home"])
 }
 
@@ -470,7 +490,7 @@ type ChipModel {
 
 fn chip_update(model: ChipModel, event: Event) {
   case event {
-    WidgetClick(id: "tag:" <> name, ..) -> {
+    WidgetClick(window_id: "main", id: "tag:" <> name, ..) -> {
       let selected = case set.contains(model.selected, name) {
         True -> set.delete(model.selected, name)
         False -> set.insert(model.selected, name)
@@ -483,13 +503,21 @@ fn chip_update(model: ChipModel, event: Event) {
 
 pub fn chip_toggle_on_test() {
   let model = ChipModel(selected: set.new())
-  let #(model, _) = chip_update(model, WidgetClick(id: "tag:rust", scope: []))
+  let #(model, _) =
+    chip_update(
+      model,
+      WidgetClick(window_id: "main", id: "tag:rust", scope: []),
+    )
   should.be_true(set.contains(model.selected, "rust"))
 }
 
 pub fn chip_toggle_off_test() {
   let model = ChipModel(selected: set.from_list(["rust"]))
-  let #(model, _) = chip_update(model, WidgetClick(id: "tag:rust", scope: []))
+  let #(model, _) =
+    chip_update(
+      model,
+      WidgetClick(window_id: "main", id: "tag:rust", scope: []),
+    )
   should.be_false(set.contains(model.selected, "rust"))
 }
 

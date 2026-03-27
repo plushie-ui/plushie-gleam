@@ -35,7 +35,7 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "fetch", ..) -> #(
+    WidgetClick(window_id: "main", id: "fetch", ..) -> #(
       Model(..model, status: Loading),
       command.async(fetch_data, "fetch"),
     )

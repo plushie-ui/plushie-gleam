@@ -4,10 +4,11 @@
 //// binary via the bridge actor. Pattern match on specific constructors
 //// and use `_ ->` for unhandled events.
 ////
-//// Widget events carry an `id` (the widget's local ID after scope
-//// splitting) and a `scope` (list of ancestor container IDs, nearest
-//// first). For example, a button "save" inside container "form" produces
-//// `WidgetClick(id: "save", scope: ["form"])`.
+//// Window-bound widget events carry a `window_id`, an `id` (the
+//// widget's local ID after scope splitting), and a `scope`
+//// (list of ancestor container IDs, nearest first). For example,
+//// a button "save" inside container "form" in window "main"
+//// produces `WidgetClick(window_id: "main", id: "save", scope: ["form"])`.
 ////
 //// Fields typed as `Dynamic` carry wire-originated values whose shape
 //// varies by context. Use `gleam/dynamic/decode` to extract typed data.
@@ -112,38 +113,69 @@ pub type Event {
 
   // --- Widget events ---
   /// A widget was clicked. Fired by buttons and other clickable widgets.
-  WidgetClick(id: String, scope: List(String))
+  WidgetClick(window_id: String, id: String, scope: List(String))
   /// Text was entered into a text_input or text_editor widget.
-  WidgetInput(id: String, scope: List(String), value: String)
+  WidgetInput(window_id: String, id: String, scope: List(String), value: String)
   /// A text input was submitted (e.g. user pressed Enter).
-  WidgetSubmit(id: String, scope: List(String), value: String)
+  WidgetSubmit(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    value: String,
+  )
   /// A toggler or checkbox widget changed state.
-  WidgetToggle(id: String, scope: List(String), value: Bool)
+  WidgetToggle(window_id: String, id: String, scope: List(String), value: Bool)
   /// An option was selected in a pick_list or combo_box widget.
-  WidgetSelect(id: String, scope: List(String), value: String)
+  WidgetSelect(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    value: String,
+  )
   /// A slider value changed during dragging.
-  WidgetSlide(id: String, scope: List(String), value: Float)
+  WidgetSlide(window_id: String, id: String, scope: List(String), value: Float)
   /// A slider was released at its final value.
-  WidgetSlideRelease(id: String, scope: List(String), value: Float)
+  WidgetSlideRelease(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    value: Float,
+  )
   /// Text was pasted into a text input or text editor.
-  WidgetPaste(id: String, scope: List(String), value: String)
+  WidgetPaste(window_id: String, id: String, scope: List(String), value: String)
   /// A scrollable widget's viewport changed position.
-  WidgetScroll(id: String, scope: List(String), data: ScrollData)
+  WidgetScroll(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    data: ScrollData,
+  )
   /// A collapsible or expandable widget was opened (e.g. combo_box
   /// dropdown, disclosure).
-  WidgetOpen(id: String, scope: List(String))
+  WidgetOpen(window_id: String, id: String, scope: List(String))
   /// A collapsible or expandable widget was closed.
-  WidgetClose(id: String, scope: List(String))
+  WidgetClose(window_id: String, id: String, scope: List(String))
   /// An option in a pick_list or combo_box was hovered.
-  WidgetOptionHovered(id: String, scope: List(String), value: String)
+  WidgetOptionHovered(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    value: String,
+  )
   /// A sortable column header was clicked. The value is the column key.
-  WidgetSort(id: String, scope: List(String), value: String)
+  WidgetSort(window_id: String, id: String, scope: List(String), value: String)
   /// A registered key binding was triggered on a widget.
-  WidgetKeyBinding(id: String, scope: List(String), value: String)
+  WidgetKeyBinding(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    value: String,
+  )
   /// Catch-all for uncommon or future widget event types not covered
   /// by the typed constructors above.
   WidgetEvent(
     kind: String,
+    window_id: String,
     id: String,
     scope: List(String),
     value: Dynamic,
@@ -274,31 +306,44 @@ pub type Event {
   // --- Sensor events ---
   /// A sensor widget detected that its rendered dimensions changed.
   /// Useful for responsive layouts that need to know actual size.
-  SensorResize(id: String, scope: List(String), width: Float, height: Float)
+  SensorResize(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    width: Float,
+    height: Float,
+  )
 
   // --- MouseArea events ---
   // Events from mouse_area wrapper widgets covering interactions that
   // standard button click handling does not (right/middle clicks,
   // hover, cursor movement, scroll).
   /// Right mouse button pressed inside a mouse_area widget.
-  MouseAreaRightPress(id: String, scope: List(String))
+  MouseAreaRightPress(window_id: String, id: String, scope: List(String))
   /// Right mouse button released inside a mouse_area widget.
-  MouseAreaRightRelease(id: String, scope: List(String))
+  MouseAreaRightRelease(window_id: String, id: String, scope: List(String))
   /// Middle mouse button pressed inside a mouse_area widget.
-  MouseAreaMiddlePress(id: String, scope: List(String))
+  MouseAreaMiddlePress(window_id: String, id: String, scope: List(String))
   /// Middle mouse button released inside a mouse_area widget.
-  MouseAreaMiddleRelease(id: String, scope: List(String))
+  MouseAreaMiddleRelease(window_id: String, id: String, scope: List(String))
   /// Double-click detected inside a mouse_area widget.
-  MouseAreaDoubleClick(id: String, scope: List(String))
+  MouseAreaDoubleClick(window_id: String, id: String, scope: List(String))
   /// Mouse cursor entered a mouse_area widget's bounds.
-  MouseAreaEnter(id: String, scope: List(String))
+  MouseAreaEnter(window_id: String, id: String, scope: List(String))
   /// Mouse cursor exited a mouse_area widget's bounds.
-  MouseAreaExit(id: String, scope: List(String))
+  MouseAreaExit(window_id: String, id: String, scope: List(String))
   /// Mouse cursor moved within a mouse_area widget. Coordinates
   /// are in the widget's local space.
-  MouseAreaMove(id: String, scope: List(String), x: Float, y: Float)
+  MouseAreaMove(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+  )
   /// Mouse wheel scrolled inside a mouse_area widget.
   MouseAreaScroll(
+    window_id: String,
     id: String,
     scope: List(String),
     delta_x: Float,
@@ -310,6 +355,7 @@ pub type Event {
   // coordinate space.
   /// A mouse button was pressed on a canvas widget.
   CanvasPress(
+    window_id: String,
     id: String,
     scope: List(String),
     x: Float,
@@ -318,6 +364,7 @@ pub type Event {
   )
   /// A mouse button was released on a canvas widget.
   CanvasRelease(
+    window_id: String,
     id: String,
     scope: List(String),
     x: Float,
@@ -325,9 +372,16 @@ pub type Event {
     button: String,
   )
   /// The mouse cursor moved within a canvas widget.
-  CanvasMove(id: String, scope: List(String), x: Float, y: Float)
+  CanvasMove(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+  )
   /// The mouse wheel was scrolled within a canvas widget.
   CanvasScroll(
+    window_id: String,
     id: String,
     scope: List(String),
     x: Float,
@@ -342,6 +396,7 @@ pub type Event {
   // element_id identifies which interactive shape.
   /// Mouse entered an interactive canvas shape's bounds.
   CanvasElementEnter(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -351,6 +406,7 @@ pub type Event {
   )
   /// Mouse left an interactive canvas shape's bounds.
   CanvasElementLeave(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -358,6 +414,7 @@ pub type Event {
   )
   /// An interactive canvas shape was clicked.
   CanvasElementClick(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -368,6 +425,7 @@ pub type Event {
   )
   /// An interactive canvas shape is being dragged.
   CanvasElementDrag(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -379,6 +437,7 @@ pub type Event {
   )
   /// Drag ended on an interactive canvas shape.
   CanvasElementDragEnd(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -388,15 +447,22 @@ pub type Event {
   )
   /// An interactive canvas shape received keyboard focus.
   CanvasElementFocused(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
     captured: Bool,
   )
   /// An interactive element lost keyboard focus.
-  CanvasElementBlurred(id: String, scope: List(String), element_id: String)
+  CanvasElementBlurred(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    element_id: String,
+  )
   /// A focused canvas element received a key press (arrow_mode "none").
   CanvasElementKeyPress(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -406,6 +472,7 @@ pub type Event {
   )
   /// A focused canvas element received a key release (arrow_mode "none").
   CanvasElementKeyRelease(
+    window_id: String,
     id: String,
     scope: List(String),
     element_id: String,
@@ -414,23 +481,40 @@ pub type Event {
     captured: Bool,
   )
   /// The canvas widget gained iced-level focus.
-  CanvasFocused(id: String, scope: List(String))
+  CanvasFocused(window_id: String, id: String, scope: List(String))
   /// The canvas widget lost iced-level focus.
-  CanvasBlurred(id: String, scope: List(String))
+  CanvasBlurred(window_id: String, id: String, scope: List(String))
   /// A focusable group gained group-level focus.
-  CanvasGroupFocused(id: String, scope: List(String), group_id: String)
+  CanvasGroupFocused(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    group_id: String,
+  )
   /// A focusable group lost group-level focus.
-  CanvasGroupBlurred(id: String, scope: List(String), group_id: String)
+  CanvasGroupBlurred(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    group_id: String,
+  )
 
   // --- Pane events ---
   // Events from pane_grid widgets when panes are resized, dragged,
   // or clicked.
   /// A pane_grid split divider was resized. The ratio is the new
   /// split position (0.0 to 1.0).
-  PaneResized(id: String, scope: List(String), split: Dynamic, ratio: Float)
+  PaneResized(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    split: Dynamic,
+    ratio: Float,
+  )
   /// A pane was dragged in a pane_grid. The action is "picked",
   /// "dropped", or "canceled". Region and edge describe the drop target.
   PaneDragged(
+    window_id: String,
     id: String,
     scope: List(String),
     pane: Dynamic,
@@ -440,9 +524,14 @@ pub type Event {
     edge: Option(String),
   )
   /// A pane was clicked in a pane_grid, making it the active pane.
-  PaneClicked(id: String, scope: List(String), pane: Dynamic)
+  PaneClicked(window_id: String, id: String, scope: List(String), pane: Dynamic)
   /// Focus cycled to the next pane in a pane_grid (e.g. via Tab).
-  PaneFocusCycle(id: String, scope: List(String), pane: Dynamic)
+  PaneFocusCycle(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    pane: Dynamic,
+  )
 
   // --- System events ---
   /// Response to a GetSystemInfo query. The data Dynamic contains a

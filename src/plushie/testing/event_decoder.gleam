@@ -28,72 +28,112 @@ pub fn decode_test_event(
   data: Dict(String, Dynamic),
 ) -> Result(Event, Nil) {
   let #(local, scope) = split_scoped_id(id)
+  let window_id = get_required_string(data, "window_id")
 
   case family {
     // -- Widget events -------------------------------------------------------
-    "click" -> Ok(event.WidgetClick(id: local, scope:))
+    "click" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetClick(window_id:, id: local, scope:)
+      })
     "input" ->
-      Ok(event.WidgetInput(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetInput(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "submit" ->
-      Ok(event.WidgetSubmit(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetSubmit(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "toggle" ->
-      Ok(event.WidgetToggle(
-        id: local,
-        scope:,
-        value: get_bool(data, "value", False),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetToggle(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_bool(data, "value", False),
+        )
+      })
     "select" ->
-      Ok(event.WidgetSelect(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetSelect(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "slide" ->
-      Ok(event.WidgetSlide(
-        id: local,
-        scope:,
-        value: get_float(data, "value", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetSlide(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_float(data, "value", 0.0),
+        )
+      })
     "slide_release" ->
-      Ok(event.WidgetSlideRelease(
-        id: local,
-        scope:,
-        value: get_float(data, "value", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetSlideRelease(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_float(data, "value", 0.0),
+        )
+      })
     "paste" ->
-      Ok(event.WidgetPaste(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetPaste(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "sort" ->
-      Ok(event.WidgetSort(
-        id: local,
-        scope:,
-        value: get_string(data, "column", ""),
-      ))
-    "open" -> Ok(event.WidgetOpen(id: local, scope:))
-    "close" -> Ok(event.WidgetClose(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetSort(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "column", ""),
+        )
+      })
+    "open" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetOpen(window_id:, id: local, scope:)
+      })
+    "close" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetClose(window_id:, id: local, scope:)
+      })
     "option_hovered" ->
-      Ok(event.WidgetOptionHovered(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetOptionHovered(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "key_binding" ->
-      Ok(event.WidgetKeyBinding(
-        id: local,
-        scope:,
-        value: get_string(data, "value", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetKeyBinding(
+          window_id:,
+          id: local,
+          scope:,
+          value: get_string(data, "value", ""),
+        )
+      })
     "scroll" -> {
       let scroll_data =
         event.ScrollData(
@@ -106,7 +146,9 @@ pub fn decode_test_event(
           content_width: get_float(data, "content_width", 0.0),
           content_height: get_float(data, "content_height", 0.0),
         )
-      Ok(event.WidgetScroll(id: local, scope:, data: scroll_data))
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetScroll(window_id:, id: local, scope:, data: scroll_data)
+      })
     }
 
     // -- Key events ----------------------------------------------------------
@@ -172,59 +214,67 @@ pub fn decode_test_event(
 
     // -- Window events -------------------------------------------------------
     "window_opened" ->
-      Ok(event.WindowOpened(
-        window_id: get_string(data, "window_id", ""),
-        width: get_float(data, "width", 0.0),
-        height: get_float(data, "height", 0.0),
-        position_x: get_optional_float(data, "position_x"),
-        position_y: get_optional_float(data, "position_y"),
-        scale_factor: get_float(data, "scale_factor", 1.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowOpened(
+          window_id:,
+          width: get_float(data, "width", 0.0),
+          height: get_float(data, "height", 0.0),
+          position_x: get_optional_float(data, "position_x"),
+          position_y: get_optional_float(data, "position_y"),
+          scale_factor: get_float(data, "scale_factor", 1.0),
+        )
+      })
     "window_closed" ->
-      Ok(event.WindowClosed(window_id: get_string(data, "window_id", "")))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowClosed(window_id:)
+      })
     "window_close_requested" ->
-      Ok(
-        event.WindowCloseRequested(window_id: get_string(data, "window_id", "")),
-      )
+      require_window_event(window_id, fn(window_id) {
+        event.WindowCloseRequested(window_id:)
+      })
     "window_moved" ->
-      Ok(event.WindowMoved(
-        window_id: get_string(data, "window_id", ""),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowMoved(
+          window_id:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+        )
+      })
     "window_resized" ->
-      Ok(event.WindowResized(
-        window_id: get_string(data, "window_id", ""),
-        width: get_float(data, "width", 0.0),
-        height: get_float(data, "height", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowResized(
+          window_id:,
+          width: get_float(data, "width", 0.0),
+          height: get_float(data, "height", 0.0),
+        )
+      })
     "window_focused" ->
-      Ok(event.WindowFocused(window_id: get_string(data, "window_id", "")))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowFocused(window_id:)
+      })
     "window_unfocused" ->
-      Ok(event.WindowUnfocused(window_id: get_string(data, "window_id", "")))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowUnfocused(window_id:)
+      })
     "window_rescaled" ->
-      Ok(event.WindowRescaled(
-        window_id: get_string(data, "window_id", ""),
-        scale_factor: get_float(data, "scale_factor", 1.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowRescaled(
+          window_id:,
+          scale_factor: get_float(data, "scale_factor", 1.0),
+        )
+      })
     "window_file_hovered" ->
-      Ok(event.WindowFileHovered(
-        window_id: get_string(data, "window_id", ""),
-        path: get_string(data, "path", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowFileHovered(window_id:, path: get_string(data, "path", ""))
+      })
     "window_file_dropped" ->
-      Ok(event.WindowFileDropped(
-        window_id: get_string(data, "window_id", ""),
-        path: get_string(data, "path", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.WindowFileDropped(window_id:, path: get_string(data, "path", ""))
+      })
     "window_files_hovered_left" ->
-      Ok(
-        event.WindowFilesHoveredLeft(window_id: get_string(
-          data,
-          "window_id",
-          "",
-        )),
-      )
+      require_window_event(window_id, fn(window_id) {
+        event.WindowFilesHoveredLeft(window_id:)
+      })
 
     // -- IME events ----------------------------------------------------------
     "ime_opened" -> Ok(event.ImeOpened(captured: False))
@@ -246,158 +296,232 @@ pub fn decode_test_event(
       ))
 
     // -- MouseArea events ----------------------------------------------------
-    "mouse_area_right_press" -> Ok(event.MouseAreaRightPress(id: local, scope:))
+    "mouse_area_right_press" ->
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaRightPress(window_id:, id: local, scope:)
+      })
     "mouse_area_right_release" ->
-      Ok(event.MouseAreaRightRelease(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaRightRelease(window_id:, id: local, scope:)
+      })
     "mouse_area_middle_press" ->
-      Ok(event.MouseAreaMiddlePress(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaMiddlePress(window_id:, id: local, scope:)
+      })
     "mouse_area_middle_release" ->
-      Ok(event.MouseAreaMiddleRelease(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaMiddleRelease(window_id:, id: local, scope:)
+      })
     "mouse_area_double_click" ->
-      Ok(event.MouseAreaDoubleClick(id: local, scope:))
-    "mouse_area_enter" -> Ok(event.MouseAreaEnter(id: local, scope:))
-    "mouse_area_exit" -> Ok(event.MouseAreaExit(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaDoubleClick(window_id:, id: local, scope:)
+      })
+    "mouse_area_enter" ->
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaEnter(window_id:, id: local, scope:)
+      })
+    "mouse_area_exit" ->
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaExit(window_id:, id: local, scope:)
+      })
     "mouse_area_move" ->
-      Ok(event.MouseAreaMove(
-        id: local,
-        scope:,
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaMove(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+        )
+      })
     "mouse_area_scroll" ->
-      Ok(event.MouseAreaScroll(
-        id: local,
-        scope:,
-        delta_x: get_float(data, "delta_x", 0.0),
-        delta_y: get_float(data, "delta_y", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.MouseAreaScroll(
+          window_id:,
+          id: local,
+          scope:,
+          delta_x: get_float(data, "delta_x", 0.0),
+          delta_y: get_float(data, "delta_y", 0.0),
+        )
+      })
 
     // -- Canvas events -------------------------------------------------------
     "canvas_press" ->
-      Ok(event.CanvasPress(
-        id: local,
-        scope:,
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        button: get_string(data, "button", "left"),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasPress(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: get_string(data, "button", "left"),
+        )
+      })
     "canvas_release" ->
-      Ok(event.CanvasRelease(
-        id: local,
-        scope:,
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        button: get_string(data, "button", "left"),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasRelease(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: get_string(data, "button", "left"),
+        )
+      })
     "canvas_move" ->
-      Ok(event.CanvasMove(
-        id: local,
-        scope:,
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasMove(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+        )
+      })
     "canvas_scroll" ->
-      Ok(event.CanvasScroll(
-        id: local,
-        scope:,
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        delta_x: get_float(data, "delta_x", 0.0),
-        delta_y: get_float(data, "delta_y", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasScroll(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          delta_x: get_float(data, "delta_x", 0.0),
+          delta_y: get_float(data, "delta_y", 0.0),
+        )
+      })
 
     // -- Canvas shape events -------------------------------------------------
     "canvas_element_enter" ->
-      Ok(event.CanvasElementEnter(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementEnter(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          captured: False,
+        )
+      })
     "canvas_element_leave" ->
-      Ok(event.CanvasElementLeave(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementLeave(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          captured: False,
+        )
+      })
     "canvas_element_click" ->
-      Ok(event.CanvasElementClick(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        button: get_string(data, "button", "left"),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementClick(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: get_string(data, "button", "left"),
+          captured: False,
+        )
+      })
     "canvas_element_drag" ->
-      Ok(event.CanvasElementDrag(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        delta_x: get_float(data, "delta_x", 0.0),
-        delta_y: get_float(data, "delta_y", 0.0),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementDrag(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          delta_x: get_float(data, "delta_x", 0.0),
+          delta_y: get_float(data, "delta_y", 0.0),
+          captured: False,
+        )
+      })
     "canvas_element_drag_end" ->
-      Ok(event.CanvasElementDragEnd(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementDragEnd(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          captured: False,
+        )
+      })
     "canvas_element_focused" ->
-      Ok(event.CanvasElementFocused(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementFocused(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          captured: False,
+        )
+      })
     "canvas_element_blurred" ->
-      Ok(event.CanvasElementBlurred(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementBlurred(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+        )
+      })
     "canvas_element_key_press" ->
-      Ok(event.CanvasElementKeyPress(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        key: get_string(data, "key", ""),
-        modifiers: decode_modifiers(data),
-        captured: False,
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementKeyPress(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          key: get_string(data, "key", ""),
+          modifiers: decode_modifiers(data),
+          captured: False,
+        )
+      })
     "canvas_element_key_release" ->
-      Ok(event.CanvasElementKeyRelease(
-        id: local,
-        scope:,
-        element_id: get_string(data, "element_id", ""),
-        key: get_string(data, "key", ""),
-        modifiers: decode_modifiers(data),
-        captured: False,
-      ))
-    "canvas_focused" -> Ok(event.CanvasFocused(id: local, scope:))
-    "canvas_blurred" -> Ok(event.CanvasBlurred(id: local, scope:))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasElementKeyRelease(
+          window_id:,
+          id: local,
+          scope:,
+          element_id: get_string(data, "element_id", ""),
+          key: get_string(data, "key", ""),
+          modifiers: decode_modifiers(data),
+          captured: False,
+        )
+      })
+    "canvas_focused" ->
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasFocused(window_id:, id: local, scope:)
+      })
+    "canvas_blurred" ->
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasBlurred(window_id:, id: local, scope:)
+      })
     "canvas_group_focused" ->
-      Ok(event.CanvasGroupFocused(
-        id: local,
-        scope:,
-        group_id: get_string(data, "group_id", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasGroupFocused(
+          window_id:,
+          id: local,
+          scope:,
+          group_id: get_string(data, "group_id", ""),
+        )
+      })
     "canvas_group_blurred" ->
-      Ok(event.CanvasGroupBlurred(
-        id: local,
-        scope:,
-        group_id: get_string(data, "group_id", ""),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.CanvasGroupBlurred(
+          window_id:,
+          id: local,
+          scope:,
+          group_id: get_string(data, "group_id", ""),
+        )
+      })
     "diagnostic" ->
       Ok(event.Diagnostic(
         level: get_string(data, "level", ""),
@@ -408,39 +532,58 @@ pub fn decode_test_event(
 
     // -- Pane events ---------------------------------------------------------
     "pane_resized" ->
-      Ok(event.PaneResized(
-        id: local,
-        scope:,
-        split: get_dynamic(data, "split"),
-        ratio: get_float(data, "ratio", 0.5),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.PaneResized(
+          window_id:,
+          id: local,
+          scope:,
+          split: get_dynamic(data, "split"),
+          ratio: get_float(data, "ratio", 0.5),
+        )
+      })
     "pane_dragged" ->
-      Ok(event.PaneDragged(
-        id: local,
-        scope:,
-        pane: get_dynamic(data, "pane"),
-        target: get_dynamic(data, "target"),
-        action: get_string(data, "action", ""),
-        region: get_optional_string(data, "region"),
-        edge: get_optional_string(data, "edge"),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.PaneDragged(
+          window_id:,
+          id: local,
+          scope:,
+          pane: get_dynamic(data, "pane"),
+          target: get_dynamic(data, "target"),
+          action: get_string(data, "action", ""),
+          region: get_optional_string(data, "region"),
+          edge: get_optional_string(data, "edge"),
+        )
+      })
     "pane_clicked" ->
-      Ok(event.PaneClicked(id: local, scope:, pane: get_dynamic(data, "pane")))
+      require_window_event(window_id, fn(window_id) {
+        event.PaneClicked(
+          window_id:,
+          id: local,
+          scope:,
+          pane: get_dynamic(data, "pane"),
+        )
+      })
     "pane_focus_cycle" ->
-      Ok(event.PaneFocusCycle(
-        id: local,
-        scope:,
-        pane: get_dynamic(data, "pane"),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.PaneFocusCycle(
+          window_id:,
+          id: local,
+          scope:,
+          pane: get_dynamic(data, "pane"),
+        )
+      })
 
     // -- Sensor events -------------------------------------------------------
     "sensor_resize" ->
-      Ok(event.SensorResize(
-        id: local,
-        scope:,
-        width: get_float(data, "width", 0.0),
-        height: get_float(data, "height", 0.0),
-      ))
+      require_window_event(window_id, fn(window_id) {
+        event.SensorResize(
+          window_id:,
+          id: local,
+          scope:,
+          width: get_float(data, "width", 0.0),
+          height: get_float(data, "height", 0.0),
+        )
+      })
 
     // -- System events -------------------------------------------------------
     "animation_frame" ->
@@ -462,9 +605,35 @@ fn split_scoped_id(id: String) -> #(String, List(String)) {
     [single] -> #(single, [])
     segments -> {
       let assert Ok(local) = list.last(segments)
-      let scope = list.take(segments, list.length(segments) - 1)
+      let scope = list.take(segments, list.length(segments) - 1) |> list.reverse
       #(local, scope)
     }
+  }
+}
+
+@target(erlang)
+fn get_required_string(
+  data: Dict(String, Dynamic),
+  key: String,
+) -> Result(String, Nil) {
+  case dict.get(data, key) {
+    Ok(value) ->
+      case decode.run(value, decode.string) {
+        Ok(text) if text != "" -> Ok(text)
+        _ -> Error(Nil)
+      }
+    _ -> Error(Nil)
+  }
+}
+
+@target(erlang)
+fn require_window_event(
+  window_id: Result(String, Nil),
+  build: fn(String) -> Event,
+) -> Result(Event, Nil) {
+  case window_id {
+    Ok(window_id) -> Ok(build(window_id))
+    Error(_) -> Error(Nil)
   }
 }
 

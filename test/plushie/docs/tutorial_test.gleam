@@ -42,12 +42,12 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetInput(id: "new_todo", value: val, ..) -> #(
+    WidgetInput(window_id: "main", id: "new_todo", value: val, ..) -> #(
       Model(..model, input: val),
       command.none(),
     )
 
-    WidgetSubmit(id: "new_todo", ..) ->
+    WidgetSubmit(window_id: "main", id: "new_todo", ..) ->
       case string.trim(model.input) {
         "" -> #(model, command.none())
         _ -> {
@@ -69,7 +69,12 @@ fn update(model: Model, event: Event) {
         }
       }
 
-    WidgetToggle(id: "toggle", scope: [_row, todo_id, ..], ..) -> {
+    WidgetToggle(
+      window_id: "main",
+      id: "toggle",
+      scope: [_row, todo_id, ..],
+      ..,
+    ) -> {
       let todos =
         list.map(model.todos, fn(t) {
           case t.id == todo_id {
@@ -80,20 +85,20 @@ fn update(model: Model, event: Event) {
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(id: "delete", scope: [_row, todo_id, ..]) -> #(
+    WidgetClick(window_id: "main", id: "delete", scope: [_row, todo_id, ..]) -> #(
       Model(..model, todos: list.filter(model.todos, fn(t) { t.id != todo_id })),
       command.none(),
     )
 
-    WidgetClick(id: "filter_all", ..) -> #(
+    WidgetClick(window_id: "main", id: "filter_all", ..) -> #(
       Model(..model, filter: All),
       command.none(),
     )
-    WidgetClick(id: "filter_active", ..) -> #(
+    WidgetClick(window_id: "main", id: "filter_active", ..) -> #(
       Model(..model, filter: Active),
       command.none(),
     )
-    WidgetClick(id: "filter_done", ..) -> #(
+    WidgetClick(window_id: "main", id: "filter_done", ..) -> #(
       Model(..model, filter: Done),
       command.none(),
     )
@@ -241,16 +246,40 @@ pub fn tutorial_step1_view_test() {
 pub fn tutorial_step2_input_updates_model_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetInput(id: "new_todo", scope: [], value: "Buy milk"))
+    update(
+      model,
+      WidgetInput(
+        window_id: "main",
+        id: "new_todo",
+        scope: [],
+        value: "Buy milk",
+      ),
+    )
   assert model.input == "Buy milk"
 }
 
 pub fn tutorial_step2_submit_creates_todo_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetInput(id: "new_todo", scope: [], value: "Buy milk"))
+    update(
+      model,
+      WidgetInput(
+        window_id: "main",
+        id: "new_todo",
+        scope: [],
+        value: "Buy milk",
+      ),
+    )
   let #(model, cmd) =
-    update(model, WidgetSubmit(id: "new_todo", scope: [], value: "Buy milk"))
+    update(
+      model,
+      WidgetSubmit(
+        window_id: "main",
+        id: "new_todo",
+        scope: [],
+        value: "Buy milk",
+      ),
+    )
   assert model.input == ""
   assert model.next_id == 2
   let assert [item] = model.todos
@@ -263,9 +292,15 @@ pub fn tutorial_step2_submit_creates_todo_test() {
 pub fn tutorial_step2_empty_submit_does_nothing_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetInput(id: "new_todo", scope: [], value: "   "))
+    update(
+      model,
+      WidgetInput(window_id: "main", id: "new_todo", scope: [], value: "   "),
+    )
   let #(model, cmd) =
-    update(model, WidgetSubmit(id: "new_todo", scope: [], value: "   "))
+    update(
+      model,
+      WidgetSubmit(window_id: "main", id: "new_todo", scope: [], value: "   "),
+    )
   assert model.todos == []
   assert cmd == command.none()
 }
@@ -341,6 +376,7 @@ pub fn tutorial_step4_toggle_test() {
     update(
       model,
       WidgetToggle(
+        window_id: "main",
         id: "toggle",
         scope: ["row", "todo_1", "list", "app"],
         value: True,
@@ -361,22 +397,33 @@ pub fn tutorial_step4_delete_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(id: "delete", scope: ["row", "todo_1", "list", "app"]),
+      WidgetClick(window_id: "main", id: "delete", scope: [
+        "row",
+        "todo_1",
+        "list",
+        "app",
+      ]),
     )
   assert model.todos == []
 }
 
 pub fn tutorial_step6_filter_all_test() {
   let #(model, _) = init()
-  let #(model, _) = update(model, WidgetClick(id: "filter_active", scope: []))
+  let #(model, _) =
+    update(
+      model,
+      WidgetClick(window_id: "main", id: "filter_active", scope: []),
+    )
   assert model.filter == Active
-  let #(model, _) = update(model, WidgetClick(id: "filter_all", scope: []))
+  let #(model, _) =
+    update(model, WidgetClick(window_id: "main", id: "filter_all", scope: []))
   assert model.filter == All
 }
 
 pub fn tutorial_step6_filter_done_test() {
   let #(model, _) = init()
-  let #(model, _) = update(model, WidgetClick(id: "filter_done", scope: []))
+  let #(model, _) =
+    update(model, WidgetClick(window_id: "main", id: "filter_done", scope: []))
   assert model.filter == Done
 }
 

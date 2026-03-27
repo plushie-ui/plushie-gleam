@@ -39,7 +39,7 @@ fn init_simple() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "add_todo", ..) -> {
+    WidgetClick(window_id: "main", id: "add_todo", ..) -> {
       let new_todo = Todo(id: next_id(model), text: model.input, done: False)
       #(
         Model(
@@ -52,12 +52,12 @@ fn update(model: Model, event: Event) {
       )
     }
 
-    WidgetInput(id: "todo_field", value:, ..) -> #(
+    WidgetInput(window_id: "main", id: "todo_field", value:, ..) -> #(
       Model(..model, input: value),
       command.none(),
     )
 
-    WidgetSubmit(id: "todo_field", ..) -> {
+    WidgetSubmit(window_id: "main", id: "todo_field", ..) -> {
       let new_todo = Todo(id: next_id(model), text: model.input, done: False)
       #(
         Model(
@@ -114,10 +114,19 @@ pub fn app_behaviour_init_simple_test() {
 pub fn app_behaviour_update_add_todo_test() {
   let #(model, _) = init_simple()
   let #(model, _) =
-    update(model, WidgetInput(id: "todo_field", scope: [], value: "Buy milk"))
+    update(
+      model,
+      WidgetInput(
+        window_id: "main",
+        id: "todo_field",
+        scope: [],
+        value: "Buy milk",
+      ),
+    )
   assert model.input == "Buy milk"
 
-  let #(model, cmd) = update(model, WidgetClick(id: "add_todo", scope: []))
+  let #(model, cmd) =
+    update(model, WidgetClick(window_id: "main", id: "add_todo", scope: []))
   assert model.input == ""
   let assert [item] = model.todos
   assert item.text == "Buy milk"
@@ -128,9 +137,25 @@ pub fn app_behaviour_update_add_todo_test() {
 pub fn app_behaviour_update_submit_returns_focus_test() {
   let #(model, _) = init_simple()
   let #(model, _) =
-    update(model, WidgetInput(id: "todo_field", scope: [], value: "Walk dog"))
+    update(
+      model,
+      WidgetInput(
+        window_id: "main",
+        id: "todo_field",
+        scope: [],
+        value: "Walk dog",
+      ),
+    )
   let #(model, cmd) =
-    update(model, WidgetSubmit(id: "todo_field", scope: [], value: "Walk dog"))
+    update(
+      model,
+      WidgetSubmit(
+        window_id: "main",
+        id: "todo_field",
+        scope: [],
+        value: "Walk dog",
+      ),
+    )
   assert model.input == ""
   let assert [item] = model.todos
   assert item.text == "Walk dog"
@@ -139,7 +164,8 @@ pub fn app_behaviour_update_submit_returns_focus_test() {
 
 pub fn app_behaviour_update_unknown_event_test() {
   let #(model, _) = init_simple()
-  let #(model, cmd) = update(model, WidgetClick(id: "unknown", scope: []))
+  let #(model, cmd) =
+    update(model, WidgetClick(window_id: "main", id: "unknown", scope: []))
   assert model.todos == []
   assert cmd == command.none()
 }

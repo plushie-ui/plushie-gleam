@@ -30,7 +30,36 @@ import plushie/platform
 /// - Window nodes reset scope -- children start with no scope prefix.
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  normalize_ctx(node, "", canvas_widget.empty_registry())
+  normalize_ctx(node, "", "", canvas_widget.empty_registry())
+}
+
+/// Normalize a top-level app view and enforce explicit windows.
+///
+/// A view must return either:
+/// - a single `window` node
+/// - a root node whose direct children are all `window` nodes
+pub fn normalize_view(
+  node: Node,
+  registry: canvas_widget.Registry,
+) -> Result(Node, String) {
+  let normalized = normalize_with_registry(node, registry)
+
+  case normalized.kind {
+    "window" -> Ok(normalized)
+    _ -> {
+      let direct_windows =
+        !list.is_empty(normalized.children)
+        && list.all(normalized.children, fn(child) { child.kind == "window" })
+
+      case direct_windows {
+        True -> Ok(normalized)
+        False ->
+          Error(
+            "view must return a window node or a root node whose direct children are window nodes",
+          )
+      }
+    }
+  }
 }
 
 /// Normalize with a canvas widget registry. Canvas widget placeholders
@@ -39,14 +68,20 @@ pub fn normalize_with_registry(
   node: Node,
   registry: canvas_widget.Registry,
 ) -> Node {
-  normalize_ctx(node, "", registry)
+  normalize_ctx(node, "", "", registry)
 }
 
 fn normalize_ctx(
   node: Node,
   scope: String,
+  window_id: String,
   registry: canvas_widget.Registry,
 ) -> Node {
+  let current_window_id = case node.kind {
+    "window" -> node.id
+    _ -> window_id
+  }
+
   // Validate: user-provided IDs (non-empty) must not contain "/"
   case node.id {
     "" -> Nil
@@ -72,7 +107,13 @@ fn normalize_ctx(
   case canvas_widget.is_placeholder(node) {
     True -> {
       case
-        canvas_widget.render_placeholder(node, scoped_id, node.id, registry)
+        canvas_widget.render_placeholder(
+          node,
+          current_window_id,
+          scoped_id,
+          node.id,
+          registry,
+        )
       {
         Some(#(rendered_node, _entry)) -> {
           // The rendered node already has the scoped_id set and metadata
@@ -86,18 +127,19 @@ fn normalize_ctx(
           let props = resolve_a11y_refs(rendered_node.props, scope)
           let children =
             list.map(rendered_node.children, fn(child) {
-              normalize_ctx(child, child_scope, registry)
+              normalize_ctx(child, child_scope, current_window_id, registry)
             })
           check_duplicate_sibling_ids(children)
           Node(..rendered_node, props:, children:)
         }
         _ -> {
           // Fallback: normalize as a regular node
-          normalize_regular(node, scoped_id, scope, registry)
+          normalize_regular(node, scoped_id, scope, current_window_id, registry)
         }
       }
     }
-    False -> normalize_regular(node, scoped_id, scope, registry)
+    False ->
+      normalize_regular(node, scoped_id, scope, current_window_id, registry)
   }
 }
 
@@ -105,6 +147,7 @@ fn normalize_regular(
   node: Node,
   scoped_id: String,
   scope: String,
+  window_id: String,
   registry: canvas_widget.Registry,
 ) -> Node {
   // Windows reset scope; empty IDs don't create scope boundaries.
@@ -118,7 +161,7 @@ fn normalize_regular(
 
   let children =
     list.map(node.children, fn(child) {
-      normalize_ctx(child, child_scope, registry)
+      normalize_ctx(child, child_scope, window_id, registry)
     })
 
   // Warn on duplicate sibling IDs

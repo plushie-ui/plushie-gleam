@@ -69,6 +69,9 @@ pub opaque type App(model, msg) {
 /// This covers the common case where update receives plushie Events directly.
 /// The init function ignores the Dynamic app_opts argument. Use
 /// `simple_with_opts` if you need to receive app_opts.
+///
+/// `view(model)` must return either a `window(...)` node or a root
+/// node whose direct children are all `window(...)` nodes.
 pub fn simple(
   init: fn() -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
@@ -87,6 +90,9 @@ pub fn simple(
 }
 
 /// Create a simple app with app_opts passed to init.
+///
+/// `view(model)` must return either a `window(...)` node or a root
+/// node whose direct children are all `window(...)` nodes.
 pub fn simple_with_opts(
   init: fn(Dynamic) -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
@@ -106,6 +112,9 @@ pub fn simple_with_opts(
 
 /// Create an app with a custom message type.
 /// The `on_event` function maps wire Events to the app's msg type.
+///
+/// `view(model)` must return either a `window(...)` node or a root
+/// node whose direct children are all `window(...)` nodes.
 pub fn application(
   init: fn() -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
@@ -125,6 +134,9 @@ pub fn application(
 }
 
 /// Create an app with a custom message type and app_opts passed to init.
+///
+/// `view(model)` must return either a `window(...)` node or a root
+/// node whose direct children are all `window(...)` nodes.
 pub fn application_with_opts(
   init: fn(Dynamic) -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),

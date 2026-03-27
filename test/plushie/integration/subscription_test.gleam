@@ -68,7 +68,7 @@ fn toggle_update(
       ToggleModel(..model, ticks: model.ticks + 1),
       command.none(),
     )
-    event.WidgetClick(id: "stop", ..) -> #(
+    event.WidgetClick(window_id: "main", id: "stop", ..) -> #(
       ToggleModel(..model, timer_on: False),
       command.none(),
     )
@@ -153,7 +153,10 @@ pub fn subscription_toggle_off_stops_ticks_test() -> Nil {
   let assert Ok(before) = support.await(rt, fn(m) { m.ticks >= 2 }, 500)
 
   // Inject a click event to turn off the timer
-  support.dispatch_event(rt, event.WidgetClick(id: "stop", scope: []))
+  support.dispatch_event(
+    rt,
+    event.WidgetClick(window_id: "main", id: "stop", scope: []),
+  )
 
   // Wait for the event to be processed
   process.sleep(50)

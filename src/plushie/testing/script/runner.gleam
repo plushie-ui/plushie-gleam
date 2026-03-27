@@ -62,15 +62,23 @@ fn execute(
 ) -> Result(TestSession(model, Event), String) {
   case instruction {
     Click(selector) -> {
-      let #(local, scope) = split_scoped_id(selector)
-      Ok(session.send_event(session, event.WidgetClick(id: local, scope:)))
+      let target = resolve_event_target(session.current_tree(session), selector)
+      Ok(session.send_event(
+        session,
+        event.WidgetClick(window_id: target.0, id: target.1, scope: target.2),
+      ))
     }
 
     TypeText(selector, text) -> {
-      let #(local, scope) = split_scoped_id(selector)
+      let target = resolve_event_target(session.current_tree(session), selector)
       Ok(session.send_event(
         session,
-        event.WidgetInput(id: local, scope:, value: text),
+        event.WidgetInput(
+          window_id: target.0,
+          id: target.1,
+          scope: target.2,
+          value: text,
+        ),
       ))
     }
 
@@ -122,26 +130,41 @@ fn execute(
     }
 
     Toggle(selector) -> {
-      let #(local, scope) = split_scoped_id(selector)
+      let target = resolve_event_target(session.current_tree(session), selector)
       Ok(session.send_event(
         session,
-        event.WidgetToggle(id: local, scope:, value: True),
+        event.WidgetToggle(
+          window_id: target.0,
+          id: target.1,
+          scope: target.2,
+          value: True,
+        ),
       ))
     }
 
     Select(selector, value) -> {
-      let #(local, scope) = split_scoped_id(selector)
+      let target = resolve_event_target(session.current_tree(session), selector)
       Ok(session.send_event(
         session,
-        event.WidgetSelect(id: local, scope:, value:),
+        event.WidgetSelect(
+          window_id: target.0,
+          id: target.1,
+          scope: target.2,
+          value:,
+        ),
       ))
     }
 
     Slide(selector, value) -> {
-      let #(local, scope) = split_scoped_id(selector)
+      let target = resolve_event_target(session.current_tree(session), selector)
       Ok(session.send_event(
         session,
-        event.WidgetSlide(id: local, scope:, value:),
+        event.WidgetSlide(
+          window_id: target.0,
+          id: target.1,
+          scope: target.2,
+          value:,
+        ),
       ))
     }
 
@@ -241,9 +264,80 @@ fn split_scoped_id(id: String) -> #(String, List(String)) {
     [single] -> #(single, [])
     segments -> {
       let assert Ok(local) = list.last(segments)
-      let scope = list.take(segments, list.length(segments) - 1)
+      let scope = list.take(segments, list.length(segments) - 1) |> list.reverse
       #(local, scope)
     }
+  }
+}
+
+fn resolve_event_target(
+  tree: Node,
+  target: String,
+) -> #(String, String, List(String)) {
+  case find_event_target(tree, target, "") {
+    option.Some(found) -> found
+    option.None -> #(default_window_id(tree), target, [])
+  }
+}
+
+fn find_event_target(
+  tree: Node,
+  target: String,
+  current_window: String,
+) -> option.Option(#(String, String, List(String))) {
+  let window_id = case tree.kind {
+    "window" -> tree.id
+    _ -> current_window
+  }
+
+  let local_id = last_segment(tree.id)
+  let exact_match = tree.id == target
+  let local_match = !string.contains(target, "/") && local_id == target
+
+  case tree.kind != "window" && { exact_match || local_match } {
+    True -> {
+      let #(id, scope) = split_scoped_id(tree.id)
+      option.Some(#(window_id, id, scope))
+    }
+    False -> find_event_target_in_children(tree.children, target, window_id)
+  }
+}
+
+fn find_event_target_in_children(
+  children: List(Node),
+  target: String,
+  current_window: String,
+) -> option.Option(#(String, String, List(String))) {
+  case children {
+    [] -> option.None
+    [child, ..rest] ->
+      case find_event_target(child, target, current_window) {
+        option.Some(found) -> option.Some(found)
+        option.None ->
+          find_event_target_in_children(rest, target, current_window)
+      }
+  }
+}
+
+fn default_window_id(tree: Node) -> String {
+  case tree.kind {
+    "window" -> tree.id
+    _ ->
+      case list.find(tree.children, fn(child) { child.kind == "window" }) {
+        Ok(window) -> window.id
+        Error(_) -> ""
+      }
+  }
+}
+
+fn last_segment(id: String) -> String {
+  case string.split(id, "/") {
+    [] -> id
+    segments ->
+      case list.last(segments) {
+        Ok(last) -> last
+        Error(_) -> id
+      }
   }
 }
 

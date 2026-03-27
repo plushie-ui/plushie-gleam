@@ -728,63 +728,59 @@ fn parse_scroll_unit(value: String) -> ScrollUnit {
 fn decode_widget_click(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.WidgetClick(id: local, scope:)))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  Ok(EventMessage(event.WidgetClick(window_id:, id: local, scope:)))
 }
 
 fn decode_widget_string_value(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String), String) -> Event,
+  constructor: fn(String, String, List(String), String) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   use value <- result.try(get_string(map, "value"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope, value)))
+  Ok(EventMessage(constructor(window_id, local, scope, value)))
 }
 
 fn decode_widget_toggle(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   use value <- result.try(get_bool(map, "value"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.WidgetToggle(id: local, scope:, value:)))
+  Ok(EventMessage(event.WidgetToggle(window_id:, id: local, scope:, value:)))
 }
 
 fn decode_widget_float_value(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String), Float) -> Event,
+  constructor: fn(String, String, List(String), Float) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   use value <- result.try(get_float(map, "value"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope, value)))
+  Ok(EventMessage(constructor(window_id, local, scope, value)))
 }
 
 fn decode_widget_no_value(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String)) -> Event,
+  constructor: fn(String, String, List(String)) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope)))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  Ok(EventMessage(constructor(window_id, local, scope)))
 }
 
 fn decode_widget_sort(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let column = get_string_or(data, "column", "")
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.WidgetSort(id: local, scope:, value: column)))
+  Ok(
+    EventMessage(event.WidgetSort(window_id:, id: local, scope:, value: column)),
+  )
 }
 
 fn decode_widget_key_binding(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let binding = case dict.get(data, "binding") {
     Ok(PString(s)) -> s
@@ -794,16 +790,21 @@ fn decode_widget_key_binding(
         _ -> ""
       }
   }
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.WidgetKeyBinding(id: local, scope:, value: binding)))
+  Ok(
+    EventMessage(event.WidgetKeyBinding(
+      window_id:,
+      id: local,
+      scope:,
+      value: binding,
+    )),
+  )
 }
 
 fn decode_widget_scroll(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
-  let #(local, scope) = split_scoped_id(id)
   let scroll_data =
     event.ScrollData(
       absolute_x: get_float_or(data, "absolute_x", 0.0),
@@ -815,7 +816,14 @@ fn decode_widget_scroll(
       content_width: get_float_or(data, "content_width", 0.0),
       content_height: get_float_or(data, "content_height", 0.0),
     )
-  Ok(EventMessage(event.WidgetScroll(id: local, scope:, data: scroll_data)))
+  Ok(
+    EventMessage(event.WidgetScroll(
+      window_id:,
+      id: local,
+      scope:,
+      data: scroll_data,
+    )),
+  )
 }
 
 fn decode_prop_validation(
@@ -844,8 +852,7 @@ fn decode_generic_widget_event(
   map: Dict(String, PropValue),
   family: String,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let id = get_string_or(map, "id", "")
-  let #(local, scope) = split_scoped_id(id)
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let value = case dict.get(map, "value") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
@@ -857,6 +864,7 @@ fn decode_generic_widget_event(
   Ok(
     EventMessage(event.WidgetEvent(
       kind: family,
+      window_id:,
       id: local,
       scope:,
       value:,
@@ -1126,12 +1134,19 @@ fn decode_ime_closed(
 fn decode_sensor_resize(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   use width <- result.try(get_float(data, "width"))
   use height <- result.try(get_float(data, "height"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.SensorResize(id: local, scope:, width:, height:)))
+  Ok(
+    EventMessage(event.SensorResize(
+      window_id:,
+      id: local,
+      scope:,
+      width:,
+      height:,
+    )),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1140,33 +1155,38 @@ fn decode_sensor_resize(
 
 fn decode_mouse_area_no_coords(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String)) -> Event,
+  constructor: fn(String, String, List(String)) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope)))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  Ok(EventMessage(constructor(window_id, local, scope)))
 }
 
 fn decode_mouse_area_move(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.MouseAreaMove(id: local, scope:, x:, y:)))
+  Ok(EventMessage(event.MouseAreaMove(window_id:, id: local, scope:, x:, y:)))
 }
 
 fn decode_mouse_area_scroll(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   use delta_x <- result.try(get_float(data, "delta_x"))
   use delta_y <- result.try(get_float(data, "delta_y"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.MouseAreaScroll(id: local, scope:, delta_x:, delta_y:)))
+  Ok(
+    EventMessage(event.MouseAreaScroll(
+      window_id:,
+      id: local,
+      scope:,
+      delta_x:,
+      delta_y:,
+    )),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1175,40 +1195,38 @@ fn decode_mouse_area_scroll(
 
 fn decode_canvas_button(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String), Float, Float, String) -> Event,
+  constructor: fn(String, String, List(String), Float, Float, String) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let button = get_string_or(data, "button", "left")
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope, x, y, button)))
+  Ok(EventMessage(constructor(window_id, local, scope, x, y, button)))
 }
 
 fn decode_canvas_move(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasMove(id: local, scope:, x:, y:)))
+  Ok(EventMessage(event.CanvasMove(window_id:, id: local, scope:, x:, y:)))
 }
 
 fn decode_canvas_scroll(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let delta_x = get_float_or(data, "delta_x", 0.0)
   let delta_y = get_float_or(data, "delta_y", 0.0)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasScroll(
+      window_id:,
       id: local,
       scope:,
       x:,
@@ -1226,15 +1244,15 @@ fn decode_canvas_scroll(
 fn decode_canvas_element_enter(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementEnter(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1248,13 +1266,13 @@ fn decode_canvas_element_enter(
 fn decode_canvas_element_leave(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementLeave(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1266,16 +1284,16 @@ fn decode_canvas_element_leave(
 fn decode_canvas_element_click(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let button = get_string_or(data, "button", "left")
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementClick(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1290,7 +1308,7 @@ fn decode_canvas_element_click(
 fn decode_canvas_element_drag(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
@@ -1298,9 +1316,9 @@ fn decode_canvas_element_drag(
   let delta_x = get_float_or(data, "delta_x", 0.0)
   let delta_y = get_float_or(data, "delta_y", 0.0)
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementDrag(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1316,15 +1334,15 @@ fn decode_canvas_element_drag(
 fn decode_canvas_element_drag_end(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementDragEnd(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1338,13 +1356,13 @@ fn decode_canvas_element_drag_end(
 fn decode_canvas_element_focused(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementFocused(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1356,25 +1374,31 @@ fn decode_canvas_element_focused(
 fn decode_canvas_element_blurred(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasElementBlurred(id: local, scope:, element_id:)))
+  Ok(
+    EventMessage(event.CanvasElementBlurred(
+      window_id:,
+      id: local,
+      scope:,
+      element_id:,
+    )),
+  )
 }
 
 fn decode_canvas_element_key_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let key = get_string_or(data, "key", "")
   let modifiers = parse_modifiers(data)
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementKeyPress(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1388,15 +1412,15 @@ fn decode_canvas_element_key_press(
 fn decode_canvas_element_key_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let element_id = get_string_or(data, "element_id", "")
   let key = get_string_or(data, "key", "")
   let modifiers = parse_modifiers(data)
   let captured = get_bool_or(map, "captured", False)
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.CanvasElementKeyRelease(
+      window_id:,
       id: local,
       scope:,
       element_id:,
@@ -1410,37 +1434,47 @@ fn decode_canvas_element_key_release(
 fn decode_canvas_focused(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasFocused(id: local, scope:)))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  Ok(EventMessage(event.CanvasFocused(window_id:, id: local, scope:)))
 }
 
 fn decode_canvas_blurred(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasBlurred(id: local, scope:)))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  Ok(EventMessage(event.CanvasBlurred(window_id:, id: local, scope:)))
 }
 
 fn decode_canvas_group_focused(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let group_id = get_string_or(data, "group_id", "")
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasGroupFocused(id: local, scope:, group_id:)))
+  Ok(
+    EventMessage(event.CanvasGroupFocused(
+      window_id:,
+      id: local,
+      scope:,
+      group_id:,
+    )),
+  )
 }
 
 fn decode_canvas_group_blurred(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let group_id = get_string_or(data, "group_id", "")
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.CanvasGroupBlurred(id: local, scope:, group_id:)))
+  Ok(
+    EventMessage(event.CanvasGroupBlurred(
+      window_id:,
+      id: local,
+      scope:,
+      group_id:,
+    )),
+  )
 }
 
 fn decode_diagnostic(
@@ -1461,21 +1495,28 @@ fn decode_diagnostic(
 fn decode_pane_resized(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let split = case dict.get(data, "split") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
   }
   let ratio = get_float_or(data, "ratio", 0.5)
-  let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(event.PaneResized(id: local, scope:, split:, ratio:)))
+  Ok(
+    EventMessage(event.PaneResized(
+      window_id:,
+      id: local,
+      scope:,
+      split:,
+      ratio:,
+    )),
+  )
 }
 
 fn decode_pane_dragged(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let pane = case dict.get(data, "pane") {
     Ok(v) -> prop_to_dynamic(v)
@@ -1488,9 +1529,9 @@ fn decode_pane_dragged(
   let action = get_string_or(data, "action", "")
   let region = get_optional_string(data, "region")
   let edge = get_optional_string(data, "edge")
-  let #(local, scope) = split_scoped_id(id)
   Ok(
     EventMessage(event.PaneDragged(
+      window_id:,
       id: local,
       scope:,
       pane:,
@@ -1504,16 +1545,24 @@ fn decode_pane_dragged(
 
 fn decode_pane_simple(
   map: Dict(String, PropValue),
-  constructor: fn(String, List(String), Dynamic) -> Event,
+  constructor: fn(String, String, List(String), Dynamic) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  use id <- result.try(get_string(map, "id"))
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let pane = case dict.get(data, "pane") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
   }
+  Ok(EventMessage(constructor(window_id, local, scope, pane)))
+}
+
+fn decode_windowed_target(
+  map: Dict(String, PropValue),
+) -> Result(#(String, String, List(String)), protocol.DecodeError) {
+  use id <- result.try(get_string(map, "id"))
+  use window_id <- result.try(get_string(map, "window_id"))
   let #(local, scope) = split_scoped_id(id)
-  Ok(EventMessage(constructor(local, scope, pane)))
+  Ok(#(window_id, local, scope))
 }
 
 // ---------------------------------------------------------------------------
@@ -1568,13 +1617,15 @@ fn decode_error_event(
         Ok(PMap(data)) -> data
         _ -> dict.new()
       }
-      Ok(EventMessage(event.ExtensionCommandError(
-        reason: get_string_or(data, "reason", ""),
-        node_id: get_optional_string(data, "node_id"),
-        op: get_optional_string(data, "op"),
-        extension: get_optional_string(data, "extension"),
-        message: get_optional_string(data, "message"),
-      )))
+      Ok(
+        EventMessage(event.ExtensionCommandError(
+          reason: get_string_or(data, "reason", ""),
+          node_id: get_optional_string(data, "node_id"),
+          op: get_optional_string(data, "op"),
+          extension: get_optional_string(data, "extension"),
+          message: get_optional_string(data, "message"),
+        )),
+      )
     }
     _ -> {
       let data = case dict.get(map, "data") {

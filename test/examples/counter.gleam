@@ -23,11 +23,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "inc", ..) -> #(
+    WidgetClick(window_id: "main", id: "inc", ..) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(id: "dec", ..) -> #(
+    WidgetClick(window_id: "main", id: "dec", ..) -> #(
       Model(count: model.count - 1),
       command.none(),
     )

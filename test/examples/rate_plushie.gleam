@@ -203,12 +203,12 @@ fn update(model: Model, event: Event) {
     }
 
     // Review form inputs -- clear errors on change
-    WidgetInput(id: "review-name", value: v, ..) -> #(
+    WidgetInput(window_id: "main", id: "review-name", value: v, ..) -> #(
       Model(..model, review_name: v, errors: dict.delete(model.errors, "name")),
       command.none(),
     )
 
-    WidgetInput(id: "review-comment", value: v, ..) -> #(
+    WidgetInput(window_id: "main", id: "review-comment", value: v, ..) -> #(
       Model(
         ..model,
         review_comment: v,
@@ -217,12 +217,12 @@ fn update(model: Model, event: Event) {
       command.none(),
     )
 
-    WidgetClick(id: "submit-review", ..) -> #(
+    WidgetClick(window_id: "main", id: "submit-review", ..) -> #(
       submit_review(model),
       command.none(),
     )
 
-    WidgetSubmit(id: "review-name", ..) -> #(
+    WidgetSubmit(window_id: "main", id: "review-name", ..) -> #(
       submit_review(model),
       command.none(),
     )

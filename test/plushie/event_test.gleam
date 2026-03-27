@@ -6,14 +6,15 @@ import plushie/event.{
 }
 
 pub fn widget_click_test() {
-  let evt = WidgetClick(id: "save_btn", scope: ["form"])
+  let evt = WidgetClick(window_id: "main", id: "save_btn", scope: ["form"])
 
   assert evt.id == "save_btn"
   assert evt.scope == ["form"]
 
   // Pattern match round-trip
   case evt {
-    WidgetClick(id: "save_btn", scope: ["form"]) -> should.be_true(True)
+    WidgetClick(window_id: "main", id: "save_btn", scope: ["form"]) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
@@ -66,9 +67,9 @@ pub fn modifiers_none_test() {
 /// families with a single case expression and a catch-all wildcard.
 pub fn realistic_update_pattern_test() {
   let events: List(Event) = [
-    WidgetClick(id: "inc", scope: []),
-    WidgetClick(id: "dec", scope: []),
-    WidgetInput(id: "name", scope: ["form"], value: "Arthur"),
+    WidgetClick(window_id: "main", id: "inc", scope: []),
+    WidgetClick(window_id: "main", id: "dec", scope: []),
+    WidgetInput(window_id: "main", id: "name", scope: ["form"], value: "Arthur"),
     WindowClosed(window_id: "main"),
     TimerTick(tag: "poll", timestamp: 42),
   ]
@@ -84,8 +85,8 @@ fn do_fold_events(events: List(Event), count: Int) -> Int {
     [] -> count
     [evt, ..rest] -> {
       let next = case evt {
-        WidgetClick(id: "inc", ..) -> count + 1
-        WidgetClick(id: "dec", ..) -> count - 1
+        WidgetClick(window_id: "main", id: "inc", ..) -> count + 1
+        WidgetClick(window_id: "main", id: "dec", ..) -> count - 1
         _ -> count
       }
       do_fold_events(rest, next)

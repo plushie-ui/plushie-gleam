@@ -22,11 +22,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "inc", ..) -> #(
+    WidgetClick(window_id: "main", id: "inc", ..) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(id: "dec", ..) -> #(
+    WidgetClick(window_id: "main", id: "dec", ..) -> #(
       Model(count: model.count - 1),
       command.none(),
     )
@@ -60,19 +60,22 @@ pub fn readme_counter_init_test() {
 
 pub fn readme_counter_increment_test() {
   let #(model, _) = init()
-  let #(model, _) = update(model, WidgetClick(id: "inc", scope: []))
+  let #(model, _) =
+    update(model, WidgetClick(window_id: "main", id: "inc", scope: []))
   should.equal(model.count, 1)
 }
 
 pub fn readme_counter_decrement_test() {
   let #(model, _) = init()
-  let #(model, _) = update(model, WidgetClick(id: "dec", scope: []))
+  let #(model, _) =
+    update(model, WidgetClick(window_id: "main", id: "dec", scope: []))
   should.equal(model.count, -1)
 }
 
 pub fn readme_counter_unknown_event_test() {
   let #(model, _) = init()
-  let #(model, cmd) = update(model, WidgetClick(id: "nope", scope: []))
+  let #(model, cmd) =
+    update(model, WidgetClick(window_id: "main", id: "nope", scope: []))
   should.equal(model.count, 0)
   should.equal(cmd, command.None)
 }
