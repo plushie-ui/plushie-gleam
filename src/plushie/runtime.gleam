@@ -221,8 +221,12 @@ type LoopState(model, msg) {
     cw_registry: canvas_widget.Registry,
     // Callers waiting for async task completion, keyed by tag
     pending_await_async: Dict(String, Subject(Nil)),
-    // Pending interact: (caller_reply, request_id)
-    pending_interact: Option(#(Subject(Result(Nil, String)), String)),
+    // Pending interact: (caller_reply, request_id, caller_monitor)
+    pending_interact: Option(
+      #(Subject(Result(Nil, String)), String, process.Monitor),
+    ),
+    // Consecutive view/1 failures for stale-UI warning
+    consecutive_view_errors: Int,
     // Deferred coalescable events, keyed by coalesce identity
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
@@ -335,6 +339,7 @@ fn init_runtime(
       cw_registry: initial_cw_registry,
       pending_await_async: dict.new(),
       pending_interact: None,
+      consecutive_view_errors: 0,
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
@@ -487,9 +492,10 @@ fn handle_message(
       // Process any final events from the interact response.
       let state =
         list.fold(events, state, fn(state, ev) { handle_event(state, ev) })
-      // Reply to the waiting caller
+      // Reply to the waiting caller and demonitor
       let state = case state.pending_interact {
-        Some(#(reply, _)) -> {
+        Some(#(reply, _, monitor)) -> {
+          process.demonitor_process(monitor)
           process.send(reply, Ok(Nil))
           LoopState(..state, pending_interact: None)
         }
@@ -670,7 +676,7 @@ fn handle_message(
       flush_coalesced(state) |> actor.continue()
     }
 
-    ProcessDown(process.ProcessDown(monitor: _, pid: down_pid, reason: reason)) -> {
+    ProcessDown(process.ProcessDown(monitor: down_mon, pid: down_pid, reason: reason)) -> {
       // Check if this is the bridge actor dying (D-039)
       let is_bridge = case state.bridge_pid {
         Some(bpid) -> bpid == down_pid
@@ -699,6 +705,18 @@ fn handle_message(
           }
         }
         False -> {
+          // Check if this is the interact caller dying (timeout/crash).
+          // Clear pending_interact so future interactions aren't blocked.
+          let state = case state.pending_interact {
+            Some(#(_, _, mon)) if mon == down_mon -> {
+              platform.log_info(
+                "plushie: interact caller exited, clearing pending interaction",
+              )
+              LoopState(..state, pending_interact: None)
+            }
+            _ -> state
+          }
+
           // Find which async task this pid belongs to
           let found =
             dict.fold(state.async_tasks, None, fn(acc, tag, entry) {
@@ -1086,11 +1104,16 @@ fn handle_message(
 
     Interact(action:, selector:, payload:, reply:) -> {
       let req_id = "interact_" <> int.to_string(state.nonce_counter)
+      // Monitor the caller so we can clean up if it dies (timeout/crash)
+      let caller_monitor = case process.subject_owner(reply) {
+        Ok(pid) -> process.monitor(pid)
+        Error(_) -> process.monitor(process.self())
+      }
       let state =
         LoopState(
           ..state,
           nonce_counter: state.nonce_counter + 1,
-          pending_interact: Some(#(reply, req_id)),
+          pending_interact: Some(#(reply, req_id, caller_monitor)),
         )
       send_encoded(
         state.bridge,
@@ -1245,7 +1268,8 @@ fn fail_pending_interact(
   reason: String,
 ) -> LoopState(model, msg) {
   case state.pending_interact {
-    Some(#(reply, _)) -> {
+    Some(#(reply, _, monitor)) -> {
+      process.demonitor_process(monitor)
       process.send(reply, Error(reason))
       LoopState(..state, pending_interact: None)
     }
@@ -1517,6 +1541,7 @@ fn dispatch_update(
             windows: new_windows,
             cw_registry: new_cw_registry,
             errors: 0,
+            consecutive_view_errors: 0,
             async_tasks: state_after_cmds.async_tasks,
             nonce_counter: state_after_cmds.nonce_counter,
             pending_effects: state_after_cmds.pending_effects,
@@ -1528,6 +1553,7 @@ fn dispatch_update(
           // This matches the Elixir SDK: model and commands persist through
           // view crashes, only the tree stays at its previous value.
           let err_count = state_after_cmds.errors + 1
+          let view_err_count = state_after_cmds.consecutive_view_errors + 1
           case err_count <= 10 {
             True ->
               platform.log_warning(
@@ -1535,7 +1561,21 @@ fn dispatch_update(
               )
             False -> Nil
           }
-          LoopState(..state_after_cmds, tree: state.tree, errors: err_count)
+          case view_err_count == 5 {
+            True ->
+              platform.log_warning(
+                "plushie: view has failed "
+                <> int.to_string(view_err_count)
+                <> " consecutive times, the UI is stale",
+              )
+            False -> Nil
+          }
+          LoopState(
+            ..state_after_cmds,
+            tree: state.tree,
+            errors: err_count,
+            consecutive_view_errors: view_err_count,
+          )
         }
       }
     }
