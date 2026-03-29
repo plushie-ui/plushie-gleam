@@ -488,18 +488,20 @@ fn handle_message(
       actor.continue(state)
     }
 
-    FromBridge(InboundEvent(InteractResponse(_id, events))) -> {
+    FromBridge(InboundEvent(InteractResponse(resp_id, events))) -> {
       // Process any final events from the interact response.
       let state =
         list.fold(events, state, fn(state, ev) { handle_event(state, ev) })
-      // Reply to the waiting caller and demonitor
+      // Reply to the waiting caller and demonitor. Pin-match the
+      // response ID against the pending request ID to guard against
+      // stale responses from a previous interaction.
       let state = case state.pending_interact {
-        Some(#(reply, _, monitor)) -> {
+        Some(#(reply, req_id, monitor)) if req_id == resp_id -> {
           process.demonitor_process(monitor)
           process.send(reply, Ok(Nil))
           LoopState(..state, pending_interact: None)
         }
-        None -> state
+        _ -> state
       }
       actor.continue(state)
     }
@@ -925,6 +927,7 @@ fn handle_message(
               windows:,
               cw_registry:,
               restart_count: new_count,
+              consecutive_view_errors: 0,
             )
           // Update the selector to use the new notification subject
           let new_selector = build_selector(state.self, state.notifications)
@@ -1003,6 +1006,7 @@ fn handle_message(
             active_subs: new_subs,
             windows: new_windows,
             cw_registry: new_cw_registry,
+            consecutive_view_errors: 0,
           )
           |> actor.continue()
         }
@@ -1391,13 +1395,24 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
         active_subs: new_subs,
         windows: new_windows,
         cw_registry: new_cw_registry,
+        consecutive_view_errors: 0,
       )
     }
     Error(reason) -> {
+      let view_err_count = state.consecutive_view_errors + 1
       platform.log_warning(
         "plushie: view error during rerender: " <> dynamic.classify(reason),
       )
-      state
+      case view_err_count == 5 {
+        True ->
+          platform.log_warning(
+            "plushie: view has failed "
+            <> int.to_string(view_err_count)
+            <> " consecutive times, the UI is stale",
+          )
+        False -> Nil
+      }
+      LoopState(..state, consecutive_view_errors: view_err_count)
     }
   }
 }
@@ -2010,10 +2025,10 @@ fn sync_subscriptions(
         let entry = start_subscription(sub, bridge, self, opts)
         dict.insert(acc, key, entry)
       }
-      Ok(RendererSub(kind:, max_rate: old_rate, ..)) -> {
+      Ok(RendererSub(kind:, max_rate: old_rate, window_id: old_window_id, ..)) -> {
         let new_rate = subscription.get_max_rate(sub)
         let new_window_id = subscription.get_window_id(sub)
-        case old_rate == new_rate {
+        case old_rate == new_rate && old_window_id == new_window_id {
           True -> acc
           False -> {
             let tag = subscription.tag(sub)

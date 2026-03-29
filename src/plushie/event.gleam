@@ -10,6 +10,10 @@
 //// a button "save" inside container "form" in window "main"
 //// produces `WidgetClick(window_id: "main", id: "save", scope: ["form"])`.
 ////
+//// Subscription events (Key, Mouse, Touch, IME, Modifiers) also carry
+//// a `window_id` identifying which window had focus when the event
+//// fired. Empty string when the renderer doesn't provide it.
+////
 //// Fields typed as `Dynamic` carry wire-originated values whose shape
 //// varies by context. Use `gleam/dynamic/decode` to extract typed data.
 //// These appear in catch-all events, pane identifiers, async results,

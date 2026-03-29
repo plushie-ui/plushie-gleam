@@ -52,6 +52,7 @@ import gleam/string
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue, Node}
 import plushie/platform
+import plushie/prop/a11y.{type A11y}
 import plushie/subscription.{type Subscription}
 
 // -- Canvas widget definition ------------------------------------------------
@@ -129,8 +130,11 @@ const standard_widget_props = ["a11y", "event_rate"]
 /// Attach accessibility properties to a canvas widget placeholder.
 /// These are automatically forwarded to the rendered output during
 /// tree normalization -- widget authors don't need to handle them.
-pub fn set_a11y(node: Node, a11y_val: PropValue) -> Node {
-  Node(..node, props: dict.insert(node.props, "a11y", a11y_val))
+pub fn set_a11y(node: Node, accessibility: A11y) -> Node {
+  Node(
+    ..node,
+    props: dict.insert(node.props, "a11y", a11y.to_prop_value(accessibility)),
+  )
 }
 
 /// Attach an event rate limit to a canvas widget placeholder.

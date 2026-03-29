@@ -200,14 +200,14 @@ pub type Command(msg) {
   /// The result arrives as an `EffectResponse` event matched by `id`.
   Effect(id: String, kind: String, payload: Dict(String, PropValue))
 
-  /// Send a command directly to a native extension widget, bypassing
-  /// the normal tree diff/patch cycle.
+  /// Send a command directly to a native widget, bypassing the
+  /// normal tree diff/patch cycle.
   WidgetCommand(
     node_id: String,
     op: String,
     payload: Dict(String, PropValue),
   )
-  /// Send a batch of extension commands processed in one cycle.
+  /// Send a batch of widget commands processed in one cycle.
   WidgetCommands(commands: List(#(String, String, Dict(String, PropValue))))
 
   /// Advance the renderer by one frame in test/headless mode. The

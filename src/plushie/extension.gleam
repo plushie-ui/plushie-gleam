@@ -12,7 +12,7 @@
 ////
 //// ## Native widget extensions
 ////
-//// A native widget is defined by creating an `WidgetDef` and
+//// A native widget is defined by creating a `WidgetDef` and
 //// registering it. The widget's Rust crate handles rendering and
 //// event emission; the Gleam side provides the typed builder API.
 ////
@@ -22,7 +22,7 @@
 //// import plushie/prop/color
 //// import plushie/prop/length
 ////
-//// // Define the extension
+//// // Define the native widget
 //// pub const gauge_def = extension.WidgetDef(
 ////   kind: "gauge",
 ////   rust_crate: "native/my_gauge",
