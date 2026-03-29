@@ -308,15 +308,25 @@ fn derive_from_node(node: Node, window_id: String, acc: Registry) -> Registry {
 
 // -- Event dispatch ----------------------------------------------------------
 
+/// Result of dispatching an event through the canvas widget chain.
+pub type DispatchResult {
+  /// Handlers were consulted; Some = event to deliver, None = consumed.
+  Dispatched(Option(Event))
+  /// No handlers in scope; event was not routed through any widget.
+  /// Raw canvas events should reach update/2; canvas-internal events
+  /// from a widget scope should be auto-consumed at the call site.
+  Bypassed(Event)
+}
+
 /// Route an event through canvas widget handlers in the scope chain.
 ///
-/// Returns `#(Some(event), registry)` if the event should reach
-/// `app.update`, or `#(None, registry)` if consumed. The registry
-/// is returned with any state updates from handlers.
+/// Returns `Dispatched(Some(event))` when handlers were consulted but
+/// the event passed through, `Dispatched(None)` when consumed, or
+/// `Bypassed(event)` when no handlers existed in the event's scope.
 pub fn dispatch_through_widgets(
   registry: Registry,
   ev: Event,
-) -> #(Option(Event), Registry) {
+) -> #(DispatchResult, Registry) {
   let window_id = extract_window_id(ev)
   let scope = extract_scope(ev)
   let event_id = extract_id(ev)
@@ -325,8 +335,11 @@ pub fn dispatch_through_widgets(
   let chain = build_handler_chain(registry, window_id, scope, event_id)
 
   case chain {
-    [] -> #(Some(ev), registry)
-    _ -> walk_chain(registry, ev, chain)
+    [] -> #(Bypassed(ev), registry)
+    _ -> {
+      let #(result, registry) = walk_chain(registry, ev, chain)
+      #(Dispatched(result), registry)
+    }
   }
 }
 
@@ -541,7 +554,12 @@ pub fn handle_widget_timer(
                       value: coerce(Nil),
                       data:,
                     )
-                  dispatch_through_widgets(registry, emitted)
+                  let #(result, registry) =
+                    dispatch_through_widgets(registry, emitted)
+                  case result {
+                    Dispatched(ev) -> #(ev, registry)
+                    Bypassed(ev) -> #(Some(ev), registry)
+                  }
                 }
               }
             }

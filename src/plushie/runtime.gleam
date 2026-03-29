@@ -1420,18 +1420,16 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
 @target(erlang)
 /// Process an event through update + commands WITHOUT rendering.
 /// Used by interact_step to batch events before a single render.
-/// Matches Elixir's apply_event (runtime.ex lines 972-987).
 fn apply_event(
   state: LoopState(model, msg),
-  event: Event,
+  ev: Event,
 ) -> LoopState(model, msg) {
-  // Route through canvas_widget scope chain
-  let #(maybe_event, new_registry) =
-    canvas_widget.dispatch_through_widgets(state.cw_registry, event)
+  let #(result, new_registry) =
+    canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
-  case maybe_event {
-    Some(ev) -> {
-      let mapped_msg = runtime_core.map_event(state.app, ev)
+  case resolve_dispatch(result) {
+    Some(resolved) -> {
+      let mapped_msg = runtime_core.map_event(state.app, resolved)
       let update_fn = app.get_update(state.app)
       case platform.try_call(fn() { update_fn(state.model, mapped_msg) }) {
         Ok(#(new_model, commands)) -> {
@@ -1450,22 +1448,47 @@ fn apply_event(
 /// first, then mapping to the app's msg type.
 fn handle_event(
   state: LoopState(model, msg),
-  event: Event,
+  ev: Event,
 ) -> LoopState(model, msg) {
-  // Route through canvas_widget scope chain
-  let #(maybe_event, new_registry) =
-    canvas_widget.dispatch_through_widgets(state.cw_registry, event)
+  let #(result, new_registry) =
+    canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
-  case maybe_event {
-    Some(ev) -> {
-      let mapped_msg = runtime_core.map_event(state.app, ev)
+  case resolve_dispatch(result) {
+    Some(resolved) -> {
+      let mapped_msg = runtime_core.map_event(state.app, resolved)
       dispatch_update(state, mapped_msg)
     }
     None -> {
-      // Event was consumed by a canvas_widget. Still need to re-render
-      // since widget state may have changed.
+      // Event was consumed by a canvas_widget or auto-consumed as a
+      // canvas-internal event. Still need to re-render since widget
+      // state may have changed.
       rerender(state)
     }
+  }
+}
+
+@target(erlang)
+/// Resolve a canvas widget dispatch result into an optional event
+/// for the app. Canvas-internal events that passed through widget
+/// handlers without being intercepted are auto-consumed so they
+/// don't leak to the app's update function.
+fn resolve_dispatch(
+  result: canvas_widget.DispatchResult,
+) -> Option(Event) {
+  case result {
+    // Handlers consulted, event consumed
+    canvas_widget.Dispatched(None) -> None
+    // Handlers consulted, event passed through -- auto-consume
+    // canvas-internal events (they're widget implementation details)
+    canvas_widget.Dispatched(Some(ev)) ->
+      case event.is_canvas_internal(ev) {
+        True -> None
+        False -> Some(ev)
+      }
+    // No handlers in scope -- pass through to update.
+    // This preserves raw canvas event delivery for canvases
+    // that aren't wrapped in a canvas widget.
+    canvas_widget.Bypassed(ev) -> Some(ev)
   }
 }
 

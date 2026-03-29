@@ -617,3 +617,34 @@ pub type Event {
   /// Effect command's id field.
   EffectResponse(request_id: String, result: EffectResult)
 }
+
+/// Whether an event is a canvas-internal implementation detail.
+///
+/// Canvas interaction events (press, release, move, scroll) and canvas
+/// element events (enter, leave, click, drag, focus, key) are internal
+/// to the canvas widget system. When no canvas widget intercepts them,
+/// they should be auto-consumed rather than reaching the app's update
+/// function. Raw canvases (without a canvas widget wrapper) still
+/// deliver these events directly.
+pub fn is_canvas_internal(ev: Event) -> Bool {
+  case ev {
+    CanvasPress(..) -> True
+    CanvasRelease(..) -> True
+    CanvasMove(..) -> True
+    CanvasScroll(..) -> True
+    CanvasElementEnter(..) -> True
+    CanvasElementLeave(..) -> True
+    CanvasElementClick(..) -> True
+    CanvasElementDrag(..) -> True
+    CanvasElementDragEnd(..) -> True
+    CanvasElementFocused(..) -> True
+    CanvasElementBlurred(..) -> True
+    CanvasElementKeyPress(..) -> True
+    CanvasElementKeyRelease(..) -> True
+    CanvasFocused(..) -> True
+    CanvasBlurred(..) -> True
+    CanvasGroupFocused(..) -> True
+    CanvasGroupBlurred(..) -> True
+    _ -> False
+  }
+}

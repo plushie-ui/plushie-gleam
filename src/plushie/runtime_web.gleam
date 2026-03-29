@@ -322,15 +322,23 @@ fn handle_event(
       flush_coalesced(handle)
       // Route through canvas_widget scope chain
       let registry = do_get_cw_registry(handle)
-      let #(maybe_event, new_registry) =
+      let #(result, new_registry) =
         canvas_widget.dispatch_through_widgets(registry, event)
       do_set_cw_registry(handle, new_registry)
-      case maybe_event {
-        Some(ev) -> {
+      case result {
+        canvas_widget.Bypassed(ev) -> {
           let msg = runtime_core.map_event(app, ev)
           dispatch_update(handle, app, msg)
         }
-        None -> {
+        canvas_widget.Dispatched(Some(ev)) ->
+          case event.is_canvas_internal(ev) {
+            True -> render_and_sync(handle, app, False)
+            False -> {
+              let msg = runtime_core.map_event(app, ev)
+              dispatch_update(handle, app, msg)
+            }
+          }
+        canvas_widget.Dispatched(None) -> {
           // Consumed by canvas_widget -- re-render for state changes
           render_and_sync(handle, app, False)
         }
