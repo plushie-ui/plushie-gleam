@@ -880,6 +880,7 @@ fn decode_generic_widget_event(
 fn decode_key_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   let key = get_string_or(data, "key", "")
   let modified_key = get_string_or(data, "modified_key", key)
@@ -891,6 +892,7 @@ fn decode_key_press(
   let captured = get_bool_or(map, "captured", False)
   Ok(
     EventMessage(event.KeyPress(
+      window_id:,
       key:,
       modified_key:,
       modifiers:,
@@ -906,6 +908,7 @@ fn decode_key_press(
 fn decode_key_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   let key = get_string_or(data, "key", "")
   let modified_key = get_string_or(data, "modified_key", key)
@@ -916,6 +919,7 @@ fn decode_key_release(
   let captured = get_bool_or(map, "captured", False)
   Ok(
     EventMessage(event.KeyRelease(
+      window_id:,
       key:,
       modified_key:,
       modifiers:,
@@ -930,9 +934,10 @@ fn decode_key_release(
 fn decode_modifiers_changed(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let modifiers = parse_modifiers(map)
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.ModifiersChanged(modifiers:, captured:)))
+  Ok(EventMessage(event.ModifiersChanged(window_id:, modifiers:, captured:)))
 }
 
 // ---------------------------------------------------------------------------
@@ -1023,47 +1028,58 @@ fn decode_window_file(
 fn decode_cursor_moved(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseMoved(x:, y:, captured:)))
+  Ok(EventMessage(event.MouseMoved(window_id:, x:, y:, captured:)))
 }
 
 fn decode_cursor_entered(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseEntered(captured:)))
+  Ok(EventMessage(event.MouseEntered(window_id:, captured:)))
 }
 
 fn decode_cursor_left(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseLeft(captured:)))
+  Ok(EventMessage(event.MouseLeft(window_id:, captured:)))
 }
 
 fn decode_mouse_button(
   map: Dict(String, PropValue),
-  constructor: fn(MouseButton, Bool) -> Event,
+  constructor: fn(String, MouseButton, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let button_str = get_string_or(map, "value", "left")
   let button = parse_mouse_button(button_str)
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(constructor(button, captured)))
+  Ok(EventMessage(constructor(window_id, button, captured)))
 }
 
 fn decode_wheel_scrolled(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   use delta_x <- result.try(get_float(data, "delta_x"))
   use delta_y <- result.try(get_float(data, "delta_y"))
   let unit = parse_scroll_unit(get_string_or(data, "unit", "line"))
   let captured = get_bool_or(map, "captured", False)
   Ok(
-    EventMessage(event.MouseWheelScrolled(delta_x:, delta_y:, unit:, captured:)),
+    EventMessage(event.MouseWheelScrolled(
+      window_id:,
+      delta_x:,
+      delta_y:,
+      unit:,
+      captured:,
+    )),
   )
 }
 
@@ -1073,14 +1089,15 @@ fn decode_wheel_scrolled(
 
 fn decode_touch(
   map: Dict(String, PropValue),
-  constructor: fn(Int, Float, Float, Bool) -> Event,
+  constructor: fn(String, Int, Float, Float, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   use finger_id <- result.try(get_int(data, "id"))
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(constructor(finger_id, x, y, captured)))
+  Ok(EventMessage(constructor(window_id, finger_id, x, y, captured)))
 }
 
 // ---------------------------------------------------------------------------
@@ -1090,13 +1107,15 @@ fn decode_touch(
 fn decode_ime_opened(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.ImeOpened(captured:)))
+  Ok(EventMessage(event.ImeOpened(window_id:, captured:)))
 }
 
 fn decode_ime_preedit(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   let text = get_string_or(data, "text", "")
   let cursor = case dict.get(data, "cursor") {
@@ -1108,23 +1127,25 @@ fn decode_ime_preedit(
     _ -> None
   }
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.ImePreedit(text:, cursor:, captured:)))
+  Ok(EventMessage(event.ImePreedit(window_id:, text:, cursor:, captured:)))
 }
 
 fn decode_ime_commit(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
   let text = get_string_or(data, "text", "")
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.ImeCommit(text:, captured:)))
+  Ok(EventMessage(event.ImeCommit(window_id:, text:, captured:)))
 }
 
 fn decode_ime_closed(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.ImeClosed(captured:)))
+  Ok(EventMessage(event.ImeClosed(window_id:, captured:)))
 }
 
 // ---------------------------------------------------------------------------

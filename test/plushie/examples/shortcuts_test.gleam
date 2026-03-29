@@ -10,6 +10,7 @@ import examples/shortcuts
 
 fn key_press(key: String) -> event.Event {
   event.KeyPress(
+    window_id: "",
     key: key,
     modified_key: key,
     modifiers: event.modifiers_none(),

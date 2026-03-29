@@ -185,7 +185,10 @@ pub type Event {
   // --- Key events ---
   /// A key was pressed. Includes modifier state, physical key info,
   /// and whether the event was already captured by a subscription.
+  /// In multi-window apps, `window_id` identifies which window had
+  /// focus when the key was pressed.
   KeyPress(
+    window_id: String,
     key: String,
     /// The key value after applying modifier transforms. For example,
     /// Shift+a produces modified_key "A". Falls back to the unmodified
@@ -202,6 +205,7 @@ pub type Event {
   )
   /// A key was released.
   KeyRelease(
+    window_id: String,
     key: String,
     /// The key value after applying modifier transforms.
     modified_key: String,
@@ -252,20 +256,22 @@ pub type Event {
   // --- Mouse events (global subscriptions) ---
   // These fire from global mouse subscriptions, not from specific widgets.
   // The `captured` flag indicates whether a subscription already consumed
-  // the event.
+  // the event. In multi-window apps, `window_id` identifies which window
+  // the cursor was over or interacting with.
   /// The mouse cursor moved to a new position.
-  MouseMoved(x: Float, y: Float, captured: Bool)
+  MouseMoved(window_id: String, x: Float, y: Float, captured: Bool)
   /// The mouse cursor entered the application window.
-  MouseEntered(captured: Bool)
+  MouseEntered(window_id: String, captured: Bool)
   /// The mouse cursor left the application window.
-  MouseLeft(captured: Bool)
+  MouseLeft(window_id: String, captured: Bool)
   /// A mouse button was pressed.
-  MouseButtonPressed(button: MouseButton, captured: Bool)
+  MouseButtonPressed(window_id: String, button: MouseButton, captured: Bool)
   /// A mouse button was released.
-  MouseButtonReleased(button: MouseButton, captured: Bool)
+  MouseButtonReleased(window_id: String, button: MouseButton, captured: Bool)
   /// The mouse wheel was scrolled. Unit indicates whether deltas are
   /// in lines (wheel notches) or pixels (trackpad).
   MouseWheelScrolled(
+    window_id: String,
     delta_x: Float,
     delta_y: Float,
     unit: ScrollUnit,
@@ -277,31 +283,31 @@ pub type Event {
   // pressed -> moved -> lifted. A `lost` event means the OS
   // interrupted tracking (e.g. a system gesture took over).
   /// A finger touched the screen.
-  TouchPressed(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchPressed(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
   /// A finger moved on the screen.
-  TouchMoved(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchMoved(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
   /// A finger was lifted from the screen.
-  TouchLifted(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLifted(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
   /// Touch tracking was interrupted by the OS.
-  TouchLost(finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLost(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
 
   // --- IME events ---
   // Input Method Editor events for CJK and other complex text input.
   // Lifecycle: opened -> preedit (one or more) -> commit -> closed.
   /// The IME composition session started.
-  ImeOpened(captured: Bool)
+  ImeOpened(window_id: String, captured: Bool)
   /// The IME is composing text. The cursor tuple is the selection
   /// range within the preedit string (byte offsets).
-  ImePreedit(text: String, cursor: Option(#(Int, Int)), captured: Bool)
+  ImePreedit(window_id: String, text: String, cursor: Option(#(Int, Int)), captured: Bool)
   /// The IME committed final text to the input.
-  ImeCommit(text: String, captured: Bool)
+  ImeCommit(window_id: String, text: String, captured: Bool)
   /// The IME composition session ended.
-  ImeClosed(captured: Bool)
+  ImeClosed(window_id: String, captured: Bool)
 
   // --- Modifier change ---
   /// The set of held modifier keys changed (Shift, Ctrl, Alt, etc.).
   /// Useful for updating UI hints without waiting for a key event.
-  ModifiersChanged(modifiers: Modifiers, captured: Bool)
+  ModifiersChanged(window_id: String, modifiers: Modifiers, captured: Bool)
 
   // --- Sensor events ---
   /// A sensor widget detected that its rendered dimensions changed.

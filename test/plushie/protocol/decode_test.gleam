@@ -182,6 +182,7 @@ pub fn decode_key_press_json_test() {
     decode.decode_message(data, protocol.Json)
   case evt {
     event.KeyPress(
+      window_id: _,
       key:,
       modified_key:,
       modifiers:,
@@ -392,7 +393,7 @@ pub fn decode_cursor_moved_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseMoved(x:, y:, captured:) -> {
+    event.MouseMoved(window_id: _, x:, y:, captured:) -> {
       should.equal(x, 150.5)
       should.equal(y, 200.0)
       should.equal(captured, False)
@@ -404,14 +405,20 @@ pub fn decode_cursor_moved_json_test() {
 pub fn decode_cursor_entered_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_entered\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.MouseEntered(captured: False))) =
+  let assert Ok(decode.EventMessage(event.MouseEntered(
+    window_id: _,
+    captured: False,
+  ))) =
     decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_cursor_left_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_left\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.MouseLeft(captured: False))) =
+  let assert Ok(decode.EventMessage(event.MouseLeft(
+    window_id: _,
+    captured: False,
+  ))) =
     decode.decode_message(data, protocol.Json)
 }
 
@@ -422,7 +429,7 @@ pub fn decode_wheel_scrolled_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseWheelScrolled(delta_x:, delta_y:, unit:, captured:) -> {
+    event.MouseWheelScrolled(window_id: _, delta_x:, delta_y:, unit:, captured:) -> {
       should.equal(delta_x, 0.0)
       should.equal(delta_y, -3.0)
       should.equal(unit, event.Line)
@@ -443,7 +450,7 @@ pub fn decode_finger_pressed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.TouchPressed(finger_id:, x:, y:, captured:) -> {
+    event.TouchPressed(window_id: _, finger_id:, x:, y:, captured:) -> {
       should.equal(finger_id, 1)
       should.equal(x, 100.0)
       should.equal(y, 200.0)
@@ -507,7 +514,7 @@ pub fn decode_modifiers_changed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ModifiersChanged(modifiers:, captured:) -> {
+    event.ModifiersChanged(window_id: _, modifiers:, captured:) -> {
       should.equal(modifiers.shift, True)
       should.equal(modifiers.ctrl, False)
       should.equal(modifiers.alt, True)
@@ -570,7 +577,7 @@ pub fn decode_cursor_moved_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseMoved(captured:, ..) -> should.equal(captured, True)
+    event.MouseMoved(window_id: _, captured:, ..) -> should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -579,7 +586,10 @@ pub fn decode_cursor_entered_captured_json_test() {
   let json =
     "{\"type\":\"event\",\"family\":\"cursor_entered\",\"captured\":true}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.MouseEntered(captured: True))) =
+  let assert Ok(decode.EventMessage(event.MouseEntered(
+    window_id: _,
+    captured: True,
+  ))) =
     decode.decode_message(data, protocol.Json)
 }
 
@@ -590,7 +600,7 @@ pub fn decode_finger_pressed_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.TouchPressed(captured:, ..) -> should.equal(captured, True)
+    event.TouchPressed(window_id: _, captured:, ..) -> should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -602,7 +612,7 @@ pub fn decode_ime_opened_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ImeOpened(captured:) -> should.equal(captured, True)
+    event.ImeOpened(window_id: _, captured:) -> should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -614,7 +624,7 @@ pub fn decode_wheel_scrolled_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseWheelScrolled(captured:, ..) -> should.equal(captured, True)
+    event.MouseWheelScrolled(window_id: _, captured:, ..) -> should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -773,7 +783,7 @@ pub fn decode_button_pressed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseButtonPressed(button:, captured:) -> {
+    event.MouseButtonPressed(window_id: _, button:, captured:) -> {
       should.equal(button, event.RightButton)
       should.equal(captured, False)
     }

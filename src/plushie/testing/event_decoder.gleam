@@ -15,6 +15,8 @@ import gleam/list
 @target(erlang)
 import gleam/option.{None, Some}
 @target(erlang)
+import gleam/result
+@target(erlang)
 import gleam/string
 @target(erlang)
 import plushie/event.{type Event, type Modifiers, Modifiers}
@@ -152,30 +154,44 @@ pub fn decode_test_event(
     }
 
     // -- Key events ----------------------------------------------------------
-    "key_press" -> Ok(decode_key_press(data))
-    "key_release" -> Ok(decode_key_release(data))
+    "key_press" -> Ok(decode_key_press(data, result.unwrap(window_id, "")))
+    "key_release" -> Ok(decode_key_release(data, result.unwrap(window_id, "")))
 
     // -- Mouse events (global subscriptions) ---------------------------------
-    "cursor_moved" ->
+    "cursor_moved" -> {
+      let wid = result.unwrap(window_id, "")
       Ok(event.MouseMoved(
+        window_id: wid,
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
         captured: False,
       ))
-    "cursor_entered" -> Ok(event.MouseEntered(captured: False))
-    "cursor_left" -> Ok(event.MouseLeft(captured: False))
+    }
+    "cursor_entered" ->
+      Ok(event.MouseEntered(
+        window_id: result.unwrap(window_id, ""),
+        captured: False,
+      ))
+    "cursor_left" ->
+      Ok(event.MouseLeft(
+        window_id: result.unwrap(window_id, ""),
+        captured: False,
+      ))
     "button_pressed" ->
       Ok(event.MouseButtonPressed(
+        window_id: result.unwrap(window_id, ""),
         button: decode_mouse_button(get_string(data, "button", "left")),
         captured: False,
       ))
     "button_released" ->
       Ok(event.MouseButtonReleased(
+        window_id: result.unwrap(window_id, ""),
         button: decode_mouse_button(get_string(data, "button", "left")),
         captured: False,
       ))
     "wheel_scrolled" ->
       Ok(event.MouseWheelScrolled(
+        window_id: result.unwrap(window_id, ""),
         delta_x: get_float(data, "delta_x", 0.0),
         delta_y: get_float(data, "delta_y", 0.0),
         unit: event.Line,
@@ -185,6 +201,7 @@ pub fn decode_test_event(
     // -- Touch events --------------------------------------------------------
     "finger_pressed" ->
       Ok(event.TouchPressed(
+        window_id: result.unwrap(window_id, ""),
         finger_id: get_int(data, "finger_id", 0),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
@@ -192,6 +209,7 @@ pub fn decode_test_event(
       ))
     "finger_moved" ->
       Ok(event.TouchMoved(
+        window_id: result.unwrap(window_id, ""),
         finger_id: get_int(data, "finger_id", 0),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
@@ -199,6 +217,7 @@ pub fn decode_test_event(
       ))
     "finger_lifted" ->
       Ok(event.TouchLifted(
+        window_id: result.unwrap(window_id, ""),
         finger_id: get_int(data, "finger_id", 0),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
@@ -206,6 +225,7 @@ pub fn decode_test_event(
       ))
     "finger_lost" ->
       Ok(event.TouchLost(
+        window_id: result.unwrap(window_id, ""),
         finger_id: get_int(data, "finger_id", 0),
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
@@ -277,20 +297,34 @@ pub fn decode_test_event(
       })
 
     // -- IME events ----------------------------------------------------------
-    "ime_opened" -> Ok(event.ImeOpened(captured: False))
+    "ime_opened" ->
+      Ok(event.ImeOpened(
+        window_id: result.unwrap(window_id, ""),
+        captured: False,
+      ))
     "ime_preedit" ->
       Ok(event.ImePreedit(
+        window_id: result.unwrap(window_id, ""),
         text: get_string(data, "text", ""),
         cursor: None,
         captured: False,
       ))
     "ime_commit" ->
-      Ok(event.ImeCommit(text: get_string(data, "text", ""), captured: False))
-    "ime_closed" -> Ok(event.ImeClosed(captured: False))
+      Ok(event.ImeCommit(
+        window_id: result.unwrap(window_id, ""),
+        text: get_string(data, "text", ""),
+        captured: False,
+      ))
+    "ime_closed" ->
+      Ok(event.ImeClosed(
+        window_id: result.unwrap(window_id, ""),
+        captured: False,
+      ))
 
     // -- Modifiers changed ---------------------------------------------------
     "modifiers_changed" ->
       Ok(event.ModifiersChanged(
+        window_id: result.unwrap(window_id, ""),
         modifiers: decode_modifiers(data),
         captured: False,
       ))
@@ -640,7 +674,7 @@ fn require_window_event(
 // -- Key event decoding ------------------------------------------------------
 
 @target(erlang)
-fn decode_key_press(data: Dict(String, Dynamic)) -> Event {
+fn decode_key_press(data: Dict(String, Dynamic), window_id: String) -> Event {
   let key = parse_wire_key_name(get_string(data, "value", ""))
   let modifiers = decode_modifiers(data)
   let text = case string.length(key) == 1 {
@@ -648,6 +682,7 @@ fn decode_key_press(data: Dict(String, Dynamic)) -> Event {
     False -> None
   }
   event.KeyPress(
+    window_id:,
     key:,
     modified_key: key,
     modifiers:,
@@ -660,7 +695,7 @@ fn decode_key_press(data: Dict(String, Dynamic)) -> Event {
 }
 
 @target(erlang)
-fn decode_key_release(data: Dict(String, Dynamic)) -> Event {
+fn decode_key_release(data: Dict(String, Dynamic), window_id: String) -> Event {
   let key = parse_wire_key_name(get_string(data, "value", ""))
   let modifiers = decode_modifiers(data)
   let text = case string.length(key) == 1 {
@@ -668,6 +703,7 @@ fn decode_key_release(data: Dict(String, Dynamic)) -> Event {
     False -> None
   }
   event.KeyRelease(
+    window_id:,
     key:,
     modified_key: key,
     modifiers:,

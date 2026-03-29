@@ -329,6 +329,7 @@ pub fn events_pane_clicked_match_test() {
 pub fn events_key_press_cmd_s_match_test() {
   let event: Event =
     KeyPress(
+      window_id: "",
       key: "s",
       modified_key: "s",
       modifiers: Modifiers(..event.modifiers_none(), command: True),
@@ -348,6 +349,7 @@ pub fn events_key_press_cmd_s_match_test() {
 pub fn events_key_press_escape_match_test() {
   let event: Event =
     KeyPress(
+      window_id: "",
       key: "Escape",
       modified_key: "Escape",
       modifiers: event.modifiers_none(),
@@ -366,6 +368,7 @@ pub fn events_key_press_escape_match_test() {
 pub fn events_key_press_physical_key_match_test() {
   let event: Event =
     KeyPress(
+      window_id: "",
       key: "w",
       modified_key: "w",
       modifiers: event.modifiers_none(),
@@ -384,6 +387,7 @@ pub fn events_key_press_physical_key_match_test() {
 pub fn events_key_press_text_field_match_test() {
   let event: Event =
     KeyPress(
+      window_id: "",
       key: "a",
       modified_key: "a",
       modifiers: event.modifiers_none(),
@@ -410,25 +414,31 @@ pub fn events_modifiers_construct_test() {
 
 pub fn events_ime_preedit_match_test() {
   let event =
-    ImePreedit(text: "compose", cursor: option.Some(#(0, 7)), captured: False)
+    ImePreedit(
+      window_id: "",
+      text: "compose",
+      cursor: option.Some(#(0, 7)),
+      captured: False,
+    )
   event.text |> should.equal("compose")
 }
 
 pub fn events_ime_commit_match_test() {
-  let event = ImeCommit(text: "final", captured: False)
+  let event = ImeCommit(window_id: "", text: "final", captured: False)
   event.text |> should.equal("final")
 }
 
 // -- Mouse events (global) ---------------------------------------------------
 
 pub fn events_mouse_moved_match_test() {
-  let event = MouseMoved(x: 100.0, y: 200.0, captured: False)
+  let event = MouseMoved(window_id: "", x: 100.0, y: 200.0, captured: False)
   event.x |> should.equal(100.0)
   event.y |> should.equal(200.0)
 }
 
 pub fn events_mouse_button_pressed_match_test() {
-  let event: Event = MouseButtonPressed(button: LeftButton, captured: False)
+  let event: Event =
+    MouseButtonPressed(window_id: "", button: LeftButton, captured: False)
   case event {
     MouseButtonPressed(button: LeftButton, ..) -> should.be_true(True)
     _ -> should.fail()
@@ -438,7 +448,8 @@ pub fn events_mouse_button_pressed_match_test() {
 // -- Touch events ------------------------------------------------------------
 
 pub fn events_touch_pressed_match_test() {
-  let event = TouchPressed(finger_id: 0, x: 50.0, y: 75.0, captured: False)
+  let event =
+    TouchPressed(window_id: "", finger_id: 0, x: 50.0, y: 75.0, captured: False)
   event.x |> should.equal(50.0)
   event.y |> should.equal(75.0)
 }
@@ -448,6 +459,7 @@ pub fn events_touch_pressed_match_test() {
 pub fn events_modifiers_changed_match_test() {
   let event =
     ModifiersChanged(
+      window_id: "",
       modifiers: Modifiers(
         shift: True,
         ctrl: False,

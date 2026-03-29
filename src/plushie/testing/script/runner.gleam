@@ -86,6 +86,7 @@ fn execute(
       Ok(session.send_event(
         session,
         event.KeyPress(
+          window_id: "",
           key:,
           modified_key: key,
           modifiers: event.modifiers_none(),
@@ -102,6 +103,7 @@ fn execute(
       Ok(session.send_event(
         session,
         event.KeyPress(
+          window_id: "",
           key:,
           modified_key: key,
           modifiers: event.modifiers_none(),
@@ -118,6 +120,7 @@ fn execute(
       Ok(session.send_event(
         session,
         event.KeyRelease(
+          window_id: "",
           key:,
           modified_key: key,
           modifiers: event.modifiers_none(),
@@ -178,6 +181,7 @@ fn execute(
       Ok(session.send_event(
         session,
         event.MouseMoved(
+          window_id: "",
           x: int.to_float(x),
           y: int.to_float(y),
           captured: False,

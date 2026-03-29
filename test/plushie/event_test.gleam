@@ -25,6 +25,7 @@ pub fn key_press_with_modifiers_test() {
 
   let evt =
     KeyPress(
+      window_id: "",
       key: "s",
       modified_key: "s",
       modifiers: mods,

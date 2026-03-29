@@ -114,6 +114,7 @@ pub fn backend() -> TestBackend(model) {
       session.send_event(
         sess,
         event.KeyPress(
+          window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
@@ -130,6 +131,7 @@ pub fn backend() -> TestBackend(model) {
       session.send_event(
         sess,
         event.KeyRelease(
+          window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
@@ -146,6 +148,7 @@ pub fn backend() -> TestBackend(model) {
         session.send_event(
           sess,
           event.KeyPress(
+            window_id: "",
             key: key_name,
             modified_key: key_name,
             modifiers:,
@@ -159,6 +162,7 @@ pub fn backend() -> TestBackend(model) {
       session.send_event(
         sess,
         event.KeyRelease(
+          window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
