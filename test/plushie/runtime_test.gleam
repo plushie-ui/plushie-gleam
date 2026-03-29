@@ -81,8 +81,9 @@ pub fn detect_windows_no_windows_test() {
   assert set.is_empty(windows)
 }
 
-pub fn detect_windows_ignores_deeply_nested_test() {
-  // Windows nested inside non-root containers should not be detected
+pub fn detect_windows_finds_deeply_nested_test() {
+  // Windows nested inside non-root containers are detected recursively,
+  // matching the renderer's behavior.
   let tree =
     node.new("root", "container")
     |> node.with_children([
@@ -90,7 +91,7 @@ pub fn detect_windows_ignores_deeply_nested_test() {
       |> node.with_children([window_node("deep-win")]),
     ])
   let windows = runtime_core.detect_windows(tree)
-  assert set.is_empty(windows)
+  assert set.contains(windows, "deep-win")
 }
 
 // -- Window prop extraction --------------------------------------------------
