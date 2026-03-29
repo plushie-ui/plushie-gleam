@@ -517,12 +517,19 @@ fn handle_message(
 
       case status {
         0 -> {
-          // Clean exit (user closed window) -- stop bridge and exit
+          // Clean exit (user closed window) -- fail pending callers
+          // and stop.
+          let state = fail_pending_interact(state, "renderer_exit_normal")
           process.send(state.bridge, bridge.Shutdown)
           actor.stop()
         }
         _ -> {
-          // Crash -- attempt restart with exponential backoff
+          // Crash -- fail pending interact immediately (don't make
+          // callers wait through the backoff delay) and attempt
+          // restart with exponential backoff.
+          let reason = "renderer_exit_" <> int.to_string(status)
+          let state = fail_pending_interact(state, reason)
+
           case state.restart_count < state.max_restarts {
             True -> {
               let delay =
@@ -808,13 +815,7 @@ fn handle_message(
           let state = LoopState(..state, pending_stub_acks: dict.new())
 
           // Fail pending interact (old renderer is gone).
-          let state = case state.pending_interact {
-            Some(#(reply, _)) -> {
-              process.send(reply, Error("renderer_restarted"))
-              LoopState(..state, pending_interact: None)
-            }
-            None -> state
-          }
+          let state = fail_pending_interact(state, "renderer_restarted")
 
           // Stop old subscription timers (sync_subscriptions won't
           // see them since we pass dict.new() as current)
@@ -1025,6 +1026,8 @@ fn handle_message(
       dict.each(state.pending_stub_acks, fn(_kind, reply) {
         process.send(reply, Nil)
       })
+      // Fail pending interact
+      let _state = fail_pending_interact(state, "runtime_shutdown")
       // Stop the bridge actor
       process.send(state.bridge, bridge.Shutdown)
       actor.stop()
@@ -1192,6 +1195,19 @@ fn pow2(n: Int) -> Int {
 @target(erlang)
 /// Fail all pending effects with a "renderer_restarted" error and cancel
 /// their timeout timers. The old renderer can no longer respond.
+fn fail_pending_interact(
+  state: LoopState(model, msg),
+  reason: String,
+) -> LoopState(model, msg) {
+  case state.pending_interact {
+    Some(#(reply, _)) -> {
+      process.send(reply, Error(reason))
+      LoopState(..state, pending_interact: None)
+    }
+    None -> state
+  }
+}
+
 fn flush_pending_effects_on_restart(
   state: LoopState(model, msg),
 ) -> LoopState(model, msg) {
