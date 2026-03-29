@@ -15,8 +15,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import plushie/canvas/shape
-import plushie/canvas_widget.{
-  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+import plushie/widget.{
+  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
   UpdateState,
 }
 import plushie/event.{
@@ -65,8 +65,8 @@ pub type PickerState {
 
 // -- Widget definition --------------------------------------------------------
 
-pub fn def() -> CanvasWidgetDef(PickerState, Nil) {
-  CanvasWidgetDef(
+pub fn def() -> WidgetDef(PickerState, Nil) {
+  WidgetDef(
     init: fn() {
       PickerState(hue: 0.0, saturation: 1.0, value: 1.0, drag: DragNone)
     },
@@ -76,9 +76,9 @@ pub fn def() -> CanvasWidgetDef(PickerState, Nil) {
   )
 }
 
-/// Build a color picker canvas widget placeholder.
+/// Build a color picker widget placeholder.
 pub fn widget(id: String) -> Node {
-  canvas_widget.build(def(), id, Nil)
+  widget.build(def(), id, Nil)
 }
 
 // -- Geometry accessors (for consumers) ---------------------------------------

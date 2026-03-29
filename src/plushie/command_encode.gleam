@@ -48,9 +48,9 @@ pub type WireOp(msg) {
   ImageOp(op: String, payload: List(#(String, PropValue)))
   /// Platform effect request (file dialog, clipboard, notification).
   EffectRequest(id: String, kind: String, payload: Dict(String, PropValue))
-  /// Single widget command for a native extension widget.
+  /// Single widget command for a native widget.
   WidgetCmd(node_id: String, op: String, payload: Dict(String, PropValue))
-  /// Batch of widget commands for native extension widgets.
+  /// Batch of widget commands for native widgets.
   WidgetCmdBatch(commands: List(#(String, String, Dict(String, PropValue))))
   /// Advance one frame in test/headless mode.
   AdvanceFrame(timestamp: Int)

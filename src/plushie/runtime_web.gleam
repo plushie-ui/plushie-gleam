@@ -39,7 +39,7 @@ import plushie/app.{type App}
 @target(javascript)
 import plushie/bridge_web.{type WebTransport}
 @target(javascript)
-import plushie/canvas_widget
+import plushie/widget
 @target(javascript)
 import plushie/command.{type Command}
 @target(javascript)
@@ -107,7 +107,7 @@ pub fn start(
     create_handle(model, app, transport, session, dict.new(), set.new())
 
   // Initialize canvas widget registry
-  do_set_cw_registry(handle, canvas_widget.empty_registry())
+  do_set_cw_registry(handle, widget.empty_registry())
 
   // Register callbacks so JS timers, async completions, and
   // renderer events can call back into the Gleam update loop.
@@ -127,11 +127,11 @@ pub fn start(
   register_timer_callback(handle, fn(tag) {
     let timestamp = platform.monotonic_time_ms()
     // Route canvas widget timers to the widget handler
-    case canvas_widget.is_widget_tag(tag) {
+    case widget.is_widget_tag(tag) {
       True -> {
         let registry = do_get_cw_registry(handle)
         let #(maybe_event, new_registry) =
-          canvas_widget.handle_widget_timer(registry, tag, timestamp)
+          widget.handle_widget_timer(registry, tag, timestamp)
         do_set_cw_registry(handle, new_registry)
         case maybe_event {
           Some(ev) -> dispatch(ev)
@@ -252,7 +252,7 @@ fn render_and_sync(
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
       let new_tree = normalize_view_or_panic(raw_tree, registry)
-      let new_registry = canvas_widget.derive_registry(new_tree)
+      let new_registry = widget.derive_registry(new_tree)
       do_set_cw_registry(handle, new_registry)
       let old_tree = do_get_tree(handle)
 
@@ -290,7 +290,7 @@ fn render_and_sync(
 @target(javascript)
 fn normalize_view_or_panic(
   view_tree: Node,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Node {
   case tree.normalize_view(view_tree, registry) {
     Ok(normalized) -> normalized
@@ -323,7 +323,7 @@ fn handle_event(
       // Route through canvas_widget scope chain
       let registry = do_get_cw_registry(handle)
       let #(result, new_registry) =
-        canvas_widget.dispatch_through_widgets(registry, event)
+        widget.dispatch_through_widgets(registry, event)
       do_set_cw_registry(handle, new_registry)
       case runtime_core.resolve_dispatch(result) {
         Some(ev) -> {
@@ -353,7 +353,7 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
     Error(_) -> []
   }
   // Merge canvas widget subscriptions
-  let cw_subs = canvas_widget.collect_subscriptions(do_get_cw_registry(handle))
+  let cw_subs = widget.collect_subscriptions(do_get_cw_registry(handle))
   let desired = list.append(app_subs, cw_subs)
 
   let desired_map =
@@ -795,14 +795,14 @@ fn do_set_windows(handle: WebRuntimeHandle, windows: Set(String)) -> Nil
 @target(javascript)
 /// Get the canvas widget registry.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getCwRegistry")
-fn do_get_cw_registry(handle: WebRuntimeHandle) -> canvas_widget.Registry
+fn do_get_cw_registry(handle: WebRuntimeHandle) -> widget.Registry
 
 @target(javascript)
 /// Set the canvas widget registry.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setCwRegistry")
 fn do_set_cw_registry(
   handle: WebRuntimeHandle,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Nil
 
 @target(javascript)

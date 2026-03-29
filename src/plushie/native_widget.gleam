@@ -1,6 +1,6 @@
-//// Extension system for custom widget types.
+//// Native widget system for custom Rust-backed widget types.
 ////
-//// Plushie supports two kinds of extensions:
+//// Plushie supports two kinds of custom widgets:
 ////
 //// - **Native widgets**: backed by a Rust crate implementing the
 ////   `WidgetExtension` trait. The crate is compiled into the plushie
@@ -10,38 +10,38 @@
 ////   widgets into reusable components. They produce standard Node trees
 ////   and require no Rust code.
 ////
-//// ## Native widget extensions
+//// ## Native widgets
 ////
-//// A native widget is defined by creating a `WidgetDef` and
+//// A native widget is defined by creating a `NativeDef` and
 //// registering it. The widget's Rust crate handles rendering and
 //// event emission; the Gleam side provides the typed builder API.
 ////
 //// ```gleam
-//// import plushie/extension
+//// import plushie/native_widget
 //// import plushie/node.{type Node}
 //// import plushie/prop/color
 //// import plushie/prop/length
 ////
 //// // Define the native widget
-//// pub const gauge_def = extension.WidgetDef(
+//// pub const gauge_def = native_widget.NativeDef(
 ////   kind: "gauge",
 ////   rust_crate: "native/my_gauge",
 ////   rust_constructor: "my_gauge::GaugeExtension::new()",
 ////   props: [
-////     extension.NumberProp("value"),
-////     extension.NumberProp("min"),
-////     extension.NumberProp("max"),
-////     extension.ColorProp("color"),
-////     extension.LengthProp("width"),
+////     native_widget.NumberProp("value"),
+////     native_widget.NumberProp("min"),
+////     native_widget.NumberProp("max"),
+////     native_widget.ColorProp("color"),
+////     native_widget.LengthProp("width"),
 ////   ],
 ////   commands: [
-////     extension.CommandDef("set_value", [extension.NumberParam("value")]),
+////     native_widget.CommandDef("set_value", [native_widget.NumberParam("value")]),
 ////   ],
 //// )
 ////
 //// // Build a gauge widget
 //// pub fn gauge(id: String, value: Float, opts: List(GaugeOpt)) -> Node {
-////   extension.build(gauge_def, id, [
+////   native_widget.build(gauge_def, id, [
 ////     #("value", node.FloatVal(value)),
 ////     ..gauge_opts_to_props(opts)
 ////   ])
@@ -49,13 +49,13 @@
 ////
 //// // Send a command to a gauge
 //// pub fn set_gauge_value(node_id: String, value: Float) -> Command(msg) {
-////   extension.command(gauge_def, node_id, "set_value", [
+////   native_widget.command(gauge_def, node_id, "set_value", [
 ////     #("value", node.FloatVal(value)),
 ////   ])
 //// }
 //// ```
 ////
-//// ## Composite widget extensions
+//// ## Composite widgets
 ////
 //// Composite widgets are simpler -- they're just functions that return
 //// Node trees. No registration or Rust code needed.
@@ -85,22 +85,22 @@ import gleam/list
 import plushie/command.{type Command}
 import plushie/node.{type Node, type PropValue, Node}
 
-// -- Extension definition ----------------------------------------------------
+// -- Native widget definition ------------------------------------------------
 
-/// Definition of a native widget extension.
+/// Definition of a native widget.
 ///
 /// Describes the Rust crate, constructor, props, and commands that a
 /// native widget supports. Used at compile time to configure the plushie
 /// binary build and at runtime to construct nodes and commands.
-pub type WidgetDef {
-  WidgetDef(
+pub type NativeDef {
+  NativeDef(
     /// Widget kind string (e.g., "gauge"). Must match the Rust crate's
     /// registered widget type name.
     kind: String,
     /// Path to the Rust crate relative to the project root
     /// (e.g., "native/my_gauge").
     rust_crate: String,
-    /// Rust expression to construct the extension instance
+    /// Rust expression to construct the widget instance
     /// (e.g., "my_gauge::GaugeExtension::new()").
     rust_constructor: String,
     /// Declared properties with their types, for documentation and
@@ -111,7 +111,7 @@ pub type WidgetDef {
   )
 }
 
-/// Property definition for an extension widget.
+/// Property definition for a native widget.
 pub type PropDef {
   NumberProp(name: String)
   StringProp(name: String)
@@ -127,12 +127,12 @@ pub type PropDef {
   ListProp(name: String, inner: String)
 }
 
-/// Command definition for an extension widget.
+/// Command definition for a native widget.
 pub type CommandDef {
   CommandDef(name: String, params: List(ParamDef))
 }
 
-/// Parameter definition for extension commands.
+/// Parameter definition for native widget commands.
 pub type ParamDef {
   NumberParam(name: String)
   StringParam(name: String)
@@ -141,12 +141,12 @@ pub type ParamDef {
 
 // -- Runtime API -------------------------------------------------------------
 
-/// Build a node for a native extension widget.
+/// Build a node for a native widget.
 ///
-/// Creates a Node with the extension's kind and the given props.
+/// Creates a Node with the native widget's kind and the given props.
 /// Props are passed as key-value pairs already encoded to PropValue.
 pub fn build(
-  def: WidgetDef,
+  def: NativeDef,
   id: String,
   props: List(#(String, PropValue)),
 ) -> Node {
@@ -159,9 +159,9 @@ pub fn build(
   )
 }
 
-/// Build a container node for a native extension widget with children.
+/// Build a container node for a native widget with children.
 pub fn build_container(
-  def: WidgetDef,
+  def: NativeDef,
   id: String,
   props: List(#(String, PropValue)),
   children: List(Node),
@@ -175,12 +175,12 @@ pub fn build_container(
   )
 }
 
-/// Create an extension command targeting a specific widget instance.
+/// Create a native widget command targeting a specific widget instance.
 ///
 /// The command is sent via the wire protocol's `extension_command`
 /// message type and delivered to the Rust widget by node ID.
 pub fn command(
-  _def: WidgetDef,
+  _def: NativeDef,
   node_id: String,
   op: String,
   payload: List(#(String, PropValue)),
@@ -188,9 +188,9 @@ pub fn command(
   command.WidgetCommand(node_id:, op:, payload: dict.from_list(payload))
 }
 
-/// Create a batch of extension commands.
+/// Create a batch of native widget commands.
 pub fn commands(
-  _def: WidgetDef,
+  _def: NativeDef,
   cmds: List(#(String, String, List(#(String, PropValue)))),
 ) -> Command(msg) {
   command.WidgetCommands(
@@ -201,20 +201,20 @@ pub fn commands(
   )
 }
 
-/// Get the prop definition names from an extension definition.
-pub fn prop_names(def: WidgetDef) -> List(String) {
+/// Get the prop definition names from a native widget definition.
+pub fn prop_names(def: NativeDef) -> List(String) {
   list.map(def.props, prop_def_name)
 }
 
-/// Get the command definition names from an extension definition.
-pub fn command_names(def: WidgetDef) -> List(String) {
+/// Get the command definition names from a native widget definition.
+pub fn command_names(def: NativeDef) -> List(String) {
   list.map(def.commands, fn(cmd) { cmd.name })
 }
 
-/// Reserved property names that must not be used in extension definitions.
+/// Reserved property names that must not be used in native widget definitions.
 const reserved_names = ["id", "type", "children", "a11y"]
 
-/// Validate an extension definition at runtime.
+/// Validate a native widget definition at runtime.
 ///
 /// Returns `Ok(Nil)` when valid, or `Error(errors)` with a list of
 /// human-readable validation failure messages.
@@ -223,7 +223,7 @@ const reserved_names = ["id", "type", "children", "a11y"]
 /// - `kind` must be non-empty
 /// - No duplicate prop names
 /// - No reserved prop names (id, type, children, a11y)
-pub fn validate(def: WidgetDef) -> Result(Nil, List(String)) {
+pub fn validate(def: NativeDef) -> Result(Nil, List(String)) {
   let names = list.map(def.props, prop_def_name)
   let kind_errors = case def.kind {
     "" -> ["kind must not be empty"]

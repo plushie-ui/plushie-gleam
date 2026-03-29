@@ -1,4 +1,4 @@
-//// Canvas widget builder. Layers are managed via extension commands.
+//// Canvas widget builder. Layers are managed via widget commands.
 
 import gleam/dict.{type Dict}
 import gleam/list

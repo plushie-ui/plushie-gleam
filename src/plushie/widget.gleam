@@ -1,22 +1,22 @@
-//// Canvas widget extension system.
+//// Custom widget system.
 ////
-//// Canvas widgets are pure Gleam widgets that render via canvas shapes
+//// Custom widgets are pure Gleam widgets that render via canvas shapes
 //// with runtime-managed internal state and event transformation. They
 //// sit between the renderer and the app, intercepting events in the
 //// scope chain and emitting semantic events.
 ////
-//// ## Defining a canvas widget
+//// ## Defining a widget
 ////
 //// ```gleam
-//// import plushie/canvas_widget
+//// import plushie/widget
 //// import plushie/canvas/shape
 //// import plushie/event.{type Event}
 ////
 //// type StarState { StarState(hover: Int) }
 //// type StarProps { StarProps(rating: Int, max: Int) }
 ////
-//// pub fn star_rating_def() -> canvas_widget.CanvasWidgetDef(StarState, StarProps) {
-////   canvas_widget.CanvasWidgetDef(
+//// pub fn star_rating_def() -> widget.WidgetDef(StarState, StarProps) {
+////   widget.WidgetDef(
 ////     init: fn() { StarState(hover: 0) },
 ////     render: render_stars,
 ////     handle_event: handle_star_event,
@@ -25,7 +25,7 @@
 //// }
 ////
 //// pub fn star_rating(id: String, props: StarProps) -> Node {
-////   canvas_widget.build(star_rating_def(), id, props)
+////   widget.build(star_rating_def(), id, props)
 //// }
 //// ```
 ////
@@ -38,7 +38,7 @@
 //// metadata for registry derivation after each render cycle.
 ////
 //// Events flow through the scope chain before reaching `app.update`.
-//// Each canvas widget in the chain gets a chance to handle the event:
+//// Each widget in the chain gets a chance to handle the event:
 //// `Ignored` passes through, `Consumed` stops the chain, and
 //// `Emit(kind, data)` replaces the event with a WidgetEvent and
 //// continues. The runtime fills in `id` and `scope` automatically
@@ -55,14 +55,14 @@ import plushie/platform
 import plushie/prop/a11y.{type A11y}
 import plushie/subscription.{type Subscription}
 
-// -- Canvas widget definition ------------------------------------------------
+// -- Widget definition -------------------------------------------------------
 
-/// Definition of a canvas widget's behaviour.
+/// Definition of a widget's behaviour.
 ///
 /// `state` is the widget's internal state (managed by the runtime).
 /// `props` is the widget's input from the parent view function.
-pub type CanvasWidgetDef(state, props) {
-  CanvasWidgetDef(
+pub type WidgetDef(state, props) {
+  WidgetDef(
     /// Create the initial state for a new widget instance.
     init: fn() -> state,
     /// Render the widget to a canvas node tree.
@@ -74,7 +74,7 @@ pub type CanvasWidgetDef(state, props) {
   )
 }
 
-/// Result of a canvas widget's event handler.
+/// Result of a widget's event handler.
 pub type EventAction {
   /// Not handled -- continue to next handler in scope chain.
   Ignored
@@ -92,7 +92,7 @@ pub type EventAction {
 
 // -- Placeholder node --------------------------------------------------------
 
-/// Metadata prop key marking a node as a canvas widget placeholder.
+/// Metadata prop key marking a node as a widget placeholder.
 /// Stripped during normalization; never reaches the wire.
 const meta_key = "__canvas_widget__"
 
@@ -102,13 +102,13 @@ const props_key = "__canvas_widget_props__"
 /// Metadata prop key carrying the widget's state (post-normalization).
 const state_key = "__canvas_widget_state__"
 
-/// Build a placeholder node for a canvas widget.
+/// Build a placeholder node for a widget.
 ///
 /// The returned node has kind "canvas" and carries metadata props
 /// that the runtime uses during normalization to render the real
 /// canvas tree with the widget's current state.
 pub fn build(
-  def: CanvasWidgetDef(state, props),
+  def: WidgetDef(state, props),
   id: String,
   props: props,
 ) -> Node {
@@ -127,7 +127,7 @@ pub fn build(
 /// need to manually forward these.
 const standard_widget_props = ["a11y", "event_rate"]
 
-/// Attach accessibility properties to a canvas widget placeholder.
+/// Attach accessibility properties to a widget placeholder.
 /// These are automatically forwarded to the rendered output during
 /// tree normalization -- widget authors don't need to handle them.
 pub fn set_a11y(node: Node, accessibility: A11y) -> Node {
@@ -137,7 +137,7 @@ pub fn set_a11y(node: Node, accessibility: A11y) -> Node {
   )
 }
 
-/// Attach an event rate limit to a canvas widget placeholder.
+/// Attach an event rate limit to a widget placeholder.
 /// Forwarded to the rendered output automatically.
 pub fn set_event_rate(node: Node, rate: Int) -> Node {
   Node(..node, props: dict.insert(node.props, "event_rate", node.IntVal(rate)))
@@ -159,7 +159,7 @@ pub fn merge_standard_props(
 
 // -- Registry ----------------------------------------------------------------
 
-/// A registry entry for a canvas widget instance. Stores type-erased
+/// A registry entry for a widget instance. Stores type-erased
 /// state and pre-bound closures so the registry can be heterogeneous.
 pub type RegistryEntry {
   RegistryEntry(
@@ -179,7 +179,7 @@ pub type RegistryEntry {
   )
 }
 
-/// The canvas widget registry: maps window-aware widget keys to entries.
+/// The widget registry: maps window-aware widget keys to entries.
 pub type Registry =
   Dict(String, RegistryEntry)
 
@@ -191,7 +191,7 @@ pub fn empty_registry() -> Registry {
 /// Create a registry entry from a typed def, props, and state.
 /// The entry captures the concrete types in closures.
 pub fn make_entry(
-  def: CanvasWidgetDef(state, props),
+  def: WidgetDef(state, props),
   props: props,
   state: state,
 ) -> RegistryEntry {
@@ -210,12 +210,12 @@ pub fn make_entry(
 
 // -- Normalization support ---------------------------------------------------
 
-/// Check if a node is a canvas widget placeholder (has metadata props).
+/// Check if a node is a widget placeholder (has metadata props).
 pub fn is_placeholder(node: Node) -> Bool {
   dict.has_key(node.meta, meta_key)
 }
 
-/// Render a canvas widget placeholder using the registry.
+/// Render a widget placeholder using the registry.
 ///
 /// Returns the rendered + normalized canvas node and an updated
 /// registry entry, or None if the node isn't a placeholder or
@@ -271,8 +271,8 @@ pub fn render_placeholder(
 
 /// Derive the registry from a normalized tree.
 ///
-/// Walks the tree and extracts canvas widget metadata from nodes.
-/// Returns a fresh registry with entries for all canvas widgets
+/// Walks the tree and extracts widget metadata from nodes.
+/// Returns a fresh registry with entries for all widgets
 /// found in the tree.
 pub fn derive_registry(tree: Node) -> Registry {
   derive_from_node(tree, "", dict.new())
@@ -308,17 +308,17 @@ fn derive_from_node(node: Node, window_id: String, acc: Registry) -> Registry {
 
 // -- Event dispatch ----------------------------------------------------------
 
-/// Result of dispatching an event through the canvas widget chain.
+/// Result of dispatching an event through the widget chain.
 pub type DispatchResult {
   /// Handlers were consulted; Some = event to deliver, None = consumed.
   Dispatched(Option(Event))
   /// No handlers in scope; event was not routed through any widget.
-  /// Raw canvas events should reach update/2; canvas-internal events
+  /// Raw canvas events should reach update/2; widget-internal events
   /// from a widget scope should be auto-consumed at the call site.
   Bypassed(Event)
 }
 
-/// Route an event through canvas widget handlers in the scope chain.
+/// Route an event through widget handlers in the scope chain.
 ///
 /// Returns `Dispatched(Some(event))` when handlers were consulted but
 /// the event passed through, `Dispatched(None)` when consumed, or
@@ -346,9 +346,9 @@ pub fn dispatch_through_widgets(
 /// Build the handler chain from scope (innermost to outermost).
 ///
 /// For events with empty scope, check if the event target itself
-/// is a registered canvas widget (direct-ID fallback for canvas
-/// events like press/move/release whose scope is empty but whose
-/// target may be a canvas widget).
+/// is a registered widget (direct-ID fallback for canvas events
+/// like press/move/release whose scope is empty but whose target
+/// may be a widget).
 fn build_handler_chain(
   registry: Registry,
   window_id: String,
@@ -362,8 +362,8 @@ fn build_handler_chain(
 
   case chain {
     [] -> {
-      // No parent canvas_widgets in scope. Check if the event's
-      // target itself is a canvas_widget. Reconstruct the full
+      // No parent widgets in scope. Check if the event's
+      // target itself is a widget. Reconstruct the full
       // scoped ID: scope (reversed to forward order) + event id.
       let target_id = widget_key(window_id, scope_to_id(scope, event_id))
       case dict.has_key(registry, target_id) {
@@ -455,7 +455,7 @@ fn walk_chain(
             }
             Error(_) -> {
               platform.log_warning(
-                "plushie: canvas_widget \""
+                "plushie: widget \""
                 <> widget_id
                 <> "\" raised in handle_event, treating as Ignored",
               )
@@ -471,10 +471,10 @@ fn walk_chain(
 
 // -- Widget-scoped subscriptions ---------------------------------------------
 
-/// Namespace prefix for canvas widget subscription tags.
+/// Namespace prefix for widget subscription tags.
 const cw_tag_prefix = "__cw:"
 
-/// Collect subscriptions from all canvas widgets in the registry.
+/// Collect subscriptions from all widgets in the registry.
 ///
 /// Each subscription's tag is namespaced with the widget's scoped ID
 /// so the runtime can route timer events back to the correct widget.
@@ -486,14 +486,14 @@ pub fn collect_subscriptions(registry: Registry) -> List(Subscription) {
   })
 }
 
-/// Namespace a subscription's tag for a canvas widget.
+/// Namespace a subscription's tag for a widget.
 fn namespace_tag(sub: Subscription, widget_key: String) -> Subscription {
   let old_tag = subscription.tag(sub)
   let new_tag = cw_tag_prefix <> widget_key <> key_sep <> old_tag
   subscription.set_tag(sub, new_tag)
 }
 
-/// Check if a subscription tag is namespaced for a canvas widget.
+/// Check if a subscription tag is namespaced for a widget.
 pub fn is_widget_tag(tag: String) -> Bool {
   string.starts_with(tag, cw_tag_prefix)
 }
@@ -513,12 +513,12 @@ pub fn parse_widget_tag(tag: String) -> Option(#(String, String)) {
   }
 }
 
-/// Route a timer event to the correct canvas widget.
+/// Route a timer event to the correct widget.
 ///
 /// If the timer tag is namespaced, look up the widget, create a
 /// TimerTick with the inner tag, dispatch through the widget's
 /// handler, and return the result. Emitted events are dispatched
-/// through the scope chain so parent canvas widgets can intercept.
+/// through the scope chain so parent widgets can intercept.
 ///
 /// Returns `#(Some(event), registry)` if the event should reach
 /// `app.update`, or `#(None, registry)` if handled internally.
@@ -565,7 +565,7 @@ pub fn handle_widget_timer(
             }
             Error(_) -> {
               platform.log_warning(
-                "plushie: canvas_widget \""
+                "plushie: widget \""
                 <> widget_id
                 <> "\" raised in timer handler, ignoring",
               )
@@ -585,7 +585,7 @@ pub fn handle_widget_timer(
 /// interception context. Matches the Elixir SDK's resolve_emit_identity.
 ///
 /// For widget events with scope: the innermost scope element is the
-/// canvas widget's local ID; remaining elements are the parent scope.
+/// widget's local ID; remaining elements are the parent scope.
 /// For non-widget events (timers): split the registered widget_id
 /// on "/" to derive id/scope.
 fn resolve_emit_identity(
@@ -841,18 +841,18 @@ fn from_dynamic_prop(prop: PropValue) -> a {
 fn init_entry(def: a, props: b) -> RegistryEntry {
   // The def and props are Dynamic at this point (recovered from props).
   // We use identity coercion to get back to the typed world.
-  let typed_def: CanvasWidgetDef(c, b) = coerce(def)
+  let typed_def: WidgetDef(c, b) = coerce(def)
   let state = typed_def.init()
   make_entry(typed_def, props, state)
 }
 
 /// Rebuild an entry from erased def, props, and state.
 fn rebuild_entry(def: a, props: b, state: c) -> RegistryEntry {
-  let typed_def: CanvasWidgetDef(c, b) = coerce(def)
+  let typed_def: WidgetDef(c, b) = coerce(def)
   make_entry(typed_def, props, state)
 }
 
-/// Identity coercion for internal canvas_widget plumbing.
+/// Identity coercion for internal widget plumbing.
 ///
 /// These bypass the type system to store heterogeneous widget types
 /// in a single registry. Safety relies on two invariants:
@@ -862,7 +862,7 @@ fn rebuild_entry(def: a, props: b, state: c) -> RegistryEntry {
 ///    coerce_from_prop in derive_registry within the same tree.
 ///
 /// 2. coerce/coerce_from_dynamic recover values stored by make_entry:
-///    the CanvasWidgetDef, props, and state are coerced to Dynamic on
+///    the WidgetDef, props, and state are coerced to Dynamic on
 ///    entry creation and recovered when rebuilding the entry. The types
 ///    are guaranteed to match because the def is the same object that
 ///    originally created the state.

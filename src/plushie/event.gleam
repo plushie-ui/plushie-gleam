@@ -607,7 +607,7 @@ pub type Event {
   // --- Prop validation ---
   /// Emitted by the renderer when validate_props is enabled and a
   /// node has unexpected or mistyped properties. Indicates an SDK
-  /// or extension bug -- app code cannot produce these through the
+  /// or native widget bug -- app code cannot produce these through the
   /// typed builder API.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
 

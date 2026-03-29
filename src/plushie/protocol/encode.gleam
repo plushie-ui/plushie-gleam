@@ -381,7 +381,8 @@ pub fn encode_image_op(
   serialize(merged, format)
 }
 
-/// Encode an extension command for custom widget operations.
+/// Encode a widget command for native widget operations.
+/// Wire key: "extension_command" (renderer-defined).
 pub fn encode_extension_command(
   node_id: String,
   op: String,

@@ -29,7 +29,7 @@ pub fn custom_opts_test() {
       session: "test-session",
       daemon: True,
       app_opts: dynamic.nil(),
-      required_extensions: [],
+      required_native_widgets: [],
       renderer_args: ["--headless"],
       token: option.None,
     )

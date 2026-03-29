@@ -8,7 +8,7 @@
 import gleam/dynamic.{type Dynamic}
 import gleam/option
 import plushie/app.{type App}
-import plushie/canvas_widget
+import plushie/widget
 import plushie/command.{type Command}
 import plushie/event.{type Event}
 import plushie/node.{type Node}
@@ -61,7 +61,7 @@ pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
 
 fn render(app: App(model, msg), model: model) -> Node {
   let view_fn = app.get_view(app)
-  case tree.normalize_view(view_fn(model), canvas_widget.empty_registry()) {
+  case tree.normalize_view(view_fn(model), widget.empty_registry()) {
     Ok(normalized) -> normalized
     Error(message) -> panic as message
   }

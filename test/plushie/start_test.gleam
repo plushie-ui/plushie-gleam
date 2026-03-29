@@ -19,7 +19,7 @@ pub fn custom_start_opts_test() {
       daemon: True,
       session: "my-session",
       app_opts: dynamic.nil(),
-      required_extensions: [],
+      required_native_widgets: [],
       renderer_args: ["--headless"],
       transport: plushie.Spawn,
       dev: False,

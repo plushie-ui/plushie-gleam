@@ -14,8 +14,8 @@ import gleam/dynamic
 import gleam/float
 import gleam/int
 import plushie/canvas/shape
-import plushie/canvas_widget.{
-  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+import plushie/widget.{
+  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
   UpdateState,
 }
 import plushie/event.{type Event, CanvasElementClick, TimerTick}
@@ -38,8 +38,8 @@ pub type ToggleState {
 
 // -- Widget definition --------------------------------------------------------
 
-pub fn def() -> CanvasWidgetDef(ToggleState, Nil) {
-  CanvasWidgetDef(
+pub fn def() -> WidgetDef(ToggleState, Nil) {
+  WidgetDef(
     init: fn() { ToggleState(progress: 0.0, target: 0.0) },
     render: render,
     handle_event: handle_event,
@@ -52,9 +52,9 @@ pub fn def() -> CanvasWidgetDef(ToggleState, Nil) {
   )
 }
 
-/// Build a theme toggle canvas widget placeholder.
+/// Build a theme toggle widget placeholder.
 pub fn widget(id: String) -> Node {
-  canvas_widget.build(def(), id, Nil)
+  widget.build(def(), id, Nil)
 }
 
 // -- Event handler ------------------------------------------------------------

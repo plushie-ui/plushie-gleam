@@ -26,7 +26,7 @@ import plushie/bridge.{
   RendererRestarted, Send,
 }
 @target(erlang)
-import plushie/canvas_widget
+import plushie/widget
 @target(erlang)
 import plushie/command.{type Command}
 @target(erlang)
@@ -117,7 +117,7 @@ pub type RuntimeOpts {
     session: String,
     daemon: Bool,
     app_opts: Dynamic,
-    required_extensions: List(String),
+    required_native_widgets: List(String),
     renderer_args: List(String),
     token: Option(String),
   )
@@ -131,13 +131,13 @@ pub fn default_opts() -> RuntimeOpts {
     session: "",
     daemon: False,
     app_opts: dynamic.nil(),
-    required_extensions: [],
+    required_native_widgets: [],
     renderer_args: [],
     token: None,
   )
 }
 
-fn missing_extensions(
+fn missing_native_widgets(
   required: List(String),
   available: List(String),
 ) -> List(String) {
@@ -209,7 +209,7 @@ type LoopState(model, msg) {
     // Accumulated prop validation warnings from the renderer
     prop_warnings: List(#(String, String, List(String))),
     // Canvas widget state registry (window-aware widget key -> entry)
-    cw_registry: canvas_widget.Registry,
+    cw_registry: widget.Registry,
     // Callers waiting for async task completion, keyed by tag
     pending_await_async: Dict(String, Subject(Nil)),
     // Pending interact: (caller_reply, request_id, caller_monitor)
@@ -274,8 +274,8 @@ fn init_runtime(
   // Render initial view
   let initial_tree =
     app.get_view(app)(model)
-    |> normalize_view_or_panic(canvas_widget.empty_registry())
-  let initial_cw_registry = canvas_widget.derive_registry(initial_tree)
+    |> normalize_view_or_panic(widget.empty_registry())
+  let initial_cw_registry = widget.derive_registry(initial_tree)
 
   // Send initial snapshot
   send_encoded(
@@ -335,7 +335,7 @@ fn init_runtime(
 
   // Sync subscriptions (timers, renderer event sources, canvas widget subs)
   let app_subs = safe_subscribe(state.app, state.model)
-  let cw_subs = canvas_widget.collect_subscriptions(state.cw_registry)
+  let cw_subs = widget.collect_subscriptions(state.cw_registry)
   let state =
     LoopState(
       ..state,
@@ -428,13 +428,13 @@ fn handle_message(
     FromBridge(InboundEvent(Hello(protocol: proto, extensions:, ..))) -> {
       case proto == protocol.protocol_version {
         True ->
-          case missing_extensions(state.opts.required_extensions, extensions) {
+          case missing_native_widgets(state.opts.required_native_widgets, extensions) {
             [] -> {
               actor.continue(state)
             }
             missing -> {
               platform.log_error(
-                "plushie: renderer is missing required extensions "
+                "plushie: renderer is missing required native widgets "
                 <> string.inspect(missing)
                 <> " (reported "
                 <> string.inspect(extensions)
@@ -562,10 +562,10 @@ fn handle_message(
       drain_matching_ticks(state.self, tag)
       let timestamp = erlang_monotonic_time()
       // Check if this timer belongs to a canvas widget
-      let new_state = case canvas_widget.is_widget_tag(tag) {
+      let new_state = case widget.is_widget_tag(tag) {
         True -> {
           let #(maybe_event, new_registry) =
-            canvas_widget.handle_widget_timer(state.cw_registry, tag, timestamp)
+            widget.handle_widget_timer(state.cw_registry, tag, timestamp)
           let state = LoopState(..state, cw_registry: new_registry)
           case maybe_event {
             Some(ev) -> handle_event(state, ev)
@@ -771,7 +771,7 @@ fn handle_message(
       {
         Ok(t) -> {
           let normalized = normalize_view_or_panic(t, state.cw_registry)
-          #(Some(normalized), canvas_widget.derive_registry(normalized))
+          #(Some(normalized), widget.derive_registry(normalized))
         }
         Error(_) -> #(state.tree, state.cw_registry)
       }
@@ -786,7 +786,7 @@ fn handle_message(
 
       // Re-sync subscriptions (incl. canvas widget subs)
       let restart_app_subs = safe_subscribe(state.app, state.model)
-      let restart_cw_subs = canvas_widget.collect_subscriptions(cw_registry)
+      let restart_cw_subs = widget.collect_subscriptions(cw_registry)
       let new_subs =
         sync_subscriptions(
           list.append(restart_app_subs, restart_cw_subs),
@@ -839,7 +839,7 @@ fn handle_message(
         Ok(new_tree_raw) -> {
           let new_tree =
             normalize_view_or_panic(new_tree_raw, state.cw_registry)
-          let new_cw_registry = canvas_widget.derive_registry(new_tree)
+          let new_cw_registry = widget.derive_registry(new_tree)
           // Diff and send patch (or snapshot if no previous tree)
           case state.tree {
             Some(old_tree) -> {
@@ -869,7 +869,7 @@ fn handle_message(
           }
           // Re-sync subscriptions (including canvas widget subscriptions)
           let app_subs = safe_subscribe(state.app, state.model)
-          let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
+          let cw_subs = widget.collect_subscriptions(new_cw_registry)
           let new_subs =
             sync_subscriptions(
               list.append(app_subs, cw_subs),
@@ -1212,7 +1212,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   case platform.try_call(fn() { view_fn(state.model) }) {
     Ok(new_tree_raw) -> {
       let new_tree = normalize_view_or_panic(new_tree_raw, state.cw_registry)
-      let new_cw_registry = canvas_widget.derive_registry(new_tree)
+      let new_cw_registry = widget.derive_registry(new_tree)
 
       // Diff and send patch
       case state.tree {
@@ -1240,7 +1240,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
 
       // Sync subscriptions (including canvas widget subscriptions)
       let app_subs = safe_subscribe(state.app, state.model)
-      let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
+      let cw_subs = widget.collect_subscriptions(new_cw_registry)
       let new_subs =
         sync_subscriptions(
           list.append(app_subs, cw_subs),
@@ -1298,7 +1298,7 @@ fn apply_event(
   ev: Event,
 ) -> LoopState(model, msg) {
   let #(result, new_registry) =
-    canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
+    widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
   case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
@@ -1324,7 +1324,7 @@ fn handle_event(
   ev: Event,
 ) -> LoopState(model, msg) {
   let #(result, new_registry) =
-    canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
+    widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
   case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
@@ -1362,7 +1362,7 @@ fn dispatch_update(
         Ok(new_tree_raw) -> {
           let new_tree =
             normalize_view_or_panic(new_tree_raw, state_after_cmds.cw_registry)
-          let new_cw_registry = canvas_widget.derive_registry(new_tree)
+          let new_cw_registry = widget.derive_registry(new_tree)
 
           // Diff and send patch
           case state.tree {
@@ -1395,7 +1395,7 @@ fn dispatch_update(
 
           // Sync subscriptions (including canvas widget subscriptions)
           let app_subs = safe_subscribe(state.app, new_model)
-          let cw_subs = canvas_widget.collect_subscriptions(new_cw_registry)
+          let cw_subs = widget.collect_subscriptions(new_cw_registry)
           let new_subs =
             sync_subscriptions(
               list.append(app_subs, cw_subs),
@@ -2096,7 +2096,7 @@ fn sync_windows(
 
 fn normalize_view_or_panic(
   view_tree: Node,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Node {
   case tree.normalize_view(view_tree, registry) {
     Ok(normalized) -> normalized

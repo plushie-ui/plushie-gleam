@@ -22,8 +22,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/canvas/shape
-import plushie/canvas_widget.{
-  type CanvasWidgetDef, type EventAction, CanvasWidgetDef, Consumed, Emit,
+import plushie/widget.{
+  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
   UpdateState,
 }
 import plushie/event.{
@@ -51,8 +51,8 @@ pub type StarState {
 
 // -- Widget definition --------------------------------------------------------
 
-pub fn def() -> CanvasWidgetDef(StarState, StarRatingProps) {
-  CanvasWidgetDef(
+pub fn def() -> WidgetDef(StarState, StarRatingProps) {
+  WidgetDef(
     init: fn() { StarState(hover: None) },
     render: render,
     handle_event: handle_event,
@@ -60,9 +60,9 @@ pub fn def() -> CanvasWidgetDef(StarState, StarRatingProps) {
   )
 }
 
-/// Build a star rating canvas widget placeholder.
+/// Build a star rating widget placeholder.
 pub fn widget(id: String, props: StarRatingProps) -> Node {
-  canvas_widget.build(def(), id, props)
+  widget.build(def(), id, props)
 }
 
 // -- Default props constructor ------------------------------------------------

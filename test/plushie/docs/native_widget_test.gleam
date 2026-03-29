@@ -2,35 +2,35 @@ import gleam/dict
 import gleam/list
 import gleeunit/should
 import plushie/command
-import plushie/extension
+import plushie/native_widget
 import plushie/node.{type Node, FloatVal, StringVal}
 import plushie/ui
 import plushie/widget/column
 
-// -- WidgetDef matching the extensions.md quick start example -----------------
+// -- NativeDef matching the native_widget.md quick start example --------------
 
-const sparkline_def = extension.WidgetDef(
+const sparkline_def = native_widget.NativeDef(
   kind: "sparkline",
   rust_crate: "native/my_sparkline",
   rust_constructor: "my_sparkline::SparklineExtension::new()",
   props: [
-    extension.NumberProp("data"),
-    extension.ColorProp("color"),
-    extension.NumberProp("capacity"),
+    native_widget.NumberProp("data"),
+    native_widget.ColorProp("color"),
+    native_widget.NumberProp("capacity"),
   ],
-  commands: [extension.CommandDef("push", [extension.NumberParam("value")])],
+  commands: [native_widget.CommandDef("push", [native_widget.NumberParam("value")])],
 )
 
-// -- Tests for the quick start WidgetDef --------------------------------------
+// -- Tests for the quick start NativeDef --------------------------------------
 
 pub fn extensions_sparkline_def_validates_test() {
-  let result = extension.validate(sparkline_def)
+  let result = native_widget.validate(sparkline_def)
   should.be_ok(result)
 }
 
 pub fn extensions_sparkline_build_creates_node_test() {
   let node =
-    extension.build(sparkline_def, "s1", [
+    native_widget.build(sparkline_def, "s1", [
       #("data", node.ListVal([FloatVal(1.0), FloatVal(2.0)])),
       #("color", StringVal("#ff0000")),
     ])
@@ -41,7 +41,7 @@ pub fn extensions_sparkline_build_creates_node_test() {
 
 pub fn extensions_sparkline_push_command_test() {
   let cmd =
-    extension.command(sparkline_def, "s1", "push", [
+    native_widget.command(sparkline_def, "s1", "push", [
       #("value", FloatVal(42.0)),
     ])
   case cmd {
@@ -55,33 +55,33 @@ pub fn extensions_sparkline_push_command_test() {
 }
 
 pub fn extensions_sparkline_prop_names_test() {
-  let names = extension.prop_names(sparkline_def)
+  let names = native_widget.prop_names(sparkline_def)
   should.equal(names, ["data", "color", "capacity"])
 }
 
 pub fn extensions_sparkline_command_names_test() {
-  let names = extension.command_names(sparkline_def)
+  let names = native_widget.command_names(sparkline_def)
   should.equal(names, ["push"])
 }
 
 // -- Native widget def from the "Native widgets" section ----------------------
 
-const hex_view_def = extension.WidgetDef(
+const hex_view_def = native_widget.NativeDef(
   kind: "hex_view",
   rust_crate: "native/hex_view",
   rust_constructor: "hex_view::HexViewExtension::new()",
-  props: [extension.StringProp("data"), extension.NumberProp("columns")],
+  props: [native_widget.StringProp("data"), native_widget.NumberProp("columns")],
   commands: [],
 )
 
 pub fn extensions_hex_view_validates_test() {
-  let result = extension.validate(hex_view_def)
+  let result = native_widget.validate(hex_view_def)
   should.be_ok(result)
 }
 
 pub fn extensions_hex_view_build_test() {
   let node =
-    extension.build(hex_view_def, "hv1", [
+    native_widget.build(hex_view_def, "hv1", [
       #("data", StringVal("deadbeef")),
       #("columns", FloatVal(16.0)),
     ])
@@ -90,7 +90,7 @@ pub fn extensions_hex_view_build_test() {
 }
 
 pub fn extensions_hex_view_no_commands_test() {
-  should.equal(extension.command_names(hex_view_def), [])
+  should.equal(native_widget.command_names(hex_view_def), [])
 }
 
 // -- Composite widget from the "Composite widgets" section --------------------
@@ -125,28 +125,28 @@ pub fn extensions_composite_labeled_input_test() {
 
 pub fn extensions_validate_empty_kind_fails_test() {
   let def =
-    extension.WidgetDef(
+    native_widget.NativeDef(
       kind: "",
       rust_crate: "native/x",
       rust_constructor: "x::new()",
       props: [],
       commands: [],
     )
-  should.be_error(extension.validate(def))
+  should.be_error(native_widget.validate(def))
 }
 
 pub fn extensions_validate_list_prop_test() {
   let def =
-    extension.WidgetDef(
+    native_widget.NativeDef(
       kind: "chart",
       rust_crate: "native/chart",
       rust_constructor: "chart::ChartExtension::new()",
       props: [
-        extension.ListProp("points", "point"),
-        extension.MapProp("metadata"),
-        extension.AnyProp("extra"),
+        native_widget.ListProp("points", "point"),
+        native_widget.MapProp("metadata"),
+        native_widget.AnyProp("extra"),
       ],
       commands: [],
     )
-  should.be_ok(extension.validate(def))
+  should.be_ok(native_widget.validate(def))
 }

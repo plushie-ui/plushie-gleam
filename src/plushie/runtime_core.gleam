@@ -14,7 +14,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import plushie/app.{type App}
-import plushie/canvas_widget
+import plushie/widget
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/subscription.{type Subscription}
@@ -151,15 +151,15 @@ fn coerce_event(event: Event) -> msg
 /// - `Bypassed(ev)` -- no handlers in scope; always deliver (raw
 ///   canvas events that aren't wrapped in a canvas widget)
 pub fn resolve_dispatch(
-  result: canvas_widget.DispatchResult,
+  result: widget.DispatchResult,
 ) -> Option(Event) {
   case result {
-    canvas_widget.Dispatched(None) -> None
-    canvas_widget.Dispatched(Some(ev)) ->
+    widget.Dispatched(None) -> None
+    widget.Dispatched(Some(ev)) ->
       case event.is_canvas_internal(ev) {
         True -> None
         False -> Some(ev)
       }
-    canvas_widget.Bypassed(ev) -> Some(ev)
+    widget.Bypassed(ev) -> Some(ev)
   }
 }

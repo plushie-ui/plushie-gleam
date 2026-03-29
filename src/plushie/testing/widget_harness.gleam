@@ -1,6 +1,6 @@
-//// Widget test harness for canvas_widget extensions.
+//// Widget test harness for custom widgets.
 ////
-//// Wraps a canvas_widget in a minimal host app for isolated testing.
+//// Wraps a widget in a minimal host app for isolated testing.
 //// The harness records semantic events emitted by the widget (filtering
 //// out canvas framework noise) and exposes helpers for querying the
 //// widget's emitted output.
@@ -26,7 +26,7 @@
 
 import gleam/list
 import plushie/app.{type App}
-import plushie/canvas_widget.{type CanvasWidgetDef}
+import plushie/widget.{type WidgetDef}
 import plushie/command
 import plushie/event.{type Event}
 import plushie/node.{type Node}
@@ -60,7 +60,7 @@ pub fn has_event(model: HarnessModel, predicate: fn(Event) -> Bool) -> Bool {
   list.any(model.events, predicate)
 }
 
-/// Build a test harness app that hosts a canvas widget.
+/// Build a test harness app that hosts a widget.
 ///
 /// The harness wraps the widget in a minimal window layout and records
 /// all non-framework events. Canvas lifecycle events (focus, blur,
@@ -68,10 +68,10 @@ pub fn has_event(model: HarnessModel, predicate: fn(Event) -> Bool) -> Bool {
 /// events emitted by the widget's `handle_event` are captured.
 pub fn harness(
   widget_id: String,
-  def: CanvasWidgetDef(state, props),
+  def: WidgetDef(state, props),
   props: props,
 ) -> App(HarnessModel, Event) {
-  let widget_node = canvas_widget.build(def, widget_id, props)
+  let widget_node = widget.build(def, widget_id, props)
   app.simple(
     fn() { #(HarnessModel(events: []), command.none()) },
     harness_update,

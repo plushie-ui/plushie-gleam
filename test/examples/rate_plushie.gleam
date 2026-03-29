@@ -196,7 +196,7 @@ fn update(model: Model, event: Event) {
     }
 
     // ThemeToggle emits "toggle" with data = Bool.
-    // Animation is managed internally by the canvas_widget.
+    // Animation is managed internally by the widget.
     WidgetEvent(kind: "toggle", id: "theme-toggle", data: data, ..) -> {
       let dark = coerce_bool(data)
       #(Model(..model, dark_mode: dark), command.none())

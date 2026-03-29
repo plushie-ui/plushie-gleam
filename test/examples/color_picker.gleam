@@ -1,4 +1,4 @@
-//// HSV color picker using a canvas_widget.
+//// HSV color picker using a custom widget.
 ////
 //// The color picker widget handles all interaction internally (mouse drag,
 //// keyboard adjustment, focus tracking). The app receives semantic "change"

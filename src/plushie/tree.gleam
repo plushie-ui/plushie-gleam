@@ -10,7 +10,7 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
-import plushie/canvas_widget
+import plushie/widget
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
@@ -30,7 +30,7 @@ import plushie/platform
 /// - Window nodes reset scope -- children start with no scope prefix.
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  normalize_ctx(node, "", "", canvas_widget.empty_registry())
+  normalize_ctx(node, "", "", widget.empty_registry())
 }
 
 /// Normalize a top-level app view and enforce explicit windows.
@@ -40,7 +40,7 @@ pub fn normalize(node: Node) -> Node {
 /// - a root node whose direct children are all `window` nodes
 pub fn normalize_view(
   node: Node,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Result(Node, String) {
   let normalized = normalize_with_registry(node, registry)
 
@@ -66,7 +66,7 @@ pub fn normalize_view(
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(
   node: Node,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Node {
   normalize_ctx(node, "", "", registry)
 }
@@ -75,7 +75,7 @@ fn normalize_ctx(
   node: Node,
   scope: String,
   window_id: String,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Node {
   let current_window_id = case node.kind {
     "window" -> node.id
@@ -104,10 +104,10 @@ fn normalize_ctx(
   // node has no __canvas_widget__ tags in its props, so normalization
   // won't re-trigger rendering (no recursion). Widget metadata is
   // attached to the final node's props for registry derivation.
-  case canvas_widget.is_placeholder(node) {
+  case widget.is_placeholder(node) {
     True -> {
       case
-        canvas_widget.render_placeholder(
+        widget.render_placeholder(
           node,
           current_window_id,
           scoped_id,
@@ -128,7 +128,7 @@ fn normalize_ctx(
           // placeholder to the rendered output so widget authors don't
           // need to handle them manually.
           let props =
-            canvas_widget.merge_standard_props(rendered_node.props, node.props)
+            widget.merge_standard_props(rendered_node.props, node.props)
           let props = resolve_a11y_refs(props, scope)
           let children =
             list.map(rendered_node.children, fn(child) {
@@ -153,7 +153,7 @@ fn normalize_regular(
   scoped_id: String,
   scope: String,
   window_id: String,
-  registry: canvas_widget.Registry,
+  registry: widget.Registry,
 ) -> Node {
   // Windows reset scope; empty IDs don't create scope boundaries.
   let child_scope = case node.kind, node.id {
