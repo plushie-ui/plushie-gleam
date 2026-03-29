@@ -2,6 +2,7 @@
 -export([
     rustc_version/0,
     cargo_build/2,
+    find_executable/1,
     has_flag/1,
     get_flag_value/1,
     ensure_dir/1,
@@ -14,6 +15,13 @@
     check_wasm_pack/0,
     wasm_pack_build/2
 ]).
+
+%% Check if an executable is on PATH.
+find_executable(Name) ->
+    case os:find_executable(binary_to_list(Name)) of
+        false -> false;
+        _ -> true
+    end.
 
 %% Get the rustc version as "MAJOR.MINOR.PATCH" string.
 %% Returns {ok, Version} or {error, Message}.

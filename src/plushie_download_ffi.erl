@@ -54,7 +54,13 @@ ssl_opts() ->
          {customize_hostname_check, [{match_fun, MatchFun}]}]
     catch
         _:_ ->
-            [{verify, verify_none}]
+            %% No verify_none fallback -- require TLS verification.
+            %% If cacerts_get fails, the user needs to configure
+            %% their Erlang/OTP installation with CA certificates.
+            error({ssl_cacerts_unavailable,
+                   "TLS certificate verification requires CA certificates. "
+                   "Ensure your Erlang/OTP installation includes the "
+                   "public_key application with system CA certificates."})
     end.
 
 ensure_http_started() ->
