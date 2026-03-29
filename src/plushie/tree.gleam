@@ -124,7 +124,12 @@ fn normalize_ctx(
             _, "" -> scope
             _, _ -> scoped_id
           }
-          let props = resolve_a11y_refs(rendered_node.props, scope)
+          // Forward standard widget props (a11y, event_rate) from the
+          // placeholder to the rendered output so widget authors don't
+          // need to handle them manually.
+          let props =
+            canvas_widget.merge_standard_props(rendered_node.props, node.props)
+          let props = resolve_a11y_refs(props, scope)
           let children =
             list.map(rendered_node.children, fn(child) {
               normalize_ctx(child, child_scope, current_window_id, registry)

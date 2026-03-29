@@ -121,6 +121,38 @@ pub fn build(
   Node(id:, kind: "canvas", props: dict.new(), children: [], meta:)
 }
 
+/// Standard widget prop keys that are forwarded from the placeholder
+/// to the rendered output during normalization. Widget authors don't
+/// need to manually forward these.
+const standard_widget_props = ["a11y", "event_rate"]
+
+/// Attach accessibility properties to a canvas widget placeholder.
+/// These are automatically forwarded to the rendered output during
+/// tree normalization -- widget authors don't need to handle them.
+pub fn set_a11y(node: Node, a11y_val: PropValue) -> Node {
+  Node(..node, props: dict.insert(node.props, "a11y", a11y_val))
+}
+
+/// Attach an event rate limit to a canvas widget placeholder.
+/// Forwarded to the rendered output automatically.
+pub fn set_event_rate(node: Node, rate: Int) -> Node {
+  Node(..node, props: dict.insert(node.props, "event_rate", node.IntVal(rate)))
+}
+
+/// Merge standard widget props (a11y, event_rate) from the placeholder
+/// into the rendered node's props. Called during normalization.
+pub fn merge_standard_props(
+  rendered_props: Dict(String, PropValue),
+  placeholder_props: Dict(String, PropValue),
+) -> Dict(String, PropValue) {
+  list.fold(standard_widget_props, rendered_props, fn(props, key) {
+    case dict.get(placeholder_props, key) {
+      Ok(val) -> dict.insert(props, key, val)
+      Error(_) -> props
+    }
+  })
+}
+
 // -- Registry ----------------------------------------------------------------
 
 /// A registry entry for a canvas widget instance. Stores type-erased
