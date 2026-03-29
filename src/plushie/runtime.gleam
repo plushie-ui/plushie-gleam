@@ -238,7 +238,12 @@ type LoopState(model, msg) {
 @target(erlang)
 type SubEntry {
   TimerSub(timer: process.Timer, interval_ms: Int, tag: String)
-  RendererSub(kind: String, max_rate: option.Option(Int))
+  RendererSub(
+    kind: String,
+    tag: String,
+    max_rate: option.Option(Int),
+    window_id: option.Option(String),
+  )
 }
 
 // -- Actor init ---------------------------------------------------------------
@@ -1925,8 +1930,9 @@ fn sync_subscriptions(
         let entry = start_subscription(sub, bridge, self, opts)
         dict.insert(acc, key, entry)
       }
-      Ok(RendererSub(kind:, max_rate: old_rate)) -> {
+      Ok(RendererSub(kind:, max_rate: old_rate, ..)) -> {
         let new_rate = subscription.get_max_rate(sub)
+        let new_window_id = subscription.get_window_id(sub)
         case old_rate == new_rate {
           True -> acc
           False -> {
@@ -1937,11 +1943,21 @@ fn sync_subscriptions(
                 kind,
                 tag,
                 new_rate,
+                new_window_id,
                 opts.session,
                 opts.format,
               ),
             )
-            dict.insert(acc, key, RendererSub(kind:, max_rate: new_rate))
+            dict.insert(
+              acc,
+              key,
+              RendererSub(
+                kind:,
+                tag:,
+                max_rate: new_rate,
+                window_id: new_window_id,
+              ),
+            )
           }
         }
       }
@@ -1966,11 +1982,19 @@ fn start_subscription(
       let kind = subscription.wire_kind(sub)
       let tag = subscription.tag(sub)
       let max_rate = subscription.get_max_rate(sub)
+      let window_id = subscription.get_window_id(sub)
       send_encoded(
         bridge,
-        encode.encode_subscribe(kind, tag, max_rate, opts.session, opts.format),
+        encode.encode_subscribe(
+          kind,
+          tag,
+          max_rate,
+          window_id,
+          opts.session,
+          opts.format,
+        ),
       )
-      RendererSub(kind:, max_rate:)
+      RendererSub(kind:, tag:, max_rate:, window_id:)
     }
   }
 }
@@ -1986,10 +2010,10 @@ fn stop_subscription(
       process.cancel_timer(timer)
       Nil
     }
-    RendererSub(kind:, ..) -> {
+    RendererSub(kind:, tag:, ..) -> {
       send_encoded(
         bridge,
-        encode.encode_unsubscribe(kind, opts.session, opts.format),
+        encode.encode_unsubscribe(kind, tag, opts.session, opts.format),
       )
     }
   }

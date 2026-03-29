@@ -377,9 +377,11 @@ pub fn commands_subscription_every_construct_test() {
 
 pub fn commands_subscription_on_key_press_construct_test() {
   subscription.on_key_press("key_event")
-  |> should.equal(subscription.OnKeyPress(
+  |> should.equal(subscription.Renderer(
+    kind: subscription.KeyPress,
     tag: "key_event",
     max_rate: option.None,
+    window_id: option.None,
   ))
 }
 

@@ -277,6 +277,7 @@ pub fn encode_subscribe(
   kind: String,
   tag: String,
   max_rate: option.Option(Int),
+  window_id: option.Option(String),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
@@ -285,16 +286,23 @@ pub fn encode_subscribe(
     option.Some(rate) -> list.append(fields, [#("max_rate", IntVal(rate))])
     option.None -> fields
   }
+  let fields = case window_id {
+    option.Some(wid) -> list.append(fields, [#("window_id", StringVal(wid))])
+    option.None -> fields
+  }
   serialize(message("subscribe", session, fields), format)
 }
 
 /// Encode an unsubscribe message to stop an event source.
+/// Includes the tag for targeted unsubscription when multiple
+/// subscriptions of the same kind exist (e.g. window-scoped).
 pub fn encode_unsubscribe(
   kind: String,
+  tag: String,
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
-  let fields = [#("kind", StringVal(kind))]
+  let fields = [#("kind", StringVal(kind)), #("tag", StringVal(tag))]
   serialize(message("unsubscribe", session, fields), format)
 }
 

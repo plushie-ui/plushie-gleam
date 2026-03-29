@@ -356,6 +356,7 @@ pub fn encode_subscribe_test() {
       "on_key_press",
       "keys",
       option.None,
+      option.None,
       "",
       protocol.Json,
     )
@@ -371,6 +372,7 @@ pub fn encode_subscribe_with_max_rate_test() {
       "on_mouse_move",
       "mouse",
       option.Some(30),
+      option.None,
       "",
       protocol.Json,
     )
@@ -383,7 +385,7 @@ pub fn encode_subscribe_with_max_rate_test() {
 
 pub fn encode_unsubscribe_test() {
   let assert Ok(bytes) =
-    encode.encode_unsubscribe("on_key_press", "", protocol.Json)
+    encode.encode_unsubscribe("on_key_press", "keys", "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"unsubscribe\"")
   assert string.contains(s, "\"kind\":\"on_key_press\"")
