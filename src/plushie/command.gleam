@@ -19,10 +19,13 @@ pub type Command(msg) {
   /// Deliver an already-resolved value through update via the mapper.
   Done(value: Dynamic, mapper: fn(Dynamic) -> msg)
   /// Run a function on a background process. The result is delivered
-  /// as an `AsyncResult` event identified by `tag`.
+  /// as an `AsyncResult` event identified by `tag`. Starting a new
+  /// task with the same tag cancels the running one (single-instance
+  /// per tag). Use unique tags for concurrent tasks.
   Async(work: fn() -> Dynamic, tag: String)
   /// Run a function that can emit multiple values over time. Each
   /// value is delivered as a `StreamValue` event identified by `tag`.
+  /// Starting a new stream with the same tag cancels the running one.
   Stream(work: fn(fn(Dynamic) -> Nil) -> Dynamic, tag: String)
   /// Cancel a running Async or Stream task by tag.
   Cancel(tag: String)
@@ -237,12 +240,14 @@ pub fn done(value: Dynamic, mapper: fn(Dynamic) -> msg) -> Command(msg) {
 
 /// Run a function asynchronously on a background process. The result
 /// is delivered as an AsyncResult event identified by the tag.
+/// Starting a new task with the same tag cancels the running one.
 pub fn async(work: fn() -> Dynamic, tag: String) -> Command(msg) {
   Async(work:, tag:)
 }
 
 /// Run a function that can emit multiple values over time. Each value
 /// is delivered as a StreamValue event identified by the tag.
+/// Starting a new stream with the same tag cancels the running one.
 pub fn stream(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
   tag: String,

@@ -203,7 +203,12 @@ fn resolve_event_target(
 ) -> #(String, String, List(String)) {
   case find_event_target(tree, target, "") {
     option.Some(found) -> found
-    option.None -> #(default_window_id(tree), target, [])
+    option.None ->
+      panic as {
+        "widget not found: \""
+        <> target
+        <> "\". Check that the ID matches a widget in the current tree."
+      }
   }
 }
 
@@ -242,17 +247,6 @@ fn find_event_target_in_children(
         option.Some(found) -> option.Some(found)
         option.None ->
           find_event_target_in_children(rest, target, current_window)
-      }
-  }
-}
-
-fn default_window_id(tree: node.Node) -> String {
-  case tree.kind {
-    "window" -> tree.id
-    _ ->
-      case list.find(tree.children, fn(child) { child.kind == "window" }) {
-        Ok(window) -> window.id
-        Error(_) -> ""
       }
   }
 }

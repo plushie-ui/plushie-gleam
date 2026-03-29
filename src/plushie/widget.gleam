@@ -61,16 +61,74 @@ import plushie/subscription.{type Subscription}
 ///
 /// `state` is the widget's internal state (managed by the runtime).
 /// `props` is the widget's input from the parent view function.
+///
+/// For stateless composites, use `simple` or `with_handler` instead
+/// of constructing WidgetDef directly.
 pub type WidgetDef(state, props) {
   WidgetDef(
     /// Create the initial state for a new widget instance.
     init: fn() -> state,
-    /// Render the widget to a canvas node tree.
+    /// Render the widget to a node tree.
     render: fn(String, props, state) -> Node,
     /// Handle an event. Returns the action and (possibly updated) state.
     handle_event: fn(Event, state) -> #(EventAction, state),
     /// Subscriptions for this widget instance.
     subscriptions: fn(props, state) -> List(Subscription),
+  )
+}
+
+/// Create a stateless render-only widget. Events from child widgets
+/// pass through to the app's update (transparent to events).
+///
+/// ```gleam
+/// let labeled_input_def = widget.simple(fn(id, props: InputProps) {
+///   ui.column(id, [], [
+///     ui.text_(id <> "/label", props.label),
+///     ui.text_input(id <> "/input", props.value, []),
+///   ])
+/// })
+/// ```
+pub fn simple(
+  render: fn(String, props) -> Node,
+) -> WidgetDef(Nil, props) {
+  WidgetDef(
+    init: fn() { Nil },
+    render: fn(id, props, _state) { render(id, props) },
+    handle_event: fn(_event, state) { #(Ignored, state) },
+    subscriptions: fn(_, _) { [] },
+  )
+}
+
+/// Create a stateless widget with an event handler. The handler
+/// intercepts events from child widgets and can transform, consume,
+/// or ignore them.
+///
+/// ```gleam
+/// let note_card_def = widget.with_handler(
+///   fn(id, props: CardProps) {
+///     ui.column(id, [], [
+///       ui.text_(id <> "/title", props.title),
+///       ui.button_(id <> "/open", "Open"),
+///     ])
+///   },
+///   fn(event) {
+///     case event {
+///       event.WidgetClick(id: "open", ..) ->
+///         widget.Emit("open", dynamic.nil())
+///       _ -> widget.Ignored
+///     }
+///   },
+/// )
+/// ```
+pub fn with_handler(
+  render: fn(String, props) -> Node,
+  handle_event: fn(Event) -> EventAction,
+) -> WidgetDef(Nil, props) {
+  WidgetDef(
+    init: fn() { Nil },
+    render: fn(id, props, _state) { render(id, props) },
+    handle_event: fn(event, state) { #(handle_event(event), state) },
+    subscriptions: fn(_, _) { [] },
   )
 }
 
@@ -92,15 +150,15 @@ pub type EventAction {
 
 // -- Placeholder node --------------------------------------------------------
 
-/// Metadata prop key marking a node as a widget placeholder.
+/// Metadata key marking a node as a widget placeholder.
 /// Stripped during normalization; never reaches the wire.
-const meta_key = "__canvas_widget__"
+const meta_key = "__widget__"
 
-/// Metadata prop key carrying the widget's encoded props.
-const props_key = "__canvas_widget_props__"
+/// Metadata key carrying the widget's encoded props.
+const props_key = "__widget_props__"
 
-/// Metadata prop key carrying the widget's state (post-normalization).
-const state_key = "__canvas_widget_state__"
+/// Metadata key carrying the widget's state (post-normalization).
+const state_key = "__widget_state__"
 
 /// Build a placeholder node for a widget.
 ///

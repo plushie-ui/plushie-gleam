@@ -99,11 +99,11 @@ fn normalize_ctx(
 
   let scoped_id = apply_scope(node.id, scope)
 
-  // Canvas widget rendering: if this node is a placeholder, render it
-  // with stored state and normalize the output. The rendered canvas
-  // node has no __canvas_widget__ tags in its props, so normalization
-  // won't re-trigger rendering (no recursion). Widget metadata is
-  // attached to the final node's props for registry derivation.
+  // Widget rendering: if this node is a placeholder, render it
+  // with stored state and normalize the output. The rendered node
+  // has no __widget__ tags in its meta, so normalization won't
+  // re-trigger rendering (no recursion). Widget metadata is
+  // attached to the final node's meta for registry derivation.
   case widget.is_placeholder(node) {
     True -> {
       case
