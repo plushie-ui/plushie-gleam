@@ -333,7 +333,7 @@ fn init_runtime(
   // Execute init commands (threads full state for PID tracking)
   let state = execute_commands(init_cmds, state)
 
-  // Sync subscriptions (timers, renderer event sources, canvas widget subs)
+  // Sync subscriptions (timers, renderer event sources, widget subs)
   let app_subs = safe_subscribe(state.app, state.model)
   let cw_subs = widget.collect_subscriptions(state.cw_registry)
   let state =
@@ -561,7 +561,7 @@ fn handle_message(
       // timer events (only the latest tick matters).
       drain_matching_ticks(state.self, tag)
       let timestamp = erlang_monotonic_time()
-      // Check if this timer belongs to a canvas widget
+      // Check if this timer belongs to a widget
       let new_state = case widget.is_widget_tag(tag) {
         True -> {
           let #(maybe_event, new_registry) =
@@ -784,7 +784,7 @@ fn handle_message(
         None -> Nil
       }
 
-      // Re-sync subscriptions (incl. canvas widget subs)
+      // Re-sync subscriptions (incl. custom widget subs)
       let restart_app_subs = safe_subscribe(state.app, state.model)
       let restart_cw_subs = widget.collect_subscriptions(cw_registry)
       let new_subs =
@@ -867,7 +867,7 @@ fn handle_message(
                 ),
               )
           }
-          // Re-sync subscriptions (including canvas widget subscriptions)
+          // Re-sync subscriptions (including widget subscriptions)
           let app_subs = safe_subscribe(state.app, state.model)
           let cw_subs = widget.collect_subscriptions(new_cw_registry)
           let new_subs =
@@ -1205,7 +1205,7 @@ fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
 
 @target(erlang)
 /// Re-render the view without going through update. Used when
-/// canvas_widget state changes internally (event consumed or
+/// widget state changes internally (event consumed or
 /// timer handled by widget) but the app model hasn't changed.
 fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let view_fn = app.get_view(state.app)
@@ -1238,7 +1238,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
           )
       }
 
-      // Sync subscriptions (including canvas widget subscriptions)
+      // Sync subscriptions (including widget subscriptions)
       let app_subs = safe_subscribe(state.app, state.model)
       let cw_subs = widget.collect_subscriptions(new_cw_registry)
       let new_subs =
@@ -1317,7 +1317,7 @@ fn apply_event(
 }
 
 @target(erlang)
-/// Handle a wire event by routing through canvas_widget handlers
+/// Handle a wire event by routing through widget handlers
 /// first, then mapping to the app's msg type.
 fn handle_event(
   state: LoopState(model, msg),
@@ -1332,7 +1332,7 @@ fn handle_event(
       dispatch_update(state, mapped_msg)
     }
     None -> {
-      // Event was consumed by a canvas_widget or auto-consumed as a
+      // Event was consumed by a widget handler or auto-consumed as a
       // canvas-internal event. Still need to re-render since widget
       // state may have changed.
       rerender(state)
@@ -1393,7 +1393,7 @@ fn dispatch_update(
             }
           }
 
-          // Sync subscriptions (including canvas widget subscriptions)
+          // Sync subscriptions (including widget subscriptions)
           let app_subs = safe_subscribe(state.app, new_model)
           let cw_subs = widget.collect_subscriptions(new_cw_registry)
           let new_subs =

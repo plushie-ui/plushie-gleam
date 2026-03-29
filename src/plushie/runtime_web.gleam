@@ -106,7 +106,7 @@ pub fn start(
   let handle =
     create_handle(model, app, transport, session, dict.new(), set.new())
 
-  // Initialize canvas widget registry
+  // Initialize widget registry
   do_set_cw_registry(handle, widget.empty_registry())
 
   // Register callbacks so JS timers, async completions, and
@@ -126,7 +126,7 @@ pub fn start(
   register_dispatch(handle, dispatch, dispatch_direct)
   register_timer_callback(handle, fn(tag) {
     let timestamp = platform.monotonic_time_ms()
-    // Route canvas widget timers to the widget handler
+    // Route widget timers to the widget handler
     case widget.is_widget_tag(tag) {
       True -> {
         let registry = do_get_cw_registry(handle)
@@ -320,7 +320,7 @@ fn handle_event(
     None -> {
       // Non-coalescable: flush pending first, then dispatch
       flush_coalesced(handle)
-      // Route through canvas_widget scope chain
+      // Route through widget scope chain
       let registry = do_get_cw_registry(handle)
       let #(result, new_registry) =
         widget.dispatch_through_widgets(registry, event)
@@ -331,7 +331,7 @@ fn handle_event(
           dispatch_update(handle, app, msg)
         }
         None -> {
-          // Consumed by canvas_widget or auto-consumed as canvas-internal.
+          // Consumed by widget handler or auto-consumed as canvas-internal.
           // Re-render for potential widget state changes.
           render_and_sync(handle, app, False)
         }
@@ -352,7 +352,7 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
     Ok(subs) -> subs
     Error(_) -> []
   }
-  // Merge canvas widget subscriptions
+  // Merge widget subscriptions
   let cw_subs = widget.collect_subscriptions(do_get_cw_registry(handle))
   let desired = list.append(app_subs, cw_subs)
 
@@ -793,12 +793,12 @@ fn do_get_windows(handle: WebRuntimeHandle) -> Set(String)
 fn do_set_windows(handle: WebRuntimeHandle, windows: Set(String)) -> Nil
 
 @target(javascript)
-/// Get the canvas widget registry.
+/// Get the widget registry.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "getCwRegistry")
 fn do_get_cw_registry(handle: WebRuntimeHandle) -> widget.Registry
 
 @target(javascript)
-/// Set the canvas widget registry.
+/// Set the widget registry.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setCwRegistry")
 fn do_set_cw_registry(
   handle: WebRuntimeHandle,

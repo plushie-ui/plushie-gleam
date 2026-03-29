@@ -42,8 +42,8 @@ pub type Node {
     kind: String,
     props: Dict(String, PropValue),
     children: List(Node),
-    /// Runtime-only metadata. Not sent to the renderer. Used by
-    /// canvas_widget for state/def storage during normalization.
+    /// Runtime-only metadata. Not sent to the renderer. Used by the
+    /// widget system for state/def storage during normalization.
     /// Widget builders should leave this as `dict.new()`.
     meta: Dict(String, PropValue),
   )

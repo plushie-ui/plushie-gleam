@@ -73,7 +73,7 @@ pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
 /// Convert a Node tree to a nested PropValue (DictVal).
 /// Maps `kind` to the wire key `"type"`.
 pub fn node_to_prop_value(n: Node) -> PropValue {
-  // Meta is not included -- it's runtime-only data (canvas_widget
+  // Meta is not included -- it's runtime-only data (widget
   // state, def) that the renderer doesn't understand.
   DictVal(
     dict.from_list([

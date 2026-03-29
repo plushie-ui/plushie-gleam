@@ -62,7 +62,7 @@ pub fn normalize_view(
   }
 }
 
-/// Normalize with a canvas widget registry. Canvas widget placeholders
+/// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(
   node: Node,
