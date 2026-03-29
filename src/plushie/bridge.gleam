@@ -1,8 +1,21 @@
 //// Bridge actor: manages the Erlang Port to the Rust binary.
 ////
-//// The bridge is a thin pipe -- it receives pre-encoded wire bytes
-//// from the runtime and writes them to the port. Inbound port data
-//// is decoded and forwarded to the runtime as events.
+//// The bridge is a stable entity that outlives individual renderer
+//// processes. When the renderer crashes, the bridge stays alive,
+//// queues transient messages during the restart window, and reopens
+//// the port after an exponential backoff delay.
+////
+//// ## Message classification during restart
+////
+//// Messages are classified as rebuildable or transient:
+////
+//// - **Rebuildable** (`Send`): settings, snapshots, patches,
+////   subscriptions, window ops. Dropped when the port is down
+////   because the runtime rebuilds them during resync.
+//// - **Transient** (`SendTransient`): effects, widget ops, image ops,
+////   widget commands, interact, advance_frame, stub registration.
+////   Queued when the port is down or awaiting resync, then flushed
+////   after the runtime signals resync is complete.
 ////
 //// ## Transport modes
 ////
@@ -32,9 +45,13 @@ import gleam/erlang/port.{type Port}
 @target(erlang)
 import gleam/erlang/process.{type Subject}
 @target(erlang)
+import gleam/float
+@target(erlang)
+import gleam/int
+@target(erlang)
 import gleam/list
 @target(erlang)
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 @target(erlang)
 import gleam/otp/actor
 @target(erlang)
@@ -67,8 +84,15 @@ pub type IoStreamMessage {
 @target(erlang)
 /// Messages the bridge actor handles.
 pub type BridgeMessage {
-  /// Send pre-encoded wire bytes to the Rust binary.
+  /// Send pre-encoded rebuildable wire bytes (settings, snapshot,
+  /// patch, subscribe, window_op). Dropped when the port is down
+  /// since the runtime rebuilds these during resync.
   Send(data: BitArray)
+  /// Send pre-encoded transient wire bytes (effect, widget_op,
+  /// image_op, widget command, interact, advance_frame, stub
+  /// registration). Queued when the port is down or awaiting
+  /// resync, flushed after ResyncComplete.
+  SendTransient(data: BitArray)
   /// Port data received from the Rust binary (via selector).
   PortData(data: Dynamic)
   /// Line data received from the Rust binary in JSON mode (via selector).
@@ -83,6 +107,11 @@ pub type BridgeMessage {
   /// after it starts under the supervisor. Any events received before
   /// this message are buffered and flushed on receipt.
   RegisterRuntime(Subject(RuntimeNotification))
+  /// Runtime has finished resync (settings, snapshot, subscriptions,
+  /// windows). The bridge flushes any queued transient messages.
+  ResyncComplete
+  /// Internal: bridge's own restart timer fired.
+  RestartPort
   /// Graceful shutdown request.
   Shutdown
 }
@@ -102,9 +131,9 @@ pub type Transport {
 /// Internal bridge state.
 pub opaque type BridgeState {
   BridgeState(
-    port: Port,
+    port: Option(Port),
     format: protocol.Format,
-    runtime: option.Option(Subject(RuntimeNotification)),
+    runtime: Option(Subject(RuntimeNotification)),
     session: String,
     transport: Transport,
     /// Buffer for accumulating partial JSON lines (noeol chunks).
@@ -112,6 +141,19 @@ pub opaque type BridgeState {
     /// Events received before the runtime registered. Stored in
     /// reverse order and flushed on RegisterRuntime receipt.
     event_buffer: List(RuntimeNotification),
+    /// True after port restart until the runtime sends ResyncComplete.
+    awaiting_resync: Bool,
+    /// Transient messages queued during restart/resync.
+    queued_messages: List(BitArray),
+    /// Port restart tracking.
+    restart_count: Int,
+    max_restarts: Int,
+    restart_delay: Int,
+    /// Needed to reopen the port on restart (Spawn transport only).
+    binary_path: String,
+    renderer_args: List(String),
+    /// The bridge's own subject, needed for scheduling RestartPort.
+    self: Option(Subject(BridgeMessage)),
   )
 }
 
@@ -120,13 +162,20 @@ pub opaque type BridgeState {
 pub type RuntimeNotification {
   /// A decoded inbound message from the Rust binary.
   InboundEvent(InboundMessage)
-  /// The Rust binary process exited.
+  /// The Rust binary process exited with this status code.
   RendererExited(status: Int)
+  /// The bridge successfully reopened the port after a crash.
+  /// The runtime should resync state and then send ResyncComplete.
+  RendererRestarted
 }
 
 // Maximum buffer size for partial JSON lines (64 MiB).
 @target(erlang)
 const max_json_buffer_size = 67_108_864
+
+// Maximum backoff delay (5 seconds).
+@target(erlang)
+const max_backoff_ms = 5000
 
 @target(erlang)
 /// Start the bridge actor with spawn transport (default).
@@ -216,6 +265,68 @@ pub fn start_supervised(
   |> actor.start
 }
 
+// -- Init helpers (port-opening) -----------------------------------------------
+
+@target(erlang)
+fn make_state(
+  subject: Subject(BridgeMessage),
+  port: Port,
+  format: protocol.Format,
+  runtime: Option(Subject(RuntimeNotification)),
+  session: String,
+  transport: Transport,
+  binary_path: String,
+  renderer_args: List(String),
+) -> BridgeState {
+  BridgeState(
+    port: Some(port),
+    format:,
+    runtime:,
+    session:,
+    transport:,
+    json_buffer: <<>>,
+    event_buffer: [],
+    awaiting_resync: False,
+    queued_messages: [],
+    restart_count: 0,
+    max_restarts: 5,
+    restart_delay: 100,
+    binary_path:,
+    renderer_args:,
+    self: Some(subject),
+  )
+}
+
+@target(erlang)
+fn open_spawn_port(
+  binary_path: String,
+  format: protocol.Format,
+  renderer_args: List(String),
+) -> Port {
+  let options = case format {
+    protocol.Msgpack -> renderer_port.msgpack_port_options()
+    protocol.Json -> renderer_port.json_port_options()
+  }
+  let format_args = case format {
+    protocol.Json -> ["--json"]
+    protocol.Msgpack -> []
+  }
+  let args = list.append(renderer_args, format_args)
+  let env_entries = renderer_env.build(renderer_env.default_opts())
+  let env = renderer_env.to_port_env(env_entries)
+  renderer_port.open_port_spawn(binary_path, args, env, options)
+}
+
+@target(erlang)
+fn spawn_selector(
+  subject: Subject(BridgeMessage),
+  format: protocol.Format,
+) -> process.Selector(BridgeMessage) {
+  process.new_selector()
+  |> process.select(subject)
+  |> process.select_other(classify_port_message(format, _))
+}
+
 @target(erlang)
 fn init_spawn(
   subject: Subject(BridgeMessage),
@@ -225,36 +336,18 @@ fn init_spawn(
   session: String,
   renderer_args: List(String),
 ) {
-  let options = case format {
-    protocol.Msgpack -> renderer_port.msgpack_port_options()
-    protocol.Json -> renderer_port.json_port_options()
-  }
-
-  let format_args = case format {
-    protocol.Json -> ["--json"]
-    protocol.Msgpack -> []
-  }
-  let args = list.append(renderer_args, format_args)
-
-  let env_entries = renderer_env.build(renderer_env.default_opts())
-  let env = renderer_env.to_port_env(env_entries)
-
-  let port = renderer_port.open_port_spawn(binary_path, args, env, options)
-
-  let selector =
-    process.new_selector()
-    |> process.select(subject)
-    |> process.select_other(classify_port_message(format, _))
-
+  let port = open_spawn_port(binary_path, format, renderer_args)
+  let selector = spawn_selector(subject, format)
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: Some(runtime),
-      session:,
-      transport: TransportSpawn,
-      json_buffer: <<>>,
-      event_buffer: [],
+    make_state(
+      subject,
+      port,
+      format,
+      Some(runtime),
+      session,
+      TransportSpawn,
+      binary_path,
+      renderer_args,
     )
 
   actor.initialised(state)
@@ -276,21 +369,17 @@ fn init_stdio(
   }
 
   let port = renderer_port.open_fd_port(0, 1, options)
-
-  let selector =
-    process.new_selector()
-    |> process.select(subject)
-    |> process.select_other(classify_port_message(format, _))
-
+  let selector = spawn_selector(subject, format)
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: Some(runtime),
-      session:,
-      transport: TransportStdio,
-      json_buffer: <<>>,
-      event_buffer: [],
+    make_state(
+      subject,
+      port,
+      format,
+      Some(runtime),
+      session,
+      TransportStdio,
+      "",
+      [],
     )
 
   actor.initialised(state)
@@ -317,16 +406,16 @@ fn init_iostream(
   // iostream transport doesn't use a real port; we use a dummy
   // value that will never be referenced for I/O.
   let port = renderer_port.null_port()
-
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: Some(runtime),
-      session:,
-      transport: TransportIoStream(adapter:),
-      json_buffer: <<>>,
-      event_buffer: [],
+    make_state(
+      subject,
+      port,
+      format,
+      Some(runtime),
+      session,
+      TransportIoStream(adapter:),
+      "",
+      [],
     )
 
   actor.initialised(state)
@@ -347,36 +436,18 @@ fn init_spawn_deferred(
   session: String,
   renderer_args: List(String),
 ) {
-  let options = case format {
-    protocol.Msgpack -> renderer_port.msgpack_port_options()
-    protocol.Json -> renderer_port.json_port_options()
-  }
-
-  let format_args = case format {
-    protocol.Json -> ["--json"]
-    protocol.Msgpack -> []
-  }
-  let args = list.append(renderer_args, format_args)
-
-  let env_entries = renderer_env.build(renderer_env.default_opts())
-  let env = renderer_env.to_port_env(env_entries)
-
-  let port = renderer_port.open_port_spawn(binary_path, args, env, options)
-
-  let selector =
-    process.new_selector()
-    |> process.select(subject)
-    |> process.select_other(classify_port_message(format, _))
-
+  let port = open_spawn_port(binary_path, format, renderer_args)
+  let selector = spawn_selector(subject, format)
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: None,
-      session:,
-      transport: TransportSpawn,
-      json_buffer: <<>>,
-      event_buffer: [],
+    make_state(
+      subject,
+      port,
+      format,
+      None,
+      session,
+      TransportSpawn,
+      binary_path,
+      renderer_args,
     )
 
   actor.initialised(state)
@@ -397,22 +468,9 @@ fn init_stdio_deferred(
   }
 
   let port = renderer_port.open_fd_port(0, 1, options)
-
-  let selector =
-    process.new_selector()
-    |> process.select(subject)
-    |> process.select_other(classify_port_message(format, _))
-
+  let selector = spawn_selector(subject, format)
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: None,
-      session:,
-      transport: TransportStdio,
-      json_buffer: <<>>,
-      event_buffer: [],
-    )
+    make_state(subject, port, format, None, session, TransportStdio, "", [])
 
   actor.initialised(state)
   |> actor.selecting(selector)
@@ -434,16 +492,16 @@ fn init_iostream_deferred(
     |> process.select(subject)
 
   let port = renderer_port.null_port()
-
   let state =
-    BridgeState(
-      port:,
-      format:,
-      runtime: None,
-      session:,
-      transport: TransportIoStream(adapter:),
-      json_buffer: <<>>,
-      event_buffer: [],
+    make_state(
+      subject,
+      port,
+      format,
+      None,
+      session,
+      TransportIoStream(adapter:),
+      "",
+      [],
     )
 
   actor.initialised(state)
@@ -452,6 +510,8 @@ fn init_iostream_deferred(
   |> Ok
 }
 
+// -- Message handler ----------------------------------------------------------
+
 @target(erlang)
 fn handle_message(
   state: BridgeState,
@@ -459,8 +519,29 @@ fn handle_message(
 ) -> actor.Next(BridgeState, BridgeMessage) {
   case msg {
     Send(data:) -> {
-      send_data(state, data)
-      actor.continue(state)
+      // Rebuildable: send when port is ready, drop otherwise.
+      case state.port {
+        Some(_) -> {
+          send_data(state, data)
+          actor.continue(state)
+        }
+        None -> actor.continue(state)
+      }
+    }
+
+    SendTransient(data:) -> {
+      // Transient: send when port is ready AND not awaiting resync.
+      // Queue when port is down or resync is in progress.
+      case state.port, state.awaiting_resync {
+        Some(_), False -> {
+          send_data(state, data)
+          actor.continue(state)
+        }
+        _, _ -> {
+          let queued = list.append(state.queued_messages, [data])
+          actor.continue(BridgeState(..state, queued_messages: queued))
+        }
+      }
     }
 
     PortData(data:) -> {
@@ -479,7 +560,60 @@ fn handle_message(
         Error(_) -> 1
       }
       notify_runtime(state, RendererExited(status: exit_code))
-      actor.stop()
+
+      case exit_code {
+        // Clean exit (status 0): stop the bridge.
+        0 -> actor.stop()
+
+        // Crash: attempt restart with exponential backoff.
+        _ -> {
+          case state.transport {
+            TransportSpawn ->
+              case state.restart_count < state.max_restarts {
+                True -> {
+                  let delay = calculate_backoff(state.restart_delay, state.restart_count)
+                  platform.log_warning(
+                    "plushie bridge: renderer crashed (status "
+                    <> int.to_string(exit_code)
+                    <> "), restarting in "
+                    <> int.to_string(delay)
+                    <> "ms (attempt "
+                    <> int.to_string(state.restart_count + 1)
+                    <> "/"
+                    <> int.to_string(state.max_restarts)
+                    <> ")",
+                  )
+                  case state.self {
+                    Some(self) -> {
+                      process.send_after(self, delay, RestartPort)
+                      Nil
+                    }
+                    None -> Nil
+                  }
+                  actor.continue(
+                    BridgeState(
+                      ..state,
+                      port: None,
+                      awaiting_resync: True,
+                      json_buffer: <<>>,
+                    ),
+                  )
+                }
+                False -> {
+                  platform.log_error(
+                    "plushie bridge: renderer crashed "
+                    <> int.to_string(state.max_restarts)
+                    <> " times, giving up",
+                  )
+                  actor.stop()
+                }
+              }
+
+            // Non-spawn transports don't support restart.
+            _ -> actor.stop()
+          }
+        }
+      }
     }
 
     IoStreamData(data:) -> {
@@ -510,25 +644,82 @@ fn handle_message(
       )
     }
 
-    Shutdown -> {
+    ResyncComplete -> {
+      let state = BridgeState(..state, awaiting_resync: False)
+      let state = flush_queued_messages(state)
+      actor.continue(state)
+    }
+
+    RestartPort -> {
       case state.transport {
-        TransportIoStream(_) -> Nil
-        _ -> {
-          renderer_port.port_close(state.port)
-          Nil
+        TransportSpawn -> {
+          case
+            platform.try_call(fn() {
+              open_spawn_port(state.binary_path, state.format, state.renderer_args)
+            })
+          {
+            Ok(new_port) -> {
+              let new_count = state.restart_count + 1
+              telemetry.execute(
+                ["plushie", "bridge", "restart"],
+                dict.from_list([#("count", dynamic.int(new_count))]),
+                dict.new(),
+              )
+              platform.log_info(
+                "plushie bridge: renderer restarted (attempt "
+                <> int.to_string(new_count)
+                <> ")",
+              )
+              notify_runtime(state, RendererRestarted)
+              actor.continue(
+                BridgeState(
+                  ..state,
+                  port: Some(new_port),
+                  restart_count: new_count,
+                  // awaiting_resync stays True until ResyncComplete
+                ),
+              )
+            }
+            Error(_) -> {
+              platform.log_error(
+                "plushie bridge: failed to reopen port, giving up",
+              )
+              actor.stop()
+            }
+          }
         }
+        _ -> {
+          // Non-spawn transports can't restart
+          actor.stop()
+        }
+      }
+    }
+
+    Shutdown -> {
+      case state.port {
+        Some(port) ->
+          case state.transport {
+            TransportIoStream(_) -> Nil
+            _ -> {
+              renderer_port.port_close(port)
+              Nil
+            }
+          }
+        None -> Nil
       }
       actor.stop()
     }
   }
 }
 
+// -- Send helpers -------------------------------------------------------------
+
 @target(erlang)
 fn send_data(state: BridgeState, data: BitArray) -> Nil {
   let byte_size = bit_array.byte_size(data)
 
-  case state.transport {
-    TransportIoStream(adapter:) -> {
+  case state.transport, state.port {
+    TransportIoStream(adapter:), _ -> {
       process.send(adapter, IoStreamSend(data:))
       telemetry.execute(
         ["plushie", "bridge", "send"],
@@ -537,9 +728,9 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
       )
       Nil
     }
-    _ -> {
+    _, Some(port) -> {
       case
-        platform.try_call(fn() { renderer_port.port_command(state.port, data) })
+        platform.try_call(fn() { renderer_port.port_command(port, data) })
       {
         Ok(_) -> {
           telemetry.execute(
@@ -555,8 +746,47 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
         }
       }
     }
+    _, None -> Nil
   }
 }
+
+@target(erlang)
+fn flush_queued_messages(state: BridgeState) -> BridgeState {
+  case state.queued_messages {
+    [] -> state
+    _ -> do_flush_queued(state, state.queued_messages)
+  }
+}
+
+@target(erlang)
+fn do_flush_queued(state: BridgeState, queue: List(BitArray)) -> BridgeState {
+  case queue {
+    [] -> BridgeState(..state, queued_messages: [])
+    [data, ..rest] -> {
+      send_data(state, data)
+      do_flush_queued(state, rest)
+    }
+  }
+}
+
+@target(erlang)
+fn calculate_backoff(base: Int, attempt: Int) -> Int {
+  let delay = float.truncate(int.to_float(base) *. pow2_float(attempt))
+  case delay > max_backoff_ms {
+    True -> max_backoff_ms
+    False -> delay
+  }
+}
+
+@target(erlang)
+fn pow2_float(n: Int) -> Float {
+  case n <= 0 {
+    True -> 1.0
+    False -> 2.0 *. pow2_float(n - 1)
+  }
+}
+
+// -- Inbound message handling -------------------------------------------------
 
 @target(erlang)
 fn handle_port_data(state: BridgeState, raw: Dynamic) -> BridgeState {
@@ -643,7 +873,8 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
     Ok(msg) -> buffer_or_send(state, InboundEvent(msg))
     Error(err) -> {
       platform.log_warning(
-        "plushie bridge: decode error: " <> protocol.decode_error_to_string(err),
+        "plushie bridge: decode error: "
+        <> protocol.decode_error_to_string(err),
       )
       telemetry.execute(
         ["plushie", "bridge", "decode_error"],
@@ -661,7 +892,10 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
 /// Classify raw Erlang port messages into BridgeMessage variants.
 /// In JSON mode, the {line, N} driver delivers {eol, Data} and
 /// {noeol, Data} tuples instead of plain binaries.
-fn classify_port_message(format: protocol.Format, msg: Dynamic) -> BridgeMessage {
+fn classify_port_message(
+  format: protocol.Format,
+  msg: Dynamic,
+) -> BridgeMessage {
   case format {
     protocol.Json ->
       case renderer_port.extract_line_data(msg) {

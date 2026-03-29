@@ -23,7 +23,7 @@ import plushie/app.{type App}
 @target(erlang)
 import plushie/bridge.{
   type BridgeMessage, type RuntimeNotification, InboundEvent, RendererExited,
-  Send,
+  RendererRestarted, Send,
 }
 @target(erlang)
 import plushie/canvas_widget
@@ -76,8 +76,6 @@ pub type RuntimeMessage {
   CoalesceFlush
   /// Monitored async task process exited.
   ProcessDown(process.Down)
-  /// Delayed renderer restart attempt.
-  RestartRenderer
   /// Force a re-render without resetting state (dev-mode live reload).
   ForceRerender
   /// Shutdown.
@@ -156,7 +154,7 @@ pub fn start_supervised(
   app: App(model, msg),
   bridge_subject: Subject(BridgeMessage),
   opts: RuntimeOpts,
-  binary_path: String,
+  _binary_path: String,
   name: process.Name(RuntimeMessage),
 ) -> Result(actor.Started(Subject(RuntimeMessage)), actor.StartError) {
   actor.new_with_initialiser(10_000, fn(subject) {
@@ -167,14 +165,7 @@ pub fn start_supervised(
 
     // Initialize the app
     let state =
-      init_runtime(
-        app,
-        bridge_subject,
-        subject,
-        notification_subject,
-        opts,
-        binary_path,
-      )
+      init_runtime(app, bridge_subject, subject, notification_subject, opts)
 
     // Build the selector for all message sources
     let selector = build_selector(subject, notification_subject)
@@ -231,11 +222,6 @@ type LoopState(model, msg) {
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
     coalesce_timer: Option(process.Timer),
-    // Bridge restart tracking
-    binary_path: String,
-    restart_count: Int,
-    max_restarts: Int,
-    restart_delay_base: Int,
   )
 }
 
@@ -274,7 +260,6 @@ fn init_runtime(
   self: Subject(RuntimeMessage),
   notifications: Subject(RuntimeNotification),
   opts: RuntimeOpts,
-  binary_path: String,
 ) -> LoopState(model, msg) {
   // Initialize
   let #(model, init_cmds) = app.get_init(app)(opts.app_opts)
@@ -343,10 +328,6 @@ fn init_runtime(
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
-      binary_path:,
-      restart_count: 0,
-      max_restarts: 5,
-      restart_delay_base: 100,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -414,8 +395,6 @@ fn handle_message(
     }
 
     FromBridge(InboundEvent(EventMessage(ev))) -> {
-      // Reset restart count on successful communication
-      let state = LoopState(..state, restart_count: 0)
       case runtime_core.coalesce_key(ev) {
         Some(key) -> {
           // Defer this event -- latest value wins
@@ -451,7 +430,6 @@ fn handle_message(
         True ->
           case missing_extensions(state.opts.required_extensions, extensions) {
             [] -> {
-              let state = LoopState(..state, restart_count: 0)
               actor.continue(state)
             }
             missing -> {
@@ -537,39 +515,12 @@ fn handle_message(
           actor.stop()
         }
         _ -> {
-          // Crash -- fail pending interact immediately (don't make
-          // callers wait through the backoff delay) and attempt
-          // restart with exponential backoff.
+          // Crash -- fail pending interact immediately. The bridge
+          // owns restart (backoff + port reopen) and will send
+          // RendererRestarted when the port is back.
           let reason = "renderer_exit_" <> int.to_string(status)
           let state = fail_pending_interact(state, reason)
-
-          case state.restart_count < state.max_restarts {
-            True -> {
-              let delay =
-                calculate_backoff(state.restart_delay_base, state.restart_count)
-              platform.log_warning(
-                "plushie: renderer crashed (status "
-                <> int.to_string(status)
-                <> "), restarting in "
-                <> int.to_string(delay)
-                <> "ms (attempt "
-                <> int.to_string(state.restart_count + 1)
-                <> "/"
-                <> int.to_string(state.max_restarts)
-                <> ")",
-              )
-              process.send_after(state.self, delay, RestartRenderer)
-              actor.continue(state)
-            }
-            False -> {
-              platform.log_error(
-                "plushie: renderer crashed "
-                <> int.to_string(state.max_restarts)
-                <> " times, giving up",
-              )
-              actor.stop()
-            }
-          }
+          actor.continue(state)
         }
       }
     }
@@ -686,25 +637,12 @@ fn handle_message(
       }
       case is_bridge {
         True -> {
-          platform.log_warning(
+          platform.log_error(
             "plushie: bridge process died unexpectedly: "
-            <> string.inspect(reason),
+            <> string.inspect(reason)
+            <> " -- stopping runtime",
           )
-          // Treat it like a renderer exit -- attempt restart
-          case state.restart_count < state.max_restarts {
-            True -> {
-              let delay =
-                calculate_backoff(state.restart_delay_base, state.restart_count)
-              process.send_after(state.self, delay, RestartRenderer)
-              actor.continue(LoopState(..state, bridge_pid: None))
-            }
-            False -> {
-              platform.log_error(
-                "plushie: bridge crashed too many times, giving up",
-              )
-              actor.stop()
-            }
-          }
+          actor.stop()
         }
         False -> {
           // Check if this is the interact caller dying (timeout/crash).
@@ -766,179 +704,131 @@ fn handle_message(
     // PortDown is not expected but handle gracefully
     ProcessDown(process.PortDown(..)) -> actor.continue(state)
 
-    RestartRenderer -> {
-      // Send Shutdown to old bridge actor so it doesn't linger
-      process.send(state.bridge, bridge.Shutdown)
+    FromBridge(RendererRestarted) -> {
+      // Bridge reopened the port. Resync state then tell the bridge
+      // to flush queued transient messages.
 
-      let notification_subject = process.new_subject()
-      case
-        bridge.start(
-          state.binary_path,
-          state.opts.format,
-          notification_subject,
-          state.opts.session,
-          state.opts.renderer_args,
-        )
-      {
-        Ok(new_bridge) -> {
-          let new_count = state.restart_count + 1
-
-          // Monitor the new bridge process (D-039)
-          let new_bridge_pid = case process.subject_owner(new_bridge) {
-            Ok(pid) -> {
-              process.monitor(pid)
-              Some(pid)
-            }
-            Error(_) -> None
-          }
-
-          platform.log_info(
-            "plushie: renderer restarted (attempt "
-            <> int.to_string(new_count)
-            <> ")",
+      // Cancel coalesce timer and discard stale coalescable events
+      let state = case state.coalesce_timer {
+        Some(timer) -> {
+          process.cancel_timer(timer)
+          LoopState(
+            ..state,
+            coalesce_timer: None,
+            pending_coalesce: dict.new(),
           )
-
-          // Point state.bridge to new bridge BEFORE flushing effects,
-          // so any commands issued by the app's update handler during
-          // effect error dispatch go to the live bridge, not the dead one.
-          let state =
-            LoopState(
-              ..state,
-              bridge: new_bridge,
-              bridge_pid: new_bridge_pid,
-              notifications: notification_subject,
-            )
-
-          // Cancel coalesce timer and discard stale coalescable events
-          let state = case state.coalesce_timer {
-            Some(timer) -> {
-              process.cancel_timer(timer)
-              LoopState(
-                ..state,
-                coalesce_timer: None,
-                pending_coalesce: dict.new(),
-              )
-            }
-            None -> LoopState(..state, pending_coalesce: dict.new())
-          }
-
-          // Cancel all pending send_after timers
-          dict.each(state.pending_timers, fn(_key, timer) {
-            process.cancel_timer(timer)
-            actor.stop()
-          })
-          let state = LoopState(..state, pending_timers: dict.new())
-
-          // Flush pending effects with error (old renderer is gone).
-          // Commands from the app's error handlers go to new_bridge.
-          let state = flush_pending_effects_on_restart(state)
-
-          // Flush pending stub acks (old renderer is gone, stubs lost).
-          dict.each(state.pending_stub_acks, fn(_kind, reply) {
-            process.send(reply, Nil)
-          })
-          let state = LoopState(..state, pending_stub_acks: dict.new())
-
-          // Fail pending interact (old renderer is gone).
-          let state = fail_pending_interact(state, "renderer_restarted")
-
-          // Stop old subscription timers (sync_subscriptions won't
-          // see them since we pass dict.new() as current)
-          dict.each(state.active_subs, fn(_key, entry) {
-            case entry {
-              TimerSub(timer:, ..) -> {
-                process.cancel_timer(timer)
-                Nil
-              }
-              _ -> Nil
-            }
-          })
-
-          // Re-send settings
-          let settings = app.get_settings(state.app)()
-          send_encoded(
-            new_bridge,
-            encode.encode_settings(
-              settings,
-              state.opts.session,
-              state.opts.format,
-              state.opts.token,
-            ),
-          )
-
-          // Re-render view and send fresh snapshot
-          let view_fn = app.get_view(state.app)
-          let #(tree, cw_registry) = case
-            platform.try_call(fn() { view_fn(state.model) })
-          {
-            Ok(t) -> {
-              let normalized = normalize_view_or_panic(t, state.cw_registry)
-              #(Some(normalized), canvas_widget.derive_registry(normalized))
-            }
-            Error(_) -> #(state.tree, state.cw_registry)
-          }
-          case tree {
-            Some(t) ->
-              send_encoded(
-                new_bridge,
-                encode.encode_snapshot(t, state.opts.session, state.opts.format),
-              )
-            None -> Nil
-          }
-
-          // Re-sync subscriptions with new renderer (incl. canvas widget subs)
-          let restart_app_subs = safe_subscribe(state.app, state.model)
-          let restart_cw_subs = canvas_widget.collect_subscriptions(cw_registry)
-          let new_subs =
-            sync_subscriptions(
-              list.append(restart_app_subs, restart_cw_subs),
-              dict.new(),
-              new_bridge,
-              state.self,
-              state.opts,
-            )
-
-          // Re-open all windows
-          let windows = case tree {
-            Some(t) -> {
-              let new_windows = runtime_core.detect_windows(t)
-              sync_windows(
-                t,
-                set.new(),
-                new_windows,
-                None,
-                new_bridge,
-                state.app,
-                state.model,
-                state.opts,
-              )
-              new_windows
-            }
-            None -> state.windows
-          }
-
-          // Update remaining state fields (bridge and notifications
-          // were already updated before effect flushing above)
-          let state =
-            LoopState(
-              ..state,
-              tree:,
-              active_subs: new_subs,
-              windows:,
-              cw_registry:,
-              restart_count: new_count,
-              consecutive_view_errors: 0,
-            )
-          // Update the selector to use the new notification subject
-          let new_selector = build_selector(state.self, state.notifications)
-          actor.continue(state)
-          |> actor.with_selector(new_selector)
         }
-        Error(_) -> {
-          platform.log_error("plushie: failed to restart renderer, giving up")
-          actor.stop()
-        }
+        None -> LoopState(..state, pending_coalesce: dict.new())
       }
+
+      // Cancel all pending send_after timers
+      dict.each(state.pending_timers, fn(_key, timer) {
+        process.cancel_timer(timer)
+        Nil
+      })
+      let state = LoopState(..state, pending_timers: dict.new())
+
+      // Flush pending effects with error (old renderer is gone).
+      let state = flush_pending_effects_on_restart(state)
+
+      // Flush pending stub acks (old renderer is gone, stubs lost).
+      dict.each(state.pending_stub_acks, fn(_kind, reply) {
+        process.send(reply, Nil)
+      })
+      let state = LoopState(..state, pending_stub_acks: dict.new())
+
+      // Fail pending interact (old renderer is gone).
+      let state = fail_pending_interact(state, "renderer_restarted")
+
+      // Stop old subscription timers (sync_subscriptions won't
+      // see them since we pass dict.new() as current)
+      dict.each(state.active_subs, fn(_key, entry) {
+        case entry {
+          TimerSub(timer:, ..) -> {
+            process.cancel_timer(timer)
+            Nil
+          }
+          _ -> Nil
+        }
+      })
+
+      // Re-send settings
+      let settings = app.get_settings(state.app)()
+      send_encoded(
+        state.bridge,
+        encode.encode_settings(
+          settings,
+          state.opts.session,
+          state.opts.format,
+          state.opts.token,
+        ),
+      )
+
+      // Re-render view and send fresh snapshot
+      let view_fn = app.get_view(state.app)
+      let #(tree, cw_registry) = case
+        platform.try_call(fn() { view_fn(state.model) })
+      {
+        Ok(t) -> {
+          let normalized = normalize_view_or_panic(t, state.cw_registry)
+          #(Some(normalized), canvas_widget.derive_registry(normalized))
+        }
+        Error(_) -> #(state.tree, state.cw_registry)
+      }
+      case tree {
+        Some(t) ->
+          send_encoded(
+            state.bridge,
+            encode.encode_snapshot(t, state.opts.session, state.opts.format),
+          )
+        None -> Nil
+      }
+
+      // Re-sync subscriptions (incl. canvas widget subs)
+      let restart_app_subs = safe_subscribe(state.app, state.model)
+      let restart_cw_subs = canvas_widget.collect_subscriptions(cw_registry)
+      let new_subs =
+        sync_subscriptions(
+          list.append(restart_app_subs, restart_cw_subs),
+          dict.new(),
+          state.bridge,
+          state.self,
+          state.opts,
+        )
+
+      // Re-open all windows
+      let windows = case tree {
+        Some(t) -> {
+          let new_windows = runtime_core.detect_windows(t)
+          sync_windows(
+            t,
+            set.new(),
+            new_windows,
+            None,
+            state.bridge,
+            state.app,
+            state.model,
+            state.opts,
+          )
+          new_windows
+        }
+        None -> state.windows
+      }
+
+      let state =
+        LoopState(
+          ..state,
+          tree:,
+          active_subs: new_subs,
+          windows:,
+          cw_registry:,
+          consecutive_view_errors: 0,
+        )
+
+      // Tell the bridge resync is done -- it will flush queued
+      // transient messages.
+      process.send(state.bridge, bridge.ResyncComplete)
+      actor.continue(state)
     }
 
     ForceRerender -> {
@@ -1119,7 +1009,7 @@ fn handle_message(
           nonce_counter: state.nonce_counter + 1,
           pending_interact: Some(#(reply, req_id, caller_monitor)),
         )
-      send_encoded(
+      send_transient(
         state.bridge,
         encode.encode_interact(
           req_id,
@@ -1147,7 +1037,7 @@ fn handle_message(
           actor.continue(state)
         }
         False -> {
-          send_encoded(
+          send_transient(
             state.bridge,
             encode.encode_register_effect_stub(
               kind,
@@ -1176,7 +1066,7 @@ fn handle_message(
           actor.continue(state)
         }
         False -> {
-          send_encoded(
+          send_transient(
             state.bridge,
             encode.encode_unregister_effect_stub(
               kind,
@@ -1246,26 +1136,6 @@ fn maybe_cancel_effect_timeout(
 }
 
 // -- Bridge restart helpers --------------------------------------------------
-
-@target(erlang)
-const max_backoff_ms = 5000
-
-@target(erlang)
-fn calculate_backoff(base: Int, attempt: Int) -> Int {
-  let delay = base * pow2(attempt)
-  case delay > max_backoff_ms {
-    True -> max_backoff_ms
-    False -> delay
-  }
-}
-
-@target(erlang)
-fn pow2(n: Int) -> Int {
-  case n {
-    0 -> 1
-    _ -> 2 * pow2(n - 1)
-  }
-}
 
 @target(erlang)
 /// Fail all pending effects with a "renderer_restarted" error and cancel
@@ -1734,7 +1604,7 @@ fn execute_commands(
     }
 
     command_encode.EffectRequest(id, kind, payload) -> {
-      send_encoded(
+      send_transient(
         state.bridge,
         encode.encode_effect(
           id,
@@ -1758,7 +1628,7 @@ fn execute_commands(
     }
 
     command_encode.WidgetCmd(node_id, op, payload) -> {
-      send_encoded(
+      send_transient(
         state.bridge,
         encode.encode_extension_command(
           node_id,
@@ -1774,7 +1644,7 @@ fn execute_commands(
     command_encode.WidgetCmdBatch(commands) -> {
       list.each(commands, fn(cmd_tuple) {
         let #(node_id, op, payload) = cmd_tuple
-        send_encoded(
+        send_transient(
           state.bridge,
           encode.encode_extension_command(
             node_id,
@@ -1789,7 +1659,7 @@ fn execute_commands(
     }
 
     command_encode.AdvanceFrame(timestamp) -> {
-      send_encoded(
+      send_transient(
         state.bridge,
         encode.encode_advance_frame(
           timestamp,
@@ -1843,6 +1713,9 @@ fn notify_await_async(
 // -- Wire helpers ------------------------------------------------------------
 
 @target(erlang)
+/// Send a rebuildable message to the bridge. Dropped during restart
+/// because the runtime rebuilds settings, snapshot, subscriptions,
+/// and windows during resync.
 fn send_encoded(
   bridge: Subject(BridgeMessage),
   result: Result(BitArray, protocol.EncodeError),
@@ -1859,13 +1732,33 @@ fn send_encoded(
 }
 
 @target(erlang)
+/// Send a transient message to the bridge. Queued during restart
+/// and flushed after resync completes. Used for effects, widget ops,
+/// image ops, widget commands, interact, advance_frame, and stub
+/// registration.
+fn send_transient(
+  bridge: Subject(BridgeMessage),
+  result: Result(BitArray, protocol.EncodeError),
+) -> Nil {
+  case result {
+    Ok(bytes) -> process.send(bridge, bridge.SendTransient(data: bytes))
+    Error(err) -> {
+      platform.log_error(
+        "plushie: encode error: " <> protocol.encode_error_to_string(err),
+      )
+      Nil
+    }
+  }
+}
+
+@target(erlang)
 fn send_widget_op(
   bridge: Subject(BridgeMessage),
   op: String,
   payload: List(#(String, PropValue)),
   opts: RuntimeOpts,
 ) -> Nil {
-  send_encoded(
+  send_transient(
     bridge,
     encode.encode_widget_op(
       op,
@@ -1961,7 +1854,7 @@ fn send_image_op(
   payload: List(#(String, PropValue)),
   opts: RuntimeOpts,
 ) -> Nil {
-  send_encoded(
+  send_transient(
     bridge,
     encode.encode_image_op(
       op,
