@@ -1216,13 +1216,14 @@ fn decode_mouse_area_scroll(
 
 fn decode_canvas_button(
   map: Dict(String, PropValue),
-  constructor: fn(String, String, List(String), Float, Float, String) -> Event,
+  constructor: fn(String, String, List(String), Float, Float, MouseButton) ->
+    Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
-  let button = get_string_or(data, "button", "left")
+  let button = parse_mouse_button(get_string_or(data, "button", "left"))
   Ok(EventMessage(constructor(window_id, local, scope, x, y, button)))
 }
 
@@ -1310,7 +1311,7 @@ fn decode_canvas_element_click(
   let element_id = get_string_or(data, "element_id", "")
   let x = get_float_or(data, "x", 0.0)
   let y = get_float_or(data, "y", 0.0)
-  let button = get_string_or(data, "button", "left")
+  let button = parse_mouse_button(get_string_or(data, "button", "left"))
   let captured = get_bool_or(map, "captured", False)
   Ok(
     EventMessage(event.CanvasElementClick(

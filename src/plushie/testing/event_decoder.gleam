@@ -388,7 +388,7 @@ pub fn decode_test_event(
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
-          button: get_string(data, "button", "left"),
+          button: decode_mouse_button(get_string(data, "button", "left")),
         )
       })
     "canvas_release" ->
@@ -399,7 +399,7 @@ pub fn decode_test_event(
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
-          button: get_string(data, "button", "left"),
+          button: decode_mouse_button(get_string(data, "button", "left")),
         )
       })
     "canvas_move" ->
@@ -457,7 +457,7 @@ pub fn decode_test_event(
           element_id: get_string(data, "element_id", ""),
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
-          button: get_string(data, "button", "left"),
+          button: decode_mouse_button(get_string(data, "button", "left")),
           captured: False,
         )
       })

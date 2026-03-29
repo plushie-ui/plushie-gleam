@@ -867,7 +867,7 @@ pub fn decode_canvas_element_click_json_test() {
       should.equal(element_id, "btn-0")
       should.equal(x, 5.0)
       should.equal(y, 15.0)
-      should.equal(button, "left")
+      should.equal(button, event.LeftButton)
       should.equal(captured, False)
     }
     _ -> should.fail()
@@ -977,7 +977,7 @@ pub fn decode_canvas_element_click_scoped_json_test() {
     event.CanvasElementClick(window_id: "main", id:, scope:, button:, ..) -> {
       should.equal(id, "my_canvas")
       should.equal(scope, ["panel"])
-      should.equal(button, "right")
+      should.equal(button, event.RightButton)
     }
     _ -> should.fail()
   }

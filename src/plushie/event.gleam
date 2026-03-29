@@ -366,7 +366,7 @@ pub type Event {
     scope: List(String),
     x: Float,
     y: Float,
-    button: String,
+    button: MouseButton,
   )
   /// A mouse button was released on a canvas widget.
   CanvasRelease(
@@ -375,7 +375,7 @@ pub type Event {
     scope: List(String),
     x: Float,
     y: Float,
-    button: String,
+    button: MouseButton,
   )
   /// The mouse cursor moved within a canvas widget.
   CanvasMove(
@@ -426,7 +426,7 @@ pub type Event {
     element_id: String,
     x: Float,
     y: Float,
-    button: String,
+    button: MouseButton,
     captured: Bool,
   )
   /// An interactive canvas shape is being dragged.

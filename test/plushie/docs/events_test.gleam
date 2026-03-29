@@ -232,10 +232,10 @@ pub fn events_canvas_press_match_test() {
       scope: [],
       x: 42.0,
       y: 100.0,
-      button: "left",
+      button: LeftButton,
     )
   case event {
-    CanvasPress(window_id: "main", id: "draw_area", x:, y:, button: "left", ..) -> {
+    CanvasPress(window_id: "main", id: "draw_area", x:, y:, button: LeftButton, ..) -> {
       x |> should.equal(42.0)
       y |> should.equal(100.0)
     }

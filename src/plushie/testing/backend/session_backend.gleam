@@ -183,7 +183,7 @@ pub fn backend() -> TestBackend(model) {
           scope: target.2,
           x:,
           y:,
-          button: "left",
+          button: event.LeftButton,
         ),
       )
     },

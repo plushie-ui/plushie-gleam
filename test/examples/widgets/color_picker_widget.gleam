@@ -95,7 +95,7 @@ fn cy() -> Float {
 
 fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState) {
   case event {
-    CanvasPress(x: x, y: y, button: "left", ..) -> {
+    CanvasPress(x: x, y: y, button: event.LeftButton, ..) -> {
       let dx = x -. cx()
       let dy = y -. cy()
       let dist = sqrt(dx *. dx +. dy *. dy)
