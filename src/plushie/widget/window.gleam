@@ -34,6 +34,7 @@ pub opaque type Window {
     blur: Option(Bool),
     level: Option(WindowLevel),
     exit_on_close_request: Option(Bool),
+    scale_factor: Option(Float),
     a11y: Option(A11y),
   )
 }
@@ -60,6 +61,7 @@ pub fn new(id: String) -> Window {
     blur: None,
     level: None,
     exit_on_close_request: None,
+    scale_factor: None,
     a11y: None,
   )
 }
@@ -154,6 +156,12 @@ pub fn exit_on_close_request(w: Window, e: Bool) -> Window {
   Window(..w, exit_on_close_request: option.Some(e))
 }
 
+/// Set the DPI scale factor for this window. Overrides the global
+/// scale factor from settings. Useful for per-window zoom levels.
+pub fn scale_factor(w: Window, factor: Float) -> Window {
+  Window(..w, scale_factor: option.Some(factor))
+}
+
 /// Add a child node.
 pub fn push(w: Window, child: Node) -> Window {
   Window(..w, children: list.append(w.children, [child]))
@@ -189,6 +197,7 @@ pub type Opt {
   Blur(Bool)
   Level(WindowLevel)
   ExitOnCloseRequest(Bool)
+  ScaleFactor(Float)
   A11y(A11y)
 }
 
@@ -214,6 +223,7 @@ pub fn with_opts(w: Window, opts: List(Opt)) -> Window {
       Blur(v) -> blur(win, v)
       Level(v) -> level(win, v)
       ExitOnCloseRequest(v) -> exit_on_close_request(win, v)
+      ScaleFactor(v) -> scale_factor(win, v)
       A11y(a) -> a11y(win, a)
     }
   })
@@ -254,6 +264,7 @@ pub fn build(w: Window) -> Node {
       StringVal(level_to_string(l))
     })
     |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
+    |> build.put_optional_float("scale_factor", w.scale_factor)
     |> build.put_optional("a11y", w.a11y, a11y.to_prop_value)
   Node(id: w.id, kind: "window", props:, children: w.children, meta: dict.new())
 }

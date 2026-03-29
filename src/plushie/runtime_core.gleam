@@ -53,17 +53,19 @@ pub fn subscription_key_string(sub: Subscription) -> String {
 
 /// Detect window nodes at root or direct child level.
 ///
-/// Does NOT recurse deeper -- matches the invariant where only
-/// top-level windows are tracked for lifecycle management.
+/// Searches the entire tree recursively for window nodes,
+/// matching the renderer's behavior.
 pub fn detect_windows(tree_node: Node) -> Set(String) {
-  case tree_node.kind {
-    "window" -> set.from_list([tree_node.id])
-    _ ->
-      tree_node.children
-      |> list.filter(fn(child) { child.kind == "window" })
-      |> list.map(fn(child) { child.id })
-      |> set.from_list()
+  collect_window_ids(tree_node, [])
+  |> set.from_list()
+}
+
+fn collect_window_ids(node: Node, acc: List(String)) -> List(String) {
+  let acc = case node.kind {
+    "window" -> [node.id, ..acc]
+    _ -> acc
   }
+  list.fold(node.children, acc, fn(a, child) { collect_window_ids(child, a) })
 }
 
 /// Window prop keys tracked for lifecycle sync. When a window node
@@ -72,6 +74,7 @@ pub const window_prop_keys = [
   "title", "size", "width", "height", "position", "min_size", "max_size",
   "maximized", "fullscreen", "visible", "resizable", "closeable", "minimizable",
   "decorations", "transparent", "blur", "level", "exit_on_close_request",
+  "scale_factor",
 ]
 
 /// Extract the tracked window props from a window node found in the tree.
@@ -88,15 +91,25 @@ pub fn extract_window_props(
   }
 }
 
-/// Find a window node at root level or as a direct child.
+/// Recursively search the tree for a window node with the given ID.
 pub fn find_window_node(tree_node: Node, window_id: String) -> Option(Node) {
   case tree_node.kind, tree_node.id {
     "window", id if id == window_id -> Some(tree_node)
-    _, _ ->
-      list.find(tree_node.children, fn(child) {
-        child.kind == "window" && child.id == window_id
-      })
-      |> option.from_result()
+    _, _ -> find_window_in_children(tree_node.children, window_id)
+  }
+}
+
+fn find_window_in_children(
+  children: List(Node),
+  window_id: String,
+) -> Option(Node) {
+  case children {
+    [] -> None
+    [child, ..rest] ->
+      case find_window_node(child, window_id) {
+        Some(node) -> Some(node)
+        None -> find_window_in_children(rest, window_id)
+      }
   }
 }
 
