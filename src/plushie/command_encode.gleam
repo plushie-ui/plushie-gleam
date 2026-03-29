@@ -48,10 +48,10 @@ pub type WireOp(msg) {
   ImageOp(op: String, payload: List(#(String, PropValue)))
   /// Platform effect request (file dialog, clipboard, notification).
   EffectRequest(id: String, kind: String, payload: Dict(String, PropValue))
-  /// Single extension widget command.
-  ExtensionCmd(node_id: String, op: String, payload: Dict(String, PropValue))
-  /// Batch of extension widget commands.
-  ExtensionBatch(commands: List(#(String, String, Dict(String, PropValue))))
+  /// Single widget command for a native extension widget.
+  WidgetCmd(node_id: String, op: String, payload: Dict(String, PropValue))
+  /// Batch of widget commands for native extension widgets.
+  WidgetCmdBatch(commands: List(#(String, String, Dict(String, PropValue))))
   /// Advance one frame in test/headless mode.
   AdvanceFrame(timestamp: Int)
 }
@@ -294,11 +294,11 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.DeleteImage(handle:) ->
       ImageOp("delete_image", [#("handle", StringVal(handle))])
 
-    // -- Effect, extension, advance frame --
+    // -- Effect, widget command, advance frame --
     command.Effect(id:, kind:, payload:) -> EffectRequest(id, kind, payload)
-    command.ExtensionCommand(node_id:, op:, payload:) ->
-      ExtensionCmd(node_id, op, payload)
-    command.ExtensionCommands(commands:) -> ExtensionBatch(commands)
+    command.WidgetCommand(node_id:, op:, payload:) ->
+      WidgetCmd(node_id, op, payload)
+    command.WidgetCommands(commands:) -> WidgetCmdBatch(commands)
     command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
   }
 }

@@ -12,7 +12,7 @@
 ////
 //// ## Native widget extensions
 ////
-//// A native widget is defined by creating an `ExtensionDef` and
+//// A native widget is defined by creating an `WidgetDef` and
 //// registering it. The widget's Rust crate handles rendering and
 //// event emission; the Gleam side provides the typed builder API.
 ////
@@ -23,7 +23,7 @@
 //// import plushie/prop/length
 ////
 //// // Define the extension
-//// pub const gauge_def = extension.ExtensionDef(
+//// pub const gauge_def = extension.WidgetDef(
 ////   kind: "gauge",
 ////   rust_crate: "native/my_gauge",
 ////   rust_constructor: "my_gauge::GaugeExtension::new()",
@@ -92,8 +92,8 @@ import plushie/node.{type Node, type PropValue, Node}
 /// Describes the Rust crate, constructor, props, and commands that a
 /// native widget supports. Used at compile time to configure the plushie
 /// binary build and at runtime to construct nodes and commands.
-pub type ExtensionDef {
-  ExtensionDef(
+pub type WidgetDef {
+  WidgetDef(
     /// Widget kind string (e.g., "gauge"). Must match the Rust crate's
     /// registered widget type name.
     kind: String,
@@ -146,7 +146,7 @@ pub type ParamDef {
 /// Creates a Node with the extension's kind and the given props.
 /// Props are passed as key-value pairs already encoded to PropValue.
 pub fn build(
-  def: ExtensionDef,
+  def: WidgetDef,
   id: String,
   props: List(#(String, PropValue)),
 ) -> Node {
@@ -161,7 +161,7 @@ pub fn build(
 
 /// Build a container node for a native extension widget with children.
 pub fn build_container(
-  def: ExtensionDef,
+  def: WidgetDef,
   id: String,
   props: List(#(String, PropValue)),
   children: List(Node),
@@ -180,20 +180,20 @@ pub fn build_container(
 /// The command is sent via the wire protocol's `extension_command`
 /// message type and delivered to the Rust widget by node ID.
 pub fn command(
-  _def: ExtensionDef,
+  _def: WidgetDef,
   node_id: String,
   op: String,
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
-  command.ExtensionCommand(node_id:, op:, payload: dict.from_list(payload))
+  command.WidgetCommand(node_id:, op:, payload: dict.from_list(payload))
 }
 
 /// Create a batch of extension commands.
 pub fn commands(
-  _def: ExtensionDef,
+  _def: WidgetDef,
   cmds: List(#(String, String, List(#(String, PropValue)))),
 ) -> Command(msg) {
-  command.ExtensionCommands(
+  command.WidgetCommands(
     commands: list.map(cmds, fn(cmd) {
       let #(node_id, op, payload) = cmd
       #(node_id, op, dict.from_list(payload))
@@ -202,12 +202,12 @@ pub fn commands(
 }
 
 /// Get the prop definition names from an extension definition.
-pub fn prop_names(def: ExtensionDef) -> List(String) {
+pub fn prop_names(def: WidgetDef) -> List(String) {
   list.map(def.props, prop_def_name)
 }
 
 /// Get the command definition names from an extension definition.
-pub fn command_names(def: ExtensionDef) -> List(String) {
+pub fn command_names(def: WidgetDef) -> List(String) {
   list.map(def.commands, fn(cmd) { cmd.name })
 }
 
@@ -223,7 +223,7 @@ const reserved_names = ["id", "type", "children", "a11y"]
 /// - `kind` must be non-empty
 /// - No duplicate prop names
 /// - No reserved prop names (id, type, children, a11y)
-pub fn validate(def: ExtensionDef) -> Result(Nil, List(String)) {
+pub fn validate(def: WidgetDef) -> Result(Nil, List(String)) {
   let names = list.map(def.props, prop_def_name)
   let kind_errors = case def.kind {
     "" -> ["kind must not be empty"]

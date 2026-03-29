@@ -585,8 +585,8 @@ pub type Event {
   /// offending IDs. Usually indicates a bug in the view function.
   DuplicateNodeIds(details: Dynamic)
 
-  /// Renderer error for an extension_command.
-  ExtensionCommandError(
+  /// Renderer error for a widget command (wire key: "extension_command").
+  WidgetCommandError(
     reason: String,
     node_id: Option(String),
     op: Option(String),

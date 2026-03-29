@@ -346,11 +346,11 @@ pub fn commands_batch_construct_test() {
   batch |> should.equal(command.Batch(commands: cmds))
 }
 
-// -- Extension commands ------------------------------------------------------
+// -- Widget commands ---------------------------------------------------------
 
 pub fn commands_extension_command_construct_test() {
   let cmd =
-    command.ExtensionCommand(
+    command.WidgetCommand(
       node_id: "term-1",
       op: "write",
       payload: dict.new(),
@@ -364,7 +364,7 @@ pub fn commands_extension_commands_construct_test() {
     #("term-1", "write", dict.new()),
     #("log-1", "append", dict.new()),
   ]
-  let cmd = command.ExtensionCommands(commands: cmds)
+  let cmd = command.WidgetCommands(commands: cmds)
   cmd.commands |> list.length() |> should.equal(2)
 }
 

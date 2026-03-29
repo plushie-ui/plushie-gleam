@@ -4,7 +4,7 @@ import plushie/command
 import plushie/extension
 import plushie/node.{FloatVal}
 
-const gauge_def = extension.ExtensionDef(
+const gauge_def = extension.WidgetDef(
   kind: "gauge",
   rust_crate: "native/my_gauge",
   rust_constructor: "my_gauge::GaugeExtension::new()",
@@ -48,7 +48,7 @@ pub fn command_creates_extension_command_test() {
       #("value", FloatVal(75.0)),
     ])
   case cmd {
-    command.ExtensionCommand(node_id:, op:, payload:) -> {
+    command.WidgetCommand(node_id:, op:, payload:) -> {
       should.equal(node_id, "g1")
       should.equal(op, "set_value")
       should.equal(dict.get(payload, "value"), Ok(FloatVal(75.0)))
@@ -74,7 +74,7 @@ pub fn commands_creates_batch_test() {
       #("g2", "reset", []),
     ])
   case cmd {
-    command.ExtensionCommands(commands:) -> {
+    command.WidgetCommands(commands:) -> {
       should.equal(list.length(commands), 2)
     }
     _ -> should.fail()
@@ -94,7 +94,7 @@ pub fn validate_valid_def_test() {
 
 pub fn validate_empty_kind_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "",
       rust_crate: "native/x",
       rust_constructor: "x::new()",
@@ -107,7 +107,7 @@ pub fn validate_empty_kind_test() {
 
 pub fn validate_duplicate_prop_names_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "widget",
       rust_crate: "native/x",
       rust_constructor: "x::new()",
@@ -124,7 +124,7 @@ pub fn validate_duplicate_prop_names_test() {
 
 pub fn validate_reserved_names_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "widget",
       rust_crate: "native/x",
       rust_constructor: "x::new()",
@@ -138,7 +138,7 @@ pub fn validate_reserved_names_test() {
 
 pub fn validate_multiple_errors_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "",
       rust_crate: "native/x",
       rust_constructor: "x::new()",

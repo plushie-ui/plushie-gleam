@@ -7,9 +7,9 @@ import plushie/node.{type Node, FloatVal, StringVal}
 import plushie/ui
 import plushie/widget/column
 
-// -- ExtensionDef matching the extensions.md quick start example --------------
+// -- WidgetDef matching the extensions.md quick start example -----------------
 
-const sparkline_def = extension.ExtensionDef(
+const sparkline_def = extension.WidgetDef(
   kind: "sparkline",
   rust_crate: "native/my_sparkline",
   rust_constructor: "my_sparkline::SparklineExtension::new()",
@@ -21,7 +21,7 @@ const sparkline_def = extension.ExtensionDef(
   commands: [extension.CommandDef("push", [extension.NumberParam("value")])],
 )
 
-// -- Tests for the quick start ExtensionDef -----------------------------------
+// -- Tests for the quick start WidgetDef --------------------------------------
 
 pub fn extensions_sparkline_def_validates_test() {
   let result = extension.validate(sparkline_def)
@@ -45,7 +45,7 @@ pub fn extensions_sparkline_push_command_test() {
       #("value", FloatVal(42.0)),
     ])
   case cmd {
-    command.ExtensionCommand(node_id:, op:, payload:) -> {
+    command.WidgetCommand(node_id:, op:, payload:) -> {
       should.equal(node_id, "s1")
       should.equal(op, "push")
       should.equal(dict.get(payload, "value"), Ok(FloatVal(42.0)))
@@ -66,7 +66,7 @@ pub fn extensions_sparkline_command_names_test() {
 
 // -- Native widget def from the "Native widgets" section ----------------------
 
-const hex_view_def = extension.ExtensionDef(
+const hex_view_def = extension.WidgetDef(
   kind: "hex_view",
   rust_crate: "native/hex_view",
   rust_constructor: "hex_view::HexViewExtension::new()",
@@ -125,7 +125,7 @@ pub fn extensions_composite_labeled_input_test() {
 
 pub fn extensions_validate_empty_kind_fails_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "",
       rust_crate: "native/x",
       rust_constructor: "x::new()",
@@ -137,7 +137,7 @@ pub fn extensions_validate_empty_kind_fails_test() {
 
 pub fn extensions_validate_list_prop_test() {
   let def =
-    extension.ExtensionDef(
+    extension.WidgetDef(
       kind: "chart",
       rust_crate: "native/chart",
       rust_constructor: "chart::ChartExtension::new()",

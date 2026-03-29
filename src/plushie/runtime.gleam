@@ -1701,7 +1701,7 @@ fn execute_commands(
       )
     }
 
-    command_encode.ExtensionCmd(node_id, op, payload) -> {
+    command_encode.WidgetCmd(node_id, op, payload) -> {
       send_encoded(
         state.bridge,
         encode.encode_extension_command(
@@ -1715,7 +1715,7 @@ fn execute_commands(
       state
     }
 
-    command_encode.ExtensionBatch(commands) -> {
+    command_encode.WidgetCmdBatch(commands) -> {
       list.each(commands, fn(cmd_tuple) {
         let #(node_id, op, payload) = cmd_tuple
         send_encoded(

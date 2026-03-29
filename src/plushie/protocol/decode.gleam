@@ -1639,7 +1639,7 @@ fn decode_error_event(
         _ -> dict.new()
       }
       Ok(
-        EventMessage(event.ExtensionCommandError(
+        EventMessage(event.WidgetCommandError(
           reason: get_string_or(data, "reason", ""),
           node_id: get_optional_string(data, "node_id"),
           op: get_optional_string(data, "op"),

@@ -202,13 +202,13 @@ pub type Command(msg) {
 
   /// Send a command directly to a native extension widget, bypassing
   /// the normal tree diff/patch cycle.
-  ExtensionCommand(
+  WidgetCommand(
     node_id: String,
     op: String,
     payload: Dict(String, PropValue),
   )
   /// Send a batch of extension commands processed in one cycle.
-  ExtensionCommands(commands: List(#(String, String, Dict(String, PropValue))))
+  WidgetCommands(commands: List(#(String, String, Dict(String, PropValue))))
 
   /// Advance the renderer by one frame in test/headless mode. The
   /// timestamp is monotonic milliseconds. In normal mode the renderer

@@ -694,7 +694,7 @@ pub fn decode_extension_command_error_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ExtensionCommandError(reason:, node_id:, op:, message:, ..) -> {
+    event.WidgetCommandError(reason:, node_id:, op:, message:, ..) -> {
       should.equal(reason, "unknown_node")
       should.equal(node_id, Some("g1"))
       should.equal(op, Some("set_value"))
