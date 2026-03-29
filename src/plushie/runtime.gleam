@@ -1055,18 +1055,32 @@ fn handle_message(
     }
 
     AwaitAsync(tag:, reply:) -> {
-      case dict.has_key(state.async_tasks, tag) {
+      case dict.has_key(state.pending_await_async, tag) {
         True -> {
-          // Task still running -- store caller and reply when done
-          let pending = dict.insert(state.pending_await_async, tag, reply)
-          LoopState(..state, pending_await_async: pending)
-          |> actor.continue()
-        }
-        False -> {
-          // Task already completed (or never existed)
-          process.send(reply, Nil)
+          // Another caller is already waiting on this tag.
+          platform.log_warning(
+            "plushie: await_async rejected -- another caller is already "
+            <> "waiting for tag \""
+            <> tag
+            <> "\"",
+          )
           actor.continue(state)
         }
+        False ->
+          case dict.has_key(state.async_tasks, tag) {
+            True -> {
+              // Task still running -- store caller and reply when done
+              let pending =
+                dict.insert(state.pending_await_async, tag, reply)
+              LoopState(..state, pending_await_async: pending)
+              |> actor.continue()
+            }
+            False -> {
+              // Task already completed (or never existed)
+              process.send(reply, Nil)
+              actor.continue(state)
+            }
+          }
       }
     }
 
@@ -1093,32 +1107,58 @@ fn handle_message(
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
-      send_encoded(
-        state.bridge,
-        encode.encode_register_effect_stub(
-          kind,
-          response,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      let pending = dict.insert(state.pending_stub_acks, kind, reply)
-      LoopState(..state, pending_stub_acks: pending)
-      |> actor.continue()
+      case dict.has_key(state.pending_stub_acks, kind) {
+        True -> {
+          // Another register/unregister for this kind is already pending.
+          // Reject rather than silently overwriting the first caller.
+          platform.log_warning(
+            "plushie: register_effect_stub rejected -- "
+            <> kind
+            <> " already has a pending ack",
+          )
+          actor.continue(state)
+        }
+        False -> {
+          send_encoded(
+            state.bridge,
+            encode.encode_register_effect_stub(
+              kind,
+              response,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+          let pending = dict.insert(state.pending_stub_acks, kind, reply)
+          LoopState(..state, pending_stub_acks: pending)
+          |> actor.continue()
+        }
+      }
     }
 
     UnregisterEffectStub(kind:, reply:) -> {
-      send_encoded(
-        state.bridge,
-        encode.encode_unregister_effect_stub(
-          kind,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      let pending = dict.insert(state.pending_stub_acks, kind, reply)
-      LoopState(..state, pending_stub_acks: pending)
-      |> actor.continue()
+      case dict.has_key(state.pending_stub_acks, kind) {
+        True -> {
+          platform.log_warning(
+            "plushie: unregister_effect_stub rejected -- "
+            <> kind
+            <> " already has a pending ack",
+          )
+          actor.continue(state)
+        }
+        False -> {
+          send_encoded(
+            state.bridge,
+            encode.encode_unregister_effect_stub(
+              kind,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+          let pending = dict.insert(state.pending_stub_acks, kind, reply)
+          LoopState(..state, pending_stub_acks: pending)
+          |> actor.continue()
+        }
+      }
     }
   }
 }
