@@ -325,21 +325,14 @@ fn handle_event(
       let #(result, new_registry) =
         canvas_widget.dispatch_through_widgets(registry, event)
       do_set_cw_registry(handle, new_registry)
-      case result {
-        canvas_widget.Bypassed(ev) -> {
+      case runtime_core.resolve_dispatch(result) {
+        Some(ev) -> {
           let msg = runtime_core.map_event(app, ev)
           dispatch_update(handle, app, msg)
         }
-        canvas_widget.Dispatched(Some(ev)) ->
-          case event.is_canvas_internal(ev) {
-            True -> render_and_sync(handle, app, False)
-            False -> {
-              let msg = runtime_core.map_event(app, ev)
-              dispatch_update(handle, app, msg)
-            }
-          }
-        canvas_widget.Dispatched(None) -> {
-          // Consumed by canvas_widget -- re-render for state changes
+        None -> {
+          // Consumed by canvas_widget or auto-consumed as canvas-internal.
+          // Re-render for potential widget state changes.
           render_and_sync(handle, app, False)
         }
       }

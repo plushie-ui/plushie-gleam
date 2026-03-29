@@ -1080,12 +1080,14 @@ fn handle_message(
       case dict.has_key(state.pending_await_async, tag) {
         True -> {
           // Another caller is already waiting on this tag.
+          // Reply immediately so the caller doesn't hang.
           platform.log_warning(
             "plushie: await_async rejected -- another caller is already "
             <> "waiting for tag \""
             <> tag
             <> "\"",
           )
+          process.send(reply, Nil)
           actor.continue(state)
         }
         False ->
@@ -1109,10 +1111,8 @@ fn handle_message(
     Interact(action:, selector:, payload:, reply:) -> {
       let req_id = "interact_" <> int.to_string(state.nonce_counter)
       // Monitor the caller so we can clean up if it dies (timeout/crash)
-      let caller_monitor = case process.subject_owner(reply) {
-        Ok(pid) -> process.monitor(pid)
-        Error(_) -> process.monitor(process.self())
-      }
+      let assert Ok(caller_pid) = process.subject_owner(reply)
+      let caller_monitor = process.monitor(caller_pid)
       let state =
         LoopState(
           ..state,
@@ -1137,12 +1137,13 @@ fn handle_message(
       case dict.has_key(state.pending_stub_acks, kind) {
         True -> {
           // Another register/unregister for this kind is already pending.
-          // Reject rather than silently overwriting the first caller.
+          // Reply immediately so the caller doesn't hang.
           platform.log_warning(
             "plushie: register_effect_stub rejected -- "
             <> kind
             <> " already has a pending ack",
           )
+          process.send(reply, Nil)
           actor.continue(state)
         }
         False -> {
@@ -1165,11 +1166,13 @@ fn handle_message(
     UnregisterEffectStub(kind:, reply:) -> {
       case dict.has_key(state.pending_stub_acks, kind) {
         True -> {
+          // Reply immediately so the caller doesn't hang.
           platform.log_warning(
             "plushie: unregister_effect_stub rejected -- "
             <> kind
             <> " already has a pending ack",
           )
+          process.send(reply, Nil)
           actor.continue(state)
         }
         False -> {
@@ -1427,7 +1430,7 @@ fn apply_event(
   let #(result, new_registry) =
     canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
-  case resolve_dispatch(result) {
+  case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
       let mapped_msg = runtime_core.map_event(state.app, resolved)
       let update_fn = app.get_update(state.app)
@@ -1453,7 +1456,7 @@ fn handle_event(
   let #(result, new_registry) =
     canvas_widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
-  case resolve_dispatch(result) {
+  case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
       let mapped_msg = runtime_core.map_event(state.app, resolved)
       dispatch_update(state, mapped_msg)
@@ -1464,31 +1467,6 @@ fn handle_event(
       // state may have changed.
       rerender(state)
     }
-  }
-}
-
-@target(erlang)
-/// Resolve a canvas widget dispatch result into an optional event
-/// for the app. Canvas-internal events that passed through widget
-/// handlers without being intercepted are auto-consumed so they
-/// don't leak to the app's update function.
-fn resolve_dispatch(
-  result: canvas_widget.DispatchResult,
-) -> Option(Event) {
-  case result {
-    // Handlers consulted, event consumed
-    canvas_widget.Dispatched(None) -> None
-    // Handlers consulted, event passed through -- auto-consume
-    // canvas-internal events (they're widget implementation details)
-    canvas_widget.Dispatched(Some(ev)) ->
-      case event.is_canvas_internal(ev) {
-        True -> None
-        False -> Some(ev)
-      }
-    // No handlers in scope -- pass through to update.
-    // This preserves raw canvas event delivery for canvases
-    // that aren't wrapped in a canvas widget.
-    canvas_widget.Bypassed(ev) -> Some(ev)
   }
 }
 

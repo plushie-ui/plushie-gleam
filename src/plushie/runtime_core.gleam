@@ -14,6 +14,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import plushie/app.{type App}
+import plushie/canvas_widget
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/subscription.{type Subscription}
@@ -51,10 +52,11 @@ pub fn subscription_key_string(sub: Subscription) -> String {
 
 // -- Window detection ---------------------------------------------------------
 
-/// Detect window nodes at root or direct child level.
+/// Detect window nodes in the tree.
 ///
-/// Searches the entire tree recursively for window nodes,
-/// matching the renderer's behavior.
+/// Searches the entire tree recursively, matching the renderer's
+/// behavior. Nested window nodes inside containers or layout
+/// widgets are properly detected.
 pub fn detect_windows(tree_node: Node) -> Set(String) {
   collect_window_ids(tree_node, [])
   |> set.from_list()
@@ -135,3 +137,29 @@ pub fn map_event(app: App(model, msg), event: Event) -> msg {
 @external(erlang, "plushie_ffi", "identity")
 @external(javascript, "../plushie_platform_ffi.mjs", "identity")
 fn coerce_event(event: Event) -> msg
+
+// -- Canvas dispatch resolution -----------------------------------------------
+
+/// Resolve a canvas widget dispatch result into an optional event
+/// for the app. Canvas-internal events that passed through widget
+/// handlers without being intercepted are auto-consumed so they
+/// don't leak to the app's update function.
+///
+/// - `Dispatched(None)` -- consumed by a handler
+/// - `Dispatched(Some(ev))` -- passed through; auto-consume if
+///   canvas-internal, deliver otherwise
+/// - `Bypassed(ev)` -- no handlers in scope; always deliver (raw
+///   canvas events that aren't wrapped in a canvas widget)
+pub fn resolve_dispatch(
+  result: canvas_widget.DispatchResult,
+) -> Option(Event) {
+  case result {
+    canvas_widget.Dispatched(None) -> None
+    canvas_widget.Dispatched(Some(ev)) ->
+      case event.is_canvas_internal(ev) {
+        True -> None
+        False -> Some(ev)
+      }
+    canvas_widget.Bypassed(ev) -> Some(ev)
+  }
+}
