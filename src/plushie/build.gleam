@@ -206,7 +206,7 @@ fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
 @target(erlang)
 fn check_rust_toolchain() -> Nil {
   // Validate cargo is available before checking versions
-  case find_executable("cargo") {
+  case executable_exists("cargo") {
     False -> {
       io.println_error(
         "Error: cargo not found. Install the Rust toolchain: https://rustup.rs",
@@ -327,8 +327,8 @@ fn compare_versions(actual: String, minimum: String) -> Result(Bool, Nil) {
 @external(erlang, "plushie_build_ffi", "rustc_version")
 fn rustc_version() -> Result(String, String)
 
-@external(erlang, "plushie_build_ffi", "find_executable")
-fn find_executable(name: String) -> Bool
+@external(erlang, "plushie_build_ffi", "executable_exists")
+fn executable_exists(name: String) -> Bool
 
 @external(erlang, "plushie_build_ffi", "cargo_build")
 fn cargo_build(source_dir: String, release: Bool) -> Result(String, String)

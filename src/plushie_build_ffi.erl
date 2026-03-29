@@ -2,7 +2,7 @@
 -export([
     rustc_version/0,
     cargo_build/2,
-    find_executable/1,
+    executable_exists/1,
     has_flag/1,
     get_flag_value/1,
     ensure_dir/1,
@@ -16,8 +16,8 @@
     wasm_pack_build/2
 ]).
 
-%% Check if an executable is on PATH.
-find_executable(Name) ->
+%% Check if an executable is on PATH (Gleam-facing, takes binary).
+executable_exists(Name) ->
     case os:find_executable(binary_to_list(Name)) of
         false -> false;
         _ -> true
