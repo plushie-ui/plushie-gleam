@@ -1321,6 +1321,23 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
 }
 
 @target(erlang)
+/// Re-render with rollback: if the view function fails, revert the
+/// widget registry to the pre-dispatch state. This prevents a desync
+/// where the registry reflects a widget state update that the tree
+/// never rendered.
+fn rerender_with_rollback(
+  state: LoopState(model, msg),
+  registry_before: widget.Registry,
+) -> LoopState(model, msg) {
+  let new_state = rerender(state)
+  case new_state.consecutive_view_errors > state.consecutive_view_errors {
+    // View failed: revert widget registry to prevent state-tree desync
+    True -> LoopState(..new_state, cw_registry: registry_before)
+    False -> new_state
+  }
+}
+
+@target(erlang)
 /// Process an event through update + commands WITHOUT rendering.
 /// Used by interact_step to batch events before a single render.
 fn apply_event(state: LoopState(model, msg), ev: Event) -> LoopState(model, msg) {
@@ -1350,6 +1367,7 @@ fn handle_event(
   state: LoopState(model, msg),
   ev: Event,
 ) -> LoopState(model, msg) {
+  let registry_before = state.cw_registry
   let #(result, new_registry) =
     widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
@@ -1359,10 +1377,10 @@ fn handle_event(
       dispatch_update(state, mapped_msg)
     }
     None -> {
-      // Event was consumed by a widget handler or auto-consumed as a
-      // canvas-internal event. Still need to re-render since widget
-      // state may have changed.
-      rerender(state)
+      // Event was consumed by a widget handler. Re-render since widget
+      // state may have changed. Pass the pre-dispatch registry so we
+      // can revert on view error (prevent state-tree desync).
+      rerender_with_rollback(state, registry_before)
     }
   }
 }
