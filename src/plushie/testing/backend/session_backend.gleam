@@ -177,13 +177,17 @@ pub fn backend() -> TestBackend(model) {
       let target = resolve_event_target(session.current_tree(sess), id)
       session.send_event(
         sess,
-        event.CanvasPress(
+        event.WidgetPress(
           window_id: target.0,
           id: target.1,
           scope: target.2,
           x:,
           y:,
           button: event.LeftButton,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
         ),
       )
     },

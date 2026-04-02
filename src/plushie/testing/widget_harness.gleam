@@ -26,11 +26,11 @@
 
 import gleam/list
 import plushie/app.{type App}
-import plushie/widget.{type WidgetDef}
 import plushie/command
 import plushie/event.{type Event}
 import plushie/node.{type Node}
 import plushie/ui
+import plushie/widget.{type WidgetDef}
 import plushie/widget/column
 import plushie/widget/window
 
@@ -99,14 +99,16 @@ fn harness_view(widget_node: Node) -> Node {
 /// semantic widget output. These are filtered from the harness.
 fn is_framework_event(ev: Event) -> Bool {
   case ev {
-    event.CanvasFocused(..) -> True
-    event.CanvasBlurred(..) -> True
-    event.CanvasElementFocused(..) -> True
-    event.CanvasElementBlurred(..) -> True
-    event.CanvasGroupFocused(..) -> True
-    event.CanvasGroupBlurred(..) -> True
-    event.CanvasElementEnter(..) -> True
-    event.CanvasElementLeave(..) -> True
+    event.WidgetFocused(..) -> True
+    event.WidgetBlurred(..) -> True
+    event.WidgetEnter(..) -> True
+    event.WidgetExit(..) -> True
+    event.WidgetEvent(kind: "canvas_element_focused", ..) -> True
+    event.WidgetEvent(kind: "canvas_element_blurred", ..) -> True
+    event.WidgetEvent(kind: "canvas_group_focused", ..) -> True
+    event.WidgetEvent(kind: "canvas_group_blurred", ..) -> True
+    event.WidgetEvent(kind: "canvas_element_enter", ..) -> True
+    event.WidgetEvent(kind: "canvas_element_leave", ..) -> True
     _ -> False
   }
 }

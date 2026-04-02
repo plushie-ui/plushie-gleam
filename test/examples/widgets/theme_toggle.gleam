@@ -14,7 +14,7 @@ import gleam/dynamic
 import gleam/float
 import gleam/int
 import plushie/canvas/shape
-import plushie/event.{type Event, CanvasElementClick, TimerTick}
+import plushie/event.{type Event, TimerTick, WidgetClick}
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/length
 import plushie/subscription
@@ -62,7 +62,7 @@ fn handle_event(event: Event, state: ToggleState) -> #(EventAction, ToggleState)
   case event {
     // Click on the switch group -> emit :toggle with the new boolean state
     // and flip the animation target.
-    CanvasElementClick(element_id: "switch", ..) -> {
+    WidgetClick(id: "switch", ..) -> {
       let new_target = case state.target == 0.0 {
         True -> 1.0
         False -> 0.0

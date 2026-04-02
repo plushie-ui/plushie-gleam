@@ -14,10 +14,10 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import plushie/app.{type App}
-import plushie/widget
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/subscription.{type Subscription}
+import plushie/widget
 
 // -- Event coalescing ---------------------------------------------------------
 
@@ -28,9 +28,9 @@ import plushie/subscription.{type Subscription}
 /// events that should be dispatched immediately.
 pub fn coalesce_key(ev: Event) -> Option(String) {
   case ev {
-    event.MouseMoved(..) -> Some("mouse_moved")
-    event.SensorResize(window_id:, id:, ..) ->
-      Some("sensor_resize:" <> window_id <> ":" <> id)
+    event.WidgetMove(scope: [], ..) -> Some("pointer_move")
+    event.WidgetResize(window_id:, id:, ..) ->
+      Some("resize:" <> window_id <> ":" <> id)
     _ -> None
   }
 }
@@ -147,19 +147,12 @@ fn coerce_event(event: Event) -> msg
 ///
 /// - `Dispatched(None)` -- consumed by a handler
 /// - `Dispatched(Some(ev))` -- passed through; auto-consume if
-///   canvas-internal, deliver otherwise
-/// - `Bypassed(ev)` -- no handlers in scope; always deliver (raw
-///   canvas events that aren't wrapped in a canvas widget)
-pub fn resolve_dispatch(
-  result: widget.DispatchResult,
-) -> Option(Event) {
+///   event passed through all handlers
+/// - `Bypassed(ev)` -- no handlers in scope; always deliver
+pub fn resolve_dispatch(result: widget.DispatchResult) -> Option(Event) {
   case result {
     widget.Dispatched(None) -> None
-    widget.Dispatched(Some(ev)) ->
-      case event.is_canvas_internal(ev) {
-        True -> None
-        False -> Some(ev)
-      }
+    widget.Dispatched(Some(ev)) -> Some(ev)
     widget.Bypassed(ev) -> Some(ev)
   }
 }

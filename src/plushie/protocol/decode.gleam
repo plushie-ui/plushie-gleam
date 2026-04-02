@@ -25,8 +25,9 @@ import glepack/data
 import glepack/error as glepack_error
 import plushie/event.{
   type Event, type KeyLocation, type Modifiers, type MouseButton,
-  type ScrollUnit,
+  type PointerType,
 }
+import plushie/prop/pointer
 import plushie/protocol
 
 // ---------------------------------------------------------------------------
@@ -574,9 +575,9 @@ fn decode_event(
       decode_widget_string_value(map, event.WidgetOptionHovered)
     "sort" -> decode_widget_sort(map)
     "key_binding" -> decode_widget_key_binding(map)
-    "scroll" -> decode_widget_scroll(map)
+    "scrolled" -> decode_widget_scrolled(map)
 
-    // Key events
+    // Key events (global subscription)
     "key_press" -> decode_key_press(map)
     "key_release" -> decode_key_release(map)
     "modifiers_changed" -> decode_modifiers_changed(map)
@@ -596,19 +597,33 @@ fn decode_event(
     "files_hovered_left" ->
       decode_window_id_event(map, event.WindowFilesHoveredLeft)
 
-    // Mouse events
-    "cursor_moved" -> decode_cursor_moved(map)
-    "cursor_entered" -> decode_cursor_entered(map)
-    "cursor_left" -> decode_cursor_left(map)
-    "button_pressed" -> decode_mouse_button(map, event.MouseButtonPressed)
-    "button_released" -> decode_mouse_button(map, event.MouseButtonReleased)
-    "wheel_scrolled" -> decode_wheel_scrolled(map)
+    // Unified pointer events (from widgets AND subscriptions)
+    "press" -> decode_pointer_press(map)
+    "release" -> decode_pointer_release(map)
+    "move" -> decode_pointer_move(map)
+    "scroll" -> decode_pointer_scroll(map)
+    "enter" -> decode_widget_no_value(map, event.WidgetEnter)
+    "exit" -> decode_widget_no_value(map, event.WidgetExit)
+    "double_click" -> decode_pointer_double_click(map)
+    "resize" -> decode_widget_resize(map)
 
-    // Touch events
-    "finger_pressed" -> decode_touch(map, event.TouchPressed)
-    "finger_moved" -> decode_touch(map, event.TouchMoved)
-    "finger_lifted" -> decode_touch(map, event.TouchLifted)
-    "finger_lost" -> decode_touch(map, event.TouchLost)
+    // Generic element events (focus, drag, key on scoped elements)
+    "focused" -> decode_widget_no_value(map, event.WidgetFocused)
+    "blurred" -> decode_widget_no_value(map, event.WidgetBlurred)
+    "drag" -> decode_widget_drag(map)
+    "drag_end" -> decode_widget_drag_end(map)
+
+    // Subscription pointer events (wire families from renderer subscriptions)
+    "cursor_moved" -> decode_sub_cursor_moved(map)
+    "cursor_entered" -> decode_sub_cursor_entered(map)
+    "cursor_left" -> decode_sub_cursor_left(map)
+    "button_pressed" -> decode_sub_button_pressed(map)
+    "button_released" -> decode_sub_button_released(map)
+    "wheel_scrolled" -> decode_sub_wheel_scrolled(map)
+    "finger_pressed" -> decode_sub_touch_press(map)
+    "finger_moved" -> decode_sub_touch_move(map)
+    "finger_lifted" -> decode_sub_touch_release(map)
+    "finger_lost" -> decode_sub_touch_release(map)
 
     // IME events
     "ime_opened" -> decode_ime_opened(map)
@@ -616,45 +631,8 @@ fn decode_event(
     "ime_commit" -> decode_ime_commit(map)
     "ime_closed" -> decode_ime_closed(map)
 
-    // Sensor events
-    "sensor_resize" -> decode_sensor_resize(map)
-
-    // MouseArea events
-    "mouse_right_press" ->
-      decode_mouse_area_no_coords(map, event.MouseAreaRightPress)
-    "mouse_right_release" ->
-      decode_mouse_area_no_coords(map, event.MouseAreaRightRelease)
-    "mouse_middle_press" ->
-      decode_mouse_area_no_coords(map, event.MouseAreaMiddlePress)
-    "mouse_middle_release" ->
-      decode_mouse_area_no_coords(map, event.MouseAreaMiddleRelease)
-    "mouse_double_click" ->
-      decode_mouse_area_no_coords(map, event.MouseAreaDoubleClick)
-    "mouse_enter" -> decode_widget_no_value(map, event.MouseAreaEnter)
-    "mouse_exit" -> decode_widget_no_value(map, event.MouseAreaExit)
-    "mouse_move" -> decode_mouse_area_move(map)
-    "mouse_scroll" -> decode_mouse_area_scroll(map)
-
-    // Canvas events
-    "canvas_press" -> decode_canvas_button(map, event.CanvasPress)
-    "canvas_release" -> decode_canvas_button(map, event.CanvasRelease)
-    "canvas_move" -> decode_canvas_move(map)
-    "canvas_scroll" -> decode_canvas_scroll(map)
-
-    // Canvas shape events
-    "canvas_element_enter" -> decode_canvas_element_enter(map)
-    "canvas_element_leave" -> decode_canvas_element_leave(map)
-    "canvas_element_click" -> decode_canvas_element_click(map)
-    "canvas_element_drag" -> decode_canvas_element_drag(map)
-    "canvas_element_drag_end" -> decode_canvas_element_drag_end(map)
-    "canvas_element_focused" -> decode_canvas_element_focused(map)
-    "canvas_element_blurred" -> decode_canvas_element_blurred(map)
-    "canvas_element_key_press" -> decode_canvas_element_key_press(map)
-    "canvas_element_key_release" -> decode_canvas_element_key_release(map)
-    "canvas_focused" -> decode_canvas_focused(map)
-    "canvas_blurred" -> decode_canvas_blurred(map)
-    "canvas_group_focused" -> decode_canvas_group_focused(map)
-    "canvas_group_blurred" -> decode_canvas_group_blurred(map)
+    // Transition complete
+    "transition_complete" -> decode_transition_complete(map)
 
     // Diagnostic events
     "diagnostic" -> decode_diagnostic(map)
@@ -716,13 +694,6 @@ fn parse_mouse_button(value: String) -> MouseButton {
     "back" -> event.BackButton
     "forward" -> event.ForwardButton
     other -> event.OtherButton(other)
-  }
-}
-
-fn parse_scroll_unit(value: String) -> ScrollUnit {
-  case value {
-    "pixel" | "pixels" -> event.Pixel
-    _ -> event.Line
   }
 }
 
@@ -805,7 +776,7 @@ fn decode_widget_key_binding(
   )
 }
 
-fn decode_widget_scroll(
+fn decode_widget_scrolled(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
@@ -822,7 +793,7 @@ fn decode_widget_scroll(
       content_height: get_float_or(data, "content_height", 0.0),
     )
   Ok(
-    EventMessage(event.WidgetScroll(
+    EventMessage(event.WidgetScrolled(
       window_id:,
       id: local,
       scope:,
@@ -1027,82 +998,406 @@ fn decode_window_file(
 }
 
 // ---------------------------------------------------------------------------
-// Mouse event decoders
+// Unified pointer event decoders
 // ---------------------------------------------------------------------------
 
-fn decode_cursor_moved(
+fn decode_modifiers_from_data(data: Dict(String, PropValue)) -> Modifiers {
+  let mods = get_map(data, "modifiers")
+  event.Modifiers(
+    shift: get_bool_or(mods, "shift", False),
+    ctrl: get_bool_or(mods, "ctrl", False),
+    alt: get_bool_or(mods, "alt", False),
+    logo: get_bool_or(mods, "logo", False),
+    command: get_bool_or(mods, "command", False),
+  )
+}
+
+fn decode_pointer_type_from_data(data: Dict(String, PropValue)) -> PointerType {
+  case dict.get(data, "pointer") {
+    Ok(PString(s)) -> pointer.parse_pointer(s)
+    _ -> event.Mouse
+  }
+}
+
+fn decode_finger_from_data(data: Dict(String, PropValue)) -> Option(Int) {
+  case dict.get(data, "finger") {
+    Ok(PInt(n)) -> Some(n)
+    Ok(PFloat(f)) -> Some(float.round(f))
+    _ -> None
+  }
+}
+
+fn decode_pointer_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let window_id = get_string_or(map, "window_id", "")
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
   let data = get_map(map, "data")
-  use x <- result.try(get_float(data, "x"))
-  use y <- result.try(get_float(data, "y"))
-  let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseMoved(window_id:, x:, y:, captured:)))
-}
-
-fn decode_cursor_entered(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  let window_id = get_string_or(map, "window_id", "")
-  let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseEntered(window_id:, captured:)))
-}
-
-fn decode_cursor_left(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  let window_id = get_string_or(map, "window_id", "")
-  let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(event.MouseLeft(window_id:, captured:)))
-}
-
-fn decode_mouse_button(
-  map: Dict(String, PropValue),
-  constructor: fn(String, MouseButton, Bool) -> Event,
-) -> Result(InboundMessage, protocol.DecodeError) {
-  let window_id = get_string_or(map, "window_id", "")
-  let button_str = get_string_or(map, "value", "left")
-  let button = parse_mouse_button(button_str)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(constructor(window_id, button, captured)))
-}
-
-fn decode_wheel_scrolled(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  let window_id = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
-  use delta_x <- result.try(get_float(data, "delta_x"))
-  use delta_y <- result.try(get_float(data, "delta_y"))
-  let unit = parse_scroll_unit(get_string_or(data, "unit", "line"))
-  let captured = get_bool_or(map, "captured", False)
+  let button = case dict.get(data, "button") {
+    Ok(PString(s)) -> pointer.parse_button(s)
+    _ -> event.LeftButton
+  }
   Ok(
-    EventMessage(event.MouseWheelScrolled(
+    EventMessage(event.WidgetPress(
       window_id:,
-      delta_x:,
-      delta_y:,
-      unit:,
-      captured:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      button:,
+      pointer: decode_pointer_type_from_data(data),
+      finger: decode_finger_from_data(data),
+      modifiers: decode_modifiers_from_data(data),
+      captured: False,
+    )),
+  )
+}
+
+fn decode_pointer_release(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  let button = case dict.get(data, "button") {
+    Ok(PString(s)) -> pointer.parse_button(s)
+    _ -> event.LeftButton
+  }
+  Ok(
+    EventMessage(event.WidgetRelease(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      button:,
+      pointer: decode_pointer_type_from_data(data),
+      finger: decode_finger_from_data(data),
+      modifiers: decode_modifiers_from_data(data),
+      captured: False,
+    )),
+  )
+}
+
+fn decode_pointer_move(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetMove(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      pointer: decode_pointer_type_from_data(data),
+      finger: decode_finger_from_data(data),
+      modifiers: decode_modifiers_from_data(data),
+      captured: False,
+    )),
+  )
+}
+
+fn decode_pointer_scroll(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetScroll(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      delta_x: get_float_or(data, "delta_x", 0.0),
+      delta_y: get_float_or(data, "delta_y", 0.0),
+      pointer: decode_pointer_type_from_data(data),
+      modifiers: decode_modifiers_from_data(data),
+      unit: None,
+      captured: False,
+    )),
+  )
+}
+
+fn decode_pointer_double_click(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetDoubleClick(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      pointer: decode_pointer_type_from_data(data),
+      modifiers: decode_modifiers_from_data(data),
+    )),
+  )
+}
+
+fn decode_widget_resize(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetResize(
+      window_id:,
+      id: local,
+      scope:,
+      width: get_float_or(data, "width", 0.0),
+      height: get_float_or(data, "height", 0.0),
+    )),
+  )
+}
+
+fn decode_widget_drag(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetDrag(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      delta_x: get_float_or(data, "delta_x", 0.0),
+      delta_y: get_float_or(data, "delta_y", 0.0),
+    )),
+  )
+}
+
+fn decode_widget_drag_end(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  Ok(
+    EventMessage(event.WidgetDragEnd(
+      window_id:,
+      id: local,
+      scope:,
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+    )),
+  )
+}
+
+fn decode_transition_complete(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "data")
+  let tag = get_string_or(data, "tag", "")
+  let prop = get_string_or(data, "prop", "")
+  Ok(
+    EventMessage(event.WidgetTransitionComplete(
+      window_id:,
+      id: local,
+      scope:,
+      tag:,
+      prop:,
     )),
   )
 }
 
 // ---------------------------------------------------------------------------
-// Touch event decoders
+// Subscription pointer event decoders
 // ---------------------------------------------------------------------------
 
-fn decode_touch(
+fn decode_sub_cursor_moved(
   map: Dict(String, PropValue),
-  constructor: fn(String, Int, Float, Float, Bool) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let window_id = get_string_or(map, "window_id", "")
   let data = get_map(map, "data")
-  use finger_id <- result.try(get_int(data, "id"))
-  use x <- result.try(get_float(data, "x"))
-  use y <- result.try(get_float(data, "y"))
   let captured = get_bool_or(map, "captured", False)
-  Ok(EventMessage(constructor(window_id, finger_id, x, y, captured)))
+  Ok(
+    EventMessage(event.WidgetMove(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      pointer: event.Mouse,
+      finger: None,
+      modifiers: decode_modifiers_from_data(data),
+      captured:,
+    )),
+  )
+}
+
+fn decode_sub_cursor_entered(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  Ok(EventMessage(event.WidgetEnter(window_id:, id: window_id, scope: [])))
+}
+
+fn decode_sub_cursor_left(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  Ok(EventMessage(event.WidgetExit(window_id:, id: window_id, scope: [])))
+}
+
+fn decode_sub_button_pressed(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let button_str = get_string_or(map, "value", "left")
+  let button = parse_mouse_button(button_str)
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetPress(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: 0.0,
+      y: 0.0,
+      button:,
+      pointer: event.Mouse,
+      finger: None,
+      modifiers: event.modifiers_none(),
+      captured:,
+    )),
+  )
+}
+
+fn decode_sub_button_released(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let button_str = get_string_or(map, "value", "left")
+  let button = parse_mouse_button(button_str)
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetRelease(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: 0.0,
+      y: 0.0,
+      button:,
+      pointer: event.Mouse,
+      finger: None,
+      modifiers: event.modifiers_none(),
+      captured:,
+    )),
+  )
+}
+
+fn decode_sub_wheel_scrolled(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let data = get_map(map, "data")
+  let delta_x = get_float_or(data, "delta_x", 0.0)
+  let delta_y = get_float_or(data, "delta_y", 0.0)
+  let unit_str = get_string_or(data, "unit", "line")
+  let unit = case unit_str {
+    "pixel" -> event.Pixel
+    _ -> event.Line
+  }
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetScroll(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: 0.0,
+      y: 0.0,
+      delta_x:,
+      delta_y:,
+      pointer: event.Mouse,
+      modifiers: decode_modifiers_from_data(data),
+      unit: Some(unit),
+      captured:,
+    )),
+  )
+}
+
+fn decode_sub_touch_press(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let data = get_map(map, "data")
+  let finger_id = decode_touch_finger(data)
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetPress(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      button: event.LeftButton,
+      pointer: event.Touch,
+      finger: Some(finger_id),
+      modifiers: event.modifiers_none(),
+      captured:,
+    )),
+  )
+}
+
+fn decode_sub_touch_release(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let data = get_map(map, "data")
+  let finger_id = decode_touch_finger(data)
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetRelease(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      button: event.LeftButton,
+      pointer: event.Touch,
+      finger: Some(finger_id),
+      modifiers: event.modifiers_none(),
+      captured:,
+    )),
+  )
+}
+
+fn decode_touch_finger(data: Dict(String, PropValue)) -> Int {
+  case dict.get(data, "id") {
+    Ok(PInt(n)) -> n
+    Ok(PFloat(f)) -> float.round(f)
+    _ -> 0
+  }
+}
+
+fn decode_sub_touch_move(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let window_id = get_string_or(map, "window_id", "")
+  let data = get_map(map, "data")
+  let finger_id = case dict.get(data, "id") {
+    Ok(PInt(n)) -> n
+    Ok(PFloat(f)) -> float.round(f)
+    _ -> 0
+  }
+  let captured = get_bool_or(map, "captured", False)
+  Ok(
+    EventMessage(event.WidgetMove(
+      window_id:,
+      id: window_id,
+      scope: [],
+      x: get_float_or(data, "x", 0.0),
+      y: get_float_or(data, "y", 0.0),
+      pointer: event.Touch,
+      finger: Some(finger_id),
+      modifiers: event.modifiers_none(),
+      captured:,
+    )),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1154,355 +1449,8 @@ fn decode_ime_closed(
 }
 
 // ---------------------------------------------------------------------------
-// Sensor event decoders
+// Diagnostic decoder
 // ---------------------------------------------------------------------------
-
-fn decode_sensor_resize(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  use width <- result.try(get_float(data, "width"))
-  use height <- result.try(get_float(data, "height"))
-  Ok(
-    EventMessage(event.SensorResize(
-      window_id:,
-      id: local,
-      scope:,
-      width:,
-      height:,
-    )),
-  )
-}
-
-// ---------------------------------------------------------------------------
-// MouseArea event decoders
-// ---------------------------------------------------------------------------
-
-fn decode_mouse_area_no_coords(
-  map: Dict(String, PropValue),
-  constructor: fn(String, String, List(String)) -> Event,
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  Ok(EventMessage(constructor(window_id, local, scope)))
-}
-
-fn decode_mouse_area_move(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  use x <- result.try(get_float(data, "x"))
-  use y <- result.try(get_float(data, "y"))
-  Ok(EventMessage(event.MouseAreaMove(window_id:, id: local, scope:, x:, y:)))
-}
-
-fn decode_mouse_area_scroll(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  use delta_x <- result.try(get_float(data, "delta_x"))
-  use delta_y <- result.try(get_float(data, "delta_y"))
-  Ok(
-    EventMessage(event.MouseAreaScroll(
-      window_id:,
-      id: local,
-      scope:,
-      delta_x:,
-      delta_y:,
-    )),
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Canvas event decoders
-// ---------------------------------------------------------------------------
-
-fn decode_canvas_button(
-  map: Dict(String, PropValue),
-  constructor: fn(String, String, List(String), Float, Float, MouseButton) ->
-    Event,
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let button = parse_mouse_button(get_string_or(data, "button", "left"))
-  Ok(EventMessage(constructor(window_id, local, scope, x, y, button)))
-}
-
-fn decode_canvas_move(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  Ok(EventMessage(event.CanvasMove(window_id:, id: local, scope:, x:, y:)))
-}
-
-fn decode_canvas_scroll(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let delta_x = get_float_or(data, "delta_x", 0.0)
-  let delta_y = get_float_or(data, "delta_y", 0.0)
-  Ok(
-    EventMessage(event.CanvasScroll(
-      window_id:,
-      id: local,
-      scope:,
-      x:,
-      y:,
-      delta_x:,
-      delta_y:,
-    )),
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Canvas shape event decoders
-// ---------------------------------------------------------------------------
-
-fn decode_canvas_element_enter(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementEnter(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      x:,
-      y:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_leave(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementLeave(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_click(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let button = parse_mouse_button(get_string_or(data, "button", "left"))
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementClick(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      x:,
-      y:,
-      button:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_drag(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let delta_x = get_float_or(data, "delta_x", 0.0)
-  let delta_y = get_float_or(data, "delta_y", 0.0)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementDrag(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      x:,
-      y:,
-      delta_x:,
-      delta_y:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_drag_end(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let x = get_float_or(data, "x", 0.0)
-  let y = get_float_or(data, "y", 0.0)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementDragEnd(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      x:,
-      y:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_focused(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementFocused(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_blurred(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  Ok(
-    EventMessage(event.CanvasElementBlurred(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-    )),
-  )
-}
-
-fn decode_canvas_element_key_press(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let key = get_string_or(data, "key", "")
-  let modifiers = parse_modifiers(data)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementKeyPress(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      key:,
-      modifiers:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_element_key_release(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let element_id = get_string_or(data, "element_id", "")
-  let key = get_string_or(data, "key", "")
-  let modifiers = parse_modifiers(data)
-  let captured = get_bool_or(map, "captured", False)
-  Ok(
-    EventMessage(event.CanvasElementKeyRelease(
-      window_id:,
-      id: local,
-      scope:,
-      element_id:,
-      key:,
-      modifiers:,
-      captured:,
-    )),
-  )
-}
-
-fn decode_canvas_focused(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  Ok(EventMessage(event.CanvasFocused(window_id:, id: local, scope:)))
-}
-
-fn decode_canvas_blurred(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  Ok(EventMessage(event.CanvasBlurred(window_id:, id: local, scope:)))
-}
-
-fn decode_canvas_group_focused(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let group_id = get_string_or(data, "group_id", "")
-  Ok(
-    EventMessage(event.CanvasGroupFocused(
-      window_id:,
-      id: local,
-      scope:,
-      group_id:,
-    )),
-  )
-}
-
-fn decode_canvas_group_blurred(
-  map: Dict(String, PropValue),
-) -> Result(InboundMessage, protocol.DecodeError) {
-  use #(window_id, local, scope) <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
-  let group_id = get_string_or(data, "group_id", "")
-  Ok(
-    EventMessage(event.CanvasGroupBlurred(
-      window_id:,
-      id: local,
-      scope:,
-      group_id:,
-    )),
-  )
-}
 
 fn decode_diagnostic(
   map: Dict(String, PropValue),

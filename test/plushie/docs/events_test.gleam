@@ -2,16 +2,15 @@ import gleam/dynamic
 import gleam/option
 import gleeunit/should
 import plushie/event.{
-  type Event, AnimationFrame, AsyncResult, CanvasMove, CanvasPress,
-  EffectCancelled, EffectError, EffectOk, EffectResponse, ImeCommit, ImePreedit,
-  KeyPress, LeftButton, Modifiers, ModifiersChanged, MouseAreaEnter,
-  MouseAreaMove, MouseButtonPressed, MouseMoved, PaneClicked, PaneResized,
-  ScrollData, SensorResize, Standard, StreamValue, ThemeChanged, TimerTick,
-  TouchPressed, WidgetClick, WidgetClose, WidgetEvent, WidgetInput,
-  WidgetKeyBinding, WidgetOpen, WidgetOptionHovered, WidgetPaste, WidgetScroll,
-  WidgetSelect, WidgetSlide, WidgetSlideRelease, WidgetSort, WidgetSubmit,
-  WidgetToggle, WindowCloseRequested, WindowFileDropped, WindowFileHovered,
-  WindowFilesHoveredLeft, WindowResized,
+  type Event, AnimationFrame, AsyncResult, EffectCancelled, EffectError,
+  EffectOk, EffectResponse, ImeCommit, ImePreedit, KeyPress, LeftButton,
+  Modifiers, ModifiersChanged, Mouse, PaneClicked, PaneResized, ScrollData,
+  Standard, StreamValue, ThemeChanged, TimerTick, Touch, WidgetClick,
+  WidgetClose, WidgetEnter, WidgetEvent, WidgetInput, WidgetKeyBinding,
+  WidgetMove, WidgetOpen, WidgetOptionHovered, WidgetPaste, WidgetPress,
+  WidgetResize, WidgetScrolled, WidgetSelect, WidgetSlide, WidgetSlideRelease,
+  WidgetSort, WidgetSubmit, WidgetToggle, WindowCloseRequested,
+  WindowFileDropped, WindowFileHovered, WindowFilesHoveredLeft, WindowResized,
 }
 
 // -- Widget events -----------------------------------------------------------
@@ -114,9 +113,9 @@ pub fn events_widget_key_binding_match_test() {
   }
 }
 
-pub fn events_widget_scroll_match_test() {
+pub fn events_widget_scrolled_match_test() {
   let event: Event =
-    WidgetScroll(
+    WidgetScrolled(
       window_id: "main",
       id: "log_view",
       scope: [],
@@ -132,7 +131,7 @@ pub fn events_widget_scroll_match_test() {
       ),
     )
   case event {
-    WidgetScroll(window_id: "main", id: "log_view", data: viewport, ..) -> {
+    WidgetScrolled(window_id: "main", id: "log_view", data: viewport, ..) -> {
       let at_bottom = viewport.relative_y >=. 0.99
       at_bottom |> should.be_false()
     }
@@ -192,29 +191,31 @@ pub fn events_widget_sort_match_test() {
   }
 }
 
-// -- Mouse area events -------------------------------------------------------
+// -- Pointer events (widget-scoped) ------------------------------------------
 
-pub fn events_mouse_area_enter_match_test() {
-  let event: Event =
-    MouseAreaEnter(window_id: "main", id: "hover_zone", scope: [])
+pub fn events_widget_enter_match_test() {
+  let event: Event = WidgetEnter(window_id: "main", id: "hover_zone", scope: [])
   case event {
-    MouseAreaEnter(window_id: "main", id: "hover_zone", ..) ->
-      should.be_true(True)
+    WidgetEnter(window_id: "main", id: "hover_zone", ..) -> should.be_true(True)
     _ -> should.fail()
   }
 }
 
-pub fn events_mouse_area_move_match_test() {
+pub fn events_widget_move_match_test() {
   let event: Event =
-    MouseAreaMove(
+    WidgetMove(
       window_id: "main",
       id: "canvas_area",
       scope: [],
       x: 10.0,
       y: 20.0,
+      pointer: Mouse,
+      finger: option.None,
+      modifiers: event.modifiers_none(),
+      captured: False,
     )
   case event {
-    MouseAreaMove(window_id: "main", id: "canvas_area", x:, y:, ..) -> {
+    WidgetMove(window_id: "main", id: "canvas_area", x:, y:, ..) -> {
       x |> should.equal(10.0)
       y |> should.equal(20.0)
     }
@@ -222,20 +223,24 @@ pub fn events_mouse_area_move_match_test() {
   }
 }
 
-// -- Canvas events -----------------------------------------------------------
+// -- Canvas events (now unified pointer) -------------------------------------
 
-pub fn events_canvas_press_match_test() {
+pub fn events_widget_press_match_test() {
   let event: Event =
-    CanvasPress(
+    WidgetPress(
       window_id: "main",
       id: "draw_area",
       scope: [],
       x: 42.0,
       y: 100.0,
       button: LeftButton,
+      pointer: Mouse,
+      finger: option.None,
+      modifiers: event.modifiers_none(),
+      captured: False,
     )
   case event {
-    CanvasPress(
+    WidgetPress(
       window_id: "main",
       id: "draw_area",
       x:,
@@ -250,11 +255,21 @@ pub fn events_canvas_press_match_test() {
   }
 }
 
-pub fn events_canvas_move_match_test() {
+pub fn events_widget_move_canvas_match_test() {
   let event: Event =
-    CanvasMove(window_id: "main", id: "draw_area", scope: [], x: 5.0, y: 10.0)
+    WidgetMove(
+      window_id: "main",
+      id: "draw_area",
+      scope: [],
+      x: 5.0,
+      y: 10.0,
+      pointer: Mouse,
+      finger: option.None,
+      modifiers: event.modifiers_none(),
+      captured: False,
+    )
   case event {
-    CanvasMove(window_id: "main", id: "draw_area", x:, y:, ..) -> {
+    WidgetMove(window_id: "main", id: "draw_area", x:, y:, ..) -> {
       x |> should.equal(5.0)
       y |> should.equal(10.0)
     }
@@ -279,11 +294,11 @@ pub fn events_canvas_element_event_match_test() {
   }
 }
 
-// -- Sensor events -----------------------------------------------------------
+// -- Sensor events (now WidgetResize) ----------------------------------------
 
-pub fn events_sensor_resize_match_test() {
+pub fn events_widget_resize_match_test() {
   let event: Event =
-    SensorResize(
+    WidgetResize(
       window_id: "main",
       id: "content_area",
       scope: [],
@@ -291,7 +306,7 @@ pub fn events_sensor_resize_match_test() {
       height: 600.0,
     )
   case event {
-    SensorResize(window_id: "main", id: "content_area", width:, height:, ..) -> {
+    WidgetResize(window_id: "main", id: "content_area", width:, height:, ..) -> {
       width |> should.equal(800.0)
       height |> should.equal(600.0)
     }
@@ -435,30 +450,69 @@ pub fn events_ime_commit_match_test() {
   event.text |> should.equal("final")
 }
 
-// -- Mouse events (global) ---------------------------------------------------
+// -- Pointer subscription events (global) ------------------------------------
 
-pub fn events_mouse_moved_match_test() {
-  let event = MouseMoved(window_id: "", x: 100.0, y: 200.0, captured: False)
-  event.x |> should.equal(100.0)
-  event.y |> should.equal(200.0)
+pub fn events_pointer_moved_match_test() {
+  let event: Event =
+    WidgetMove(
+      window_id: "",
+      id: "",
+      scope: [],
+      x: 100.0,
+      y: 200.0,
+      pointer: Mouse,
+      finger: option.None,
+      modifiers: event.modifiers_none(),
+      captured: False,
+    )
+  let WidgetMove(x:, y:, ..) = event
+  x |> should.equal(100.0)
+  y |> should.equal(200.0)
 }
 
-pub fn events_mouse_button_pressed_match_test() {
+pub fn events_pointer_button_pressed_match_test() {
   let event: Event =
-    MouseButtonPressed(window_id: "", button: LeftButton, captured: False)
+    WidgetPress(
+      window_id: "",
+      id: "",
+      scope: [],
+      x: 0.0,
+      y: 0.0,
+      button: LeftButton,
+      pointer: Mouse,
+      finger: option.None,
+      modifiers: event.modifiers_none(),
+      captured: False,
+    )
   case event {
-    MouseButtonPressed(button: LeftButton, ..) -> should.be_true(True)
+    WidgetPress(button: LeftButton, ..) -> should.be_true(True)
     _ -> should.fail()
   }
 }
 
-// -- Touch events ------------------------------------------------------------
+// -- Touch events (now unified pointer with Touch type) ----------------------
 
 pub fn events_touch_pressed_match_test() {
-  let event =
-    TouchPressed(window_id: "", finger_id: 0, x: 50.0, y: 75.0, captured: False)
-  event.x |> should.equal(50.0)
-  event.y |> should.equal(75.0)
+  let event: Event =
+    WidgetPress(
+      window_id: "",
+      id: "",
+      scope: [],
+      x: 50.0,
+      y: 75.0,
+      button: LeftButton,
+      pointer: Touch,
+      finger: option.Some(0),
+      modifiers: event.modifiers_none(),
+      captured: False,
+    )
+  case event {
+    WidgetPress(x:, y:, pointer: Touch, ..) -> {
+      x |> should.equal(50.0)
+      y |> should.equal(75.0)
+    }
+    _ -> should.fail()
+  }
 }
 
 // -- Modifier state events ---------------------------------------------------

@@ -10,9 +10,10 @@
 //// a button "save" inside container "form" in window "main"
 //// produces `WidgetClick(window_id: "main", id: "save", scope: ["form"])`.
 ////
-//// Subscription events (Key, Mouse, Touch, IME, Modifiers) also carry
+//// Subscription events (Key, Pointer, IME, Modifiers) also carry
 //// a `window_id` identifying which window had focus when the event
-//// fired. Empty string when the renderer doesn't provide it.
+//// fired. Pointer subscription events are delivered as Widget*
+//// constructors with `id` set to the window_id and `scope` set to `[]`.
 ////
 //// Fields typed as `Dynamic` carry wire-originated values whose shape
 //// varies by context. Use `gleam/dynamic/decode` to extract typed data.
@@ -45,6 +46,16 @@ pub type KeyLocation {
   RightSide
   /// Key on the numeric keypad.
   Numpad
+}
+
+/// Input device type for pointer events.
+pub type PointerType {
+  /// Standard mouse input.
+  Mouse
+  /// Touchscreen finger.
+  Touch
+  /// Stylus or pen tablet.
+  Pen
 }
 
 /// Mouse button identifier.
@@ -147,8 +158,10 @@ pub type Event {
   )
   /// Text was pasted into a text input or text editor.
   WidgetPaste(window_id: String, id: String, scope: List(String), value: String)
-  /// A scrollable widget's viewport changed position.
-  WidgetScroll(
+  /// A scrollable widget's viewport changed position. The tense
+  /// distinction captures semantics: "scrolled" is state ("content
+  /// has scrolled"), vs WidgetScroll which is input ("user is scrolling").
+  WidgetScrolled(
     window_id: String,
     id: String,
     scope: List(String),
@@ -257,66 +270,139 @@ pub type Event {
   /// A previously hovered file drag left the window without dropping.
   WindowFilesHoveredLeft(window_id: String)
 
-  // --- Mouse events (global subscriptions) ---
-  // These fire from global mouse subscriptions, not from specific widgets.
-  // The `captured` flag indicates whether a subscription already consumed
-  // the event. In multi-window apps, `window_id` identifies which window
-  // the cursor was over or interacting with.
-  /// The mouse cursor moved to a new position.
-  MouseMoved(window_id: String, x: Float, y: Float, captured: Bool)
-  /// The mouse cursor entered the application window.
-  MouseEntered(window_id: String, captured: Bool)
-  /// The mouse cursor left the application window.
-  MouseLeft(window_id: String, captured: Bool)
-  /// A mouse button was pressed.
-  MouseButtonPressed(window_id: String, button: MouseButton, captured: Bool)
-  /// A mouse button was released.
-  MouseButtonReleased(window_id: String, button: MouseButton, captured: Bool)
-  /// The mouse wheel was scrolled. Unit indicates whether deltas are
-  /// in lines (wheel notches) or pixels (trackpad).
-  MouseWheelScrolled(
+  // --- Unified pointer events ---
+  // These replace the old canvas_*, mouse_area_*, sensor_*, mouse_*, and
+  // touch_* events with a device-agnostic model. All pointer interactions
+  // use the same event types regardless of source (widget, canvas, or
+  // subscription). For subscription events: id = window_id, scope = [].
+  // For widget events: id = widget id, scope = ancestor chain.
+  /// A pointer button was pressed (mouse click, touch start, pen down).
+  WidgetPress(
     window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+    button: MouseButton,
+    pointer: PointerType,
+    finger: Option(Int),
+    modifiers: Modifiers,
+    captured: Bool,
+  )
+  /// A pointer button was released.
+  WidgetRelease(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+    button: MouseButton,
+    pointer: PointerType,
+    finger: Option(Int),
+    modifiers: Modifiers,
+    captured: Bool,
+  )
+  /// A pointer moved.
+  WidgetMove(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+    pointer: PointerType,
+    finger: Option(Int),
+    modifiers: Modifiers,
+    captured: Bool,
+  )
+  /// A pointer wheel/scroll event. For subscription events, `unit`
+  /// indicates line vs pixel granularity. For widget events, `unit`
+  /// is None.
+  WidgetScroll(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
     delta_x: Float,
     delta_y: Float,
-    unit: ScrollUnit,
+    pointer: PointerType,
+    modifiers: Modifiers,
+    unit: Option(ScrollUnit),
     captured: Bool,
+  )
+  /// A pointer entered a widget's bounds.
+  WidgetEnter(window_id: String, id: String, scope: List(String))
+  /// A pointer exited a widget's bounds.
+  WidgetExit(window_id: String, id: String, scope: List(String))
+  /// A double-click was detected.
+  WidgetDoubleClick(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    x: Float,
+    y: Float,
+    pointer: PointerType,
+    modifiers: Modifiers,
+  )
+  /// A widget was resized (e.g. sensor detecting layout changes).
+  WidgetResize(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    width: Float,
+    height: Float,
   )
 
-  // --- Touch events ---
-  // Touch events track individual fingers across their lifecycle:
-  // pressed -> moved -> lifted. A `lost` event means the OS
-  // interrupted tracking (e.g. a system gesture took over).
-  /// A finger touched the screen.
-  TouchPressed(
+  // --- Generic element events ---
+  // Focus, blur, drag, and key events. Apply to any focusable or
+  // draggable element (canvas interactive groups, widgets, etc.).
+  // Distinguished from global key events by having an id and scope.
+  /// A focusable element gained focus.
+  WidgetFocused(window_id: String, id: String, scope: List(String))
+  /// A focusable element lost focus.
+  WidgetBlurred(window_id: String, id: String, scope: List(String))
+  /// A draggable element is being dragged.
+  WidgetDrag(
     window_id: String,
-    finger_id: Int,
+    id: String,
+    scope: List(String),
     x: Float,
     y: Float,
-    captured: Bool,
+    delta_x: Float,
+    delta_y: Float,
   )
-  /// A finger moved on the screen.
-  TouchMoved(
+  /// A drag ended on a draggable element.
+  WidgetDragEnd(
     window_id: String,
-    finger_id: Int,
+    id: String,
+    scope: List(String),
     x: Float,
     y: Float,
-    captured: Bool,
   )
-  /// A finger was lifted from the screen.
-  TouchLifted(
+  /// A key was pressed on a focused element (widget-scoped).
+  WidgetElementKeyPress(
     window_id: String,
-    finger_id: Int,
-    x: Float,
-    y: Float,
-    captured: Bool,
+    id: String,
+    scope: List(String),
+    key: String,
+    modifiers: Modifiers,
+    text: Option(String),
   )
-  /// Touch tracking was interrupted by the OS.
-  TouchLost(
+  /// A key was released on a focused element (widget-scoped).
+  WidgetElementKeyRelease(
     window_id: String,
-    finger_id: Int,
-    x: Float,
-    y: Float,
-    captured: Bool,
+    id: String,
+    scope: List(String),
+    key: String,
+    modifiers: Modifiers,
+  )
+  /// A renderer-side transition completed on a widget.
+  WidgetTransitionComplete(
+    window_id: String,
+    id: String,
+    scope: List(String),
+    tag: String,
+    prop: String,
   )
 
   // --- IME events ---
@@ -341,202 +427,6 @@ pub type Event {
   /// The set of held modifier keys changed (Shift, Ctrl, Alt, etc.).
   /// Useful for updating UI hints without waiting for a key event.
   ModifiersChanged(window_id: String, modifiers: Modifiers, captured: Bool)
-
-  // --- Sensor events ---
-  /// A sensor widget detected that its rendered dimensions changed.
-  /// Useful for responsive layouts that need to know actual size.
-  SensorResize(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    width: Float,
-    height: Float,
-  )
-
-  // --- MouseArea events ---
-  // Events from mouse_area wrapper widgets covering interactions that
-  // standard button click handling does not (right/middle clicks,
-  // hover, cursor movement, scroll).
-  /// Right mouse button pressed inside a mouse_area widget.
-  MouseAreaRightPress(window_id: String, id: String, scope: List(String))
-  /// Right mouse button released inside a mouse_area widget.
-  MouseAreaRightRelease(window_id: String, id: String, scope: List(String))
-  /// Middle mouse button pressed inside a mouse_area widget.
-  MouseAreaMiddlePress(window_id: String, id: String, scope: List(String))
-  /// Middle mouse button released inside a mouse_area widget.
-  MouseAreaMiddleRelease(window_id: String, id: String, scope: List(String))
-  /// Double-click detected inside a mouse_area widget.
-  MouseAreaDoubleClick(window_id: String, id: String, scope: List(String))
-  /// Mouse cursor entered a mouse_area widget's bounds.
-  MouseAreaEnter(window_id: String, id: String, scope: List(String))
-  /// Mouse cursor exited a mouse_area widget's bounds.
-  MouseAreaExit(window_id: String, id: String, scope: List(String))
-  /// Mouse cursor moved within a mouse_area widget. Coordinates
-  /// are in the widget's local space.
-  MouseAreaMove(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-  )
-  /// Mouse wheel scrolled inside a mouse_area widget.
-  MouseAreaScroll(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    delta_x: Float,
-    delta_y: Float,
-  )
-
-  // --- Canvas events ---
-  // Canvas interaction events. Coordinates are in the canvas's local
-  // coordinate space.
-  /// A mouse button was pressed on a canvas widget.
-  CanvasPress(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-    button: MouseButton,
-  )
-  /// A mouse button was released on a canvas widget.
-  CanvasRelease(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-    button: MouseButton,
-  )
-  /// The mouse cursor moved within a canvas widget.
-  CanvasMove(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-  )
-  /// The mouse wheel was scrolled within a canvas widget.
-  CanvasScroll(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-    delta_x: Float,
-    delta_y: Float,
-  )
-
-  // --- Canvas shape events ---
-  // Interactive shape events. These fire from shapes with an "interactive"
-  // field inside a canvas widget. The id is the canvas widget's ID;
-  // element_id identifies which interactive shape.
-  /// Mouse entered an interactive canvas shape's bounds.
-  CanvasElementEnter(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    x: Float,
-    y: Float,
-    captured: Bool,
-  )
-  /// Mouse left an interactive canvas shape's bounds.
-  CanvasElementLeave(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    captured: Bool,
-  )
-  /// An interactive canvas shape was clicked.
-  CanvasElementClick(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    x: Float,
-    y: Float,
-    button: MouseButton,
-    captured: Bool,
-  )
-  /// An interactive canvas shape is being dragged.
-  CanvasElementDrag(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    x: Float,
-    y: Float,
-    delta_x: Float,
-    delta_y: Float,
-    captured: Bool,
-  )
-  /// Drag ended on an interactive canvas shape.
-  CanvasElementDragEnd(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    x: Float,
-    y: Float,
-    captured: Bool,
-  )
-  /// An interactive canvas shape received keyboard focus.
-  CanvasElementFocused(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    captured: Bool,
-  )
-  /// An interactive element lost keyboard focus.
-  CanvasElementBlurred(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-  )
-  /// A focused canvas element received a key press (arrow_mode "none").
-  CanvasElementKeyPress(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    key: String,
-    modifiers: Modifiers,
-    captured: Bool,
-  )
-  /// A focused canvas element received a key release (arrow_mode "none").
-  CanvasElementKeyRelease(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    element_id: String,
-    key: String,
-    modifiers: Modifiers,
-    captured: Bool,
-  )
-  /// The canvas widget gained iced-level focus.
-  CanvasFocused(window_id: String, id: String, scope: List(String))
-  /// The canvas widget lost iced-level focus.
-  CanvasBlurred(window_id: String, id: String, scope: List(String))
-  /// A focusable group gained group-level focus.
-  CanvasGroupFocused(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    group_id: String,
-  )
-  /// A focusable group lost group-level focus.
-  CanvasGroupBlurred(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    group_id: String,
-  )
 
   // --- Pane events ---
   // Events from pane_grid widgets when panes are resized, dragged,
@@ -645,35 +535,4 @@ pub type Event {
   /// notification). The tag matches the tag passed to the originating
   /// effect function for clean pattern matching.
   EffectResponse(tag: String, result: EffectResult)
-}
-
-/// Whether an event is a canvas-internal implementation detail.
-///
-/// Canvas interaction events (press, release, move, scroll) and canvas
-/// element events (enter, leave, click, drag, focus, key) are internal
-/// to the canvas widget system. When no canvas widget intercepts them,
-/// they should be auto-consumed rather than reaching the app's update
-/// function. Raw canvases (without a canvas widget wrapper) still
-/// deliver these events directly.
-pub fn is_canvas_internal(ev: Event) -> Bool {
-  case ev {
-    CanvasPress(..) -> True
-    CanvasRelease(..) -> True
-    CanvasMove(..) -> True
-    CanvasScroll(..) -> True
-    CanvasElementEnter(..) -> True
-    CanvasElementLeave(..) -> True
-    CanvasElementClick(..) -> True
-    CanvasElementDrag(..) -> True
-    CanvasElementDragEnd(..) -> True
-    CanvasElementFocused(..) -> True
-    CanvasElementBlurred(..) -> True
-    CanvasElementKeyPress(..) -> True
-    CanvasElementKeyRelease(..) -> True
-    CanvasFocused(..) -> True
-    CanvasBlurred(..) -> True
-    CanvasGroupFocused(..) -> True
-    CanvasGroupBlurred(..) -> True
-    _ -> False
-  }
 }

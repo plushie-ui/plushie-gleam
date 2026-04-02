@@ -177,13 +177,18 @@ fn execute(
     }
 
     MoveTo(x, y) -> {
-      // Cursor movement dispatched as MouseMoved
+      // Cursor movement dispatched as WidgetMove (subscription pointer event)
       Ok(session.send_event(
         session,
-        event.MouseMoved(
+        event.WidgetMove(
           window_id: "",
+          id: "",
+          scope: [],
           x: int.to_float(x),
           y: int.to_float(y),
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
           captured: False,
         ),
       ))

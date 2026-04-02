@@ -16,7 +16,7 @@ import gleam/int
 import gleam/list
 import plushie/canvas/shape
 import plushie/event.{
-  type Event, CanvasElementKeyPress, CanvasMove, CanvasPress, CanvasRelease,
+  type Event, WidgetElementKeyPress, WidgetMove, WidgetPress, WidgetRelease,
 }
 import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
@@ -94,7 +94,7 @@ fn cy() -> Float {
 
 fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState) {
   case event {
-    CanvasPress(x: x, y: y, button: event.LeftButton, ..) -> {
+    WidgetPress(x: x, y: y, button: event.LeftButton, ..) -> {
       let dx = x -. cx()
       let dy = y -. cy()
       let dist = sqrt(dx *. dx +. dy *. dy)
@@ -116,7 +116,7 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
       }
     }
 
-    CanvasMove(x: x, y: y, ..) ->
+    WidgetMove(x: x, y: y, ..) ->
       case state.drag {
         DragRing -> {
           let new_state =
@@ -130,21 +130,13 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
         DragNone -> #(Consumed, state)
       }
 
-    CanvasRelease(..) -> #(UpdateState, PickerState(..state, drag: DragNone))
+    WidgetRelease(..) -> #(UpdateState, PickerState(..state, drag: DragNone))
 
-    CanvasElementKeyPress(
-      element_id: "hue-cursor",
-      key: key,
-      modifiers: mods,
-      ..,
-    ) -> handle_hue_key(key, mods, state)
+    WidgetElementKeyPress(id: "hue-cursor", key: key, modifiers: mods, ..) ->
+      handle_hue_key(key, mods, state)
 
-    CanvasElementKeyPress(
-      element_id: "sv-cursor",
-      key: key,
-      modifiers: mods,
-      ..,
-    ) -> handle_sv_key(key, mods, state)
+    WidgetElementKeyPress(id: "sv-cursor", key: key, modifiers: mods, ..) ->
+      handle_sv_key(key, mods, state)
 
     _ -> #(Consumed, state)
   }

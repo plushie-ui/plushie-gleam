@@ -149,7 +149,7 @@ pub fn decode_test_event(
           content_height: get_float(data, "content_height", 0.0),
         )
       require_window_event(window_id, fn(window_id) {
-        event.WidgetScroll(window_id:, id: local, scope:, data: scroll_data)
+        event.WidgetScrolled(window_id:, id: local, scope:, data: scroll_data)
       })
     }
 
@@ -157,80 +157,121 @@ pub fn decode_test_event(
     "key_press" -> Ok(decode_key_press(data, result.unwrap(window_id, "")))
     "key_release" -> Ok(decode_key_release(data, result.unwrap(window_id, "")))
 
-    // -- Mouse events (global subscriptions) ---------------------------------
+    // -- Pointer subscription events -------------------------------------------
     "cursor_moved" -> {
       let wid = result.unwrap(window_id, "")
-      Ok(event.MouseMoved(
+      Ok(event.WidgetMove(
         window_id: wid,
+        id: wid,
+        scope: [],
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
+        pointer: event.Mouse,
+        finger: option.None,
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
     }
-    "cursor_entered" ->
-      Ok(event.MouseEntered(
-        window_id: result.unwrap(window_id, ""),
-        captured: False,
-      ))
-    "cursor_left" ->
-      Ok(event.MouseLeft(
-        window_id: result.unwrap(window_id, ""),
-        captured: False,
-      ))
-    "button_pressed" ->
-      Ok(event.MouseButtonPressed(
-        window_id: result.unwrap(window_id, ""),
+    "cursor_entered" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetEnter(window_id: wid, id: wid, scope: []))
+    }
+    "cursor_left" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetExit(window_id: wid, id: wid, scope: []))
+    }
+    "button_pressed" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetPress(
+        window_id: wid,
+        id: wid,
+        scope: [],
+        x: 0.0,
+        y: 0.0,
         button: decode_mouse_button(get_string(data, "button", "left")),
+        pointer: event.Mouse,
+        finger: option.None,
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
-    "button_released" ->
-      Ok(event.MouseButtonReleased(
-        window_id: result.unwrap(window_id, ""),
+    }
+    "button_released" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetRelease(
+        window_id: wid,
+        id: wid,
+        scope: [],
+        x: 0.0,
+        y: 0.0,
         button: decode_mouse_button(get_string(data, "button", "left")),
+        pointer: event.Mouse,
+        finger: option.None,
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
-    "wheel_scrolled" ->
-      Ok(event.MouseWheelScrolled(
-        window_id: result.unwrap(window_id, ""),
+    }
+    "wheel_scrolled" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetScroll(
+        window_id: wid,
+        id: wid,
+        scope: [],
+        x: 0.0,
+        y: 0.0,
         delta_x: get_float(data, "delta_x", 0.0),
         delta_y: get_float(data, "delta_y", 0.0),
-        unit: event.Line,
+        pointer: event.Mouse,
+        modifiers: event.modifiers_none(),
+        unit: option.Some(event.Line),
         captured: False,
       ))
+    }
 
-    // -- Touch events --------------------------------------------------------
-    "finger_pressed" ->
-      Ok(event.TouchPressed(
-        window_id: result.unwrap(window_id, ""),
-        finger_id: get_int(data, "finger_id", 0),
+    // -- Touch subscription events -------------------------------------------
+    "finger_pressed" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetPress(
+        window_id: wid,
+        id: wid,
+        scope: [],
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
+        button: event.LeftButton,
+        pointer: event.Touch,
+        finger: option.Some(get_int(data, "finger_id", 0)),
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
-    "finger_moved" ->
-      Ok(event.TouchMoved(
-        window_id: result.unwrap(window_id, ""),
-        finger_id: get_int(data, "finger_id", 0),
+    }
+    "finger_moved" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetMove(
+        window_id: wid,
+        id: wid,
+        scope: [],
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
+        pointer: event.Touch,
+        finger: option.Some(get_int(data, "finger_id", 0)),
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
-    "finger_lifted" ->
-      Ok(event.TouchLifted(
-        window_id: result.unwrap(window_id, ""),
-        finger_id: get_int(data, "finger_id", 0),
+    }
+    "finger_lifted" | "finger_lost" -> {
+      let wid = result.unwrap(window_id, "")
+      Ok(event.WidgetRelease(
+        window_id: wid,
+        id: wid,
+        scope: [],
         x: get_float(data, "x", 0.0),
         y: get_float(data, "y", 0.0),
+        button: event.LeftButton,
+        pointer: event.Touch,
+        finger: option.Some(get_int(data, "finger_id", 0)),
+        modifiers: event.modifiers_none(),
         captured: False,
       ))
-    "finger_lost" ->
-      Ok(event.TouchLost(
-        window_id: result.unwrap(window_id, ""),
-        finger_id: get_int(data, "finger_id", 0),
-        x: get_float(data, "x", 0.0),
-        y: get_float(data, "y", 0.0),
-        captured: False,
-      ))
+    }
 
     // -- Window events -------------------------------------------------------
     "window_opened" ->
@@ -329,92 +370,166 @@ pub fn decode_test_event(
         captured: False,
       ))
 
-    // -- MouseArea events ----------------------------------------------------
+    // -- MouseArea events (unified pointer) ------------------------------------
     "mouse_area_right_press" ->
       require_window_event(window_id, fn(window_id) {
-        event.MouseAreaRightPress(window_id:, id: local, scope:)
-      })
-    "mouse_area_right_release" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaRightRelease(window_id:, id: local, scope:)
-      })
-    "mouse_area_middle_press" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaMiddlePress(window_id:, id: local, scope:)
-      })
-    "mouse_area_middle_release" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaMiddleRelease(window_id:, id: local, scope:)
-      })
-    "mouse_area_double_click" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaDoubleClick(window_id:, id: local, scope:)
-      })
-    "mouse_area_enter" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaEnter(window_id:, id: local, scope:)
-      })
-    "mouse_area_exit" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaExit(window_id:, id: local, scope:)
-      })
-    "mouse_area_move" ->
-      require_window_event(window_id, fn(window_id) {
-        event.MouseAreaMove(
+        event.WidgetPress(
           window_id:,
           id: local,
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
+          button: event.RightButton,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )
+      })
+    "mouse_area_right_release" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetRelease(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: event.RightButton,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )
+      })
+    "mouse_area_middle_press" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetPress(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: event.MiddleButton,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )
+      })
+    "mouse_area_middle_release" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetRelease(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: event.MiddleButton,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )
+      })
+    "mouse_area_double_click" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetDoubleClick(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          pointer: event.Mouse,
+          modifiers: event.modifiers_none(),
+        )
+      })
+    "mouse_area_enter" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetEnter(window_id:, id: local, scope:)
+      })
+    "mouse_area_exit" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetExit(window_id:, id: local, scope:)
+      })
+    "mouse_area_move" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetMove(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
         )
       })
     "mouse_area_scroll" ->
       require_window_event(window_id, fn(window_id) {
-        event.MouseAreaScroll(
+        event.WidgetScroll(
           window_id:,
           id: local,
           scope:,
+          x: 0.0,
+          y: 0.0,
           delta_x: get_float(data, "delta_x", 0.0),
           delta_y: get_float(data, "delta_y", 0.0),
+          pointer: event.Mouse,
+          modifiers: event.modifiers_none(),
+          unit: option.None,
+          captured: False,
         )
       })
 
-    // -- Canvas events -------------------------------------------------------
+    // -- Canvas events (unified pointer) ---------------------------------------
     "canvas_press" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasPress(
+        event.WidgetPress(
           window_id:,
           id: local,
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
           button: decode_mouse_button(get_string(data, "button", "left")),
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
         )
       })
     "canvas_release" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasRelease(
+        event.WidgetRelease(
           window_id:,
           id: local,
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
           button: decode_mouse_button(get_string(data, "button", "left")),
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
         )
       })
     "canvas_move" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasMove(
+        event.WidgetMove(
           window_id:,
           id: local,
           scope:,
           x: get_float(data, "x", 0.0),
           y: get_float(data, "y", 0.0),
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
         )
       })
     "canvas_scroll" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasScroll(
+        event.WidgetScroll(
           window_id:,
           id: local,
           scope:,
@@ -422,138 +537,69 @@ pub fn decode_test_event(
           y: get_float(data, "y", 0.0),
           delta_x: get_float(data, "delta_x", 0.0),
           delta_y: get_float(data, "delta_y", 0.0),
+          pointer: event.Mouse,
+          modifiers: event.modifiers_none(),
+          unit: option.None,
+          captured: False,
         )
       })
 
-    // -- Canvas shape events -------------------------------------------------
-    "canvas_element_enter" ->
+    // -- Canvas element events (catch-all WidgetEvent) -----------------------
+    "canvas_element_enter"
+    | "canvas_element_leave"
+    | "canvas_element_click"
+    | "canvas_element_drag"
+    | "canvas_element_drag_end"
+    | "canvas_element_focused"
+    | "canvas_element_blurred" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasElementEnter(
+        event.WidgetEvent(
+          kind: family,
           window_id:,
           id: local,
           scope:,
-          element_id: get_string(data, "element_id", ""),
-          x: get_float(data, "x", 0.0),
-          y: get_float(data, "y", 0.0),
-          captured: False,
-        )
-      })
-    "canvas_element_leave" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementLeave(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
-          captured: False,
-        )
-      })
-    "canvas_element_click" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementClick(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
-          x: get_float(data, "x", 0.0),
-          y: get_float(data, "y", 0.0),
-          button: decode_mouse_button(get_string(data, "button", "left")),
-          captured: False,
-        )
-      })
-    "canvas_element_drag" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementDrag(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
-          x: get_float(data, "x", 0.0),
-          y: get_float(data, "y", 0.0),
-          delta_x: get_float(data, "delta_x", 0.0),
-          delta_y: get_float(data, "delta_y", 0.0),
-          captured: False,
-        )
-      })
-    "canvas_element_drag_end" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementDragEnd(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
-          x: get_float(data, "x", 0.0),
-          y: get_float(data, "y", 0.0),
-          captured: False,
-        )
-      })
-    "canvas_element_focused" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementFocused(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
-          captured: False,
-        )
-      })
-    "canvas_element_blurred" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasElementBlurred(
-          window_id:,
-          id: local,
-          scope:,
-          element_id: get_string(data, "element_id", ""),
+          value: get_dynamic(data, "element_id"),
+          data: get_dynamic(data, "data"),
         )
       })
     "canvas_element_key_press" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasElementKeyPress(
+        event.WidgetElementKeyPress(
           window_id:,
           id: local,
           scope:,
-          element_id: get_string(data, "element_id", ""),
           key: get_string(data, "key", ""),
           modifiers: decode_modifiers(data),
-          captured: False,
+          text: get_optional_string(data, "text"),
         )
       })
     "canvas_element_key_release" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasElementKeyRelease(
+        event.WidgetElementKeyRelease(
           window_id:,
           id: local,
           scope:,
-          element_id: get_string(data, "element_id", ""),
           key: get_string(data, "key", ""),
           modifiers: decode_modifiers(data),
-          captured: False,
         )
       })
     "canvas_focused" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasFocused(window_id:, id: local, scope:)
+        event.WidgetFocused(window_id:, id: local, scope:)
       })
     "canvas_blurred" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasBlurred(window_id:, id: local, scope:)
+        event.WidgetBlurred(window_id:, id: local, scope:)
       })
-    "canvas_group_focused" ->
+    "canvas_group_focused" | "canvas_group_blurred" ->
       require_window_event(window_id, fn(window_id) {
-        event.CanvasGroupFocused(
+        event.WidgetEvent(
+          kind: family,
           window_id:,
           id: local,
           scope:,
-          group_id: get_string(data, "group_id", ""),
-        )
-      })
-    "canvas_group_blurred" ->
-      require_window_event(window_id, fn(window_id) {
-        event.CanvasGroupBlurred(
-          window_id:,
-          id: local,
-          scope:,
-          group_id: get_string(data, "group_id", ""),
+          value: get_dynamic(data, "group_id"),
+          data: dynamic.nil(),
         )
       })
     "diagnostic" ->
@@ -607,10 +653,10 @@ pub fn decode_test_event(
         )
       })
 
-    // -- Sensor events -------------------------------------------------------
+    // -- Sensor events (unified WidgetResize) ---------------------------------
     "sensor_resize" ->
       require_window_event(window_id, fn(window_id) {
-        event.SensorResize(
+        event.WidgetResize(
           window_id:,
           id: local,
           scope:,

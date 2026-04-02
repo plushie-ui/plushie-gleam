@@ -706,44 +706,29 @@ pub fn extract_scope(ev: Event) -> List(String) {
     event.WidgetSlide(scope:, ..) -> scope
     event.WidgetSlideRelease(scope:, ..) -> scope
     event.WidgetPaste(scope:, ..) -> scope
-    event.WidgetScroll(scope:, ..) -> scope
+    event.WidgetScrolled(scope:, ..) -> scope
     event.WidgetOpen(scope:, ..) -> scope
     event.WidgetClose(scope:, ..) -> scope
     event.WidgetOptionHovered(scope:, ..) -> scope
     event.WidgetSort(scope:, ..) -> scope
     event.WidgetKeyBinding(scope:, ..) -> scope
-    // Sensor
-    event.SensorResize(scope:, ..) -> scope
-    // Mouse area events
-    event.MouseAreaRightPress(scope:, ..) -> scope
-    event.MouseAreaRightRelease(scope:, ..) -> scope
-    event.MouseAreaMiddlePress(scope:, ..) -> scope
-    event.MouseAreaMiddleRelease(scope:, ..) -> scope
-    event.MouseAreaDoubleClick(scope:, ..) -> scope
-    event.MouseAreaEnter(scope:, ..) -> scope
-    event.MouseAreaExit(scope:, ..) -> scope
-    event.MouseAreaMove(scope:, ..) -> scope
-    event.MouseAreaScroll(scope:, ..) -> scope
-    // Canvas events
-    event.CanvasPress(scope:, ..) -> scope
-    event.CanvasRelease(scope:, ..) -> scope
-    event.CanvasMove(scope:, ..) -> scope
-    event.CanvasScroll(scope:, ..) -> scope
-    // Canvas element events
-    event.CanvasElementEnter(scope:, ..) -> scope
-    event.CanvasElementLeave(scope:, ..) -> scope
-    event.CanvasElementClick(scope:, ..) -> scope
-    event.CanvasElementDrag(scope:, ..) -> scope
-    event.CanvasElementDragEnd(scope:, ..) -> scope
-    event.CanvasElementFocused(scope:, ..) -> scope
-    event.CanvasElementBlurred(scope:, ..) -> scope
-    event.CanvasElementKeyPress(scope:, ..) -> scope
-    event.CanvasElementKeyRelease(scope:, ..) -> scope
-    // Canvas container events
-    event.CanvasFocused(scope:, ..) -> scope
-    event.CanvasBlurred(scope:, ..) -> scope
-    event.CanvasGroupFocused(scope:, ..) -> scope
-    event.CanvasGroupBlurred(scope:, ..) -> scope
+    // Unified pointer events
+    event.WidgetPress(scope:, ..) -> scope
+    event.WidgetRelease(scope:, ..) -> scope
+    event.WidgetMove(scope:, ..) -> scope
+    event.WidgetScroll(scope:, ..) -> scope
+    event.WidgetEnter(scope:, ..) -> scope
+    event.WidgetExit(scope:, ..) -> scope
+    event.WidgetDoubleClick(scope:, ..) -> scope
+    event.WidgetResize(scope:, ..) -> scope
+    // Generic element events
+    event.WidgetFocused(scope:, ..) -> scope
+    event.WidgetBlurred(scope:, ..) -> scope
+    event.WidgetDrag(scope:, ..) -> scope
+    event.WidgetDragEnd(scope:, ..) -> scope
+    event.WidgetElementKeyPress(scope:, ..) -> scope
+    event.WidgetElementKeyRelease(scope:, ..) -> scope
+    event.WidgetTransitionComplete(scope:, ..) -> scope
     // Pane events
     event.PaneResized(scope:, ..) -> scope
     event.PaneDragged(scope:, ..) -> scope
@@ -769,44 +754,29 @@ pub fn extract_id(ev: Event) -> String {
     event.WidgetSlide(id:, ..) -> id
     event.WidgetSlideRelease(id:, ..) -> id
     event.WidgetPaste(id:, ..) -> id
-    event.WidgetScroll(id:, ..) -> id
+    event.WidgetScrolled(id:, ..) -> id
     event.WidgetOpen(id:, ..) -> id
     event.WidgetClose(id:, ..) -> id
     event.WidgetOptionHovered(id:, ..) -> id
     event.WidgetSort(id:, ..) -> id
     event.WidgetKeyBinding(id:, ..) -> id
-    // Sensor
-    event.SensorResize(id:, ..) -> id
-    // Mouse area events
-    event.MouseAreaRightPress(id:, ..) -> id
-    event.MouseAreaRightRelease(id:, ..) -> id
-    event.MouseAreaMiddlePress(id:, ..) -> id
-    event.MouseAreaMiddleRelease(id:, ..) -> id
-    event.MouseAreaDoubleClick(id:, ..) -> id
-    event.MouseAreaEnter(id:, ..) -> id
-    event.MouseAreaExit(id:, ..) -> id
-    event.MouseAreaMove(id:, ..) -> id
-    event.MouseAreaScroll(id:, ..) -> id
-    // Canvas events
-    event.CanvasPress(id:, ..) -> id
-    event.CanvasRelease(id:, ..) -> id
-    event.CanvasMove(id:, ..) -> id
-    event.CanvasScroll(id:, ..) -> id
-    // Canvas element events
-    event.CanvasElementEnter(id:, ..) -> id
-    event.CanvasElementLeave(id:, ..) -> id
-    event.CanvasElementClick(id:, ..) -> id
-    event.CanvasElementDrag(id:, ..) -> id
-    event.CanvasElementDragEnd(id:, ..) -> id
-    event.CanvasElementFocused(id:, ..) -> id
-    event.CanvasElementBlurred(id:, ..) -> id
-    event.CanvasElementKeyPress(id:, ..) -> id
-    event.CanvasElementKeyRelease(id:, ..) -> id
-    // Canvas container events
-    event.CanvasFocused(id:, ..) -> id
-    event.CanvasBlurred(id:, ..) -> id
-    event.CanvasGroupFocused(id:, ..) -> id
-    event.CanvasGroupBlurred(id:, ..) -> id
+    // Unified pointer events
+    event.WidgetPress(id:, ..) -> id
+    event.WidgetRelease(id:, ..) -> id
+    event.WidgetMove(id:, ..) -> id
+    event.WidgetScroll(id:, ..) -> id
+    event.WidgetEnter(id:, ..) -> id
+    event.WidgetExit(id:, ..) -> id
+    event.WidgetDoubleClick(id:, ..) -> id
+    event.WidgetResize(id:, ..) -> id
+    // Generic element events
+    event.WidgetFocused(id:, ..) -> id
+    event.WidgetBlurred(id:, ..) -> id
+    event.WidgetDrag(id:, ..) -> id
+    event.WidgetDragEnd(id:, ..) -> id
+    event.WidgetElementKeyPress(id:, ..) -> id
+    event.WidgetElementKeyRelease(id:, ..) -> id
+    event.WidgetTransitionComplete(id:, ..) -> id
     // Pane events
     event.PaneResized(id:, ..) -> id
     event.PaneDragged(id:, ..) -> id
@@ -826,40 +796,30 @@ pub fn extract_window_id(ev: Event) -> String {
     event.WidgetSlide(window_id:, ..) -> window_id
     event.WidgetSlideRelease(window_id:, ..) -> window_id
     event.WidgetPaste(window_id:, ..) -> window_id
-    event.WidgetScroll(window_id:, ..) -> window_id
+    event.WidgetScrolled(window_id:, ..) -> window_id
     event.WidgetOpen(window_id:, ..) -> window_id
     event.WidgetClose(window_id:, ..) -> window_id
     event.WidgetOptionHovered(window_id:, ..) -> window_id
     event.WidgetSort(window_id:, ..) -> window_id
     event.WidgetKeyBinding(window_id:, ..) -> window_id
     event.WidgetEvent(window_id:, ..) -> window_id
-    event.SensorResize(window_id:, ..) -> window_id
-    event.MouseAreaRightPress(window_id:, ..) -> window_id
-    event.MouseAreaRightRelease(window_id:, ..) -> window_id
-    event.MouseAreaMiddlePress(window_id:, ..) -> window_id
-    event.MouseAreaMiddleRelease(window_id:, ..) -> window_id
-    event.MouseAreaDoubleClick(window_id:, ..) -> window_id
-    event.MouseAreaEnter(window_id:, ..) -> window_id
-    event.MouseAreaExit(window_id:, ..) -> window_id
-    event.MouseAreaMove(window_id:, ..) -> window_id
-    event.MouseAreaScroll(window_id:, ..) -> window_id
-    event.CanvasPress(window_id:, ..) -> window_id
-    event.CanvasRelease(window_id:, ..) -> window_id
-    event.CanvasMove(window_id:, ..) -> window_id
-    event.CanvasScroll(window_id:, ..) -> window_id
-    event.CanvasElementEnter(window_id:, ..) -> window_id
-    event.CanvasElementLeave(window_id:, ..) -> window_id
-    event.CanvasElementClick(window_id:, ..) -> window_id
-    event.CanvasElementDrag(window_id:, ..) -> window_id
-    event.CanvasElementDragEnd(window_id:, ..) -> window_id
-    event.CanvasElementFocused(window_id:, ..) -> window_id
-    event.CanvasElementBlurred(window_id:, ..) -> window_id
-    event.CanvasElementKeyPress(window_id:, ..) -> window_id
-    event.CanvasElementKeyRelease(window_id:, ..) -> window_id
-    event.CanvasFocused(window_id:, ..) -> window_id
-    event.CanvasBlurred(window_id:, ..) -> window_id
-    event.CanvasGroupFocused(window_id:, ..) -> window_id
-    event.CanvasGroupBlurred(window_id:, ..) -> window_id
+    // Unified pointer events
+    event.WidgetPress(window_id:, ..) -> window_id
+    event.WidgetRelease(window_id:, ..) -> window_id
+    event.WidgetMove(window_id:, ..) -> window_id
+    event.WidgetScroll(window_id:, ..) -> window_id
+    event.WidgetEnter(window_id:, ..) -> window_id
+    event.WidgetExit(window_id:, ..) -> window_id
+    event.WidgetDoubleClick(window_id:, ..) -> window_id
+    event.WidgetResize(window_id:, ..) -> window_id
+    // Generic element events
+    event.WidgetFocused(window_id:, ..) -> window_id
+    event.WidgetBlurred(window_id:, ..) -> window_id
+    event.WidgetDrag(window_id:, ..) -> window_id
+    event.WidgetDragEnd(window_id:, ..) -> window_id
+    event.WidgetElementKeyPress(window_id:, ..) -> window_id
+    event.WidgetElementKeyRelease(window_id:, ..) -> window_id
+    event.WidgetTransitionComplete(window_id:, ..) -> window_id
     event.PaneResized(window_id:, ..) -> window_id
     event.PaneDragged(window_id:, ..) -> window_id
     event.PaneClicked(window_id:, ..) -> window_id
