@@ -113,6 +113,7 @@ pub fn with_opts(tt: Tooltip, opts: List(Opt)) -> Tooltip {
 
 /// Build the tooltip into a renderable Node.
 pub fn build(tt: Tooltip) -> Node {
+  build.validate_single_child(tt.id, "tooltip", tt.children)
   let props =
     dict.new()
     |> build.put_string("tip", tt.tip)

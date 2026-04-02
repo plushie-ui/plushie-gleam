@@ -91,6 +91,7 @@ pub fn with_opts(s: Sensor, opts: List(Opt)) -> Sensor {
 
 /// Build the sensor into a renderable Node.
 pub fn build(s: Sensor) -> Node {
+  build.validate_single_child(s.id, "sensor", s.children)
   let props =
     dict.new()
     |> build.put_optional_int("delay", s.delay)

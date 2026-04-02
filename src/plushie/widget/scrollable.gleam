@@ -167,6 +167,7 @@ pub fn with_opts(s: Scrollable, opts: List(Opt)) -> Scrollable {
 
 /// Build the scrollable into a renderable Node.
 pub fn build(s: Scrollable) -> Node {
+  build.validate_single_child(s.id, "scrollable", s.children)
   let props =
     dict.new()
     |> build.put_optional("width", s.width, length.to_prop_value)

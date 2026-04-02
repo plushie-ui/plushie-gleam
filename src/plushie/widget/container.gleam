@@ -208,6 +208,7 @@ fn background_to_prop_value(bg: Background) -> PropValue {
 
 /// Build the container into a renderable Node.
 pub fn build(c: Container) -> Node {
+  build.validate_single_child(c.id, "container", c.children)
   let props =
     dict.new()
     |> build.put_optional("padding", c.padding, padding.to_prop_value)

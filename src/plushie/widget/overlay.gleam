@@ -148,7 +148,9 @@ fn align_to_string(a: OverlayAlign) -> String {
 }
 
 /// Build the overlay into a renderable Node.
+/// Overlay requires exactly 2 children (base and overlay content).
 pub fn build(o: Overlay) -> Node {
+  build.validate_pair_children(o.id, "overlay", o.children)
   let props =
     dict.new()
     |> build.put_optional("position", o.position, fn(p) {

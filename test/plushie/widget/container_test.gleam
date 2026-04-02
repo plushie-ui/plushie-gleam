@@ -72,13 +72,13 @@ pub fn align_x_and_align_y_set_alignment_props_test() {
   let node =
     container.new("box")
     |> container.align_x(alignment.Center)
-    |> container.align_y(alignment.End)
+    |> container.align_y(alignment.Bottom)
     |> container.build()
 
   assert dict.get(node.props, "align_x")
     == Ok(alignment.to_prop_value(alignment.Center))
   assert dict.get(node.props, "align_y")
-    == Ok(alignment.to_prop_value(alignment.End))
+    == Ok(alignment.to_prop_value(alignment.Bottom))
 }
 
 pub fn background_sets_color_prop_test() {

@@ -92,6 +92,7 @@ pub fn with_opts(p: Pin, opts: List(Opt)) -> Pin {
 
 /// Build the pin into a renderable Node.
 pub fn build(p: Pin) -> Node {
+  build.validate_single_child(p.id, "pin", p.children)
   let props =
     dict.new()
     |> build.put_optional_float("x", p.x)

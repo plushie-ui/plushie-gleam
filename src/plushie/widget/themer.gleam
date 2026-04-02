@@ -48,6 +48,7 @@ pub fn with_opts(th: Themer, opts: List(Opt)) -> Themer {
 
 /// Build the themer into a renderable Node.
 pub fn build(th: Themer) -> Node {
+  build.validate_single_child(th.id, "themer", th.children)
   let props =
     dict.new()
     |> dict.insert("theme", theme.to_prop_value(th.theme))

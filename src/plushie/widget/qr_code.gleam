@@ -21,7 +21,7 @@ pub opaque type QrCode {
     data: String,
     cell_size: Option(Int),
     cell_color: Option(Color),
-    background_color: Option(Color),
+    background: Option(Color),
     error_correction: Option(ErrorCorrection),
     alt: Option(String),
     description: Option(String),
@@ -37,7 +37,7 @@ pub fn new(id: String, data: String) -> QrCode {
     data:,
     cell_size: None,
     cell_color: None,
-    background_color: None,
+    background: None,
     error_correction: None,
     alt: None,
     description: None,
@@ -57,8 +57,8 @@ pub fn cell_color(qr: QrCode, c: Color) -> QrCode {
 }
 
 /// Set the background color.
-pub fn background_color(qr: QrCode, c: Color) -> QrCode {
-  QrCode(..qr, background_color: option.Some(c))
+pub fn background(qr: QrCode, c: Color) -> QrCode {
+  QrCode(..qr, background: option.Some(c))
 }
 
 /// Set the error correction level.
@@ -90,7 +90,7 @@ pub fn a11y(qr: QrCode, a: A11y) -> QrCode {
 pub type Opt {
   CellSize(Int)
   CellColor(Color)
-  BackgroundColor(Color)
+  Background(Color)
   ErrorCorrection(ErrorCorrection)
   Alt(String)
   Description(String)
@@ -104,7 +104,7 @@ pub fn with_opts(qr: QrCode, opts: List(Opt)) -> QrCode {
     case opt {
       CellSize(s) -> cell_size(q, s)
       CellColor(c) -> cell_color(q, c)
-      BackgroundColor(c) -> background_color(q, c)
+      Background(c) -> background(q, c)
       ErrorCorrection(ec) -> error_correction(q, ec)
       Alt(a) -> alt(q, a)
       Description(d) -> description(q, d)
@@ -130,11 +130,7 @@ pub fn build(qr: QrCode) -> Node {
     |> build.put_string("data", qr.data)
     |> build.put_optional_int("cell_size", qr.cell_size)
     |> build.put_optional("cell_color", qr.cell_color, color.to_prop_value)
-    |> build.put_optional(
-      "background_color",
-      qr.background_color,
-      color.to_prop_value,
-    )
+    |> build.put_optional("background", qr.background, color.to_prop_value)
     |> build.put_optional("error_correction", qr.error_correction, fn(ec) {
       StringVal(error_correction_to_string(ec))
     })

@@ -68,6 +68,7 @@ pub fn with_opts(r: Responsive, opts: List(Opt)) -> Responsive {
 
 /// Build the responsive into a renderable Node.
 pub fn build(r: Responsive) -> Node {
+  build.validate_single_child(r.id, "responsive", r.children)
   let props =
     dict.new()
     |> build.put_optional("width", r.width, length.to_prop_value)

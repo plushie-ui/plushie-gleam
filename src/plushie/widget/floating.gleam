@@ -101,6 +101,7 @@ pub fn with_opts(f: Floating, opts: List(Opt)) -> Floating {
 
 /// Build the floating into a renderable Node.
 pub fn build(f: Floating) -> Node {
+  build.validate_single_child(f.id, "floating", f.children)
   let props =
     dict.new()
     |> build.put_optional_float("translate_x", f.translate_x)
