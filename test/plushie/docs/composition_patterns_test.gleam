@@ -410,7 +410,7 @@ fn split_view(model: SplitModel) -> Node {
         ],
         [ui.text_("left_title", "Left panel")],
       ),
-      ui.mouse_area("divider", [], [
+      ui.pointer_area("divider", [], [
         ui.container(
           "divider_track",
           [container.Width(Fixed(5.0)), container.Height(Fill)],
@@ -438,7 +438,7 @@ pub fn split_panel_has_three_sections_test() {
   let assert [left, divider, right] = row.children
   should.equal(left.id, "left_panel")
   should.equal(divider.id, "divider")
-  should.equal(divider.kind, "mouse_area")
+  should.equal(divider.kind, "pointer_area")
   should.equal(right.id, "right_panel")
 }
 

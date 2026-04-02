@@ -20,10 +20,10 @@ import plushie/widget/grid
 import plushie/widget/image
 import plushie/widget/keyed_column
 import plushie/widget/markdown
-import plushie/widget/mouse_area
 import plushie/widget/overlay
 import plushie/widget/pane_grid
 import plushie/widget/pin
+import plushie/widget/pointer_area
 import plushie/widget/progress_bar
 import plushie/widget/responsive
 import plushie/widget/row
@@ -260,16 +260,16 @@ pub fn floating(
 
 // --- Interaction wrappers ----------------------------------------------------
 
-/// Create a mouse area widget that captures mouse events on its children.
-pub fn mouse_area(
+/// Create a pointer area widget that captures pointer events on its children.
+pub fn pointer_area(
   id: String,
-  opts: List(mouse_area.Opt),
+  opts: List(pointer_area.Opt),
   children: List(Node),
 ) -> Node {
-  mouse_area.new(id)
-  |> mouse_area.with_opts(opts)
-  |> mouse_area.extend(children)
-  |> mouse_area.build()
+  pointer_area.new(id)
+  |> pointer_area.with_opts(opts)
+  |> pointer_area.extend(children)
+  |> pointer_area.build()
 }
 
 /// Create a sensor widget that reports its size and position changes.

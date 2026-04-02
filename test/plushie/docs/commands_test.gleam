@@ -383,14 +383,14 @@ pub fn commands_subscription_on_key_press_construct_test() {
 
 pub fn commands_subscription_set_max_rate_test() {
   let sub =
-    subscription.on_mouse_move("mouse")
+    subscription.on_pointer_move("mouse")
     |> subscription.set_max_rate(30)
   subscription.get_max_rate(sub) |> should.equal(option.Some(30))
 }
 
 pub fn commands_subscription_set_max_rate_zero_test() {
   let sub =
-    subscription.on_mouse_move("mouse")
+    subscription.on_pointer_move("mouse")
     |> subscription.set_max_rate(0)
   subscription.get_max_rate(sub) |> should.equal(option.Some(0))
 }
@@ -419,18 +419,18 @@ pub fn commands_subscription_on_window_resize_test() {
   subscription.tag(sub) |> should.equal("win_resize")
 }
 
-pub fn commands_subscription_on_mouse_button_test() {
-  let sub = subscription.on_mouse_button("mouse_btn")
+pub fn commands_subscription_on_pointer_button_test() {
+  let sub = subscription.on_pointer_button("mouse_btn")
   subscription.tag(sub) |> should.equal("mouse_btn")
 }
 
-pub fn commands_subscription_on_mouse_scroll_test() {
-  let sub = subscription.on_mouse_scroll("scroll")
+pub fn commands_subscription_on_pointer_scroll_test() {
+  let sub = subscription.on_pointer_scroll("scroll")
   subscription.tag(sub) |> should.equal("scroll")
 }
 
 pub fn commands_subscription_on_touch_test() {
-  let sub = subscription.on_touch("touch")
+  let sub = subscription.on_pointer_touch("touch")
   subscription.tag(sub) |> should.equal("touch")
 }
 

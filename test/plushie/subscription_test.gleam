@@ -37,9 +37,9 @@ pub fn on_window_close_constructor_test() {
 }
 
 pub fn on_mouse_move_constructor_test() {
-  assert subscription.on_mouse_move("mm")
+  assert subscription.on_pointer_move("mm")
     == subscription.Renderer(
-      kind: subscription.MouseMove,
+      kind: subscription.PointerMove,
       tag: "mm",
       max_rate: None,
       window_id: None,
@@ -79,9 +79,9 @@ pub fn key_returns_renderer_key_for_on_key_press_test() {
 }
 
 pub fn key_returns_renderer_key_for_on_mouse_scroll_test() {
-  let sub = subscription.on_mouse_scroll("scroll")
+  let sub = subscription.on_pointer_scroll("scroll")
   assert subscription.key(sub)
-    == subscription.RendererKey(kind: "on_mouse_scroll", tag: "scroll")
+    == subscription.RendererKey(kind: "on_pointer_scroll", tag: "scroll")
 }
 
 pub fn different_intervals_produce_different_keys_test() {
@@ -133,7 +133,7 @@ pub fn tag_extracts_from_on_window_event_test() {
 }
 
 pub fn tag_extracts_from_on_touch_test() {
-  assert subscription.tag(subscription.on_touch("tp")) == "tp"
+  assert subscription.tag(subscription.on_pointer_touch("tp")) == "tp"
 }
 
 pub fn tag_extracts_from_on_ime_test() {
@@ -143,7 +143,7 @@ pub fn tag_extracts_from_on_ime_test() {
 // --- max_rate ----------------------------------------------------------------
 
 pub fn max_rate_defaults_to_none_test() {
-  assert subscription.get_max_rate(subscription.on_mouse_move("mm")) == None
+  assert subscription.get_max_rate(subscription.on_pointer_move("mm")) == None
 }
 
 pub fn max_rate_none_for_timer_test() {
@@ -151,7 +151,7 @@ pub fn max_rate_none_for_timer_test() {
 }
 
 pub fn set_max_rate_on_renderer_sub_test() {
-  let sub = subscription.on_mouse_move("mm") |> subscription.set_max_rate(30)
+  let sub = subscription.on_pointer_move("mm") |> subscription.set_max_rate(30)
   assert subscription.get_max_rate(sub) == Some(30)
 }
 
@@ -168,10 +168,10 @@ pub fn set_max_rate_preserves_tag_test() {
 }
 
 pub fn max_rate_does_not_affect_key_test() {
-  let k1 = subscription.key(subscription.on_mouse_move("mm"))
+  let k1 = subscription.key(subscription.on_pointer_move("mm"))
   let k2 =
     subscription.key(
-      subscription.on_mouse_move("mm") |> subscription.set_max_rate(30),
+      subscription.on_pointer_move("mm") |> subscription.set_max_rate(30),
     )
   assert k1 == k2
 }
@@ -194,7 +194,7 @@ pub fn set_window_ignored_on_timer_test() {
 
 pub fn set_window_preserves_tag_and_rate_test() {
   let sub =
-    subscription.on_mouse_move("mm")
+    subscription.on_pointer_move("mm")
     |> subscription.set_max_rate(60)
     |> subscription.set_window("main")
   assert subscription.tag(sub) == "mm"
@@ -206,7 +206,7 @@ pub fn for_window_scopes_all_subscriptions_test() {
   let subs =
     subscription.for_window("editor", [
       subscription.on_key_press("keys"),
-      subscription.on_mouse_move("mouse"),
+      subscription.on_pointer_move("mouse"),
     ])
   let assert [first, second] = subs
   assert subscription.get_window_id(first) == Some("editor")

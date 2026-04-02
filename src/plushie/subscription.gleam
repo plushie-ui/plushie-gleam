@@ -31,10 +31,10 @@ pub type RendererSubKind {
   WindowFocus
   WindowUnfocus
   WindowMove
-  MouseMove
-  MouseButton
-  MouseScroll
-  Touch
+  PointerMove
+  PointerButton
+  PointerScroll
+  PointerTouch
   Ime
   ThemeChange
   AnimationFrame
@@ -123,25 +123,25 @@ pub fn on_window_move(tag: String) -> Subscription {
   Renderer(kind: WindowMove, tag:, max_rate: None, window_id: None)
 }
 
-/// Subscribe to mouse movement events. Also delivers mouse entered
-/// and mouse left events.
-pub fn on_mouse_move(tag: String) -> Subscription {
-  Renderer(kind: MouseMove, tag:, max_rate: None, window_id: None)
+/// Subscribe to pointer movement events (mouse or touch). Also delivers
+/// enter and exit events for cursor enter/leave.
+pub fn on_pointer_move(tag: String) -> Subscription {
+  Renderer(kind: PointerMove, tag:, max_rate: None, window_id: None)
 }
 
-/// Subscribe to mouse button press and release events.
-pub fn on_mouse_button(tag: String) -> Subscription {
-  Renderer(kind: MouseButton, tag:, max_rate: None, window_id: None)
+/// Subscribe to pointer button press and release events (mouse or touch).
+pub fn on_pointer_button(tag: String) -> Subscription {
+  Renderer(kind: PointerButton, tag:, max_rate: None, window_id: None)
 }
 
-/// Subscribe to mouse scroll (wheel) events.
-pub fn on_mouse_scroll(tag: String) -> Subscription {
-  Renderer(kind: MouseScroll, tag:, max_rate: None, window_id: None)
+/// Subscribe to pointer scroll events.
+pub fn on_pointer_scroll(tag: String) -> Subscription {
+  Renderer(kind: PointerScroll, tag:, max_rate: None, window_id: None)
 }
 
 /// Subscribe to touch events (pressed, moved, lifted, lost).
-pub fn on_touch(tag: String) -> Subscription {
-  Renderer(kind: Touch, tag:, max_rate: None, window_id: None)
+pub fn on_pointer_touch(tag: String) -> Subscription {
+  Renderer(kind: PointerTouch, tag:, max_rate: None, window_id: None)
 }
 
 /// Subscribe to IME (Input Method Editor) events for international
@@ -201,7 +201,7 @@ pub fn set_window(sub: Subscription, window_id: String) -> Subscription {
 /// ```gleam
 /// subscription.for_window("editor", [
 ///   subscription.on_key_press("editor_keys"),
-///   subscription.on_mouse_move("editor_mouse") |> subscription.set_max_rate(60),
+///   subscription.on_pointer_move("editor_mouse") |> subscription.set_max_rate(60),
 /// ])
 /// ```
 pub fn for_window(
@@ -278,10 +278,10 @@ fn wire_kind_str(kind: RendererSubKind) -> String {
     WindowFocus -> "on_window_focus"
     WindowUnfocus -> "on_window_unfocus"
     WindowMove -> "on_window_move"
-    MouseMove -> "on_mouse_move"
-    MouseButton -> "on_mouse_button"
-    MouseScroll -> "on_mouse_scroll"
-    Touch -> "on_touch"
+    PointerMove -> "on_pointer_move"
+    PointerButton -> "on_pointer_button"
+    PointerScroll -> "on_pointer_scroll"
+    PointerTouch -> "on_pointer_touch"
     Ime -> "on_ime"
     ThemeChange -> "on_theme_change"
     AnimationFrame -> "on_animation_frame"
