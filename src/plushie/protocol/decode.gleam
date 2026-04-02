@@ -1537,6 +1537,14 @@ fn decode_windowed_target(
   use id <- result.try(get_string(map, "id"))
   use window_id <- result.try(get_string(map, "window_id"))
   let #(local, scope) = split_scoped_id(id)
+  // Window ID participates in the scope chain as the outermost ancestor.
+  // Append it to the end of the scope list so multi-window apps can
+  // disambiguate same-named widgets in different windows. Single-window
+  // apps can ignore it with `| _` at the end of scope patterns.
+  let scope = case window_id {
+    "" -> scope
+    _ -> list.append(scope, [window_id])
+  }
   Ok(#(window_id, local, scope))
 }
 
