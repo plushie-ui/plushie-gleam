@@ -15,16 +15,15 @@ import gleam/float
 import gleam/int
 import gleam/list
 import plushie/canvas/shape
-import plushie/widget.{
-  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
-  UpdateState,
-}
 import plushie/event.{
   type Event, CanvasElementKeyPress, CanvasMove, CanvasPress, CanvasRelease,
 }
 import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
+import plushie/widget.{
+  type EventAction, type WidgetDef, Consumed, Emit, UpdateState, WidgetDef,
+}
 import plushie/widget/canvas
 
 // -- Geometry constants -------------------------------------------------------
@@ -70,7 +69,7 @@ pub fn def() -> WidgetDef(PickerState, Nil) {
     init: fn() {
       PickerState(hue: 0.0, saturation: 1.0, value: 1.0, drag: DragNone)
     },
-    render: render,
+    view: render,
     handle_event: handle_event,
     subscriptions: fn(_, _) { [] },
   )

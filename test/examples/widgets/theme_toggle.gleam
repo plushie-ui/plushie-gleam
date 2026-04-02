@@ -14,14 +14,13 @@ import gleam/dynamic
 import gleam/float
 import gleam/int
 import plushie/canvas/shape
-import plushie/widget.{
-  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
-  UpdateState,
-}
 import plushie/event.{type Event, CanvasElementClick, TimerTick}
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/length
 import plushie/subscription
+import plushie/widget.{
+  type EventAction, type WidgetDef, Consumed, Emit, UpdateState, WidgetDef,
+}
 import plushie/widget/canvas
 
 const track_w = 64
@@ -41,7 +40,7 @@ pub type ToggleState {
 pub fn def() -> WidgetDef(ToggleState, Nil) {
   WidgetDef(
     init: fn() { ToggleState(progress: 0.0, target: 0.0) },
-    render: render,
+    view: render,
     handle_event: handle_event,
     subscriptions: fn(_, state) {
       case state.progress != state.target {

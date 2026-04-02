@@ -22,16 +22,15 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/canvas/shape
-import plushie/widget.{
-  type WidgetDef, type EventAction, WidgetDef, Consumed, Emit,
-  UpdateState,
-}
 import plushie/event.{
   type Event, CanvasElementClick, CanvasElementEnter, CanvasElementLeave,
 }
 import plushie/node.{type Node, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
+import plushie/widget.{
+  type EventAction, type WidgetDef, Consumed, Emit, UpdateState, WidgetDef,
+}
 import plushie/widget/canvas
 
 // -- Types --------------------------------------------------------------------
@@ -54,7 +53,7 @@ pub type StarState {
 pub fn def() -> WidgetDef(StarState, StarRatingProps) {
   WidgetDef(
     init: fn() { StarState(hover: None) },
-    render: render,
+    view: render,
     handle_event: handle_event,
     subscriptions: fn(_, _) { [] },
   )

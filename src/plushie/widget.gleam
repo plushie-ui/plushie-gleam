@@ -1,6 +1,6 @@
 //// Custom widget system.
 ////
-//// Custom widgets are pure Gleam widgets that render via canvas shapes
+//// Custom widgets are pure Gleam widgets that produce UI via canvas shapes
 //// with runtime-managed internal state and event transformation. They
 //// sit between the renderer and the app, intercepting events in the
 //// scope chain and emitting semantic events.
@@ -18,7 +18,7 @@
 //// pub fn star_rating_def() -> widget.WidgetDef(StarState, StarProps) {
 ////   widget.WidgetDef(
 ////     init: fn() { StarState(hover: 0) },
-////     render: render_stars,
+////     view: view_stars,
 ////     handle_event: handle_star_event,
 ////     subscriptions: fn(_, _) { [] },
 ////   )
@@ -33,9 +33,9 @@
 ////
 //// `build` creates a placeholder canvas node tagged with metadata.
 //// During tree normalization, the runtime detects the tag, looks up
-//// the widget's state from the registry, calls `render`, and
+//// the widget's state from the registry, calls `view`, and
 //// recursively normalizes the output. The normalized tree carries
-//// metadata for registry derivation after each render cycle.
+//// metadata for registry derivation after each view cycle.
 ////
 //// Events flow through the scope chain before reaching `app.update`.
 //// Each widget in the chain gets a chance to handle the event:
@@ -68,8 +68,8 @@ pub type WidgetDef(state, props) {
   WidgetDef(
     /// Create the initial state for a new widget instance.
     init: fn() -> state,
-    /// Render the widget to a node tree.
-    render: fn(String, props, state) -> Node,
+    /// Produce the widget's node tree from its id, props, and state.
+    view: fn(String, props, state) -> Node,
     /// Handle an event. Returns the action and (possibly updated) state.
     handle_event: fn(Event, state) -> #(EventAction, state),
     /// Subscriptions for this widget instance.
@@ -77,7 +77,7 @@ pub type WidgetDef(state, props) {
   )
 }
 
-/// Create a stateless render-only widget. Events from child widgets
+/// Create a stateless view-only widget. Events from child widgets
 /// pass through to the app's update (transparent to events).
 ///
 /// ```gleam
@@ -88,12 +88,10 @@ pub type WidgetDef(state, props) {
 ///   ])
 /// })
 /// ```
-pub fn simple(
-  render: fn(String, props) -> Node,
-) -> WidgetDef(Nil, props) {
+pub fn simple(view: fn(String, props) -> Node) -> WidgetDef(Nil, props) {
   WidgetDef(
     init: fn() { Nil },
-    render: fn(id, props, _state) { render(id, props) },
+    view: fn(id, props, _state) { view(id, props) },
     handle_event: fn(_event, state) { #(Ignored, state) },
     subscriptions: fn(_, _) { [] },
   )
@@ -121,12 +119,12 @@ pub fn simple(
 /// )
 /// ```
 pub fn with_handler(
-  render: fn(String, props) -> Node,
+  view: fn(String, props) -> Node,
   handle_event: fn(Event) -> EventAction,
 ) -> WidgetDef(Nil, props) {
   WidgetDef(
     init: fn() { Nil },
-    render: fn(id, props, _state) { render(id, props) },
+    view: fn(id, props, _state) { view(id, props) },
     handle_event: fn(event, state) { #(handle_event(event), state) },
     subscriptions: fn(_, _) { [] },
   )
@@ -163,13 +161,9 @@ const state_key = "__widget_state__"
 /// Build a placeholder node for a widget.
 ///
 /// The returned node has kind "canvas" and carries metadata props
-/// that the runtime uses during normalization to render the real
+/// that the runtime uses during normalization to produce the real
 /// canvas tree with the widget's current state.
-pub fn build(
-  def: WidgetDef(state, props),
-  id: String,
-  props: props,
-) -> Node {
+pub fn build(def: WidgetDef(state, props), id: String, props: props) -> Node {
   // Store the def and props in the meta field (not props).
   // Meta is never sent to the renderer or included in tree diffs.
   let meta =
@@ -221,8 +215,8 @@ pub fn merge_standard_props(
 /// state and pre-bound closures so the registry can be heterogeneous.
 pub type RegistryEntry {
   RegistryEntry(
-    /// Render the widget given its scoped ID. Returns a canvas node tree.
-    render: fn(String) -> Node,
+    /// Produce the widget's node tree given its scoped ID.
+    view: fn(String) -> Node,
     /// Handle an event. Returns the action and an updated entry.
     handle_event: fn(Event) -> #(EventAction, RegistryEntry),
     /// Collect subscriptions for this widget instance.
@@ -254,7 +248,7 @@ pub fn make_entry(
   state: state,
 ) -> RegistryEntry {
   RegistryEntry(
-    render: fn(id) { def.render(id, props, state) },
+    view: fn(id) { def.view(id, props, state) },
     handle_event: fn(ev) {
       let #(action, new_state) = def.handle_event(ev, state)
       #(action, make_entry(def, props, new_state))
@@ -307,9 +301,9 @@ pub fn render_placeholder(
         }
       }
 
-      // Render with the local (pre-scoped) ID. The render function
+      // Call view with the local (pre-scoped) ID. The view function
       // should think in local IDs; scoping is applied by the caller.
-      let rendered = entry.render(local_id)
+      let rendered = entry.view(local_id)
 
       // Attach metadata to the rendered node for registry derivation.
       // Use the scoped_id as the node ID (it was already computed by
