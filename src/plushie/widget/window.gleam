@@ -255,6 +255,7 @@ fn level_to_string(l: WindowLevel) -> String {
 
 /// Build the window into a renderable Node.
 pub fn build(w: Window) -> Node {
+  build.validate_single_child(w.id, "window", w.children)
   let props =
     dict.new()
     |> build.put_optional_string("title", w.title)

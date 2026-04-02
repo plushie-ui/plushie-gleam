@@ -313,9 +313,10 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
 
 /// Parse a window-qualified target string. "window#widget/path" splits
 /// into (Some(window_id), "widget/path"). Plain "widget" returns (None, "widget").
+/// Only splits on the first `#`; subsequent `#` characters are part of the path.
 fn parse_target(target: String) -> #(option.Option(String), String) {
-  case string.split(target, "#") {
-    [window_id, widget_path] if window_id != "" -> #(
+  case string.split_once(target, "#") {
+    Ok(#(window_id, widget_path)) if window_id != "" -> #(
       option.Some(window_id),
       widget_path,
     )

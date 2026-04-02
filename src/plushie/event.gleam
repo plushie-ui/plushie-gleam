@@ -8,7 +8,9 @@
 //// widget's local ID after scope splitting), and a `scope`
 //// (list of ancestor container IDs, nearest first). For example,
 //// a button "save" inside container "form" in window "main"
-//// produces `WidgetClick(window_id: "main", id: "save", scope: ["form"])`.
+//// produces `WidgetClick(window_id: "main", id: "save", scope: ["form", "main"])`.
+//// The window_id appears at the end of scope for global addressability;
+//// use `| _` at the end of scope patterns to ignore it in single-window apps.
 ////
 //// Subscription events (Key, Pointer, IME, Modifiers) also carry
 //// a `window_id` identifying which window had focus when the event

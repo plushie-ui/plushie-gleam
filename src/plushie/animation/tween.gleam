@@ -1,7 +1,12 @@
-//// Animation helpers for frame-based interpolation.
+//// SDK-side frame-based interpolation (manual tween).
 ////
-//// Use with `subscription.on_animation_frame` to drive updates.
-//// Create an animation with `new`, start it, then `advance` each frame.
+//// For most use cases, prefer renderer-side descriptors
+//// (`plushie/animation/transition`, `plushie/animation/spring`)
+//// which animate with zero wire traffic. Use this module when you
+//// need frame-by-frame control over interpolation in the app model.
+////
+//// Drive with `subscription.on_animation_frame`, create with `new`,
+//// start with `start`, then `advance` each frame.
 
 import gleam/int
 import gleam/option.{type Option, None, Some}

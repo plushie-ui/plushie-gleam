@@ -229,8 +229,9 @@ fn cursor_to_string(c: Cursor) -> String {
   }
 }
 
-/// Build the mouse area into a renderable Node.
+/// Build the pointer area into a renderable Node.
 pub fn build(pa: PointerArea) -> Node {
+  build.validate_single_child(pa.id, "pointer_area", pa.children)
   let props =
     dict.new()
     |> build.put_optional("cursor", pa.cursor, fn(c) {
