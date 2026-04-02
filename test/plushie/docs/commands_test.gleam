@@ -350,11 +350,7 @@ pub fn commands_batch_construct_test() {
 
 pub fn commands_extension_command_construct_test() {
   let cmd =
-    command.WidgetCommand(
-      node_id: "term-1",
-      op: "write",
-      payload: dict.new(),
-    )
+    command.WidgetCommand(node_id: "term-1", op: "write", payload: dict.new())
   cmd.node_id |> should.equal("term-1")
   cmd.op |> should.equal("write")
 }

@@ -571,7 +571,8 @@ fn handle_message(
             TransportSpawn ->
               case state.restart_count < state.max_restarts {
                 True -> {
-                  let delay = calculate_backoff(state.restart_delay, state.restart_count)
+                  let delay =
+                    calculate_backoff(state.restart_delay, state.restart_count)
                   platform.log_warning(
                     "plushie bridge: renderer crashed (status "
                     <> int.to_string(exit_code)
@@ -655,7 +656,11 @@ fn handle_message(
         TransportSpawn -> {
           case
             platform.try_call(fn() {
-              open_spawn_port(state.binary_path, state.format, state.renderer_args)
+              open_spawn_port(
+                state.binary_path,
+                state.format,
+                state.renderer_args,
+              )
             })
           {
             Ok(new_port) -> {
@@ -729,9 +734,7 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
       Nil
     }
     _, Some(port) -> {
-      case
-        platform.try_call(fn() { renderer_port.port_command(port, data) })
-      {
+      case platform.try_call(fn() { renderer_port.port_command(port, data) }) {
         Ok(_) -> {
           telemetry.execute(
             ["plushie", "bridge", "send"],
@@ -873,8 +876,7 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
     Ok(msg) -> buffer_or_send(state, InboundEvent(msg))
     Error(err) -> {
       platform.log_warning(
-        "plushie bridge: decode error: "
-        <> protocol.decode_error_to_string(err),
+        "plushie bridge: decode error: " <> protocol.decode_error_to_string(err),
       )
       telemetry.execute(
         ["plushie", "bridge", "decode_error"],
@@ -892,10 +894,7 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
 /// Classify raw Erlang port messages into BridgeMessage variants.
 /// In JSON mode, the {line, N} driver delivers {eol, Data} and
 /// {noeol, Data} tuples instead of plain binaries.
-fn classify_port_message(
-  format: protocol.Format,
-  msg: Dynamic,
-) -> BridgeMessage {
+fn classify_port_message(format: protocol.Format, msg: Dynamic) -> BridgeMessage {
   case format {
     protocol.Json ->
       case renderer_port.extract_line_data(msg) {

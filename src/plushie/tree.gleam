@@ -10,7 +10,6 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
-import plushie/widget
 import plushie/node.{
   type Node, type PropValue, DictVal, Node, NullVal, StringVal,
 }
@@ -18,6 +17,7 @@ import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
 import plushie/platform
+import plushie/widget
 
 // --- Normalize ---------------------------------------------------------------
 
@@ -64,10 +64,7 @@ pub fn normalize_view(
 
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
-pub fn normalize_with_registry(
-  node: Node,
-  registry: widget.Registry,
-) -> Node {
+pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
   normalize_ctx(node, "", "", registry)
 }
 

@@ -8,11 +8,11 @@
 import gleam/dynamic.{type Dynamic}
 import gleam/option
 import plushie/app.{type App}
-import plushie/widget
 import plushie/command.{type Command}
 import plushie/event.{type Event}
 import plushie/node.{type Node}
 import plushie/tree
+import plushie/widget
 
 /// Immutable test session. Each operation returns a new session.
 pub opaque type TestSession(model, msg) {

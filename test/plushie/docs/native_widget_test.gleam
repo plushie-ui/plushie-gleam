@@ -18,7 +18,9 @@ const sparkline_def = native_widget.NativeDef(
     native_widget.ColorProp("color"),
     native_widget.NumberProp("capacity"),
   ],
-  commands: [native_widget.CommandDef("push", [native_widget.NumberParam("value")])],
+  commands: [
+    native_widget.CommandDef("push", [native_widget.NumberParam("value")]),
+  ],
 )
 
 // -- Tests for the quick start NativeDef --------------------------------------

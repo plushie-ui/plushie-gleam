@@ -36,8 +36,7 @@ fn start_iostream_bridge() -> #(
     )
 
   // The bridge sends IoStreamBridge to register itself
-  let assert Ok(IoStreamBridge(bridge: _)) =
-    process.receive(adapter, 1000)
+  let assert Ok(IoStreamBridge(bridge: _)) = process.receive(adapter, 1000)
 
   #(bridge_subject, adapter, runtime)
 }

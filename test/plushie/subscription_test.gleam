@@ -9,61 +9,61 @@ pub fn every_constructor_test() {
 pub fn on_key_press_constructor_test() {
   assert subscription.on_key_press("keys")
     == subscription.Renderer(
-    kind: subscription.KeyPress,
-    tag: "keys",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.KeyPress,
+      tag: "keys",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn on_key_release_constructor_test() {
   assert subscription.on_key_release("keys")
     == subscription.Renderer(
-    kind: subscription.KeyRelease,
-    tag: "keys",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.KeyRelease,
+      tag: "keys",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn on_window_close_constructor_test() {
   assert subscription.on_window_close("wc")
     == subscription.Renderer(
-    kind: subscription.WindowClose,
-    tag: "wc",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.WindowClose,
+      tag: "wc",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn on_mouse_move_constructor_test() {
   assert subscription.on_mouse_move("mm")
     == subscription.Renderer(
-    kind: subscription.MouseMove,
-    tag: "mm",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.MouseMove,
+      tag: "mm",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn on_theme_change_constructor_test() {
   assert subscription.on_theme_change("tc")
     == subscription.Renderer(
-    kind: subscription.ThemeChange,
-    tag: "tc",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.ThemeChange,
+      tag: "tc",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn on_event_constructor_test() {
   assert subscription.on_event("all")
     == subscription.Renderer(
-    kind: subscription.AllEvents,
-    tag: "all",
-    max_rate: None,
-    window_id: None,
-  )
+      kind: subscription.AllEvents,
+      tag: "all",
+      max_rate: None,
+      window_id: None,
+    )
 }
 
 pub fn key_returns_timer_key_for_every_test() {
@@ -183,8 +183,7 @@ pub fn window_id_defaults_to_none_test() {
 }
 
 pub fn set_window_scopes_to_window_test() {
-  let sub =
-    subscription.on_key_press("kb") |> subscription.set_window("editor")
+  let sub = subscription.on_key_press("kb") |> subscription.set_window("editor")
   assert subscription.get_window_id(sub) == Some("editor")
 }
 
