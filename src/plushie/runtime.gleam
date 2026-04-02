@@ -26,25 +26,26 @@ import plushie/bridge.{
   RendererRestarted, Send,
 }
 @target(erlang)
-import plushie/widget
-@target(erlang)
 import plushie/command.{type Command}
 @target(erlang)
 import plushie/command_encode
 @target(erlang)
-import plushie/effects
+import plushie/effect
 @target(erlang)
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue, StringVal}
 @target(erlang)
 import plushie/platform
 import plushie/runtime_core
+@target(erlang)
+import plushie/widget
 
 @target(erlang)
 import plushie/protocol
 @target(erlang)
 import plushie/protocol/decode.{
-  EffectStubAck, EventMessage, Hello, InteractResponse, InteractStep,
+  EffectResponseRaw, EffectStubAck, EventMessage, Hello, InteractResponse,
+  InteractStep,
 }
 @target(erlang)
 import plushie/protocol/encode
@@ -200,8 +201,8 @@ type LoopState(model, msg) {
     async_tasks: Dict(String, #(Pid, Int, process.Monitor)),
     // Monotonically increasing counter for async nonces
     nonce_counter: Int,
-    // request_id -> timeout timer for pending platform effects
-    pending_effects: Dict(String, process.Timer),
+    // wire_id -> (tag, timeout_timer) for pending platform effects
+    pending_effects: Dict(String, #(String, process.Timer)),
     // event key -> timer for SendAfter deduplication
     pending_timers: Dict(String, process.Timer),
     // Pending effect stub ack replies, keyed by kind
@@ -414,7 +415,6 @@ fn handle_message(
         None -> {
           // Non-coalescable: flush pending first, then process
           let state = flush_coalesced(state)
-          let state = maybe_cancel_effect_timeout(state, ev)
           let new_state = handle_event(state, ev)
           // Stop runtime on AllWindowsClosed in non-daemon mode
           case ev, state.opts.daemon {
@@ -428,7 +428,12 @@ fn handle_message(
     FromBridge(InboundEvent(Hello(protocol: proto, extensions:, ..))) -> {
       case proto == protocol.protocol_version {
         True ->
-          case missing_native_widgets(state.opts.required_native_widgets, extensions) {
+          case
+            missing_native_widgets(
+              state.opts.required_native_widgets,
+              extensions,
+            )
+          {
             [] -> {
               actor.continue(state)
             }
@@ -482,6 +487,22 @@ fn handle_message(
         _ -> state
       }
       actor.continue(state)
+    }
+
+    FromBridge(InboundEvent(EffectResponseRaw(wire_id:, result:))) -> {
+      case dict.get(state.pending_effects, wire_id) {
+        Ok(#(tag, timer)) -> {
+          process.cancel_timer(timer)
+          let ev = event.EffectResponse(tag:, result:)
+          let new_state = handle_event(state, ev)
+          LoopState(
+            ..new_state,
+            pending_effects: dict.delete(new_state.pending_effects, wire_id),
+          )
+          |> actor.continue()
+        }
+        Error(_) -> actor.continue(state)
+      }
     }
 
     FromBridge(InboundEvent(EffectStubAck(kind:))) -> {
@@ -608,10 +629,10 @@ fn handle_message(
 
     EffectTimeout(request_id:) -> {
       case dict.get(state.pending_effects, request_id) {
-        Ok(_) -> {
+        Ok(#(tag, _timer)) -> {
           let timeout_event =
             event.EffectResponse(
-              request_id:,
+              tag:,
               result: event.EffectError(dynamic.string("timeout")),
             )
           let new_state = handle_event(state, timeout_event)
@@ -629,7 +650,11 @@ fn handle_message(
       flush_coalesced(state) |> actor.continue()
     }
 
-    ProcessDown(process.ProcessDown(monitor: down_mon, pid: down_pid, reason: reason)) -> {
+    ProcessDown(process.ProcessDown(
+      monitor: down_mon,
+      pid: down_pid,
+      reason: reason,
+    )) -> {
       // Check if this is the bridge actor dying (D-039)
       let is_bridge = case state.bridge_pid {
         Some(bpid) -> bpid == down_pid
@@ -712,11 +737,7 @@ fn handle_message(
       let state = case state.coalesce_timer {
         Some(timer) -> {
           process.cancel_timer(timer)
-          LoopState(
-            ..state,
-            coalesce_timer: None,
-            pending_coalesce: dict.new(),
-          )
+          LoopState(..state, coalesce_timer: None, pending_coalesce: dict.new())
         }
         None -> LoopState(..state, pending_coalesce: dict.new())
       }
@@ -922,7 +943,8 @@ fn handle_message(
         }
       })
       // Cancel all pending effect timeout timers
-      dict.each(state.pending_effects, fn(_id, timer) {
+      dict.each(state.pending_effects, fn(_id, entry) {
+        let #(_tag, timer) = entry
         process.cancel_timer(timer)
         Nil
       })
@@ -984,8 +1006,7 @@ fn handle_message(
           case dict.has_key(state.async_tasks, tag) {
             True -> {
               // Task still running -- store caller and reply when done
-              let pending =
-                dict.insert(state.pending_await_async, tag, reply)
+              let pending = dict.insert(state.pending_await_async, tag, reply)
               LoopState(..state, pending_await_async: pending)
               |> actor.continue()
             }
@@ -1113,28 +1134,6 @@ fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
   LoopState(..state, pending_coalesce: dict.new())
 }
 
-@target(erlang)
-/// Cancel an effect timeout timer if the event is an EffectResponse.
-fn maybe_cancel_effect_timeout(
-  state: LoopState(model, msg),
-  ev: Event,
-) -> LoopState(model, msg) {
-  case ev {
-    event.EffectResponse(request_id:, ..) ->
-      case dict.get(state.pending_effects, request_id) {
-        Ok(timer) -> {
-          process.cancel_timer(timer)
-          LoopState(
-            ..state,
-            pending_effects: dict.delete(state.pending_effects, request_id),
-          )
-        }
-        Error(_) -> state
-      }
-    _ -> state
-  }
-}
-
 // -- Bridge restart helpers --------------------------------------------------
 
 @target(erlang)
@@ -1158,21 +1157,52 @@ fn flush_pending_effects_on_restart(
   state: LoopState(model, msg),
 ) -> LoopState(model, msg) {
   // Cancel all effect timeout timers
-  dict.each(state.pending_effects, fn(_id, timer) {
+  dict.each(state.pending_effects, fn(_id, entry) {
+    let #(_tag, timer) = entry
     process.cancel_timer(timer)
     Nil
   })
   // Dispatch error events for each pending effect
   let state =
-    dict.fold(state.pending_effects, state, fn(st, id, _timer) {
+    dict.fold(state.pending_effects, state, fn(st, _id, entry) {
+      let #(tag, _timer) = entry
       let timeout_event =
         event.EffectResponse(
-          request_id: id,
+          tag:,
           result: event.EffectError(dynamic.string("renderer_restarted")),
         )
       handle_event(st, timeout_event)
     })
   LoopState(..state, pending_effects: dict.new())
+}
+
+@target(erlang)
+/// Cancel a pending effect by its app-facing tag. If an effect with the
+/// given tag is already in flight, cancel its timeout timer and remove it
+/// from pending_effects. This enforces one-effect-per-tag.
+fn cancel_pending_effect_by_tag(
+  state: LoopState(model, msg),
+  tag: String,
+) -> LoopState(model, msg) {
+  let found =
+    dict.fold(state.pending_effects, None, fn(acc, wire_id, entry) {
+      let #(entry_tag, _timer) = entry
+      case entry_tag == tag {
+        True -> Some(wire_id)
+        False -> acc
+      }
+    })
+  case found {
+    Some(wire_id) -> {
+      let assert Ok(#(_tag, timer)) = dict.get(state.pending_effects, wire_id)
+      process.cancel_timer(timer)
+      LoopState(
+        ..state,
+        pending_effects: dict.delete(state.pending_effects, wire_id),
+      )
+    }
+    None -> state
+  }
 }
 
 // -- Event handling (the core update cycle) ----------------------------------
@@ -1293,10 +1323,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
 @target(erlang)
 /// Process an event through update + commands WITHOUT rendering.
 /// Used by interact_step to batch events before a single render.
-fn apply_event(
-  state: LoopState(model, msg),
-  ev: Event,
-) -> LoopState(model, msg) {
+fn apply_event(state: LoopState(model, msg), ev: Event) -> LoopState(model, msg) {
   let #(result, new_registry) =
     widget.dispatch_through_widgets(state.cw_registry, ev)
   let state = LoopState(..state, cw_registry: new_registry)
@@ -1603,7 +1630,9 @@ fn execute_commands(
       state
     }
 
-    command_encode.EffectRequest(id, kind, payload) -> {
+    command_encode.EffectRequest(id, tag, kind, payload) -> {
+      // One effect per tag: cancel any existing effect with the same tag
+      let state = cancel_pending_effect_by_tag(state, tag)
       send_transient(
         state.bridge,
         encode.encode_effect(
@@ -1618,12 +1647,15 @@ fn execute_commands(
       let timeout_timer =
         process.send_after(
           state.self,
-          effects.default_timeout(kind),
+          effect.default_timeout(kind),
           EffectTimeout(request_id: id),
         )
       LoopState(
         ..state,
-        pending_effects: dict.insert(state.pending_effects, id, timeout_timer),
+        pending_effects: dict.insert(state.pending_effects, id, #(
+          tag,
+          timeout_timer,
+        )),
       )
     }
 
@@ -2094,10 +2126,7 @@ fn sync_windows(
   Nil
 }
 
-fn normalize_view_or_panic(
-  view_tree: Node,
-  registry: widget.Registry,
-) -> Node {
+fn normalize_view_or_panic(view_tree: Node, registry: widget.Registry) -> Node {
   case tree.normalize_view(view_tree, registry) {
     Ok(normalized) -> normalized
     Error(message) -> panic as message

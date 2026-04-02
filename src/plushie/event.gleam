@@ -287,13 +287,37 @@ pub type Event {
   // pressed -> moved -> lifted. A `lost` event means the OS
   // interrupted tracking (e.g. a system gesture took over).
   /// A finger touched the screen.
-  TouchPressed(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchPressed(
+    window_id: String,
+    finger_id: Int,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
   /// A finger moved on the screen.
-  TouchMoved(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchMoved(
+    window_id: String,
+    finger_id: Int,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
   /// A finger was lifted from the screen.
-  TouchLifted(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLifted(
+    window_id: String,
+    finger_id: Int,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
   /// Touch tracking was interrupted by the OS.
-  TouchLost(window_id: String, finger_id: Int, x: Float, y: Float, captured: Bool)
+  TouchLost(
+    window_id: String,
+    finger_id: Int,
+    x: Float,
+    y: Float,
+    captured: Bool,
+  )
 
   // --- IME events ---
   // Input Method Editor events for CJK and other complex text input.
@@ -302,7 +326,12 @@ pub type Event {
   ImeOpened(window_id: String, captured: Bool)
   /// The IME is composing text. The cursor tuple is the selection
   /// range within the preedit string (byte offsets).
-  ImePreedit(window_id: String, text: String, cursor: Option(#(Int, Int)), captured: Bool)
+  ImePreedit(
+    window_id: String,
+    text: String,
+    cursor: Option(#(Int, Int)),
+    captured: Bool,
+  )
   /// The IME committed final text to the input.
   ImeCommit(window_id: String, text: String, captured: Bool)
   /// The IME composition session ended.
@@ -613,9 +642,9 @@ pub type Event {
 
   // --- Effect response ---
   /// Response to a platform Effect command (file dialog, clipboard,
-  /// notification). The request_id correlates with the originating
-  /// Effect command's id field.
-  EffectResponse(request_id: String, result: EffectResult)
+  /// notification). The tag matches the tag passed to the originating
+  /// effect function for clean pattern matching.
+  EffectResponse(tag: String, result: EffectResult)
 }
 
 /// Whether an event is a canvas-internal implementation detail.

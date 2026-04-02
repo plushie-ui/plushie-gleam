@@ -288,16 +288,11 @@ pub fn decode_effect_response_ok_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_42\",\"status\":\"ok\",\"result\":{\"path\":\"/tmp/test.txt\"}}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
     decode.decode_message(data, protocol.Json)
-  case evt {
-    event.EffectResponse(request_id:, result:) -> {
-      should.equal(request_id, "req_42")
-      case result {
-        event.EffectOk(_) -> Nil
-        _ -> should.fail()
-      }
-    }
+  should.equal(wire_id, "req_42")
+  case result {
+    event.EffectOk(_) -> Nil
     _ -> should.fail()
   }
 }
@@ -306,31 +301,21 @@ pub fn decode_effect_response_cancelled_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_99\",\"status\":\"cancelled\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
     decode.decode_message(data, protocol.Json)
-  case evt {
-    event.EffectResponse(request_id:, result:) -> {
-      should.equal(request_id, "req_99")
-      should.equal(result, event.EffectCancelled)
-    }
-    _ -> should.fail()
-  }
+  should.equal(wire_id, "req_99")
+  should.equal(result, event.EffectCancelled)
 }
 
 pub fn decode_effect_response_error_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_7\",\"status\":\"error\",\"error\":\"not found\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
     decode.decode_message(data, protocol.Json)
-  case evt {
-    event.EffectResponse(request_id:, result:) -> {
-      should.equal(request_id, "req_7")
-      case result {
-        event.EffectError(_) -> Nil
-        _ -> should.fail()
-      }
-    }
+  should.equal(wire_id, "req_7")
+  case result {
+    event.EffectError(_) -> Nil
     _ -> should.fail()
   }
 }
@@ -408,8 +393,7 @@ pub fn decode_cursor_entered_json_test() {
   let assert Ok(decode.EventMessage(event.MouseEntered(
     window_id: _,
     captured: False,
-  ))) =
-    decode.decode_message(data, protocol.Json)
+  ))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_cursor_left_json_test() {
@@ -418,8 +402,7 @@ pub fn decode_cursor_left_json_test() {
   let assert Ok(decode.EventMessage(event.MouseLeft(
     window_id: _,
     captured: False,
-  ))) =
-    decode.decode_message(data, protocol.Json)
+  ))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_wheel_scrolled_json_test() {
@@ -577,7 +560,8 @@ pub fn decode_cursor_moved_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseMoved(window_id: _, captured:, ..) -> should.equal(captured, True)
+    event.MouseMoved(window_id: _, captured:, ..) ->
+      should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -589,8 +573,7 @@ pub fn decode_cursor_entered_captured_json_test() {
   let assert Ok(decode.EventMessage(event.MouseEntered(
     window_id: _,
     captured: True,
-  ))) =
-    decode.decode_message(data, protocol.Json)
+  ))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_finger_pressed_captured_json_test() {
@@ -600,7 +583,8 @@ pub fn decode_finger_pressed_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.TouchPressed(window_id: _, captured:, ..) -> should.equal(captured, True)
+    event.TouchPressed(window_id: _, captured:, ..) ->
+      should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -624,7 +608,8 @@ pub fn decode_wheel_scrolled_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.MouseWheelScrolled(window_id: _, captured:, ..) -> should.equal(captured, True)
+    event.MouseWheelScrolled(window_id: _, captured:, ..) ->
+      should.equal(captured, True)
     _ -> should.fail()
   }
 }

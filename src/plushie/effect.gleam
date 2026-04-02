@@ -1,8 +1,31 @@
 //// Platform effects: file dialogs, clipboard, notifications.
 ////
-//// Each function returns a `Command(msg)` that the runtime sends
-//// to the bridge as an effect request. Results arrive as
-//// `EffectResponse` events with a correlated `request_id`.
+//// Each function takes a `tag` string as the first argument and returns
+//// a `Command(msg)` that the runtime sends to the bridge as an effect
+//// request. The result arrives as an `EffectResponse` event with the
+//// matching `tag` for clean pattern matching in `update`.
+////
+//// Only one effect per tag can be in flight at a time. Starting a new
+//// effect with a tag that already has a pending request discards the
+//// previous one.
+////
+//// ## Example
+////
+//// ```gleam
+//// fn update(model, event) {
+////   case event {
+////     event.WidgetClick(id: "open", ..) ->
+////       #(model, effect.file_open("import", [effect.DialogTitle("Pick")]))
+////
+////     event.EffectResponse(tag: "import", result: event.EffectOk(data)) ->
+////       #(Model(..model, file: data), command.none())
+////
+////     event.EffectResponse(tag: "import", result: event.EffectCancelled) ->
+////       #(model, command.none())
+////     _ -> #(model, command.none())
+////   }
+//// }
+//// ```
 
 import gleam/dict
 import gleam/list
@@ -49,76 +72,87 @@ pub type NotifUrgency {
 // -- File dialogs ------------------------------------------------------------
 
 /// Open a single file selection dialog.
-pub fn file_open(opts: List(FileDialogOpt)) -> Command(msg) {
-  make_effect("file_open", file_dialog_payload(opts))
+pub fn file_open(tag: String, opts: List(FileDialogOpt)) -> Command(msg) {
+  make_effect(tag, "file_open", file_dialog_payload(opts))
 }
 
 /// Open a multiple file selection dialog.
-pub fn file_open_multiple(opts: List(FileDialogOpt)) -> Command(msg) {
-  make_effect("file_open_multiple", file_dialog_payload(opts))
+pub fn file_open_multiple(
+  tag: String,
+  opts: List(FileDialogOpt),
+) -> Command(msg) {
+  make_effect(tag, "file_open_multiple", file_dialog_payload(opts))
 }
 
 /// Open a file save dialog.
-pub fn file_save(opts: List(FileDialogOpt)) -> Command(msg) {
-  make_effect("file_save", file_dialog_payload(opts))
+pub fn file_save(tag: String, opts: List(FileDialogOpt)) -> Command(msg) {
+  make_effect(tag, "file_save", file_dialog_payload(opts))
 }
 
 /// Open a directory selection dialog.
-pub fn directory_select(opts: List(FileDialogOpt)) -> Command(msg) {
-  make_effect("directory_select", file_dialog_payload(opts))
+pub fn directory_select(tag: String, opts: List(FileDialogOpt)) -> Command(msg) {
+  make_effect(tag, "directory_select", file_dialog_payload(opts))
 }
 
 /// Open a multiple directory selection dialog.
-pub fn directory_select_multiple(opts: List(FileDialogOpt)) -> Command(msg) {
-  make_effect("directory_select_multiple", file_dialog_payload(opts))
+pub fn directory_select_multiple(
+  tag: String,
+  opts: List(FileDialogOpt),
+) -> Command(msg) {
+  make_effect(tag, "directory_select_multiple", file_dialog_payload(opts))
 }
 
 // -- Clipboard ---------------------------------------------------------------
 
 /// Read text from the system clipboard.
-pub fn clipboard_read() -> Command(msg) {
-  make_effect("clipboard_read", [])
+pub fn clipboard_read(tag: String) -> Command(msg) {
+  make_effect(tag, "clipboard_read", [])
 }
 
 /// Write text to the system clipboard.
-pub fn clipboard_write(text: String) -> Command(msg) {
-  make_effect("clipboard_write", [#("text", StringVal(text))])
+pub fn clipboard_write(tag: String, text: String) -> Command(msg) {
+  make_effect(tag, "clipboard_write", [#("text", StringVal(text))])
 }
 
 /// Read HTML from the system clipboard.
-pub fn clipboard_read_html() -> Command(msg) {
-  make_effect("clipboard_read_html", [])
+pub fn clipboard_read_html(tag: String) -> Command(msg) {
+  make_effect(tag, "clipboard_read_html", [])
 }
 
 /// Write HTML to the system clipboard, with optional plain-text fallback.
-pub fn clipboard_write_html(html: String, alt: Option(String)) -> Command(msg) {
+pub fn clipboard_write_html(
+  tag: String,
+  html: String,
+  alt: Option(String),
+) -> Command(msg) {
   let payload = [#("html", StringVal(html))]
   let payload = case alt {
     Some(t) -> [#("alt_text", StringVal(t)), ..payload]
     None -> payload
   }
-  make_effect("clipboard_write_html", payload)
+  make_effect(tag, "clipboard_write_html", payload)
 }
 
 /// Clear the system clipboard.
-pub fn clipboard_clear() -> Command(msg) {
-  make_effect("clipboard_clear", [])
+pub fn clipboard_clear(tag: String) -> Command(msg) {
+  make_effect(tag, "clipboard_clear", [])
 }
 
 /// Read text from the primary selection (X11).
-pub fn clipboard_read_primary() -> Command(msg) {
-  make_effect("clipboard_read_primary", [])
+pub fn clipboard_read_primary(tag: String) -> Command(msg) {
+  make_effect(tag, "clipboard_read_primary", [])
 }
 
 /// Write text to the primary selection (X11).
-pub fn clipboard_write_primary(text: String) -> Command(msg) {
-  make_effect("clipboard_write_primary", [#("text", StringVal(text))])
+pub fn clipboard_write_primary(tag: String, text: String) -> Command(msg) {
+  make_effect(tag, "clipboard_write_primary", [#("text", StringVal(text))])
 }
 
 // -- Notifications -----------------------------------------------------------
 
 /// Show a desktop notification.
 pub fn notification(
+  tag: String,
   title: String,
   body: String,
   opts: List(NotificationOpt),
@@ -128,7 +162,7 @@ pub fn notification(
     #("body", StringVal(body)),
     ..notif_payload(opts)
   ]
-  make_effect("notification", payload)
+  make_effect(tag, "notification", payload)
 }
 
 // -- Timeouts ----------------------------------------------------------------
@@ -152,11 +186,12 @@ pub fn default_timeout(kind: String) -> Int {
 // -- Internal helpers --------------------------------------------------------
 
 fn make_effect(
+  tag: String,
   kind: String,
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
   let id = platform.unique_id()
-  command.Effect(id:, kind:, payload: dict.from_list(payload))
+  command.Effect(id:, tag:, kind:, payload: dict.from_list(payload))
 }
 
 fn file_dialog_payload(opts: List(FileDialogOpt)) -> List(#(String, PropValue)) {

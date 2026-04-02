@@ -1,11 +1,11 @@
 import gleam/dict
 import gleam/option
 import plushie/command
-import plushie/effects
+import plushie/effect
 import plushie/node.{IntVal, ListVal, StringVal}
 
 pub fn file_open_creates_effect_command_test() {
-  let cmd = effects.file_open([])
+  let cmd = effect.file_open("test", [])
   case cmd {
     command.Effect(id:, kind:, ..) -> {
       assert kind == "file_open"
@@ -16,7 +16,7 @@ pub fn file_open_creates_effect_command_test() {
 }
 
 pub fn file_open_multiple_test() {
-  let cmd = effects.file_open_multiple([])
+  let cmd = effect.file_open_multiple("test", [])
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "file_open_multiple"
@@ -26,7 +26,7 @@ pub fn file_open_multiple_test() {
 }
 
 pub fn file_save_creates_effect_command_test() {
-  let cmd = effects.file_save([effects.DialogTitle("Save As")])
+  let cmd = effect.file_save("test", [effect.DialogTitle("Save As")])
   case cmd {
     command.Effect(kind:, payload:, ..) -> {
       assert kind == "file_save"
@@ -37,7 +37,7 @@ pub fn file_save_creates_effect_command_test() {
 }
 
 pub fn file_dialog_default_path_test() {
-  let cmd = effects.file_open([effects.DefaultPath("/home")])
+  let cmd = effect.file_open("test", [effect.DefaultPath("/home")])
   case cmd {
     command.Effect(payload:, ..) -> {
       assert dict.get(payload, "default_path") == Ok(StringVal("/home"))
@@ -47,7 +47,8 @@ pub fn file_dialog_default_path_test() {
 }
 
 pub fn file_dialog_filters_test() {
-  let cmd = effects.file_open([effects.Filters([#("Images", "*.png;*.jpg")])])
+  let cmd =
+    effect.file_open("test", [effect.Filters([#("Images", "*.png;*.jpg")])])
   case cmd {
     command.Effect(payload:, ..) -> {
       let expected =
@@ -59,7 +60,7 @@ pub fn file_dialog_filters_test() {
 }
 
 pub fn directory_select_test() {
-  let cmd = effects.directory_select([])
+  let cmd = effect.directory_select("test", [])
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "directory_select"
@@ -69,7 +70,7 @@ pub fn directory_select_test() {
 }
 
 pub fn directory_select_multiple_test() {
-  let cmd = effects.directory_select_multiple([])
+  let cmd = effect.directory_select_multiple("test", [])
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "directory_select_multiple"
@@ -79,7 +80,7 @@ pub fn directory_select_multiple_test() {
 }
 
 pub fn clipboard_read_test() {
-  let cmd = effects.clipboard_read()
+  let cmd = effect.clipboard_read("test")
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "clipboard_read"
@@ -89,7 +90,7 @@ pub fn clipboard_read_test() {
 }
 
 pub fn clipboard_write_test() {
-  let cmd = effects.clipboard_write("hello")
+  let cmd = effect.clipboard_write("test", "hello")
   case cmd {
     command.Effect(kind:, payload:, ..) -> {
       assert kind == "clipboard_write"
@@ -100,7 +101,7 @@ pub fn clipboard_write_test() {
 }
 
 pub fn clipboard_read_html_test() {
-  let cmd = effects.clipboard_read_html()
+  let cmd = effect.clipboard_read_html("test")
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "clipboard_read_html"
@@ -110,7 +111,7 @@ pub fn clipboard_read_html_test() {
 }
 
 pub fn clipboard_write_html_with_alt_test() {
-  let cmd = effects.clipboard_write_html("<b>hi</b>", option.Some("hi"))
+  let cmd = effect.clipboard_write_html("test", "<b>hi</b>", option.Some("hi"))
   case cmd {
     command.Effect(kind:, payload:, ..) -> {
       assert kind == "clipboard_write_html"
@@ -122,7 +123,7 @@ pub fn clipboard_write_html_with_alt_test() {
 }
 
 pub fn clipboard_write_html_without_alt_test() {
-  let cmd = effects.clipboard_write_html("<b>hi</b>", option.None)
+  let cmd = effect.clipboard_write_html("test", "<b>hi</b>", option.None)
   case cmd {
     command.Effect(payload:, ..) -> {
       assert dict.has_key(payload, "alt_text") == False
@@ -132,7 +133,7 @@ pub fn clipboard_write_html_without_alt_test() {
 }
 
 pub fn clipboard_clear_test() {
-  let cmd = effects.clipboard_clear()
+  let cmd = effect.clipboard_clear("test")
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "clipboard_clear"
@@ -142,7 +143,7 @@ pub fn clipboard_clear_test() {
 }
 
 pub fn clipboard_read_primary_test() {
-  let cmd = effects.clipboard_read_primary()
+  let cmd = effect.clipboard_read_primary("test")
   case cmd {
     command.Effect(kind:, ..) -> {
       assert kind == "clipboard_read_primary"
@@ -152,7 +153,7 @@ pub fn clipboard_read_primary_test() {
 }
 
 pub fn clipboard_write_primary_test() {
-  let cmd = effects.clipboard_write_primary("text")
+  let cmd = effect.clipboard_write_primary("test", "text")
   case cmd {
     command.Effect(kind:, payload:, ..) -> {
       assert kind == "clipboard_write_primary"
@@ -164,8 +165,8 @@ pub fn clipboard_write_primary_test() {
 
 pub fn notification_creates_effect_command_test() {
   let cmd =
-    effects.notification("Alert", "Something happened", [
-      effects.Urgency(effects.Critical),
+    effect.notification("test", "Alert", "Something happened", [
+      effect.Urgency(effect.Critical),
     ])
   case cmd {
     command.Effect(kind:, payload:, ..) -> {
@@ -180,11 +181,11 @@ pub fn notification_creates_effect_command_test() {
 
 pub fn notification_with_all_opts_test() {
   let cmd =
-    effects.notification("Title", "Body", [
-      effects.NotifIcon("/icon.png"),
-      effects.NotifTimeout(3000),
-      effects.Urgency(effects.Low),
-      effects.Sound("message-new-instant"),
+    effect.notification("test", "Title", "Body", [
+      effect.NotifIcon("/icon.png"),
+      effect.NotifTimeout(3000),
+      effect.Urgency(effect.Low),
+      effect.Sound("message-new-instant"),
     ])
   case cmd {
     command.Effect(payload:, ..) -> {
@@ -198,7 +199,8 @@ pub fn notification_with_all_opts_test() {
 }
 
 pub fn notification_normal_urgency_test() {
-  let cmd = effects.notification("T", "B", [effects.Urgency(effects.Normal)])
+  let cmd =
+    effect.notification("test", "T", "B", [effect.Urgency(effect.Normal)])
   case cmd {
     command.Effect(payload:, ..) -> {
       assert dict.get(payload, "urgency") == Ok(StringVal("normal"))
@@ -208,8 +210,8 @@ pub fn notification_normal_urgency_test() {
 }
 
 pub fn unique_ids_per_effect_test() {
-  let cmd1 = effects.file_open([])
-  let cmd2 = effects.file_open([])
+  let cmd1 = effect.file_open("test", [])
+  let cmd2 = effect.file_open("test", [])
   let id1 = case cmd1 {
     command.Effect(id:, ..) -> id
     _ -> ""
@@ -222,30 +224,30 @@ pub fn unique_ids_per_effect_test() {
 }
 
 pub fn default_timeout_file_dialogs_test() {
-  assert effects.default_timeout("file_open") == 120_000
-  assert effects.default_timeout("file_open_multiple") == 120_000
-  assert effects.default_timeout("file_save") == 120_000
+  assert effect.default_timeout("file_open") == 120_000
+  assert effect.default_timeout("file_open_multiple") == 120_000
+  assert effect.default_timeout("file_save") == 120_000
 }
 
 pub fn default_timeout_directory_dialogs_test() {
-  assert effects.default_timeout("directory_select") == 120_000
-  assert effects.default_timeout("directory_select_multiple") == 120_000
+  assert effect.default_timeout("directory_select") == 120_000
+  assert effect.default_timeout("directory_select_multiple") == 120_000
 }
 
 pub fn default_timeout_clipboard_test() {
-  assert effects.default_timeout("clipboard_read") == 5000
-  assert effects.default_timeout("clipboard_write") == 5000
-  assert effects.default_timeout("clipboard_read_html") == 5000
-  assert effects.default_timeout("clipboard_write_html") == 5000
-  assert effects.default_timeout("clipboard_clear") == 5000
-  assert effects.default_timeout("clipboard_read_primary") == 5000
-  assert effects.default_timeout("clipboard_write_primary") == 5000
+  assert effect.default_timeout("clipboard_read") == 5000
+  assert effect.default_timeout("clipboard_write") == 5000
+  assert effect.default_timeout("clipboard_read_html") == 5000
+  assert effect.default_timeout("clipboard_write_html") == 5000
+  assert effect.default_timeout("clipboard_clear") == 5000
+  assert effect.default_timeout("clipboard_read_primary") == 5000
+  assert effect.default_timeout("clipboard_write_primary") == 5000
 }
 
 pub fn default_timeout_notification_test() {
-  assert effects.default_timeout("notification") == 5000
+  assert effect.default_timeout("notification") == 5000
 }
 
 pub fn default_timeout_unknown_kind_test() {
-  assert effects.default_timeout("something_else") == 30_000
+  assert effect.default_timeout("something_else") == 30_000
 }

@@ -47,7 +47,12 @@ pub type WireOp(msg) {
   /// Image operation (create, update, delete).
   ImageOp(op: String, payload: List(#(String, PropValue)))
   /// Platform effect request (file dialog, clipboard, notification).
-  EffectRequest(id: String, kind: String, payload: Dict(String, PropValue))
+  EffectRequest(
+    id: String,
+    tag: String,
+    kind: String,
+    payload: Dict(String, PropValue),
+  )
   /// Single widget command for a native widget.
   WidgetCmd(node_id: String, op: String, payload: Dict(String, PropValue))
   /// Batch of widget commands for native widgets.
@@ -295,7 +300,8 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       ImageOp("delete_image", [#("handle", StringVal(handle))])
 
     // -- Effect, widget command, advance frame --
-    command.Effect(id:, kind:, payload:) -> EffectRequest(id, kind, payload)
+    command.Effect(id:, tag:, kind:, payload:) ->
+      EffectRequest(id, tag, kind, payload)
     command.WidgetCommand(node_id:, op:, payload:) ->
       WidgetCmd(node_id, op, payload)
     command.WidgetCommands(commands:) -> WidgetCmdBatch(commands)

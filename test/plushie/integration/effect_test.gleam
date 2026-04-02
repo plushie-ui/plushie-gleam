@@ -9,7 +9,7 @@
 import gleam/dynamic/decode as dyn_decode
 import plushie/app.{type App}
 import plushie/command
-import plushie/effects
+import plushie/effect
 import plushie/event.{type Event}
 import plushie/node.{type Node, StringVal}
 import plushie/support
@@ -35,7 +35,7 @@ fn effect_update(
   case event {
     event.WidgetClick(window_id: "main", id: "read", ..) -> #(
       model,
-      effects.clipboard_read(),
+      effect.clipboard_read("test"),
     )
     event.EffectResponse(result: event.EffectOk(data), ..) -> {
       let text = case dyn_decode.run(data, dyn_decode.string) {

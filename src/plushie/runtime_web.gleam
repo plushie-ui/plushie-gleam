@@ -39,8 +39,6 @@ import plushie/app.{type App}
 @target(javascript)
 import plushie/bridge_web.{type WebTransport}
 @target(javascript)
-import plushie/widget
-@target(javascript)
 import plushie/command.{type Command}
 @target(javascript)
 import plushie/command_encode
@@ -62,6 +60,8 @@ import plushie/runtime_core
 import plushie/subscription.{type Subscription}
 @target(javascript)
 import plushie/tree
+@target(javascript)
+import plushie/widget
 
 // -- Types ------------------------------------------------------------------
 
@@ -288,10 +288,7 @@ fn render_and_sync(
 }
 
 @target(javascript)
-fn normalize_view_or_panic(
-  view_tree: Node,
-  registry: widget.Registry,
-) -> Node {
+fn normalize_view_or_panic(view_tree: Node, registry: widget.Registry) -> Node {
   case tree.normalize_view(view_tree, registry) {
     Ok(normalized) -> normalized
     Error(message) -> panic as message
@@ -458,7 +455,8 @@ fn stop_subscription(
       // Renderer subscription: send unsubscribe
       let kind = subscription.wire_kind(sub)
       let stag = subscription.tag(sub)
-      let assert Ok(bytes) = encode.encode_unsubscribe(kind, stag, session, Json)
+      let assert Ok(bytes) =
+        encode.encode_unsubscribe(kind, stag, session, Json)
       do_send(handle, bytes)
     }
   }
@@ -590,7 +588,7 @@ fn execute_commands(
 
     command_encode.ImageOp(op, payload) -> imgop(handle, op, payload, session)
 
-    command_encode.EffectRequest(id, kind, payload) -> {
+    command_encode.EffectRequest(id, _tag, kind, payload) -> {
       let assert Ok(bytes) =
         encode.encode_effect(id, kind, payload, session, Json)
       do_send(handle, bytes)

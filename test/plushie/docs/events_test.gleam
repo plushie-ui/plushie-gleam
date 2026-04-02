@@ -235,7 +235,14 @@ pub fn events_canvas_press_match_test() {
       button: LeftButton,
     )
   case event {
-    CanvasPress(window_id: "main", id: "draw_area", x:, y:, button: LeftButton, ..) -> {
+    CanvasPress(
+      window_id: "main",
+      id: "draw_area",
+      x:,
+      y:,
+      button: LeftButton,
+      ..,
+    ) -> {
       x |> should.equal(42.0)
       y |> should.equal(100.0)
     }
@@ -565,28 +572,26 @@ pub fn events_stream_value_match_test() {
 
 pub fn events_effect_response_ok_match_test() {
   let event: Event =
-    EffectResponse(request_id: "ef_1234", result: EffectOk(dynamic.nil()))
+    EffectResponse(tag: "import", result: EffectOk(dynamic.nil()))
   case event {
-    EffectResponse(result: EffectOk(_data), ..) -> should.be_true(True)
+    EffectResponse(tag: "import", result: EffectOk(_data)) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_effect_response_cancelled_match_test() {
-  let event: Event =
-    EffectResponse(request_id: "ef_1234", result: EffectCancelled)
+  let event: Event = EffectResponse(tag: "import", result: EffectCancelled)
   case event {
-    EffectResponse(result: EffectCancelled, ..) -> should.be_true(True)
+    EffectResponse(tag: "import", result: EffectCancelled) ->
+      should.be_true(True)
     _ -> should.fail()
   }
 }
 
 pub fn events_effect_response_error_match_test() {
   let event: Event =
-    EffectResponse(
-      request_id: "ef_1234",
-      result: EffectError(dynamic.string("err")),
-    )
+    EffectResponse(tag: "import", result: EffectError(dynamic.string("err")))
   case event {
     EffectResponse(result: EffectError(_reason), ..) -> should.be_true(True)
     _ -> should.fail()

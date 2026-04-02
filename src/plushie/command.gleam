@@ -200,16 +200,18 @@ pub type Command(msg) {
   LoadFont(data: BitArray)
 
   /// Request a platform effect (file dialog, clipboard, notification).
-  /// The result arrives as an `EffectResponse` event matched by `id`.
-  Effect(id: String, kind: String, payload: Dict(String, PropValue))
+  /// The `tag` identifies this effect in the `EffectResponse` event.
+  /// The `id` is an opaque wire correlation ID, never exposed to app code.
+  Effect(
+    id: String,
+    tag: String,
+    kind: String,
+    payload: Dict(String, PropValue),
+  )
 
   /// Send a command directly to a native widget, bypassing the
   /// normal tree diff/patch cycle.
-  WidgetCommand(
-    node_id: String,
-    op: String,
-    payload: Dict(String, PropValue),
-  )
+  WidgetCommand(node_id: String, op: String, payload: Dict(String, PropValue))
   /// Send a batch of widget commands processed in one cycle.
   WidgetCommands(commands: List(#(String, String, Dict(String, PropValue))))
 
