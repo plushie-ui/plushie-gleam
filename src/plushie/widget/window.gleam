@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/theme.{type Theme}
 import plushie/widget/build
 
 pub type WindowLevel {
@@ -35,6 +36,7 @@ pub opaque type Window {
     level: Option(WindowLevel),
     exit_on_close_request: Option(Bool),
     scale_factor: Option(Float),
+    theme: Option(Theme),
     a11y: Option(A11y),
   )
 }
@@ -62,6 +64,7 @@ pub fn new(id: String) -> Window {
     level: None,
     exit_on_close_request: None,
     scale_factor: None,
+    theme: None,
     a11y: None,
   )
 }
@@ -162,6 +165,13 @@ pub fn scale_factor(w: Window, factor: Float) -> Window {
   Window(..w, scale_factor: option.Some(factor))
 }
 
+/// Set the per-window theme. Overrides the app-level theme from settings
+/// for this window only. Accepts built-in themes (e.g. `theme.Dark`,
+/// `theme.Nord`) or custom palettes via `theme.custom()`.
+pub fn theme(w: Window, t: Theme) -> Window {
+  Window(..w, theme: option.Some(t))
+}
+
 /// Add a child node.
 pub fn push(w: Window, child: Node) -> Window {
   Window(..w, children: list.append(w.children, [child]))
@@ -198,6 +208,7 @@ pub type Opt {
   Level(WindowLevel)
   ExitOnCloseRequest(Bool)
   ScaleFactor(Float)
+  WindowTheme(Theme)
   A11y(A11y)
 }
 
@@ -224,6 +235,7 @@ pub fn with_opts(w: Window, opts: List(Opt)) -> Window {
       Level(v) -> level(win, v)
       ExitOnCloseRequest(v) -> exit_on_close_request(win, v)
       ScaleFactor(v) -> scale_factor(win, v)
+      WindowTheme(t) -> theme(win, t)
       A11y(a) -> a11y(win, a)
     }
   })
@@ -265,6 +277,7 @@ pub fn build(w: Window) -> Node {
     })
     |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
     |> build.put_optional_float("scale_factor", w.scale_factor)
+    |> build.put_optional("theme", w.theme, theme.to_prop_value)
     |> build.put_optional("a11y", w.a11y, a11y.to_prop_value)
   Node(id: w.id, kind: "window", props:, children: w.children, meta: dict.new())
 }
