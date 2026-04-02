@@ -11,25 +11,25 @@ import plushie/protocol/decode
 // ---------------------------------------------------------------------------
 
 pub fn split_scoped_id_simple_test() {
-  let #(id, scope) = decode.split_scoped_id("button")
+  let #(id, scope) = types.split_scoped_id("button")
   should.equal(id, "button")
   should.equal(scope, [])
 }
 
 pub fn split_scoped_id_single_scope_test() {
-  let #(id, scope) = decode.split_scoped_id("form/email")
+  let #(id, scope) = types.split_scoped_id("form/email")
   should.equal(id, "email")
   should.equal(scope, ["form"])
 }
 
 pub fn split_scoped_id_multi_scope_test() {
-  let #(id, scope) = decode.split_scoped_id("sidebar/form/email")
+  let #(id, scope) = types.split_scoped_id("sidebar/form/email")
   should.equal(id, "email")
   should.equal(scope, ["form", "sidebar"])
 }
 
 pub fn split_scoped_id_deep_scope_test() {
-  let #(id, scope) = decode.split_scoped_id("a/b/c/d")
+  let #(id, scope) = types.split_scoped_id("a/b/c/d")
   should.equal(id, "d")
   should.equal(scope, ["c", "b", "a"])
 }

@@ -99,24 +99,6 @@ pub fn decode_message(
   dispatch(map)
 }
 
-/// Split a scoped wire ID into (local_id, scope_list).
-///
-/// Named containers scope their children with "/" separators. The scope
-/// list is reversed so the nearest container is first.
-///
-///     split_scoped_id("form/email")
-///     // -> #("email", ["form"])
-///
-///     split_scoped_id("sidebar/form/email")
-///     // -> #("email", ["form", "sidebar"])
-///
-///     split_scoped_id("button")
-///     // -> #("button", [])
-///
-pub fn split_scoped_id(wire_id: String) -> #(String, List(String)) {
-  types.split_scoped_id(wire_id)
-}
-
 // ---------------------------------------------------------------------------
 // Deserialization -- wire bytes to Dict(String, PropValue)
 // ---------------------------------------------------------------------------
