@@ -5,6 +5,7 @@ import gleeunit/should
 import plushie/app
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
+import plushie/event/types.{EventTarget}
 import plushie/subscription
 import plushie/ui
 import plushie/widget/window
@@ -19,7 +20,7 @@ fn test_init() {
 
 fn test_update(model: Model, event: Event) {
   case event {
-    WidgetClick(window_id: "main", id: "inc", ..) -> #(
+    WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
@@ -90,7 +91,7 @@ pub fn update_through_accessor_test() {
   let #(model, _cmd) =
     update(
       Model(count: 5),
-      WidgetClick(window_id: "main", id: "inc", scope: []),
+      WidgetClick(target: EventTarget(window_id: "main", id: "inc", scope: [])),
     )
   should.equal(model.count, 6)
 }
@@ -120,7 +121,7 @@ fn msg_init() {
 
 fn msg_update(model: Model, msg: Msg) {
   case msg {
-    TodoEvent(WidgetClick(window_id: "main", id: "inc", ..)) -> #(
+    TodoEvent(WidgetClick(target: EventTarget(id: "inc", ..))) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
@@ -152,7 +153,10 @@ pub fn application_update_with_mapped_event_test() {
     option.Some(f) -> f
     option.None -> panic as "expected on_event"
   }
-  let mapped = on_event(WidgetClick(window_id: "main", id: "inc", scope: []))
+  let mapped =
+    on_event(
+      WidgetClick(target: EventTarget(window_id: "main", id: "inc", scope: [])),
+    )
   let update = app.get_update(my_app)
   let #(model, _cmd) = update(Model(count: 0), mapped)
   should.equal(model.count, 1)

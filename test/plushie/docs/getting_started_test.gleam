@@ -2,6 +2,7 @@ import gleam/dict
 import gleam/int
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node, FloatVal, IntVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
@@ -22,11 +23,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(window_id: "main", id: "increment", ..) -> #(
+    WidgetClick(target: EventTarget(id: "increment", ..)) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "decrement", ..) -> #(
+    WidgetClick(target: EventTarget(id: "decrement", ..)) -> #(
       Model(count: model.count - 1),
       command.none(),
     )
@@ -63,21 +64,36 @@ pub fn getting_started_counter_init_test() {
 pub fn getting_started_counter_increment_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "increment", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      ),
+    )
   assert model.count == 1
 }
 
 pub fn getting_started_counter_decrement_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "decrement", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "decrement", scope: []),
+      ),
+    )
   assert model.count == -1
 }
 
 pub fn getting_started_counter_unknown_event_test() {
   let #(model, _) = init()
   let #(model, cmd) =
-    update(model, WidgetClick(window_id: "main", id: "unknown", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "unknown", scope: []),
+      ),
+    )
   assert model.count == 0
   assert cmd == command.none()
 }
@@ -110,9 +126,19 @@ pub fn getting_started_counter_view_test() {
 pub fn getting_started_counter_view_after_increments_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "increment", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      ),
+    )
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "increment", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      ),
+    )
   let tree = view(model)
   let assert [column] = tree.children
   let assert [text_node, _] = column.children

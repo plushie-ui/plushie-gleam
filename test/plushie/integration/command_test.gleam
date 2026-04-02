@@ -15,6 +15,7 @@ import gleam/list
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/support
 import plushie/ui
@@ -75,7 +76,7 @@ fn async_update(
   event: Event,
 ) -> #(AsyncModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "go", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "go", ..)) -> #(
       model,
       command.async(fn() { to_dynamic(42) }, "compute"),
     )
@@ -151,7 +152,7 @@ fn stream_update(
   event: Event,
 ) -> #(StreamModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "go", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "go", ..)) -> #(
       model,
       command.stream(
         fn(emit) {
@@ -201,9 +202,9 @@ fn error_update(
   event: Event,
 ) -> #(ErrorModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "crash", ..) ->
+    event.WidgetClick(target: EventTarget(id: "crash", ..)) ->
       panic as "intentional test crash"
-    event.WidgetClick(window_id: "main", id: "inc", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
       ErrorModel(count: model.count + 1),
       command.none(),
     )
@@ -235,11 +236,11 @@ fn view_crash_update(
   event: Event,
 ) -> #(ViewCrashModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "crash_view", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "crash_view", ..)) -> #(
       ViewCrashModel(..model, crash_view: True),
       command.none(),
     )
-    event.WidgetClick(window_id: "main", id: "fix_view", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "fix_view", ..)) -> #(
       ViewCrashModel(crash_view: False, count: model.count + 1),
       command.none(),
     )
@@ -331,7 +332,9 @@ pub fn async_completes_and_dispatches_result_test() -> Nil {
   let rt = support.start(async_app(), [])
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "go", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "go", scope: []),
+    ),
   )
   let result = support.await(rt, fn(m) { m.result == 42 }, 500)
   support.stop(rt)
@@ -354,7 +357,9 @@ pub fn stream_emits_intermediate_values_test() -> Nil {
   let rt = support.start(stream_app(), [])
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "go", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "go", scope: []),
+    ),
   )
   let result =
     support.await(rt, fn(m) { m.done && list.length(m.chunks) >= 3 }, 500)
@@ -371,12 +376,16 @@ pub fn update_exception_does_not_crash_runtime_test() -> Nil {
     let rt = support.start(error_app(), [])
     support.dispatch_event(
       rt,
-      event.WidgetClick(window_id: "main", id: "crash", scope: []),
+      event.WidgetClick(
+        target: EventTarget(window_id: "main", id: "crash", scope: []),
+      ),
     )
     process.sleep(50)
     support.dispatch_event(
       rt,
-      event.WidgetClick(window_id: "main", id: "inc", scope: []),
+      event.WidgetClick(
+        target: EventTarget(window_id: "main", id: "inc", scope: []),
+      ),
     )
     let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
     support.stop(rt)
@@ -403,12 +412,16 @@ pub fn view_exception_does_not_crash_runtime_test() -> Nil {
     let rt = support.start(view_crash_app(), [])
     support.dispatch_event(
       rt,
-      event.WidgetClick(window_id: "main", id: "crash_view", scope: []),
+      event.WidgetClick(
+        target: EventTarget(window_id: "main", id: "crash_view", scope: []),
+      ),
     )
     process.sleep(50)
     support.dispatch_event(
       rt,
-      event.WidgetClick(window_id: "main", id: "fix_view", scope: []),
+      event.WidgetClick(
+        target: EventTarget(window_id: "main", id: "fix_view", scope: []),
+      ),
     )
     let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
     support.stop(rt)

@@ -10,6 +10,7 @@ import gleam/option
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/support
 import plushie/ui
@@ -32,7 +33,7 @@ fn window_update(
   event: Event,
 ) -> #(WindowModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "toggle", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "toggle", ..)) -> #(
       WindowModel(show_secondary: !model.show_secondary),
       command.none(),
     )
@@ -87,7 +88,9 @@ pub fn conditional_window_toggle_test() -> Nil {
   // Open secondary window
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "toggle", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "toggle", scope: []),
+    ),
   )
   let result = support.await(rt, fn(m) { m.show_secondary }, 500)
   let assert Ok(_) = result
@@ -95,7 +98,9 @@ pub fn conditional_window_toggle_test() -> Nil {
   // Close secondary window
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "toggle", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "toggle", scope: []),
+    ),
   )
   let result = support.await(rt, fn(m) { !m.show_secondary }, 500)
   support.stop(rt)

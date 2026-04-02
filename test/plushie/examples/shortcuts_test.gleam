@@ -3,6 +3,7 @@
 import gleam/option
 import gleeunit/should
 import plushie/event
+import plushie/event/types
 import plushie/testing
 import plushie/testing/element
 
@@ -13,9 +14,9 @@ fn key_press(key: String) -> event.Event {
     window_id: "",
     key: key,
     modified_key: key,
-    modifiers: event.modifiers_none(),
+    modifiers: types.modifiers_none(),
     physical_key: option.None,
-    location: event.Standard,
+    location: types.Standard,
     text: option.Some(key),
     repeat: False,
     captured: False,

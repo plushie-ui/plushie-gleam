@@ -14,6 +14,7 @@ import gleam/list
 import gleam/option
 import gleam/string
 import plushie/event
+import plushie/event/types.{type EventTarget}
 import plushie/key
 import plushie/node
 import plushie/testing/backend.{type TestBackend, TestBackend}
@@ -31,34 +32,15 @@ pub fn backend() -> TestBackend(model) {
     find: fn(sess, id) { element.find(in: session.current_tree(sess), id:) },
     click: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(
-        sess,
-        event.WidgetClick(window_id: target.0, id: target.1, scope: target.2),
-      )
+      session.send_event(sess, event.WidgetClick(target:))
     },
     type_text: fn(sess, id, text) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(
-        sess,
-        event.WidgetInput(
-          window_id: target.0,
-          id: target.1,
-          value: text,
-          scope: target.2,
-        ),
-      )
+      session.send_event(sess, event.WidgetInput(target:, value: text))
     },
     submit: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(
-        sess,
-        event.WidgetSubmit(
-          window_id: target.0,
-          id: target.1,
-          scope: target.2,
-          value: "",
-        ),
-      )
+      session.send_event(sess, event.WidgetSubmit(target:, value: ""))
     },
     toggle: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
@@ -75,39 +57,15 @@ pub fn backend() -> TestBackend(model) {
           }
         option.None -> True
       }
-      session.send_event(
-        sess,
-        event.WidgetToggle(
-          window_id: target.0,
-          id: target.1,
-          value:,
-          scope: target.2,
-        ),
-      )
+      session.send_event(sess, event.WidgetToggle(target:, value:))
     },
     select: fn(sess, id, value) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(
-        sess,
-        event.WidgetSelect(
-          window_id: target.0,
-          id: target.1,
-          scope: target.2,
-          value:,
-        ),
-      )
+      session.send_event(sess, event.WidgetSelect(target:, value:))
     },
     slide: fn(sess, id, value) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(
-        sess,
-        event.WidgetSlide(
-          window_id: target.0,
-          id: target.1,
-          value:,
-          scope: target.2,
-        ),
-      )
+      session.send_event(sess, event.WidgetSlide(target:, value:))
     },
     press_key: fn(sess, key_str) {
       let #(key_name, modifiers) = parse_key_event(key_str)
@@ -119,7 +77,7 @@ pub fn backend() -> TestBackend(model) {
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: event.Standard,
+          location: types.Standard,
           text: option.None,
           repeat: False,
           captured: False,
@@ -136,7 +94,7 @@ pub fn backend() -> TestBackend(model) {
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: event.Standard,
+          location: types.Standard,
           text: option.None,
           captured: False,
         ),
@@ -153,7 +111,7 @@ pub fn backend() -> TestBackend(model) {
             modified_key: key_name,
             modifiers:,
             physical_key: option.None,
-            location: event.Standard,
+            location: types.Standard,
             text: option.None,
             repeat: False,
             captured: False,
@@ -167,7 +125,7 @@ pub fn backend() -> TestBackend(model) {
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: event.Standard,
+          location: types.Standard,
           text: option.None,
           captured: False,
         ),
@@ -178,15 +136,13 @@ pub fn backend() -> TestBackend(model) {
       session.send_event(
         sess,
         event.WidgetPress(
-          window_id: target.0,
-          id: target.1,
-          scope: target.2,
+          target:,
           x:,
           y:,
-          button: event.LeftButton,
-          pointer: event.Mouse,
+          button: types.LeftButton,
+          pointer: types.Mouse,
           finger: option.None,
-          modifiers: event.modifiers_none(),
+          modifiers: types.modifiers_none(),
           captured: False,
         ),
       )
@@ -201,16 +157,13 @@ pub fn backend() -> TestBackend(model) {
   )
 }
 
-fn resolve_event_target(
-  tree: node.Node,
-  target: String,
-) -> #(String, String, List(String)) {
-  case find_event_target(tree, target, "") {
+fn resolve_event_target(tree: node.Node, selector: String) -> EventTarget {
+  case find_event_target(tree, selector, "") {
     option.Some(found) -> found
     option.None ->
       panic as {
         "widget not found: \""
-        <> target
+        <> selector
         <> "\". Check that the ID matches a widget in the current tree."
       }
   }
@@ -220,7 +173,7 @@ fn find_event_target(
   tree: node.Node,
   target: String,
   current_window: String,
-) -> option.Option(#(String, String, List(String))) {
+) -> option.Option(EventTarget) {
   let window_id = case tree.kind {
     "window" -> tree.id
     _ -> current_window
@@ -232,8 +185,8 @@ fn find_event_target(
 
   case tree.kind != "window" && { exact_match || local_match } {
     True -> {
-      let #(id, scope) = split_scoped_id(tree.id)
-      option.Some(#(window_id, id, scope))
+      let et = types.make_target(tree.id, window_id)
+      option.Some(et)
     }
     False -> find_event_target_in_children(tree.children, target, window_id)
   }
@@ -243,7 +196,7 @@ fn find_event_target_in_children(
   children: List(node.Node),
   target: String,
   current_window: String,
-) -> option.Option(#(String, String, List(String))) {
+) -> option.Option(EventTarget) {
   case children {
     [] -> option.None
     [child, ..rest] ->
@@ -252,18 +205,6 @@ fn find_event_target_in_children(
         option.None ->
           find_event_target_in_children(rest, target, current_window)
       }
-  }
-}
-
-fn split_scoped_id(id: String) -> #(String, List(String)) {
-  case string.split(id, "/") {
-    [] -> #(id, [])
-    [single] -> #(single, [])
-    segments -> {
-      let assert Ok(local) = list.last(segments)
-      let scope = list.take(segments, list.length(segments) - 1) |> list.reverse
-      #(local, scope)
-    }
   }
 }
 
@@ -279,10 +220,10 @@ fn last_segment(id: String) -> String {
 }
 
 /// Parse a key string into a resolved key name and Modifiers.
-fn parse_key_event(key_str: String) -> #(String, event.Modifiers) {
+fn parse_key_event(key_str: String) -> #(String, types.Modifiers) {
   let parsed = key.parse(key_str)
   let modifiers =
-    event.Modifiers(
+    types.Modifiers(
       shift: parsed.shift,
       ctrl: parsed.ctrl,
       alt: parsed.alt,

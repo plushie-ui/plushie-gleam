@@ -6,6 +6,7 @@ import plushie/command
 import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
 }
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node, BoolVal, FloatVal, IntVal, StringVal}
 import plushie/prop/length.{Fill}
 import plushie/prop/padding
@@ -42,12 +43,12 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetInput(window_id: "main", id: "new_todo", value: val, ..) -> #(
+    WidgetInput(target: EventTarget(id: "new_todo", ..), value: val) -> #(
       Model(..model, input: val),
       command.none(),
     )
 
-    WidgetSubmit(window_id: "main", id: "new_todo", ..) ->
+    WidgetSubmit(target: EventTarget(id: "new_todo", ..), ..) ->
       case string.trim(model.input) {
         "" -> #(model, command.none())
         _ -> {
@@ -70,9 +71,7 @@ fn update(model: Model, event: Event) {
       }
 
     WidgetToggle(
-      window_id: "main",
-      id: "toggle",
-      scope: [_row, todo_id, ..],
+      target: EventTarget(id: "toggle", scope: [_row, todo_id, ..], ..),
       ..,
     ) -> {
       let todos =
@@ -85,20 +84,24 @@ fn update(model: Model, event: Event) {
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(window_id: "main", id: "delete", scope: [_row, todo_id, ..]) -> #(
+    WidgetClick(target: EventTarget(
+      window_id: "main",
+      id: "delete",
+      scope: [_row, todo_id, ..],
+    )) -> #(
       Model(..model, todos: list.filter(model.todos, fn(t) { t.id != todo_id })),
       command.none(),
     )
 
-    WidgetClick(window_id: "main", id: "filter_all", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_all", ..)) -> #(
       Model(..model, filter: All),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "filter_active", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_active", ..)) -> #(
       Model(..model, filter: Active),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "filter_done", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_done", ..)) -> #(
       Model(..model, filter: Done),
       command.none(),
     )
@@ -249,9 +252,7 @@ pub fn tutorial_step2_input_updates_model_test() {
     update(
       model,
       WidgetInput(
-        window_id: "main",
-        id: "new_todo",
-        scope: [],
+        target: EventTarget(window_id: "main", id: "new_todo", scope: []),
         value: "Buy milk",
       ),
     )
@@ -264,9 +265,7 @@ pub fn tutorial_step2_submit_creates_todo_test() {
     update(
       model,
       WidgetInput(
-        window_id: "main",
-        id: "new_todo",
-        scope: [],
+        target: EventTarget(window_id: "main", id: "new_todo", scope: []),
         value: "Buy milk",
       ),
     )
@@ -274,9 +273,7 @@ pub fn tutorial_step2_submit_creates_todo_test() {
     update(
       model,
       WidgetSubmit(
-        window_id: "main",
-        id: "new_todo",
-        scope: [],
+        target: EventTarget(window_id: "main", id: "new_todo", scope: []),
         value: "Buy milk",
       ),
     )
@@ -294,12 +291,18 @@ pub fn tutorial_step2_empty_submit_does_nothing_test() {
   let #(model, _) =
     update(
       model,
-      WidgetInput(window_id: "main", id: "new_todo", scope: [], value: "   "),
+      WidgetInput(
+        target: EventTarget(window_id: "main", id: "new_todo", scope: []),
+        value: "   ",
+      ),
     )
   let #(model, cmd) =
     update(
       model,
-      WidgetSubmit(window_id: "main", id: "new_todo", scope: [], value: "   "),
+      WidgetSubmit(
+        target: EventTarget(window_id: "main", id: "new_todo", scope: []),
+        value: "   ",
+      ),
     )
   assert model.todos == []
   assert cmd == command.none()
@@ -376,9 +379,12 @@ pub fn tutorial_step4_toggle_test() {
     update(
       model,
       WidgetToggle(
-        window_id: "main",
-        id: "toggle",
-        scope: ["row", "todo_1", "list", "app"],
+        target: EventTarget(window_id: "main", id: "toggle", scope: [
+          "row",
+          "todo_1",
+          "list",
+          "app",
+        ]),
         value: True,
       ),
     )
@@ -397,12 +403,14 @@ pub fn tutorial_step4_delete_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(window_id: "main", id: "delete", scope: [
-        "row",
-        "todo_1",
-        "list",
-        "app",
-      ]),
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "delete", scope: [
+          "row",
+          "todo_1",
+          "list",
+          "app",
+        ]),
+      ),
     )
   assert model.todos == []
 }
@@ -412,18 +420,30 @@ pub fn tutorial_step6_filter_all_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(window_id: "main", id: "filter_active", scope: []),
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "filter_active", scope: []),
+      ),
     )
   assert model.filter == Active
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "filter_all", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "filter_all", scope: []),
+      ),
+    )
   assert model.filter == All
 }
 
 pub fn tutorial_step6_filter_done_test() {
   let #(model, _) = init()
   let #(model, _) =
-    update(model, WidgetClick(window_id: "main", id: "filter_done", scope: []))
+    update(
+      model,
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "filter_done", scope: []),
+      ),
+    )
   assert model.filter == Done
 }
 

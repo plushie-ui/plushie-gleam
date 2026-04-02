@@ -18,6 +18,7 @@ import plushie/canvas/shape
 import plushie/event.{
   type Event, WidgetElementKeyPress, WidgetMove, WidgetPress, WidgetRelease,
 }
+import plushie/event/types.{type Modifiers, EventTarget, LeftButton}
 import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
@@ -94,7 +95,7 @@ fn cy() -> Float {
 
 fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState) {
   case event {
-    WidgetPress(x: x, y: y, button: event.LeftButton, ..) -> {
+    WidgetPress(x: x, y: y, button: LeftButton, ..) -> {
       let dx = x -. cx()
       let dy = y -. cy()
       let dist = sqrt(dx *. dx +. dy *. dy)
@@ -132,11 +133,19 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
 
     WidgetRelease(..) -> #(UpdateState, PickerState(..state, drag: DragNone))
 
-    WidgetElementKeyPress(id: "hue-cursor", key: key, modifiers: mods, ..) ->
-      handle_hue_key(key, mods, state)
+    WidgetElementKeyPress(
+      target: EventTarget(id: "hue-cursor", ..),
+      key: key,
+      modifiers: mods,
+      ..,
+    ) -> handle_hue_key(key, mods, state)
 
-    WidgetElementKeyPress(id: "sv-cursor", key: key, modifiers: mods, ..) ->
-      handle_sv_key(key, mods, state)
+    WidgetElementKeyPress(
+      target: EventTarget(id: "sv-cursor", ..),
+      key: key,
+      modifiers: mods,
+      ..,
+    ) -> handle_sv_key(key, mods, state)
 
     _ -> #(Consumed, state)
   }
@@ -146,7 +155,7 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
 
 fn handle_hue_key(
   key: String,
-  mods: event.Modifiers,
+  mods: Modifiers,
   state: PickerState,
 ) -> #(EventAction, PickerState) {
   let step = case mods.shift {
@@ -175,7 +184,7 @@ fn handle_hue_key(
 
 fn handle_sv_key(
   key: String,
-  mods: event.Modifiers,
+  mods: Modifiers,
   state: PickerState,
 ) -> #(EventAction, PickerState) {
   let step = case mods.shift {

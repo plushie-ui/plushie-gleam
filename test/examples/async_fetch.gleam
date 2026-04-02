@@ -9,6 +9,7 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{type Event, AsyncResult, WidgetClick}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/prop/color
 import plushie/prop/length
@@ -35,7 +36,7 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(window_id: "main", id: "fetch", ..) -> #(
+    WidgetClick(target: EventTarget(id: "fetch", ..)) -> #(
       Model(..model, status: Loading),
       command.async(fetch_data, "fetch"),
     )

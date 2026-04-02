@@ -11,7 +11,8 @@ import gleam/string
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, type Modifiers, KeyPress}
+import plushie/event.{type Event, KeyPress}
+import plushie/event/types.{type Modifiers}
 import plushie/key
 import plushie/node.{type Node}
 import plushie/prop/length

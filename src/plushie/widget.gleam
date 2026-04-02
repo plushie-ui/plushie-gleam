@@ -50,6 +50,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/event.{type Event}
+import plushie/event/types.{type EventTarget, EventTarget}
 import plushie/node.{type Node, type PropValue, Node}
 import plushie/platform
 import plushie/prop/a11y.{type A11y}
@@ -379,12 +380,22 @@ pub fn dispatch_through_widgets(
   registry: Registry,
   ev: Event,
 ) -> #(DispatchResult, Registry) {
-  let window_id = extract_window_id(ev)
-  let scope = extract_scope(ev)
-  let event_id = extract_id(ev)
+  let target = extract_target(ev)
+  let window_id = case target {
+    Some(t) -> t.window_id
+    None -> ""
+  }
+  let scope = case target {
+    Some(t) -> t.scope
+    None -> []
+  }
+  let ev_id = case target {
+    Some(t) -> t.id
+    None -> ""
+  }
 
   // Build handler chain: walk scope innermost to outermost
-  let chain = build_handler_chain(registry, window_id, scope, event_id)
+  let chain = build_handler_chain(registry, window_id, scope, ev_id)
 
   case chain {
     [] -> #(Bypassed(ev), registry)
@@ -495,9 +506,7 @@ fn walk_chain(
                   let emitted =
                     event.WidgetEvent(
                       kind:,
-                      window_id:,
-                      id:,
-                      scope:,
+                      target: EventTarget(window_id:, id:, scope:),
                       value: coerce(Nil),
                       data:,
                     )
@@ -600,9 +609,7 @@ pub fn handle_widget_timer(
                   let emitted =
                     event.WidgetEvent(
                       kind:,
-                      window_id:,
-                      id:,
-                      scope:,
+                      target: EventTarget(window_id:, id:, scope:),
                       value: coerce(Nil),
                       data:,
                     )
@@ -644,12 +651,22 @@ fn resolve_emit_identity(
   ev: Event,
   widget_id: String,
 ) -> #(String, String, List(String)) {
-  let window_id = extract_window_id(ev)
-  let scope = extract_scope(ev)
+  let target = extract_target(ev)
+  let window_id = case target {
+    Some(t) -> t.window_id
+    None -> ""
+  }
+  let scope = case target {
+    Some(t) -> t.scope
+    None -> []
+  }
   case scope {
     [canvas_id, ..parent_scope] -> #(window_id, canvas_id, parent_scope)
     [] -> {
-      let id = extract_id(ev)
+      let id = case target {
+        Some(t) -> t.id
+        None -> ""
+      }
       case id {
         "" -> {
           let #(widget_window_id, local_id, widget_scope) =
@@ -684,147 +701,91 @@ fn split_scoped_widget_id(widget_id: String) -> #(String, List(String)) {
 // separate `meta` field on Node, which is never included in
 // props diffing or wire encoding.
 
-// -- Scope extraction --------------------------------------------------------
+// -- Target extraction -------------------------------------------------------
+
+/// Extract the EventTarget from a scoped event.
+///
+/// Returns Some(target) for widget, pointer, element, and pane events
+/// that carry scope identity. Returns None for events without a target
+/// (system events, timer events, key events, etc.).
+pub fn extract_target(ev: Event) -> Option(EventTarget) {
+  case ev {
+    // Widget events
+    event.WidgetClick(target:) -> Some(target)
+    event.WidgetInput(target:, ..) -> Some(target)
+    event.WidgetSubmit(target:, ..) -> Some(target)
+    event.WidgetToggle(target:, ..) -> Some(target)
+    event.WidgetSelect(target:, ..) -> Some(target)
+    event.WidgetSlide(target:, ..) -> Some(target)
+    event.WidgetSlideRelease(target:, ..) -> Some(target)
+    event.WidgetPaste(target:, ..) -> Some(target)
+    event.WidgetScrolled(target:, ..) -> Some(target)
+    event.WidgetOpen(target:) -> Some(target)
+    event.WidgetClose(target:) -> Some(target)
+    event.WidgetOptionHovered(target:, ..) -> Some(target)
+    event.WidgetSort(target:, ..) -> Some(target)
+    event.WidgetKeyBinding(target:, ..) -> Some(target)
+    event.WidgetEvent(target:, ..) -> Some(target)
+    // Unified pointer events
+    event.WidgetPress(target:, ..) -> Some(target)
+    event.WidgetRelease(target:, ..) -> Some(target)
+    event.WidgetMove(target:, ..) -> Some(target)
+    event.WidgetScroll(target:, ..) -> Some(target)
+    event.WidgetEnter(target:) -> Some(target)
+    event.WidgetExit(target:) -> Some(target)
+    event.WidgetDoubleClick(target:, ..) -> Some(target)
+    event.WidgetResize(target:, ..) -> Some(target)
+    // Generic element events
+    event.WidgetFocused(target:) -> Some(target)
+    event.WidgetBlurred(target:) -> Some(target)
+    event.WidgetDrag(target:, ..) -> Some(target)
+    event.WidgetDragEnd(target:, ..) -> Some(target)
+    event.WidgetElementKeyPress(target:, ..) -> Some(target)
+    event.WidgetElementKeyRelease(target:, ..) -> Some(target)
+    event.WidgetTransitionComplete(target:, ..) -> Some(target)
+    // Pane events
+    event.PaneResized(target:, ..) -> Some(target)
+    event.PaneDragged(target:, ..) -> Some(target)
+    event.PaneClicked(target:, ..) -> Some(target)
+    event.PaneFocusCycle(target:, ..) -> Some(target)
+    // Events without target
+    _ -> None
+  }
+}
 
 /// Extract the scope from an event.
 ///
-/// The scope is a reversed ancestor list (innermost first). For
-/// example, a button "save" inside container "form" has
-/// `scope: ["form"]`. Returns an empty list for events that don't
-/// carry scope (system events, timer events, etc.).
-///
+/// Convenience accessor that delegates to `extract_target`.
 /// Returns an empty list for events that don't carry scope
 /// (system events, timer events, etc.).
-pub fn extract_scope(ev: Event) -> List(String) {
-  case ev {
-    // Widget events
-    event.WidgetClick(scope:, ..) -> scope
-    event.WidgetInput(scope:, ..) -> scope
-    event.WidgetSubmit(scope:, ..) -> scope
-    event.WidgetToggle(scope:, ..) -> scope
-    event.WidgetSelect(scope:, ..) -> scope
-    event.WidgetSlide(scope:, ..) -> scope
-    event.WidgetSlideRelease(scope:, ..) -> scope
-    event.WidgetPaste(scope:, ..) -> scope
-    event.WidgetScrolled(scope:, ..) -> scope
-    event.WidgetOpen(scope:, ..) -> scope
-    event.WidgetClose(scope:, ..) -> scope
-    event.WidgetOptionHovered(scope:, ..) -> scope
-    event.WidgetSort(scope:, ..) -> scope
-    event.WidgetKeyBinding(scope:, ..) -> scope
-    // Unified pointer events
-    event.WidgetPress(scope:, ..) -> scope
-    event.WidgetRelease(scope:, ..) -> scope
-    event.WidgetMove(scope:, ..) -> scope
-    event.WidgetScroll(scope:, ..) -> scope
-    event.WidgetEnter(scope:, ..) -> scope
-    event.WidgetExit(scope:, ..) -> scope
-    event.WidgetDoubleClick(scope:, ..) -> scope
-    event.WidgetResize(scope:, ..) -> scope
-    // Generic element events
-    event.WidgetFocused(scope:, ..) -> scope
-    event.WidgetBlurred(scope:, ..) -> scope
-    event.WidgetDrag(scope:, ..) -> scope
-    event.WidgetDragEnd(scope:, ..) -> scope
-    event.WidgetElementKeyPress(scope:, ..) -> scope
-    event.WidgetElementKeyRelease(scope:, ..) -> scope
-    event.WidgetTransitionComplete(scope:, ..) -> scope
-    // Pane events
-    event.PaneResized(scope:, ..) -> scope
-    event.PaneDragged(scope:, ..) -> scope
-    event.PaneClicked(scope:, ..) -> scope
-    event.PaneFocusCycle(scope:, ..) -> scope
-    // Events without scope
-    _ -> []
+pub fn event_scope(ev: Event) -> List(String) {
+  case extract_target(ev) {
+    Some(t) -> t.scope
+    None -> []
   }
 }
 
 /// Extract the local widget ID from an event.
 ///
+/// Convenience accessor that delegates to `extract_target`.
 /// Returns an empty string for events that don't carry an ID
 /// (system events, timer events, etc.).
-pub fn extract_id(ev: Event) -> String {
-  case ev {
-    // Widget events
-    event.WidgetClick(id:, ..) -> id
-    event.WidgetInput(id:, ..) -> id
-    event.WidgetSubmit(id:, ..) -> id
-    event.WidgetToggle(id:, ..) -> id
-    event.WidgetSelect(id:, ..) -> id
-    event.WidgetSlide(id:, ..) -> id
-    event.WidgetSlideRelease(id:, ..) -> id
-    event.WidgetPaste(id:, ..) -> id
-    event.WidgetScrolled(id:, ..) -> id
-    event.WidgetOpen(id:, ..) -> id
-    event.WidgetClose(id:, ..) -> id
-    event.WidgetOptionHovered(id:, ..) -> id
-    event.WidgetSort(id:, ..) -> id
-    event.WidgetKeyBinding(id:, ..) -> id
-    // Unified pointer events
-    event.WidgetPress(id:, ..) -> id
-    event.WidgetRelease(id:, ..) -> id
-    event.WidgetMove(id:, ..) -> id
-    event.WidgetScroll(id:, ..) -> id
-    event.WidgetEnter(id:, ..) -> id
-    event.WidgetExit(id:, ..) -> id
-    event.WidgetDoubleClick(id:, ..) -> id
-    event.WidgetResize(id:, ..) -> id
-    // Generic element events
-    event.WidgetFocused(id:, ..) -> id
-    event.WidgetBlurred(id:, ..) -> id
-    event.WidgetDrag(id:, ..) -> id
-    event.WidgetDragEnd(id:, ..) -> id
-    event.WidgetElementKeyPress(id:, ..) -> id
-    event.WidgetElementKeyRelease(id:, ..) -> id
-    event.WidgetTransitionComplete(id:, ..) -> id
-    // Pane events
-    event.PaneResized(id:, ..) -> id
-    event.PaneDragged(id:, ..) -> id
-    event.PaneClicked(id:, ..) -> id
-    event.PaneFocusCycle(id:, ..) -> id
-    _ -> ""
+pub fn event_id(ev: Event) -> String {
+  case extract_target(ev) {
+    Some(t) -> t.id
+    None -> ""
   }
 }
 
-pub fn extract_window_id(ev: Event) -> String {
-  case ev {
-    event.WidgetClick(window_id:, ..) -> window_id
-    event.WidgetInput(window_id:, ..) -> window_id
-    event.WidgetSubmit(window_id:, ..) -> window_id
-    event.WidgetToggle(window_id:, ..) -> window_id
-    event.WidgetSelect(window_id:, ..) -> window_id
-    event.WidgetSlide(window_id:, ..) -> window_id
-    event.WidgetSlideRelease(window_id:, ..) -> window_id
-    event.WidgetPaste(window_id:, ..) -> window_id
-    event.WidgetScrolled(window_id:, ..) -> window_id
-    event.WidgetOpen(window_id:, ..) -> window_id
-    event.WidgetClose(window_id:, ..) -> window_id
-    event.WidgetOptionHovered(window_id:, ..) -> window_id
-    event.WidgetSort(window_id:, ..) -> window_id
-    event.WidgetKeyBinding(window_id:, ..) -> window_id
-    event.WidgetEvent(window_id:, ..) -> window_id
-    // Unified pointer events
-    event.WidgetPress(window_id:, ..) -> window_id
-    event.WidgetRelease(window_id:, ..) -> window_id
-    event.WidgetMove(window_id:, ..) -> window_id
-    event.WidgetScroll(window_id:, ..) -> window_id
-    event.WidgetEnter(window_id:, ..) -> window_id
-    event.WidgetExit(window_id:, ..) -> window_id
-    event.WidgetDoubleClick(window_id:, ..) -> window_id
-    event.WidgetResize(window_id:, ..) -> window_id
-    // Generic element events
-    event.WidgetFocused(window_id:, ..) -> window_id
-    event.WidgetBlurred(window_id:, ..) -> window_id
-    event.WidgetDrag(window_id:, ..) -> window_id
-    event.WidgetDragEnd(window_id:, ..) -> window_id
-    event.WidgetElementKeyPress(window_id:, ..) -> window_id
-    event.WidgetElementKeyRelease(window_id:, ..) -> window_id
-    event.WidgetTransitionComplete(window_id:, ..) -> window_id
-    event.PaneResized(window_id:, ..) -> window_id
-    event.PaneDragged(window_id:, ..) -> window_id
-    event.PaneClicked(window_id:, ..) -> window_id
-    event.PaneFocusCycle(window_id:, ..) -> window_id
-    _ -> ""
+/// Extract the window ID from an event.
+///
+/// Convenience accessor that delegates to `extract_target`.
+/// Returns an empty string for events that don't carry a window ID
+/// (system events, timer events, etc.).
+pub fn event_window_id(ev: Event) -> String {
+  case extract_target(ev) {
+    Some(t) -> t.window_id
+    None -> ""
   }
 }
 

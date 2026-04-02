@@ -14,6 +14,7 @@ import plushie/app
 import plushie/command
 import plushie/data
 import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetToggle}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
@@ -67,7 +68,7 @@ fn init() {
 fn update(model: Model, event: Event) {
   case event {
     // --- List view actions ---
-    WidgetClick(window_id: "main", id: "new_note", ..) -> {
+    WidgetClick(target: EventTarget(id: "new_note", ..)) -> {
       let id = model.next_id
       let note = Note(id:, title: "", body: "")
       let model =
@@ -82,7 +83,7 @@ fn update(model: Model, event: Event) {
       #(model, command.none())
     }
 
-    WidgetClick(window_id: "main", id: "delete_selected", ..) -> {
+    WidgetClick(target: EventTarget(id: "delete_selected", ..)) -> {
       let sel = selection.selected(model.selection)
       let notes =
         list.filter(model.notes, fn(n) {
@@ -94,12 +95,12 @@ fn update(model: Model, event: Event) {
       )
     }
 
-    WidgetInput(window_id: "main", id: "search", value: query, ..) -> #(
+    WidgetInput(target: EventTarget(id: "search", ..), value: query) -> #(
       Model(..model, search_query: query),
       command.none(),
     )
 
-    WidgetToggle(window_id: "main", id: id, ..) -> {
+    WidgetToggle(target: EventTarget(id: id, ..), ..) -> {
       case string.split(id, ":") {
         ["note_select", id_str] -> #(
           Model(..model, selection: selection.toggle(model.selection, id_str)),
@@ -109,7 +110,7 @@ fn update(model: Model, event: Event) {
       }
     }
 
-    WidgetClick(window_id: "main", id: id, ..) -> {
+    WidgetClick(target: EventTarget(id: id, ..)) -> {
       case string.split(id, ":") {
         ["note", id_str] -> {
           case int.parse(id_str) {
@@ -138,7 +139,7 @@ fn update(model: Model, event: Event) {
     }
 
     // --- Edit view actions ---
-    WidgetInput(window_id: "main", id: "title", value:, ..) -> {
+    WidgetInput(target: EventTarget(id: "title", ..), value:) -> {
       let old_title = undo.current(model.undo_stack).title
       let cmd =
         undo.UndoCommand(
@@ -154,7 +155,7 @@ fn update(model: Model, event: Event) {
       )
     }
 
-    WidgetInput(window_id: "main", id: "body", value:, ..) -> {
+    WidgetInput(target: EventTarget(id: "body", ..), value:) -> {
       let old_text = undo.current(model.undo_stack).text
       let cmd =
         undo.UndoCommand(

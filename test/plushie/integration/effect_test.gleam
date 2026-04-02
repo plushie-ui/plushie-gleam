@@ -11,6 +11,7 @@ import plushie/app.{type App}
 import plushie/command
 import plushie/effect
 import plushie/event.{type Event}
+import plushie/event/types.{EffectOk, EffectUnsupported, EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/support
 import plushie/ui
@@ -33,18 +34,18 @@ fn effect_update(
   event: Event,
 ) -> #(EffectModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(window_id: "main", id: "read", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "read", ..)) -> #(
       model,
       effect.clipboard_read("test"),
     )
-    event.EffectResponse(result: event.EffectOk(data), ..) -> {
+    event.EffectResponse(result: EffectOk(data), ..) -> {
       let text = case dyn_decode.run(data, dyn_decode.string) {
         Ok(s) -> s
         Error(_) -> ""
       }
       #(EffectModel(..model, clipboard_text: text), command.none())
     }
-    event.EffectResponse(result: event.EffectUnsupported, ..) -> #(
+    event.EffectResponse(result: EffectUnsupported, ..) -> #(
       EffectModel(..model, got_unsupported: True),
       command.none(),
     )
@@ -79,7 +80,9 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
   // Trigger the clipboard read
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "read", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "read", scope: []),
+    ),
   )
 
   let result =
@@ -103,7 +106,9 @@ pub fn unregister_removes_stub_test() -> Nil {
   // Trigger the clipboard read -- should not get "first" back
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "read", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "read", scope: []),
+    ),
   )
 
   // Wait a bit for the response to arrive

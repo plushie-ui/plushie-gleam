@@ -14,13 +14,13 @@
 //// ```gleam
 //// fn update(model, event) {
 ////   case event {
-////     event.WidgetClick(id: "open", ..) ->
+////     event.WidgetClick(target: EventTarget(id: "open", ..)) ->
 ////       #(model, effect.file_open("import", [effect.DialogTitle("Pick")]))
 ////
-////     event.EffectResponse(tag: "import", result: event.EffectOk(data)) ->
+////     event.EffectResponse(tag: "import", result: types.EffectOk(data)) ->
 ////       #(Model(..model, file: data), command.none())
 ////
-////     event.EffectResponse(tag: "import", result: event.EffectCancelled) ->
+////     event.EffectResponse(tag: "import", result: types.EffectCancelled) ->
 ////       #(model, command.none())
 ////     _ -> #(model, command.none())
 ////   }

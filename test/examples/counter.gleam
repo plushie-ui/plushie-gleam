@@ -6,6 +6,7 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{type Event, WidgetClick}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/prop/padding
 import plushie/ui
@@ -23,11 +24,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(window_id: "main", id: "inc", ..) -> #(
+    WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "dec", ..) -> #(
+    WidgetClick(target: EventTarget(id: "dec", ..)) -> #(
       Model(count: model.count - 1),
       command.none(),
     )

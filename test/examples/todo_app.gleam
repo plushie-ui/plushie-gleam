@@ -16,6 +16,7 @@ import plushie/command
 import plushie/event.{
   type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
 }
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
@@ -50,14 +51,17 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetInput(window_id: "main", id: "new_todo", value: val, ..) -> #(
+    WidgetInput(target: EventTarget(id: "new_todo", ..), value: val) -> #(
       Model(..model, input: val),
       command.none(),
     )
 
-    WidgetSubmit(window_id: "main", id: "new_todo", ..) -> add_todo(model)
+    WidgetSubmit(target: EventTarget(id: "new_todo", ..), ..) -> add_todo(model)
 
-    WidgetToggle(window_id: "main", id: "toggle", scope: [todo_id, ..], ..) -> {
+    WidgetToggle(
+      target: EventTarget(id: "toggle", scope: [todo_id, ..], ..),
+      ..,
+    ) -> {
       let todos =
         list.map(model.todos, fn(t) {
           case t.id == todo_id {
@@ -68,20 +72,20 @@ fn update(model: Model, event: Event) {
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(window_id: "main", id: "delete", scope: [todo_id, ..]) -> {
+    WidgetClick(target: EventTarget(id: "delete", scope: [todo_id, ..], ..)) -> {
       let todos = list.filter(model.todos, fn(t) { t.id != todo_id })
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(window_id: "main", id: "filter_all", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_all", ..)) -> #(
       Model(..model, filter: All),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "filter_active", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_active", ..)) -> #(
       Model(..model, filter: Active),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "filter_done", ..) -> #(
+    WidgetClick(target: EventTarget(id: "filter_done", ..)) -> #(
       Model(..model, filter: Done),
       command.none(),
     )

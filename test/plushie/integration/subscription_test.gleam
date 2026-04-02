@@ -9,6 +9,7 @@ import gleam/erlang/process
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event, TimerTick}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/subscription
 import plushie/support
@@ -68,7 +69,7 @@ fn toggle_update(
       ToggleModel(..model, ticks: model.ticks + 1),
       command.none(),
     )
-    event.WidgetClick(window_id: "main", id: "stop", ..) -> #(
+    event.WidgetClick(target: EventTarget(id: "stop", ..)) -> #(
       ToggleModel(..model, timer_on: False),
       command.none(),
     )
@@ -155,7 +156,9 @@ pub fn subscription_toggle_off_stops_ticks_test() -> Nil {
   // Inject a click event to turn off the timer
   support.dispatch_event(
     rt,
-    event.WidgetClick(window_id: "main", id: "stop", scope: []),
+    event.WidgetClick(
+      target: EventTarget(window_id: "main", id: "stop", scope: []),
+    ),
   )
 
   // Wait for the event to be processed

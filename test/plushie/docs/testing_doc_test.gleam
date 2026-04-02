@@ -6,6 +6,7 @@ import gleeunit/should
 import plushie/app
 import plushie/command
 import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetSubmit}
+import plushie/event/types.{EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/testing as t
 import plushie/testing/element
@@ -28,11 +29,11 @@ fn counter_init() {
 
 fn counter_update(model: CounterModel, event: Event) {
   case event {
-    WidgetClick(window_id: "main", id: "increment", ..) -> #(
+    WidgetClick(target: EventTarget(id: "increment", ..)) -> #(
       CounterModel(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(window_id: "main", id: "decrement", ..) -> #(
+    WidgetClick(target: EventTarget(id: "decrement", ..)) -> #(
       CounterModel(count: model.count - 1),
       command.none(),
     )
@@ -72,18 +73,18 @@ fn todo_init() {
 
 fn todo_update(model: TodoModel, event: Event) {
   case event {
-    WidgetInput(window_id: "main", id: "todo_input", value: val, ..) -> #(
+    WidgetInput(target: EventTarget(id: "todo_input", ..), value: val) -> #(
       TodoModel(..model, input: val),
       command.none(),
     )
-    WidgetSubmit(window_id: "main", id: "todo_input", value: val, ..) -> #(
+    WidgetSubmit(target: EventTarget(id: "todo_input", ..), value: val) -> #(
       TodoModel(
         todos: list.append(model.todos, [Todo(text: val, done: False)]),
         input: "",
       ),
       command.Focus(widget_id: "todo_input"),
     )
-    WidgetClick(window_id: "main", id: "add_todo", ..) -> #(
+    WidgetClick(target: EventTarget(id: "add_todo", ..)) -> #(
       TodoModel(
         todos: list.append(model.todos, [
           Todo(text: model.input, done: False),
@@ -119,7 +120,9 @@ pub fn testing_doc_adding_a_todo_appends_and_clears_input_test() {
   let #(model, _cmd) =
     todo_update(
       model,
-      WidgetClick(window_id: "main", id: "add_todo", scope: []),
+      WidgetClick(
+        target: EventTarget(window_id: "main", id: "add_todo", scope: []),
+      ),
     )
   should.equal(model.todos, [Todo(text: "Buy milk", done: False)])
   should.equal(model.input, "")
@@ -135,9 +138,7 @@ pub fn testing_doc_submitting_todo_returns_focus_command_test() {
     todo_update(
       model,
       WidgetSubmit(
-        window_id: "main",
-        id: "todo_input",
-        scope: [],
+        target: EventTarget(window_id: "main", id: "todo_input", scope: []),
         value: "Buy milk",
       ),
     )

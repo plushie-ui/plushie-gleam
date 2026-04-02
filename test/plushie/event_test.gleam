@@ -1,20 +1,26 @@
 import gleam/option.{Some}
 import gleeunit/should
 import plushie/event.{
-  type Event, KeyPress, Modifiers, Standard, TimerTick, WidgetClick, WidgetInput,
-  WindowClosed,
+  type Event, KeyPress, TimerTick, WidgetClick, WidgetInput, WindowClosed,
 }
+import plushie/event/types.{EventTarget, Modifiers, Standard}
 
 pub fn widget_click_test() {
-  let evt = WidgetClick(window_id: "main", id: "save_btn", scope: ["form"])
+  let evt =
+    WidgetClick(
+      target: EventTarget(window_id: "main", id: "save_btn", scope: ["form"]),
+    )
 
-  assert evt.id == "save_btn"
-  assert evt.scope == ["form"]
+  assert evt.target.id == "save_btn"
+  assert evt.target.scope == ["form"]
 
   // Pattern match round-trip
   case evt {
-    WidgetClick(window_id: "main", id: "save_btn", scope: ["form"]) ->
-      should.be_true(True)
+    WidgetClick(target: EventTarget(
+      window_id: "main",
+      id: "save_btn",
+      scope: ["form"],
+    )) -> should.be_true(True)
     _ -> should.fail()
   }
 }
@@ -55,7 +61,7 @@ pub fn timer_tick_test() {
 }
 
 pub fn modifiers_none_test() {
-  let mods = event.modifiers_none()
+  let mods = types.modifiers_none()
 
   assert mods.shift == False
   assert mods.ctrl == False
@@ -68,9 +74,12 @@ pub fn modifiers_none_test() {
 /// families with a single case expression and a catch-all wildcard.
 pub fn realistic_update_pattern_test() {
   let events: List(Event) = [
-    WidgetClick(window_id: "main", id: "inc", scope: []),
-    WidgetClick(window_id: "main", id: "dec", scope: []),
-    WidgetInput(window_id: "main", id: "name", scope: ["form"], value: "Arthur"),
+    WidgetClick(target: EventTarget(window_id: "main", id: "inc", scope: [])),
+    WidgetClick(target: EventTarget(window_id: "main", id: "dec", scope: [])),
+    WidgetInput(
+      target: EventTarget(window_id: "main", id: "name", scope: ["form"]),
+      value: "Arthur",
+    ),
     WindowClosed(window_id: "main"),
     TimerTick(tag: "poll", timestamp: 42),
   ]
@@ -86,8 +95,8 @@ fn do_fold_events(events: List(Event), count: Int) -> Int {
     [] -> count
     [evt, ..rest] -> {
       let next = case evt {
-        WidgetClick(window_id: "main", id: "inc", ..) -> count + 1
-        WidgetClick(window_id: "main", id: "dec", ..) -> count - 1
+        WidgetClick(target: EventTarget(id: "inc", ..)) -> count + 1
+        WidgetClick(target: EventTarget(id: "dec", ..)) -> count - 1
         _ -> count
       }
       do_fold_events(rest, next)

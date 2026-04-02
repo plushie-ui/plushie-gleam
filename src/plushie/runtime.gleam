@@ -33,6 +33,7 @@ import plushie/command_encode
 import plushie/effect
 @target(erlang)
 import plushie/event.{type Event}
+import plushie/event/types as event_types
 import plushie/node.{type Node, type PropValue, StringVal}
 @target(erlang)
 import plushie/platform
@@ -633,7 +634,7 @@ fn handle_message(
           let timeout_event =
             event.EffectResponse(
               tag:,
-              result: event.EffectError(dynamic.string("timeout")),
+              result: event_types.EffectError(dynamic.string("timeout")),
             )
           let new_state = handle_event(state, timeout_event)
           LoopState(
@@ -1169,7 +1170,7 @@ fn flush_pending_effects_on_restart(
       let timeout_event =
         event.EffectResponse(
           tag:,
-          result: event.EffectError(dynamic.string("renderer_restarted")),
+          result: event_types.EffectError(dynamic.string("renderer_restarted")),
         )
       handle_event(st, timeout_event)
     })

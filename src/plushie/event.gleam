@@ -4,11 +4,11 @@
 //// binary via the bridge actor. Pattern match on specific constructors
 //// and use `_ ->` for unhandled events.
 ////
-//// Window-bound widget events carry a `window_id`, an `id` (the
-//// widget's local ID after scope splitting), and a `scope`
+//// Window-bound widget events carry an `EventTarget` with a `window_id`,
+//// an `id` (the widget's local ID after scope splitting), and a `scope`
 //// (list of ancestor container IDs, nearest first). For example,
 //// a button "save" inside container "form" in window "main"
-//// produces `WidgetClick(window_id: "main", id: "save", scope: ["form", "main"])`.
+//// produces `WidgetClick(target: EventTarget(window_id: "main", id: "save", scope: ["form", "main"]))`.
 //// The window_id appears at the end of scope for global addressability;
 //// use `| _` at the end of scope patterns to ignore it in single-window apps.
 ////
@@ -24,105 +24,9 @@
 
 import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option}
-
-/// Keyboard modifier state. Fields match the Rust binary's modifier
-/// report. `logo` is the Super/Windows key; `command` is the macOS
-/// Command key. Both are sent by the binary -- on macOS they typically
-/// track together.
-pub type Modifiers {
-  Modifiers(shift: Bool, ctrl: Bool, alt: Bool, logo: Bool, command: Bool)
-}
-
-/// No modifiers pressed.
-pub fn modifiers_none() -> Modifiers {
-  Modifiers(shift: False, ctrl: False, alt: False, logo: False, command: False)
-}
-
-/// Key location on the keyboard.
-pub type KeyLocation {
-  /// Default key position (main keyboard area).
-  Standard
-  /// Left-side modifier key (e.g. left Shift, left Ctrl).
-  LeftSide
-  /// Right-side modifier key (e.g. right Shift, right Ctrl).
-  RightSide
-  /// Key on the numeric keypad.
-  Numpad
-}
-
-/// Input device type for pointer events.
-pub type PointerType {
-  /// Standard mouse input.
-  Mouse
-  /// Touchscreen finger.
-  Touch
-  /// Stylus or pen tablet.
-  Pen
-}
-
-/// Mouse button identifier.
-pub type MouseButton {
-  /// Primary mouse button (usually left).
-  LeftButton
-  /// Secondary mouse button (usually right).
-  RightButton
-  /// Middle mouse button (scroll wheel click).
-  MiddleButton
-  /// Browser/mouse back button.
-  BackButton
-  /// Browser/mouse forward button.
-  ForwardButton
-  /// Any other mouse button, identified by name.
-  OtherButton(String)
-}
-
-/// Scroll measurement unit.
-pub type ScrollUnit {
-  /// Scroll delta measured in lines (e.g. mouse wheel notches).
-  Line
-  /// Scroll delta measured in pixels (e.g. trackpad smooth scrolling).
-  Pixel
-}
-
-/// Widget scroll viewport data. All measurements in logical pixels.
-///
-/// - `absolute_x/y`: current scroll offset from content origin
-/// - `relative_x/y`: fractional position (0.0 = start, 1.0 = end)
-/// - `bounds_width/height`: visible viewport dimensions
-/// - `content_width/height`: total scrollable content dimensions
-pub type ScrollData {
-  ScrollData(
-    absolute_x: Float,
-    absolute_y: Float,
-    relative_x: Float,
-    relative_y: Float,
-    bounds_width: Float,
-    bounds_height: Float,
-    content_width: Float,
-    content_height: Float,
-  )
-}
-
-/// Platform effect result from file dialogs, clipboard, notifications.
-///
-/// - `EffectOk(data)`: success; data shape depends on the effect kind
-///   (e.g., file dialogs return a map with `"path"` or `"paths"` keys)
-/// - `EffectCancelled`: user dismissed the dialog
-/// - `EffectError(reason)`: operation failed (timeout, permission, etc.)
-///
-/// Use `gleam/dynamic/decode` to extract typed values from the Dynamic.
-pub type EffectResult {
-  /// The effect succeeded. Data shape depends on the effect kind.
-  EffectOk(Dynamic)
-  /// The user dismissed a dialog without making a selection.
-  EffectCancelled
-  /// The effect failed (timeout, permission denied, etc.).
-  EffectError(Dynamic)
-  /// The renderer backend doesn't support this effect kind.
-  /// Distinct from cancelled (user action) and error (execution
-  /// failure). The SDK checks for registered effect stubs when
-  /// this is received.
-  EffectUnsupported
+import plushie/event/types.{
+  type EffectResult, type EventTarget, type KeyLocation, type Modifiers,
+  type MouseButton, type PointerType, type ScrollData, type ScrollUnit,
 }
 
 /// All events from the plushie runtime.
@@ -130,76 +34,39 @@ pub type Event {
 
   // --- Widget events ---
   /// A widget was clicked. Fired by buttons and other clickable widgets.
-  WidgetClick(window_id: String, id: String, scope: List(String))
+  WidgetClick(target: EventTarget)
   /// Text was entered into a text_input or text_editor widget.
-  WidgetInput(window_id: String, id: String, scope: List(String), value: String)
+  WidgetInput(target: EventTarget, value: String)
   /// A text input was submitted (e.g. user pressed Enter).
-  WidgetSubmit(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: String,
-  )
+  WidgetSubmit(target: EventTarget, value: String)
   /// A toggler or checkbox widget changed state.
-  WidgetToggle(window_id: String, id: String, scope: List(String), value: Bool)
+  WidgetToggle(target: EventTarget, value: Bool)
   /// An option was selected in a pick_list or combo_box widget.
-  WidgetSelect(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: String,
-  )
+  WidgetSelect(target: EventTarget, value: String)
   /// A slider value changed during dragging.
-  WidgetSlide(window_id: String, id: String, scope: List(String), value: Float)
+  WidgetSlide(target: EventTarget, value: Float)
   /// A slider was released at its final value.
-  WidgetSlideRelease(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: Float,
-  )
+  WidgetSlideRelease(target: EventTarget, value: Float)
   /// Text was pasted into a text input or text editor.
-  WidgetPaste(window_id: String, id: String, scope: List(String), value: String)
+  WidgetPaste(target: EventTarget, value: String)
   /// A scrollable widget's viewport changed position. The tense
   /// distinction captures semantics: "scrolled" is state ("content
   /// has scrolled"), vs WidgetScroll which is input ("user is scrolling").
-  WidgetScrolled(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    data: ScrollData,
-  )
+  WidgetScrolled(target: EventTarget, data: ScrollData)
   /// A collapsible or expandable widget was opened (e.g. combo_box
   /// dropdown, disclosure).
-  WidgetOpen(window_id: String, id: String, scope: List(String))
+  WidgetOpen(target: EventTarget)
   /// A collapsible or expandable widget was closed.
-  WidgetClose(window_id: String, id: String, scope: List(String))
+  WidgetClose(target: EventTarget)
   /// An option in a pick_list or combo_box was hovered.
-  WidgetOptionHovered(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: String,
-  )
+  WidgetOptionHovered(target: EventTarget, value: String)
   /// A sortable column header was clicked. The value is the column key.
-  WidgetSort(window_id: String, id: String, scope: List(String), value: String)
+  WidgetSort(target: EventTarget, value: String)
   /// A registered key binding was triggered on a widget.
-  WidgetKeyBinding(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: String,
-  )
+  WidgetKeyBinding(target: EventTarget, value: String)
   /// Catch-all for uncommon or future widget event types not covered
   /// by the typed constructors above.
-  WidgetEvent(
-    kind: String,
-    window_id: String,
-    id: String,
-    scope: List(String),
-    value: Dynamic,
-    data: Dynamic,
-  )
+  WidgetEvent(kind: String, target: EventTarget, value: Dynamic, data: Dynamic)
 
   // --- Key events ---
   /// A key was pressed. Includes modifier state, physical key info,
@@ -280,9 +147,7 @@ pub type Event {
   // For widget events: id = widget id, scope = ancestor chain.
   /// A pointer button was pressed (mouse click, touch start, pen down).
   WidgetPress(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     button: MouseButton,
@@ -293,9 +158,7 @@ pub type Event {
   )
   /// A pointer button was released.
   WidgetRelease(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     button: MouseButton,
@@ -306,9 +169,7 @@ pub type Event {
   )
   /// A pointer moved.
   WidgetMove(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     pointer: PointerType,
@@ -320,9 +181,7 @@ pub type Event {
   /// indicates line vs pixel granularity. For widget events, `unit`
   /// is None.
   WidgetScroll(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     delta_x: Float,
@@ -333,79 +192,53 @@ pub type Event {
     captured: Bool,
   )
   /// A pointer entered a widget's bounds.
-  WidgetEnter(window_id: String, id: String, scope: List(String))
+  WidgetEnter(target: EventTarget)
   /// A pointer exited a widget's bounds.
-  WidgetExit(window_id: String, id: String, scope: List(String))
+  WidgetExit(target: EventTarget)
   /// A double-click was detected.
   WidgetDoubleClick(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     pointer: PointerType,
     modifiers: Modifiers,
   )
   /// A widget was resized (e.g. sensor detecting layout changes).
-  WidgetResize(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    width: Float,
-    height: Float,
-  )
+  WidgetResize(target: EventTarget, width: Float, height: Float)
 
   // --- Generic element events ---
   // Focus, blur, drag, and key events. Apply to any focusable or
   // draggable element (canvas interactive groups, widgets, etc.).
   // Distinguished from global key events by having an id and scope.
   /// A focusable element gained focus.
-  WidgetFocused(window_id: String, id: String, scope: List(String))
+  WidgetFocused(target: EventTarget)
   /// A focusable element lost focus.
-  WidgetBlurred(window_id: String, id: String, scope: List(String))
+  WidgetBlurred(target: EventTarget)
   /// A draggable element is being dragged.
   WidgetDrag(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     x: Float,
     y: Float,
     delta_x: Float,
     delta_y: Float,
   )
   /// A drag ended on a draggable element.
-  WidgetDragEnd(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    x: Float,
-    y: Float,
-  )
+  WidgetDragEnd(target: EventTarget, x: Float, y: Float)
   /// A key was pressed on a focused element (widget-scoped).
   WidgetElementKeyPress(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     key: String,
     modifiers: Modifiers,
     text: Option(String),
   )
   /// A key was released on a focused element (widget-scoped).
   WidgetElementKeyRelease(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     key: String,
     modifiers: Modifiers,
   )
   /// A renderer-side transition completed on a widget.
-  WidgetTransitionComplete(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    tag: String,
-    prop: String,
-  )
+  WidgetTransitionComplete(target: EventTarget, tag: String, prop: String)
 
   // --- IME events ---
   // Input Method Editor events for CJK and other complex text input.
@@ -435,34 +268,23 @@ pub type Event {
   // or clicked.
   /// A pane_grid split divider was resized. The ratio is the new
   /// split position (0.0 to 1.0).
-  PaneResized(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    split: Dynamic,
-    ratio: Float,
-  )
+  PaneResized(target: EventTarget, split: Dynamic, ratio: Float)
   /// A pane was dragged in a pane_grid. The action is "picked",
   /// "dropped", or "canceled". Region and edge describe the drop target.
   PaneDragged(
-    window_id: String,
-    id: String,
-    scope: List(String),
+    target: EventTarget,
     pane: Dynamic,
-    target: Dynamic,
+    /// Note: `target` field name is taken by EventTarget, so the
+    /// pane drag target is `drop_target`.
+    drop_target: Dynamic,
     action: String,
     region: Option(String),
     edge: Option(String),
   )
   /// A pane was clicked in a pane_grid, making it the active pane.
-  PaneClicked(window_id: String, id: String, scope: List(String), pane: Dynamic)
+  PaneClicked(target: EventTarget, pane: Dynamic)
   /// Focus cycled to the next pane in a pane_grid (e.g. via Tab).
-  PaneFocusCycle(
-    window_id: String,
-    id: String,
-    scope: List(String),
-    pane: Dynamic,
-  )
+  PaneFocusCycle(target: EventTarget, pane: Dynamic)
 
   // --- System events ---
   /// Response to a GetSystemInfo query. The data Dynamic contains a
