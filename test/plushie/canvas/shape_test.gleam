@@ -270,8 +270,16 @@ pub fn translate_test() {
   assert get(s, "y") == Ok(FloatVal(200.0))
 }
 
-pub fn rotate_test() {
-  let s = shape.rotate(1.57)
+pub fn rotate_degrees_test() {
+  let s = shape.rotate(90.0)
+  assert get(s, "type") == Ok(StringVal("rotate"))
+  // 90 degrees = pi/2 radians (wire format is radians)
+  let assert Ok(FloatVal(angle)) = get(s, "angle")
+  assert angle >. 1.5707 && angle <. 1.5708
+}
+
+pub fn rotate_radians_test() {
+  let s = shape.rotate_radians(1.57)
   assert get(s, "type") == Ok(StringVal("rotate"))
   assert get(s, "angle") == Ok(FloatVal(1.57))
 }

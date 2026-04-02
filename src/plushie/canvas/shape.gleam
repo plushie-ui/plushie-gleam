@@ -259,10 +259,25 @@ pub fn translate(x: Float, y: Float) -> PropValue {
   )
 }
 
-/// Create a rotation transform (angle in radians).
-pub fn rotate(angle: Float) -> PropValue {
+/// Create a rotation transform. Accepts degrees; converted to radians
+/// for the wire format. Use `rotate_radians` for explicit radian input.
+pub fn rotate(degrees: Float) -> PropValue {
+  let radians = degrees *. 3.14159265358979 /. 180.0
   DictVal(
-    dict.from_list([#("type", StringVal("rotate")), #("angle", FloatVal(angle))]),
+    dict.from_list([
+      #("type", StringVal("rotate")),
+      #("angle", FloatVal(radians)),
+    ]),
+  )
+}
+
+/// Create a rotation transform from a radian angle.
+pub fn rotate_radians(radians: Float) -> PropValue {
+  DictVal(
+    dict.from_list([
+      #("type", StringVal("rotate")),
+      #("angle", FloatVal(radians)),
+    ]),
   )
 }
 

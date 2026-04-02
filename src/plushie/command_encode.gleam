@@ -9,6 +9,7 @@ import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/option
+import gleam/string
 import plushie/command.{type Command}
 import plushie/node.{
   type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
@@ -76,34 +77,35 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.Cancel(tag:) -> CancelTask(tag)
 
     // -- Widget ops --
-    command.Focus(widget_id:) ->
-      WidgetOp("focus", [#("target", StringVal(widget_id))])
-    command.FocusElement(canvas_id:, element_id:) ->
-      WidgetOp("focus_element", [
-        #("target", StringVal(canvas_id)),
+    command.Focus(widget_id:) -> WidgetOp("focus", target_props(widget_id))
+    command.FocusElement(canvas_id:, element_id:) -> {
+      let props = [
         #("element_id", StringVal(element_id)),
-      ])
+        ..target_props(canvas_id)
+      ]
+      WidgetOp("focus_element", props)
+    }
     command.FocusNext -> WidgetOp("focus_next", [])
     command.FocusPrevious -> WidgetOp("focus_previous", [])
     command.SelectAll(widget_id:) ->
-      WidgetOp("select_all", [#("target", StringVal(widget_id))])
+      WidgetOp("select_all", target_props(widget_id))
     command.MoveCursorToFront(widget_id:) ->
-      WidgetOp("move_cursor_to_front", [#("target", StringVal(widget_id))])
+      WidgetOp("move_cursor_to_front", target_props(widget_id))
     command.MoveCursorToEnd(widget_id:) ->
-      WidgetOp("move_cursor_to_end", [#("target", StringVal(widget_id))])
+      WidgetOp("move_cursor_to_end", target_props(widget_id))
     command.MoveCursorTo(widget_id:, position:) ->
       WidgetOp("move_cursor_to", [
-        #("target", StringVal(widget_id)),
         #("position", IntVal(position)),
+        ..target_props(widget_id)
       ])
     command.SelectRange(widget_id:, start:, end:) ->
       WidgetOp("select_range", [
-        #("target", StringVal(widget_id)),
         #("start", IntVal(start)),
         #("end", IntVal(end)),
+        ..target_props(widget_id)
       ])
     command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
-      let payload = [#("target", StringVal(widget_id))]
+      let payload = target_props(widget_id)
       let payload = case offset_x {
         option.Some(x) -> [#("offset_x", FloatVal(x)), ..payload]
         option.None -> payload
@@ -116,17 +118,17 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     }
     command.SnapTo(widget_id:, x:, y:) ->
       WidgetOp("snap_to", [
-        #("target", StringVal(widget_id)),
         #("x", FloatVal(x)),
         #("y", FloatVal(y)),
+        ..target_props(widget_id)
       ])
     command.SnapToEnd(widget_id:) ->
-      WidgetOp("snap_to_end", [#("target", StringVal(widget_id))])
+      WidgetOp("snap_to_end", target_props(widget_id))
     command.ScrollBy(widget_id:, x:, y:) ->
       WidgetOp("scroll_by", [
-        #("target", StringVal(widget_id)),
         #("x", FloatVal(x)),
         #("y", FloatVal(y)),
+        ..target_props(widget_id)
       ])
     command.CloseWindow(window_id:) ->
       WidgetOp("close_window", [#("window_id", StringVal(window_id))])
@@ -306,5 +308,27 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WidgetCmd(node_id, op, payload)
     command.WidgetCommands(commands:) -> WidgetCmdBatch(commands)
     command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
+  }
+}
+
+/// Parse a window-qualified target string. "window#widget/path" splits
+/// into (Some(window_id), "widget/path"). Plain "widget" returns (None, "widget").
+fn parse_target(target: String) -> #(option.Option(String), String) {
+  case string.split(target, "#") {
+    [window_id, widget_path] if window_id != "" -> #(
+      option.Some(window_id),
+      widget_path,
+    )
+    _ -> #(option.None, target)
+  }
+}
+
+/// Build a target prop list, including window_id when present.
+fn target_props(target: String) -> List(#(String, PropValue)) {
+  let #(window_id, widget_target) = parse_target(target)
+  let props = [#("target", StringVal(widget_target))]
+  case window_id {
+    option.Some(wid) -> [#("window_id", StringVal(wid)), ..props]
+    option.None -> props
   }
 }

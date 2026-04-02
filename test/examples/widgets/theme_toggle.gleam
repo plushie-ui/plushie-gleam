@@ -123,7 +123,7 @@ fn render(id: String, _props: Nil, state: ToggleState) -> Node {
           [
             shape.Transforms([
               shape.translate(thumb_x, half_h),
-              shape.rotate(rotation),
+              shape.rotate_radians(rotation),
             ]),
           ],
         ),

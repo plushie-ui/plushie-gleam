@@ -1,4 +1,7 @@
 //// Alignment type for widget positioning.
+////
+//// Horizontal: Left, Center, Right.
+//// Vertical: Top, Center, Bottom.
 
 import plushie/node.{type PropValue, StringVal}
 
@@ -8,8 +11,6 @@ pub type Alignment {
   Right
   Top
   Bottom
-  Start
-  End
 }
 
 /// Encode to wire-format PropValue.
@@ -25,7 +26,5 @@ pub fn to_string(a: Alignment) -> String {
     Right -> "right"
     Top -> "top"
     Bottom -> "bottom"
-    Start -> "start"
-    End -> "end"
   }
 }
