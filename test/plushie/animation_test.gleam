@@ -1,5 +1,9 @@
+import gleam/list
 import gleeunit/should
-import plushie/animation/tween.{EaseIn, EaseInOut, EaseOut, Linear, Spring}
+import plushie/animation/easing.{
+  EaseIn, EaseInOut, EaseOut, EaseOutElastic, Linear,
+}
+import plushie/animation/tween
 
 pub fn new_creates_unstarted_animation_test() {
   let anim = tween.new(0.0, 100.0, 1000, Linear)
@@ -57,27 +61,25 @@ pub fn lerp_basic_test() {
 pub fn easing_boundaries_test() {
   // All easing functions should return ~0.0 at t=0 and ~1.0 at t=1
   let easings = [Linear, EaseIn, EaseOut, EaseInOut]
-  use easing <- list.each(easings)
-  should.equal(tween.apply_easing(easing, 0.0), 0.0)
-  should.equal(tween.apply_easing(easing, 1.0), 1.0)
+  use e <- list.each(easings)
+  should.equal(easing.apply(e, 0.0), 0.0)
+  should.equal(easing.apply(e, 1.0), 1.0)
 }
 
 pub fn ease_in_slower_at_start_test() {
-  // EaseIn (cubic) at t=0.5 should be less than 0.5
-  let v = tween.apply_easing(EaseIn, 0.5)
+  // EaseIn (sine-based) at t=0.5 should be less than 0.5
+  let v = easing.apply(EaseIn, 0.5)
   assert v <. 0.5
 }
 
 pub fn ease_out_faster_at_start_test() {
-  // EaseOut (cubic) at t=0.5 should be greater than 0.5
-  let v = tween.apply_easing(EaseOut, 0.5)
+  // EaseOut (sine-based) at t=0.5 should be greater than 0.5
+  let v = easing.apply(EaseOut, 0.5)
   assert v >. 0.5
 }
 
-pub fn spring_easing_basic_test() {
-  // Spring should produce a value at midpoint -- just ensure no crash
-  let v = tween.apply_easing(Spring, 0.5)
+pub fn elastic_easing_basic_test() {
+  // Elastic should produce a value at midpoint without crashing
+  let v = easing.apply(EaseOutElastic, 0.5)
   assert v >. 0.0
 }
-
-import gleam/list

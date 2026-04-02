@@ -136,7 +136,7 @@ pub fn decode_test_event(
           value: get_string(data, "value", ""),
         )
       })
-    "scroll" -> {
+    "scrolled" -> {
       let scroll_data =
         event.ScrollData(
           absolute_x: get_float(data, "absolute_x", 0.0),
@@ -370,7 +370,140 @@ pub fn decode_test_event(
         captured: False,
       ))
 
-    // -- MouseArea events (unified pointer) ------------------------------------
+    // -- Unified pointer events -------------------------------------------------
+    // New wire families from the updated renderer protocol.
+    "press" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetPress(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: decode_mouse_button(get_string(data, "button", "left")),
+          pointer: decode_pointer_type(get_string(data, "pointer", "mouse")),
+          finger: decode_finger(data),
+          modifiers: decode_modifiers(data),
+          captured: False,
+        )
+      })
+    "release" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetRelease(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          button: decode_mouse_button(get_string(data, "button", "left")),
+          pointer: decode_pointer_type(get_string(data, "pointer", "mouse")),
+          finger: decode_finger(data),
+          modifiers: decode_modifiers(data),
+          captured: False,
+        )
+      })
+    "move" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetMove(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          pointer: decode_pointer_type(get_string(data, "pointer", "mouse")),
+          finger: decode_finger(data),
+          modifiers: decode_modifiers(data),
+          captured: False,
+        )
+      })
+    "scroll" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetScroll(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          delta_x: get_float(data, "delta_x", 0.0),
+          delta_y: get_float(data, "delta_y", 0.0),
+          pointer: decode_pointer_type(get_string(data, "pointer", "mouse")),
+          modifiers: decode_modifiers(data),
+          unit: option.None,
+          captured: False,
+        )
+      })
+    "enter" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetEnter(window_id:, id: local, scope:)
+      })
+    "exit" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetExit(window_id:, id: local, scope:)
+      })
+    "double_click" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetDoubleClick(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          pointer: decode_pointer_type(get_string(data, "pointer", "mouse")),
+          modifiers: decode_modifiers(data),
+        )
+      })
+    "resize" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetResize(
+          window_id:,
+          id: local,
+          scope:,
+          width: get_float(data, "width", 0.0),
+          height: get_float(data, "height", 0.0),
+        )
+      })
+    "focused" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetFocused(window_id:, id: local, scope:)
+      })
+    "blurred" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetBlurred(window_id:, id: local, scope:)
+      })
+    "drag" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetDrag(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+          delta_x: get_float(data, "delta_x", 0.0),
+          delta_y: get_float(data, "delta_y", 0.0),
+        )
+      })
+    "drag_end" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetDragEnd(
+          window_id:,
+          id: local,
+          scope:,
+          x: get_float(data, "x", 0.0),
+          y: get_float(data, "y", 0.0),
+        )
+      })
+    "transition_complete" ->
+      require_window_event(window_id, fn(window_id) {
+        event.WidgetTransitionComplete(
+          window_id:,
+          id: local,
+          scope:,
+          tag: get_string(data, "tag", ""),
+          prop: get_string(data, "prop", ""),
+        )
+      })
+
+    // -- Legacy wire families (backwards compat with older renderers) ----------
     "mouse_area_right_press" ->
       require_window_event(window_id, fn(window_id) {
         event.WidgetPress(
@@ -846,6 +979,27 @@ fn decode_mouse_button(name: String) -> event.MouseButton {
     "back" -> event.BackButton
     "forward" -> event.ForwardButton
     other -> event.OtherButton(other)
+  }
+}
+
+@target(erlang)
+fn decode_pointer_type(name: String) -> event.PointerType {
+  case name {
+    "touch" -> event.Touch
+    "pen" -> event.Pen
+    _ -> event.Mouse
+  }
+}
+
+@target(erlang)
+fn decode_finger(data: Dict(String, Dynamic)) -> option.Option(Int) {
+  case dict.get(data, "finger") {
+    Ok(val) ->
+      case decode.run(val, decode.int) {
+        Ok(n) -> option.Some(n)
+        Error(_) -> option.None
+      }
+    Error(_) -> option.None
   }
 }
 
