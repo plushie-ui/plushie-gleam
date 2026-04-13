@@ -73,8 +73,8 @@ pub fn gauge(id: String, value: Float) -> node.Node {
 }
 ```
 
-On the Rust side, implement the `WidgetExtension` trait from
-`plushie_ext::prelude::*`.
+On the Rust side, implement the `PlushieWidget` trait from
+`plushie_widget_sdk::prelude::*`.
 
 `gleam run -m plushie/build` auto-detects native widgets and builds
 the renderer with your widgets registered.

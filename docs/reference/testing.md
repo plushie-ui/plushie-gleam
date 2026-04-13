@@ -8,7 +8,7 @@ introduction, see the [Testing guide](../guides/15-testing.md).
 Build the renderer before running tests:
 
 ```bash
-PLUSHIE_SOURCE_PATH=../plushie-renderer gleam run -m plushie/build
+PLUSHIE_SOURCE_PATH=../plushie-rust gleam run -m plushie/build
 gleam test
 ```
 

@@ -8,7 +8,7 @@ options on `plushie.start`, and the app's `settings` callback.
 | Variable | Purpose |
 |---|---|
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary |
-| `PLUSHIE_SOURCE_PATH` | Path to a local plushie-renderer checkout for source builds |
+| `PLUSHIE_SOURCE_PATH` | Path to a local plushie-rust checkout for source builds |
 | `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default), `headless`, or `windowed` |
 | `PLUSHIE_UPDATE_SCREENSHOTS` | Update screenshot golden files |
 | `PLUSHIE_UPDATE_SNAPSHOTS` | Update tree-hash snapshot files |

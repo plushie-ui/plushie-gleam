@@ -235,7 +235,7 @@ dependencies. To build from source, install a Rust toolchain via
 |---|---|
 | Gleam SDK | [github.com/plushie-ui/plushie-gleam](https://github.com/plushie-ui/plushie-gleam) |
 | Elixir SDK | [github.com/plushie-ui/plushie-elixir](https://github.com/plushie-ui/plushie-elixir) |
-| Renderer | [github.com/plushie-ui/plushie](https://github.com/plushie-ui/plushie) |
+| Renderer | [github.com/plushie-ui/plushie-rust](https://github.com/plushie-ui/plushie-rust) |
 | Rust crate | [crates.io/crates/plushie](https://crates.io/crates/plushie) |
 
 ## License

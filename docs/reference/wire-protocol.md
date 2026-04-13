@@ -5,7 +5,7 @@ the Rust renderer. The protocol is language-agnostic and shared across
 all Plushie SDKs.
 
 For the complete message format specification, see the
-[Renderer Protocol Spec](https://github.com/plushie-ui/plushie-renderer/blob/main/docs/protocol.md).
+[Renderer Protocol Spec](https://github.com/plushie-ui/plushie-rust/blob/main/docs/protocol.md).
 
 ## Wire formats
 
