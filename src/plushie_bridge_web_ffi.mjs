@@ -1,4 +1,4 @@
-// WASM transport FFI -- JavaScript implementation.
+// WASM transport FFI: JavaScript implementation.
 //
 // Wraps the PlushieApp wasm-bindgen API. The PlushieApp constructor
 // must be available as a global or passed via setPlushieAppConstructor
@@ -7,7 +7,7 @@
 import { Ok, Error } from "./gleam.mjs";
 
 // The PlushieApp constructor from wasm-bindgen output.
-// Set this before calling create() -- typically done by the app's
+// Set this before calling create(), typically done by the app's
 // entry point after loading the WASM module.
 let PlushieAppCtor = null;
 
@@ -48,7 +48,7 @@ export function create(settingsJson, onEvent) {
     };
     const app = new PlushieAppCtor(settingsJson, (eventJson) => {
       if (transport.eventBuffer !== null) {
-        // Still in startup -- buffer the event
+        // Still in startup; buffer the event
         transport.eventBuffer.push(eventJson);
       } else {
         transport.onEvent(eventJson);

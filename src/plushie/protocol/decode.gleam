@@ -71,7 +71,7 @@ pub type InboundMessage {
 }
 
 // ---------------------------------------------------------------------------
-// PropValue -- internal intermediate representation
+// PropValue: internal intermediate representation
 // ---------------------------------------------------------------------------
 
 /// Internal JSON-like value used as the common representation after
@@ -100,7 +100,7 @@ pub fn decode_message(
 }
 
 // ---------------------------------------------------------------------------
-// Deserialization -- wire bytes to Dict(String, PropValue)
+// Deserialization: wire bytes to Dict(String, PropValue)
 // ---------------------------------------------------------------------------
 
 fn deserialize(
@@ -411,7 +411,7 @@ fn prop_to_dynamic(value: PropValue) -> Dynamic {
 }
 
 // ---------------------------------------------------------------------------
-// Dispatch -- route on "type" field
+// Dispatch: route on "type" field
 // ---------------------------------------------------------------------------
 
 fn dispatch(
@@ -531,7 +531,7 @@ fn decode_op_query_response(
 }
 
 // ---------------------------------------------------------------------------
-// Event dispatch -- route on "family" field
+// Event dispatch: route on "family" field
 // ---------------------------------------------------------------------------
 
 fn decode_event(
@@ -636,7 +636,7 @@ fn decode_event(
     // Prop validation warnings
     "prop_validation" -> decode_prop_validation(map)
 
-    // Unknown family -- wrap in the catch-all WidgetEvent
+    // Unknown family: wrap in the catch-all WidgetEvent
     _ -> decode_generic_widget_event(map, family)
   }
 }

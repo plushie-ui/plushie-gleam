@@ -1074,7 +1074,7 @@ pub type ParsedKey {
 ///
 /// Case-insensitive for both key names and modifiers. Validates the
 /// key name against the full renderer key set. Panics on unknown keys
-/// or modifiers -- this is test-only code where fail-fast is correct.
+/// or modifiers; this is test-only code where fail-fast is correct.
 ///
 ///     parse("Tab") -> ParsedKey(key: "Tab", ...)
 ///     parse("ctrl+s") -> ParsedKey(key: "s", ctrl: True, ...)

@@ -1,4 +1,4 @@
-// JavaScript runtime FFI -- mutable state container and async primitives.
+// JavaScript runtime FFI: mutable state container and async primitives.
 //
 // The WebRuntimeHandle is a plain JS object holding all mutable state.
 // Gleam code passes it around opaquely; only the functions in this
@@ -21,10 +21,10 @@ export function createHandle(
     app,
     transport,
     session,
-    tree: new None(), // Option(Node) -- Gleam None
+    tree: new None(), // Option(Node), Gleam None
     gleamActiveSubs: emptySubs, // Gleam Dict(String, Subscription)
     gleamWindows: emptyWindows, // Gleam Set(String)
-    cwRegistry: null, // Gleam Dict -- canvas widget registry
+    cwRegistry: null, // Gleam Dict, canvas widget registry
     asyncTasks: new Map(), // tag -> { nonce, cancel }
     nextNonce: 0,
     timerSubs: new Map(), // key -> JS intervalId
@@ -32,9 +32,9 @@ export function createHandle(
     pendingCoalesce: new Map(), // key -> Gleam Event
     coalescePending: false,
     stopped: false,
-    // Gleam callbacks -- registered after handle creation
-    dispatch: null, // fn(Event) -> Nil -- goes through handle_event
-    dispatchDirect: null, // fn(Event) -> Nil -- goes straight to dispatch_update
+    // Gleam callbacks, registered after handle creation
+    dispatch: null, // fn(Event) -> Nil, goes through handle_event
+    dispatchDirect: null, // fn(Event) -> Nil, goes straight to dispatch_update
     onTimerFired: null, // fn(String) -> Nil
     onAsyncComplete: null, // fn(String, Result(Dynamic, Dynamic)) -> Nil
     onStreamEmit: null, // fn(String, Dynamic) -> Nil
@@ -254,7 +254,7 @@ export function startAsync(handle, tag, work) {
 
   handle.asyncTasks.set(tag, { nonce, cancel });
 
-  // Run work -- might return a Promise or a plain value
+  // Run work; might return a Promise or a plain value
   try {
     const result = work();
 
@@ -277,7 +277,7 @@ export function startAsync(handle, tag, work) {
         },
       );
     } else {
-      // Synchronous result -- defer to next microtask
+      // Synchronous result; defer to next microtask
       queueMicrotask(() => {
         if (cancelled || handle.stopped) return;
         const current = handle.asyncTasks.get(tag);

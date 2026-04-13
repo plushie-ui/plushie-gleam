@@ -4,7 +4,7 @@
 //// update side effects resolve immediately in tests. Widget ops, window
 //// ops, timers, and cancel are silently skipped (they need a renderer).
 ////
-//// Since execution is synchronous, await_async returns immediately --
+//// Since execution is synchronous, await_async returns immediately;
 //// commands have already completed by the time it is called.
 
 @target(erlang)
@@ -99,7 +99,7 @@ fn do_process(
           )
         }
         // Widget ops, window ops, focus, scroll, timers, etc. are
-        // no-ops in the test backend -- they need a renderer.
+        // no-ops in the test backend; they need a renderer.
         _ -> #(model, events)
       }
   }

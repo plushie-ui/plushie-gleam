@@ -87,7 +87,7 @@ handle_info({Tag, {iostream_send, Data}}, #{tag := Tag, socket := Socket} = Stat
         {error, _Reason} -> {stop, normal, State}
     end;
 
-%% TCP data from the socket -- forward to bridge as IoStreamData.
+%% TCP data from the socket: forward to bridge as IoStreamData.
 handle_info({tcp, Socket, Data}, #{socket := Socket, bridge := Bridge} = State) ->
     case Bridge of
         undefined -> ok;

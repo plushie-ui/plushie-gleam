@@ -1,6 +1,6 @@
 //// Element: a query-friendly wrapper around a tree Node.
 ////
-//// Elements provide convenient accessors for testing -- find by ID,
+//// Elements provide convenient accessors for testing: find by ID,
 //// extract text content, read props, and traverse children.
 
 import gleam/dict

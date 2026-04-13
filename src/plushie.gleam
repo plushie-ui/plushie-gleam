@@ -283,7 +283,7 @@ pub fn start(
 /// Sends a shutdown exit to the supervisor, which terminates all
 /// children (bridge, runtime, dev server) in reverse start order.
 pub fn stop(instance: Instance(_)) -> Nil {
-  // Send :shutdown exit to the supervisor -- the OTP-standard way
+  // Send :shutdown exit to the supervisor. The OTP-standard way
   // to stop a supervisor. It will terminate children gracefully.
   shutdown_pid(instance.supervisor)
   Nil
@@ -301,7 +301,7 @@ fn from_dynamic(value: Dynamic) -> a
 @target(erlang)
 /// Query the current model from a running application.
 ///
-/// Returns the model with full type safety -- the type parameter
+/// Returns the model with full type safety: the type parameter
 /// flows from the `App(model, msg)` passed to `start`.
 ///
 /// The first call may block briefly if the runtime is still
@@ -320,7 +320,7 @@ pub fn get_model(instance: Instance(model)) -> Result(model, Nil) {
 /// Query the current normalized tree from a running application.
 ///
 /// Returns `None` if the runtime hasn't rendered yet (shouldn't
-/// happen in practice -- the initial render runs before `start`
+/// happen in practice; the initial render runs before `start`
 /// returns).
 pub fn get_tree(instance: Instance(_)) -> Result(Option(node.Node), Nil) {
   let reply = process.new_subject()
@@ -331,7 +331,7 @@ pub fn get_tree(instance: Instance(_)) -> Result(Option(node.Node), Nil) {
 @target(erlang)
 /// Dispatch an event directly to the runtime's message loop.
 ///
-/// Bypasses the bridge/renderer -- the event is processed through
+/// Bypasses the bridge/renderer. The event is processed through
 /// the normal handle_event -> update -> view -> diff -> patch cycle
 /// as if it came from the renderer.
 ///

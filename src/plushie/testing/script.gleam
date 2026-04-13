@@ -269,7 +269,7 @@ fn do_tokenize(
     ["\"", ..rest] ->
       case in_quote {
         True -> {
-          // End of quoted string -- push token
+          // End of quoted string; push token
           do_tokenize(rest, False, "", [current, ..tokens])
         }
         False -> {

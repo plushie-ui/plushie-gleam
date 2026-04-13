@@ -102,7 +102,7 @@ fn encode_png(width: Int, height: Int, rgba_data: BitArray) -> BitArray {
     True -> Nil
     False ->
       panic as {
-        "encode_png: RGBA data size mismatch -- expected "
+        "encode_png: RGBA data size mismatch, expected "
         <> int.to_string(expected_size)
         <> " bytes ("
         <> int.to_string(width)

@@ -56,7 +56,7 @@ fn update(model: Model, event: Event) {
 }
 
 fn fetch_data() -> dynamic.Dynamic {
-  // Simulate async work -- in a real app this would be an HTTP request
+  // Simulate async work; in a real app this would be an HTTP request
   process.sleep(500)
   dynamic.string("Hello from the async world")
 }

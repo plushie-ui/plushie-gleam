@@ -1,7 +1,7 @@
 //// Tree node types for plushie's UI tree.
 ////
 //// `PropValue` is a JSON-like union representing wire-compatible values.
-//// `Node` is the fundamental tree building block -- widget builders produce
+//// `Node` is the fundamental tree building block: widget builders produce
 //// these, tree operations consume them, and the protocol encoder serializes
 //// them to wire format.
 

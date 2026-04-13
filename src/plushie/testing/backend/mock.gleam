@@ -253,7 +253,7 @@ fn stop_pooled(pool: PoolSubject) -> Nil {
 fn require_pool_session() -> #(PoolSubject, String) {
   case get_pool_session() {
     Ok(pair) -> pair
-    Error(_) -> panic as "pooled backend: no pool session -- call start first"
+    Error(_) -> panic as "pooled backend: no pool session; call start first"
   }
 }
 

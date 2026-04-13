@@ -133,9 +133,9 @@ pub fn with_handler(
 
 /// Result of a widget's event handler.
 pub type EventAction {
-  /// Not handled -- continue to next handler in scope chain.
+  /// Not handled: continue to next handler in scope chain.
   Ignored
-  /// Captured, no output -- stop chain, don't dispatch to app.
+  /// Captured, no output: stop chain, don't dispatch to app.
   Consumed
   /// Captured with semantic event. The runtime constructs a
   /// WidgetEvent with the widget's id/scope filled in automatically.
@@ -182,7 +182,7 @@ const standard_widget_props = ["a11y", "event_rate"]
 
 /// Attach accessibility properties to a widget placeholder.
 /// These are automatically forwarded to the rendered output during
-/// tree normalization -- widget authors don't need to handle them.
+/// tree normalization; widget authors don't need to handle them.
 pub fn set_a11y(node: Node, accessibility: A11y) -> Node {
   Node(
     ..node,
@@ -468,7 +468,7 @@ fn build_scope_ids(
 ) -> List(String) {
   case parts {
     // acc is built by prepending, so the longest (innermost) scoped ID
-    // is already first -- exactly the order we want (inner to outer).
+    // is already first, exactly the order we want (inner to outer).
     [] -> acc
     [part, ..rest] -> {
       let new_prefix = list.append(prefix, [part])
@@ -583,7 +583,7 @@ pub fn parse_widget_tag(tag: String) -> Option(#(String, String)) {
 ///
 /// Returns `#(Some(event), registry)` if the event should reach
 /// `app.update`, or `#(None, registry)` if handled internally.
-/// For non-widget timers, returns `None` -- the caller is
+/// For non-widget timers, returns `None`; the caller is
 /// responsible for constructing the appropriate TimerTick.
 pub fn handle_widget_timer(
   registry: Registry,
@@ -697,7 +697,7 @@ fn split_scoped_widget_id(widget_id: String) -> #(String, List(String)) {
   }
 }
 
-// strip_metadata is no longer needed -- metadata lives in the
+// strip_metadata is no longer needed. Metadata lives in the
 // separate `meta` field on Node, which is never included in
 // props diffing or wire encoding.
 
@@ -799,7 +799,7 @@ fn widget_key(window_id: String, scoped_id: String) -> String {
 
 /// Store a typed value as a Dynamic PropValue.
 fn to_dynamic_prop(value: a) -> PropValue {
-  // We use StringVal as a carrier -- the actual value is the Dynamic
+  // We use StringVal as a carrier. The actual value is the Dynamic
   // stored via the identity coercion. This is an internal mechanism
   // stripped before wire encoding.
   coerce_to_prop(value)

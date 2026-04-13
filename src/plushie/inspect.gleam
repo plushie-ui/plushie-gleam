@@ -2,7 +2,7 @@
 ////
 //// A debugging tool that runs the app's init and view functions,
 //// normalizes the resulting tree, and prints it as JSON to stdout.
-//// No plushie binary or renderer process is required -- this runs
+//// No plushie binary or renderer process is required; this runs
 //// entirely in Gleam.
 ////
 //// Useful for verifying the initial widget tree structure, checking

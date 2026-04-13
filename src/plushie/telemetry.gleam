@@ -1,6 +1,6 @@
 //// Telemetry event emission.
 ////
-//// On BEAM, wraps the Erlang `telemetry` library -- event names
+//// On BEAM, wraps the Erlang `telemetry` library. Event names
 //// are lists of strings converted to atom lists for the underlying
 //// `:telemetry.execute/3` call. On JavaScript, all functions are
 //// no-ops (events are silently discarded).

@@ -64,7 +64,7 @@ pub type RuntimeMessage {
   FromBridge(RuntimeNotification)
   /// Internal event dispatch (timer ticks, etc.).
   InternalEvent(Event)
-  /// Internal msg dispatch (Done, SendAfter -- already mapped to msg).
+  /// Internal msg dispatch (Done, SendAfter, already mapped to msg).
   InternalMsg(Dynamic)
   /// Subscription timer fired.
   TimerFired(tag: String)
@@ -379,7 +379,7 @@ fn handle_message(
       warnings:,
     )))) -> {
       // Prop validation warnings are SDK bugs, not app events.
-      // Log and accumulate -- never dispatch to the app.
+      // Log and accumulate; never dispatch to the app.
       let warning_text =
         "plushie: prop validation warning on "
         <> node_type
@@ -399,7 +399,7 @@ fn handle_message(
     FromBridge(InboundEvent(EventMessage(ev))) -> {
       case runtime_core.coalesce_key(ev) {
         Some(key) -> {
-          // Defer this event -- latest value wins
+          // Defer this event; latest value wins
           let new_coalesce = dict.insert(state.pending_coalesce, key, ev)
           // Start flush timer if not already running
           let timer = case state.coalesce_timer {
@@ -444,7 +444,7 @@ fn handle_message(
                 <> string.inspect(missing)
                 <> " (reported "
                 <> string.inspect(extensions)
-                <> ") -- stopping runtime",
+                <> "); stopping runtime",
               )
               actor.stop()
             }
@@ -455,7 +455,7 @@ fn handle_message(
             <> int.to_string(protocol.protocol_version)
             <> ", got "
             <> int.to_string(proto)
-            <> ") -- stopping runtime",
+            <> "); stopping runtime",
           )
           actor.stop()
         }
@@ -530,14 +530,14 @@ fn handle_message(
 
       case status {
         0 -> {
-          // Clean exit (user closed window) -- fail pending callers
+          // Clean exit (user closed window). Fail pending callers
           // and stop.
           let state = fail_pending_interact(state, "renderer_exit_normal")
           process.send(state.bridge, bridge.Shutdown)
           actor.stop()
         }
         _ -> {
-          // Crash -- fail pending interact immediately. The bridge
+          // Crash: fail pending interact immediately. The bridge
           // owns restart (backoff + port reopen) and will send
           // RendererRestarted when the port is back.
           let reason = "renderer_exit_" <> int.to_string(status)
@@ -600,7 +600,7 @@ fn handle_message(
     }
 
     AsyncComplete(tag:, nonce:, result:) -> {
-      // Validate nonce matches current task -- discard stale results
+      // Validate nonce matches current task; discard stale results
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
           process.demonitor_process(monitor)
@@ -618,7 +618,7 @@ fn handle_message(
     }
 
     StreamEmit(tag:, nonce:, value:) -> {
-      // Validate nonce matches current stream -- discard stale emissions
+      // Validate nonce matches current stream; discard stale emissions
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, _)) if current_nonce == nonce -> {
           handle_event(state, event.StreamValue(tag:, value:))
@@ -666,7 +666,7 @@ fn handle_message(
           platform.log_error(
             "plushie: bridge process died unexpectedly: "
             <> string.inspect(reason)
-            <> " -- stopping runtime",
+            <> "; stopping runtime",
           )
           actor.stop()
         }
@@ -847,7 +847,7 @@ fn handle_message(
           consecutive_view_errors: 0,
         )
 
-      // Tell the bridge resync is done -- it will flush queued
+      // Tell the bridge resync is done. It will flush queued
       // transient messages.
       process.send(state.bridge, bridge.ResyncComplete)
       actor.continue(state)
@@ -995,7 +995,7 @@ fn handle_message(
           // Another caller is already waiting on this tag.
           // Reply immediately so the caller doesn't hang.
           platform.log_warning(
-            "plushie: await_async rejected -- another caller is already "
+            "plushie: await_async rejected: another caller is already "
             <> "waiting for tag \""
             <> tag
             <> "\"",
@@ -1006,7 +1006,7 @@ fn handle_message(
         False ->
           case dict.has_key(state.async_tasks, tag) {
             True -> {
-              // Task still running -- store caller and reply when done
+              // Task still running; store caller and reply when done
               let pending = dict.insert(state.pending_await_async, tag, reply)
               LoopState(..state, pending_await_async: pending)
               |> actor.continue()
@@ -1051,7 +1051,7 @@ fn handle_message(
           // Another register/unregister for this kind is already pending.
           // Reply immediately so the caller doesn't hang.
           platform.log_warning(
-            "plushie: register_effect_stub rejected -- "
+            "plushie: register_effect_stub rejected: "
             <> kind
             <> " already has a pending ack",
           )
@@ -1080,7 +1080,7 @@ fn handle_message(
         True -> {
           // Reply immediately so the caller doesn't hang.
           platform.log_warning(
-            "plushie: unregister_effect_stub rejected -- "
+            "plushie: unregister_effect_stub rejected: "
             <> kind
             <> " already has a pending ack",
           )
@@ -1480,7 +1480,7 @@ fn dispatch_update(
           )
         }
         Error(reason) -> {
-          // View crashed -- preserve model and command-side state
+          // View crashed. Preserve model and command-side state
           // (async_tasks, nonce_counter, pending_effects) but keep old tree.
           // This matches the Elixir SDK: model and commands persist through
           // view crashes, only the tree stays at its previous value.

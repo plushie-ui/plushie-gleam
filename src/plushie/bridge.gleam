@@ -234,7 +234,7 @@ pub fn start_with_transport(
 @target(erlang)
 /// Start the bridge under a supervisor with a registered name.
 ///
-/// The runtime subject is not available yet -- the runtime will send
+/// The runtime subject is not available yet; the runtime will send
 /// a `RegisterRuntime` message after it starts. Events received before
 /// registration are buffered and flushed automatically.
 pub fn start_supervised(

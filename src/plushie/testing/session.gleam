@@ -2,7 +2,7 @@
 ////
 //// A `TestSession` holds the current model, normalized tree, and app
 //// reference. Each operation (send_event, click, etc.) returns a new
-//// session with updated state. No processes, no side effects -- pure
+//// session with updated state. No processes, no side effects: pure
 //// functional state threading.
 
 import gleam/dynamic.{type Dynamic}
@@ -106,7 +106,7 @@ fn do_process(
           dispatch_async_result(app, model, tag, Ok(values.1), depth)
         }
         // Widget ops, window ops, focus, scroll, timers, etc. are
-        // no-ops in the test backend -- they need a renderer.
+        // no-ops in the test backend; they need a renderer.
         _ -> model
       }
   }

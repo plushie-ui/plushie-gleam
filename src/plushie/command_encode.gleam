@@ -1,6 +1,6 @@
 //// Command-to-wire classification.
 ////
-//// Converts a `Command(msg)` into a `WireOp(msg)` -- a tagged union that
+//// Converts a `Command(msg)` into a `WireOp(msg)`, a tagged union that
 //// separates the payload construction (shared between BEAM and JS runtimes)
 //// from the actual send mechanism (runtime-specific). Both runtimes
 //// pattern-match on `WireOp` and dispatch to their own transport layer.
@@ -16,7 +16,7 @@ import plushie/node.{
 }
 
 /// Wire operations that both runtimes handle identically on the encoding
-/// side -- only the send mechanism differs.
+/// side; only the send mechanism differs.
 pub type WireOp(msg) {
   /// No side effect.
   NoOp
@@ -39,7 +39,7 @@ pub type WireOp(msg) {
   WidgetOp(op: String, payload: List(#(String, PropValue)))
   /// Window lifecycle operation (resize, move, maximize, etc.).
   WindowOp(op: String, window_id: String, settings: List(#(String, PropValue)))
-  /// Window query (get_size, get_position, etc.) -- a window_op with a tag.
+  /// Window query (get_size, get_position, etc.): a window_op with a tag.
   WindowQuery(op: String, window_id: String, tag: String)
   /// System-wide operation not tied to a specific window.
   SystemOp(op: String, settings: List(#(String, PropValue)))

@@ -80,7 +80,7 @@ pub fn backend_with_opts(opts: WindowedOpts) -> TestBackend(model) {
       // Windowed backend sends settings before the initial snapshot
       // (required by the daemon's read_initial_settings).
       send_settings: True,
-      // No fixed screenshot size -- windowed captures actual window pixels.
+      // No fixed screenshot size; windowed captures actual window pixels.
       screenshot_size: None,
     )
 
@@ -198,7 +198,7 @@ fn stop_renderer() -> Nil {
 fn require_renderer() -> renderer.RendererSubject {
   case get_renderer() {
     Ok(subj) -> subj
-    Error(_) -> panic as "windowed backend: no renderer -- call start first"
+    Error(_) -> panic as "windowed backend: no renderer; call start first"
   }
 }
 

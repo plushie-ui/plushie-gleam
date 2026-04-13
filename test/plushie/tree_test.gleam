@@ -131,7 +131,7 @@ pub fn normalize_warns_on_slash_in_user_id_test() {
 }
 
 pub fn normalize_no_warning_on_empty_id_test() {
-  // Empty IDs are auto-generated equivalents -- no slash warning.
+  // Empty IDs are auto-generated equivalents; no slash warning.
   let n = node.new("", "container")
   let result = tree.normalize(n)
   should.equal(result.id, "")

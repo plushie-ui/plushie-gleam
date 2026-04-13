@@ -123,7 +123,7 @@ pub fn unregister_effect_stub(rt: TestApp(_), kind: String) -> Result(Nil, Nil) 
 /// Stop the test application.
 ///
 /// Checks for prop validation warnings before shutting down.
-/// Panics if any warnings accumulated -- these indicate SDK bugs
+/// Panics if any warnings accumulated; these indicate SDK bugs
 /// (incorrect prop names or types on the wire).
 pub fn stop(rt: TestApp(_)) -> Nil {
   // Drain prop warnings and fail if any found

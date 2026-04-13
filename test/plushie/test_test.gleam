@@ -218,7 +218,7 @@ pub fn sessions_are_immutable_test() {
 // -- Session reuse (regression test for reset_response handling) ---------------
 
 pub fn sequential_sessions_reuse_pool_test() {
-  // Start a session, interact, stop -- then start a new one.
+  // Start a session, interact, stop, then start a new one.
   // This exercises the session reset path in the pool (the second
   // start sends a reset to the renderer before reusing the session).
   let ctx1 = testing.start(counter_app())

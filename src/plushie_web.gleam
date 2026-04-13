@@ -150,7 +150,7 @@ pub fn start(
 @target(javascript)
 /// Query the current model from a running web application.
 ///
-/// Returns the model with full type safety -- the type parameter
+/// Returns the model with full type safety: the type parameter
 /// flows from the `App(model, msg)` passed to `start`.
 pub fn get_model(instance: WebInstance(model)) -> model {
   runtime_web.get_model(instance.runtime)

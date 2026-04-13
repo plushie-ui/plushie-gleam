@@ -15,7 +15,7 @@
 //// }
 //// ```
 ////
-//// Set `dev: True` in `GuiOpts` to enable live reload -- the dev
+//// Set `dev: True` in `GuiOpts` to enable live reload. The dev
 //// server watches `src/` for changes, recompiles, hot-reloads BEAM
 //// modules, and triggers a re-render without losing app state.
 

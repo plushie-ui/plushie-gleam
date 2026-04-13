@@ -177,7 +177,7 @@ fn stop_renderer() -> Nil {
 fn require_renderer() -> renderer.RendererSubject {
   case get_renderer() {
     Ok(subj) -> subj
-    Error(_) -> panic as "headless backend: no renderer -- call start first"
+    Error(_) -> panic as "headless backend: no renderer; call start first"
   }
 }
 

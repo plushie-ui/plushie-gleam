@@ -5,7 +5,7 @@
 //// same key are considered identical and kept alive; new keys trigger
 //// a subscribe message to the renderer, and removed keys trigger an
 //// unsubscribe. This means a subscription's identity is its
-//// (kind, tag) pair -- changing max_rate on an existing key updates
+//// (kind, tag) pair; changing max_rate on an existing key updates
 //// the rate without re-subscribing.
 ////
 //// Renderer subscriptions accept an optional `max_rate` that tells the

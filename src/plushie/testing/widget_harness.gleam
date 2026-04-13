@@ -64,7 +64,7 @@ pub fn has_event(model: HarnessModel, predicate: fn(Event) -> Bool) -> Bool {
 ///
 /// The harness wraps the widget in a minimal window layout and records
 /// all non-framework events. Canvas lifecycle events (focus, blur,
-/// element enter/leave) are filtered out as noise -- only semantic
+/// element enter/leave) are filtered out as noise; only semantic
 /// events emitted by the widget's `handle_event` are captured.
 pub fn harness(
   widget_id: String,

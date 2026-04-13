@@ -393,7 +393,7 @@ fn resolve_artifacts(
   case cli_bin || cli_wasm {
     True -> #(cli_bin, cli_wasm)
     False ->
-      // No CLI flags -- check gleam.toml config
+      // No CLI flags; check gleam.toml config
       case config.get_artifacts() {
         Ok(artifacts) -> #(
           list.contains(artifacts, "bin"),

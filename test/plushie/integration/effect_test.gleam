@@ -103,7 +103,7 @@ pub fn unregister_removes_stub_test() -> Nil {
     support.register_effect_stub(rt, "clipboard_read", StringVal("first"))
   let assert Ok(_) = support.unregister_effect_stub(rt, "clipboard_read")
 
-  // Trigger the clipboard read -- should not get "first" back
+  // Trigger the clipboard read; should not get "first" back
   support.dispatch_event(
     rt,
     event.WidgetClick(
@@ -120,13 +120,13 @@ pub fn unregister_removes_stub_test() -> Nil {
     )
   support.stop(rt)
 
-  // Either we got a different value or unsupported -- but not "first"
+  // Either we got a different value or unsupported, but not "first"
   case result {
     Ok(model) -> {
       let assert True = model.clipboard_text != "first"
       Nil
     }
-    // Timeout is also acceptable -- no stub means the mock may not respond
+    // Timeout is also acceptable; no stub means the mock may not respond
     Error(_) -> Nil
   }
 }

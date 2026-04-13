@@ -27,7 +27,7 @@ import plushie/widget
 /// Scoping rules:
 /// - Named (non-empty-ID) non-window nodes create scope boundaries.
 ///   Their children's IDs become `parent_id/child_id`.
-/// - Window nodes reset scope -- children start with no scope prefix.
+/// - Window nodes reset scope: children start with no scope prefix.
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
   normalize_ctx(node, "", "", widget.empty_registry())
@@ -88,7 +88,7 @@ fn normalize_ctx(
           platform.log_warning(
             "plushie: widget ID \""
             <> id
-            <> "\" contains \"/\" -- scoped paths are built automatically by named containers",
+            <> "\" contains \"/\"; scoped paths are built automatically by named containers",
           )
         False -> Nil
       }
@@ -232,7 +232,7 @@ fn resolve_ref(
         "" -> props
         _ ->
           case string.contains(ref_id, "/") {
-            // Already a full scoped path -- leave it alone.
+            // Already a full scoped path; leave it alone.
             True -> props
             False -> dict.insert(props, key, StringVal(scope <> "/" <> ref_id))
           }
@@ -251,7 +251,7 @@ fn resolve_ref(
 ///
 /// The algorithm uses O(n) set comparison for reorder detection rather
 /// than O(n^2) LCS. When children are reordered, the entire node is
-/// replaced rather than computing minimal moves -- a deliberate
+/// replaced rather than computing minimal moves, a deliberate
 /// simplicity-over-optimality tradeoff matching the reference implementation.
 pub fn diff(old: Node, new: Node) -> List(PatchOp) {
   // Different ID at root -> full replace
@@ -266,7 +266,7 @@ fn diff_node(old: Node, new: Node, path: List(Int)) -> List(PatchOp) {
   case old.kind != new.kind {
     True -> [ReplaceNode(path:, node: new)]
     False -> {
-      // Check for reordered children -- if so, replace the whole node.
+      // Check for reordered children. If so, replace the whole node.
       case children_reordered(old.children, new.children) {
         True -> [ReplaceNode(path:, node: new)]
         False -> {

@@ -2,7 +2,7 @@
 ////
 //// Produced by `tree.diff` and consumed by `protocol/encode` to send
 //// incremental updates to the Rust binary. Each operation targets a
-//// node by its path -- a list of integer child indices from the root.
+//// node by its path, a list of integer child indices from the root.
 //// For example, `[0, 2]` means "root's first child, then that node's
 //// third child".
 

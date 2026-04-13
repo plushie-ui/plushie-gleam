@@ -2,7 +2,7 @@
 ////
 //// The `TestBackend` type is a record of functions that implement
 //// each testing operation (find, click, type_text, etc.). This
-//// design lets tests be polymorphic over the backend -- the same
+//// design lets tests be polymorphic over the backend: the same
 //// test code runs at different fidelity levels.
 ////
 //// ## Backend variants

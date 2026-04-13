@@ -147,10 +147,10 @@ fn coerce_event(event: Event) -> msg
 /// handlers without being intercepted are auto-consumed so they
 /// don't leak to the app's update function.
 ///
-/// - `Dispatched(None)` -- consumed by a handler
-/// - `Dispatched(Some(ev))` -- passed through; auto-consume if
+/// - `Dispatched(None)`: consumed by a handler
+/// - `Dispatched(Some(ev))`: passed through; auto-consume if
 ///   event passed through all handlers
-/// - `Bypassed(ev)` -- no handlers in scope; always deliver
+/// - `Bypassed(ev)`: no handlers in scope; always deliver
 pub fn resolve_dispatch(result: widget.DispatchResult) -> Option(Event) {
   case result {
     widget.Dispatched(None) -> None

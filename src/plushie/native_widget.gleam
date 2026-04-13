@@ -57,7 +57,7 @@
 ////
 //// ## Composite widgets
 ////
-//// Composite widgets are simpler -- they're just functions that return
+//// Composite widgets are simpler: they're just functions that return
 //// Node trees. No registration or Rust code needed.
 ////
 //// ```gleam

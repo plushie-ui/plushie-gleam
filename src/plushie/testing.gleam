@@ -2,7 +2,7 @@
 ////
 //// Provides a unified test API that works on both BEAM and JS targets.
 //// The backend is resolved once at `start` and carried through the
-//// `TestContext` -- no repeated env lookups or backend construction.
+//// `TestContext`, so there are no repeated env lookups or backend construction.
 ////
 //// ## BEAM target
 ////

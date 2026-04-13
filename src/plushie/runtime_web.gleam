@@ -77,7 +77,7 @@ pub opaque type WebRuntime(model) {
 }
 
 @target(javascript)
-/// Mutable JS-side state container. Private to this module --
+/// Mutable JS-side state container. Private to this module;
 /// external code interacts through the opaque `WebRuntime(model)`.
 type WebRuntimeHandle
 
@@ -168,11 +168,11 @@ pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
     Ok(decode.EventMessage(event)) ->
       handle_event(runtime.handle, do_get_app(runtime.handle), event)
     Ok(decode.Hello(..)) -> {
-      // Hello handshake -- acknowledged, no dispatch needed
+      // Hello handshake: acknowledged, no dispatch needed
       Nil
     }
     Ok(decode.EffectStubAck(..)) -> {
-      // Effect stub ack -- not yet implemented on JS
+      // Effect stub ack: not yet implemented on JS
       Nil
     }
     Ok(_) -> Nil
@@ -549,7 +549,7 @@ fn execute_commands(
 
     command_encode.ScheduleTimer(delay_ms, msg) -> {
       let key = platform.stable_hash_key(msg)
-      // SendAfter msg is already the app's msg type -- dispatch
+      // SendAfter msg is already the app's msg type; dispatch
       // directly to dispatch_update, not through handle_event
       // (which expects Event for coalesce checking).
       set_send_after(handle, key, delay_ms, fn() {

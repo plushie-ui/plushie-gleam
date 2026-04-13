@@ -213,7 +213,7 @@ fn update(model: Model, event: Event) {
       #(Model(..model, dark_mode: dark), command.none())
     }
 
-    // Review form inputs -- clear errors on change
+    // Review form inputs: clear errors on change
     WidgetInput(target: EventTarget(id: "review-name", ..), value: v) -> #(
       Model(..model, review_name: v, errors: dict.delete(model.errors, "name")),
       command.none(),

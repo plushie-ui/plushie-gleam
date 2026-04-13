@@ -517,7 +517,7 @@ fn handle_send_interact(
     |> dict.insert("id", node.StringVal(req_id))
   send_to_port(state.port, state.format, msg)
 
-  // Don't add to pending -- steps and response are forwarded to owner
+  // Don't add to pending; steps and response are forwarded to owner
   process.send(reply, req_id)
   actor.continue(PoolState(..state, next_id: state.next_id + 1))
 }

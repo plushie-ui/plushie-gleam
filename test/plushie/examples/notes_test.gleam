@@ -50,7 +50,7 @@ pub fn navigating_back_returns_to_list_test() {
   let ctx = testing.start(notes.app())
   let ctx = testing.click(ctx, "new_note")
   let ctx = testing.click(ctx, "back")
-  // Back on the list view -- heading should be visible again
+  // Back on the list view; heading should be visible again
   let assert option.Some(el) = testing.find(ctx, "heading")
   should.equal(element.text(el), option.Some("Notes"))
 }
@@ -110,7 +110,7 @@ pub fn search_input_filters_notes_test() {
   let ctx = testing.click(ctx, "new_note")
   let ctx = testing.type_text(ctx, "title", "Other")
   let ctx = testing.click(ctx, "back")
-  // Search for "Find" -- only the matching note should appear
+  // Search for "Find"; only the matching note should appear
   let ctx = testing.type_text(ctx, "search", "Find")
   should.be_true(option.is_some(testing.find(ctx, "note:1")))
   should.be_true(option.is_none(testing.find(ctx, "note:2")))

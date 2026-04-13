@@ -23,7 +23,7 @@
 ////
 //// Use headless mode (`--headless` args) for CI and screenshot tests
 //// with software rendering. Use windowed mode for manual visual
-//// verification. The mock backend does not use this actor at all --
+//// verification. The mock backend does not use this actor at all;
 //// it runs the Elm loop in pure Gleam without a port.
 
 @target(erlang)
@@ -284,7 +284,7 @@ pub fn slide(
 }
 
 @target(erlang)
-/// Get the current model (returned as Dynamic -- caller casts).
+/// Get the current model (returned as Dynamic; caller casts).
 pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
   case process.call(subject, 10_000, fn(reply) { CallModel(reply:) }) {
     ReplyModel(m) -> m
@@ -733,7 +733,7 @@ fn handle_line_data(
       actor.continue(new_state)
     }
     renderer_port.Noeol(_data) ->
-      // Partial lines -- the {line, N} port driver buffers them
+      // Partial lines: the {line, N} port driver buffers them
       actor.continue(state)
   }
 }
@@ -785,7 +785,7 @@ fn dispatch_raw(
   let req_id = dyn_string_field(raw, "id", "")
 
   case msg_type {
-    // Handshake -- nothing to do in test mode
+    // Handshake: nothing to do in test mode
     "hello" -> state
 
     // Wire events (from production flow, not from interact)

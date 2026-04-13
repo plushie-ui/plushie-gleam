@@ -38,7 +38,7 @@ const build_dir = "build/dev/erlang"
 @target(erlang)
 /// Messages handled by the dev server actor.
 pub opaque type DevMessage {
-  /// Debounce timer expired -- time to recompile.
+  /// Debounce timer expired; time to recompile.
   Recompile
   /// Raw file event from the watcher (decoded from Dynamic).
   RawFileEvent(Dynamic)

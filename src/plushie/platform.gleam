@@ -42,8 +42,8 @@ pub fn log_error(message: String) -> Nil
 /// Generate a unique ID string.
 ///
 /// BEAM: `erlang:unique_integer([monotonic, positive])` converted
-/// to string -- globally unique within the node lifetime.
-/// JS: timestamp-prefixed monotonic counter -- unique within a
+/// to string, globally unique within the node lifetime.
+/// JS: timestamp-prefixed monotonic counter, unique within a
 /// single page/process lifetime.
 @external(erlang, "plushie_ffi", "unique_id")
 @external(javascript, "../plushie_platform_ffi.mjs", "uniqueId")
@@ -160,7 +160,7 @@ pub fn arch_string() -> String
 /// Compute SHA-256 hash and return as lowercase hex string.
 ///
 /// BEAM: `crypto:hash/2`. JS: Node.js `crypto.createHash`.
-/// Not available in browser -- will throw.
+/// Not available in browser (will throw).
 @external(erlang, "plushie_ffi", "sha256_hex")
 @external(javascript, "../plushie_platform_ffi.mjs", "sha256Hex")
 pub fn sha256_hex(data: BitArray) -> String
@@ -175,7 +175,7 @@ pub fn crc32(data: BitArray) -> Int
 /// Zlib-compress binary data (deflate).
 ///
 /// BEAM: `zlib:compress/1`. JS: Node.js `zlib.deflateSync`.
-/// Not available in browser -- will throw.
+/// Not available in browser (will throw).
 @external(erlang, "plushie_ffi", "zlib_compress")
 @external(javascript, "../plushie_platform_ffi.mjs", "zlibCompress")
 pub fn zlib_compress(data: BitArray) -> BitArray

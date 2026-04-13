@@ -14,7 +14,7 @@
 //// Implementation uses a raw Erlang gen_server rather than the Gleam
 //// actor framework, because the adapter must receive both typed
 //// IoStreamMessage from the bridge subject AND raw gen_tcp messages
-//// from the socket -- a pattern that doesn't map cleanly to Gleam's
+//// from the socket, a pattern that doesn't map cleanly to Gleam's
 //// single-typed actor model.
 
 @target(erlang)

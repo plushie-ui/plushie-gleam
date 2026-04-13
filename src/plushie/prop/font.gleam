@@ -101,7 +101,7 @@ pub fn stretch_to_string(s: FontStretch) -> String {
 
 /// Build the dict for a CustomFont, omitting fields that match defaults
 /// (NormalStyle for style, NormalStretch for stretch). Weight is always
-/// included since there is no "default" weight -- the Elixir SDK treats
+/// included since there is no "default" weight; the Elixir SDK treats
 /// nil weight as omitted, not as "Normal".
 fn custom_font_fields(
   family: String,

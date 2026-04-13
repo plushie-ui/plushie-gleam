@@ -1,4 +1,4 @@
-// Cross-target platform utilities -- JavaScript implementations.
+// Cross-target platform utilities: JavaScript implementations.
 //
 // Each function here corresponds to a dual @external in platform.gleam.
 // On BEAM these route to plushie_ffi.erl; on JS they land here.
@@ -35,7 +35,7 @@ export function uniqueId() {
 
 // Returns monotonic milliseconds (integer). On BEAM this is
 // erlang:monotonic_time(millisecond). In JS, performance.now()
-// starts from process/page load -- same relative semantics.
+// starts from process/page load, same relative semantics.
 export function monotonicTimeMs() {
   return Math.floor(performance.now());
 }
@@ -52,7 +52,7 @@ export function tryCall(f) {
   }
 }
 
-// Identity function -- returns the value unchanged. Used for narrow
+// Identity function: returns the value unchanged. Used for narrow
 // type boundary crossings where the type system can't prove equality
 // (e.g., simple() apps where msg = Event but Gleam doesn't have
 // type equality witnesses).
@@ -62,7 +62,7 @@ export function identity(value) {
 
 // Returns a deterministic string key for deduplication purposes.
 // On BEAM this is erlang:phash2 which produces a 32-bit integer hash.
-// The JS version uses JSON.stringify -- sufficient for the dedup use
+// The JS version uses JSON.stringify, sufficient for the dedup use
 // case (SendAfter timers) where the value is a Gleam term serialized
 // to JS objects. Not a cryptographic hash.
 export function stableHashKey(value) {
@@ -155,7 +155,7 @@ export function archString() {
 // These are used by testing infrastructure (snapshots, screenshots,
 // tree hashes). They require Node.js crypto/zlib modules. Browser
 // equivalents would need async Web Crypto APIs which don't match
-// the synchronous Gleam signatures -- those can be added when
+// the synchronous Gleam signatures; those can be added when
 // browser-side testing is implemented.
 
 export function sha256Hex(data) {

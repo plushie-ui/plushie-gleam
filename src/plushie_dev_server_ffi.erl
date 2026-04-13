@@ -16,7 +16,7 @@ find_changed_modules(OldList, NewList) ->
     OldMap = maps:from_list(OldList),
     lists:filtermap(fun({Mod, Mtime}) ->
         case maps:find(Mod, OldMap) of
-            {ok, Mtime} -> false;  % Same mtime -- unchanged
+            {ok, Mtime} -> false;  % Same mtime, unchanged
             _ -> {true, Mod}       % New or different mtime
         end
     end, NewList).

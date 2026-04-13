@@ -4,10 +4,10 @@
 
 You need:
 
-- **Gleam** (>= 1.0) -- install via your package manager or
+- **Gleam** (>= 1.0): install via your package manager or
   [gleam.run](https://gleam.run/getting-started/installing/)
-- **Erlang/OTP** (>= 26) -- Gleam compiles to BEAM bytecode
-- **Rust toolchain** (optional) -- only needed if building the
+- **Erlang/OTP** (>= 26): Gleam compiles to BEAM bytecode
+- **Rust toolchain** (optional): only needed if building the
   plushie renderer from source or working on native extensions
 
 ### Getting the renderer
@@ -44,7 +44,7 @@ Always run `./bin/preflight` before pushing. It mirrors what CI does.
 - `snake_case` for everything: modules, functions, variables,
   constants.
 - Pipeline operator (`|>`) for data transformations.
-- Qualified imports for clarity -- prefer `dict.insert(...)` over
+- Qualified imports for clarity: prefer `dict.insert(...)` over
   importing `insert` bare.
 - Custom types for enums, not strings. If a value has a fixed set
   of options, model it as a type.
@@ -57,7 +57,7 @@ Commit messages should describe what changed and why.
 
 Do not include:
 
-- Counts of any kind -- if the content is listed, the reader can
+- Counts of any kind: if the content is listed, the reader can
   count
 - Ticket, review, or tracking IDs
 
@@ -67,7 +67,7 @@ imperative mood ("Add feature" not "Added feature").
 ## Pull requests
 
 - One logical change per PR.
-- Include tests for new behaviour. Tests are documentation -- they
+- Include tests for new behaviour. Tests are documentation: they
   should tell a story to the next person who reads them.
 - Keep PRs small and focused. If you find unrelated issues while
   working, note them for a separate PR rather than bundling.
@@ -88,7 +88,7 @@ Key invariants to be aware of:
 
 ## Testing philosophy
 
-- Prefer real implementations over mocks -- tests that pass while
+- Prefer real implementations over mocks: tests that pass while
   reality is broken prove nothing.
 - Write a failing test before fixing a bug when possible.
 - Tests should read like specifications of behaviour.
