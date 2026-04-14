@@ -99,18 +99,12 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
         "select_range",
         dict.from_list([#("start", IntVal(start)), #("end", IntVal(end))]),
       )
-    command.ScrollTo(widget_id:, x:, y:) -> {
-      let value = dict.new()
-      let value = case x {
-        option.Some(xv) -> dict.insert(value, "x", FloatVal(xv))
-        option.None -> value
-      }
-      let value = case y {
-        option.Some(yv) -> dict.insert(value, "y", FloatVal(yv))
-        option.None -> value
-      }
-      Command(widget_id, "scroll_to", value)
-    }
+    command.ScrollTo(widget_id:, x:, y:) ->
+      Command(
+        widget_id,
+        "scroll_to",
+        dict.from_list([#("x", FloatVal(x)), #("y", FloatVal(y))]),
+      )
     command.SnapTo(widget_id:, x:, y:) ->
       Command(
         widget_id,
@@ -306,9 +300,9 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     // -- Effect, widget command, advance frame --
     command.Effect(id:, tag:, kind:, payload:) ->
       EffectRequest(id, tag, kind, payload)
-    command.WidgetCommand(node_id:, op:, payload:) ->
+    command.NativeCommand(node_id:, op:, payload:) ->
       Command(node_id, op, payload)
-    command.WidgetCommands(commands:) -> CommandBatch(commands)
+    command.NativeCommands(commands:) -> CommandBatch(commands)
     command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
   }
 }

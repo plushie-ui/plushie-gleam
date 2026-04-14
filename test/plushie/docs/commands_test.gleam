@@ -350,7 +350,7 @@ pub fn commands_batch_construct_test() {
 
 pub fn commands_extension_command_construct_test() {
   let cmd =
-    command.WidgetCommand(node_id: "term-1", op: "write", payload: dict.new())
+    command.NativeCommand(node_id: "term-1", op: "write", payload: dict.new())
   cmd.node_id |> should.equal("term-1")
   cmd.op |> should.equal("write")
 }
@@ -360,7 +360,7 @@ pub fn commands_extension_commands_construct_test() {
     #("term-1", "write", dict.new()),
     #("log-1", "append", dict.new()),
   ]
-  let cmd = command.WidgetCommands(commands: cmds)
+  let cmd = command.NativeCommands(commands: cmds)
   cmd.commands |> list.length() |> should.equal(2)
 }
 

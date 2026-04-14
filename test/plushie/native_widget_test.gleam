@@ -48,7 +48,7 @@ pub fn command_creates_native_widget_command_test() {
       #("value", FloatVal(75.0)),
     ])
   case cmd {
-    command.WidgetCommand(node_id:, op:, payload:) -> {
+    command.NativeCommand(node_id:, op:, payload:) -> {
       should.equal(node_id, "g1")
       should.equal(op, "set_value")
       should.equal(dict.get(payload, "value"), Ok(FloatVal(75.0)))
@@ -74,7 +74,7 @@ pub fn commands_creates_batch_test() {
       #("g2", "reset", []),
     ])
   case cmd {
-    command.WidgetCommands(commands:) -> {
+    command.NativeCommands(commands:) -> {
       should.equal(list.length(commands), 2)
     }
     _ -> should.fail()

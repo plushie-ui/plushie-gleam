@@ -58,8 +58,7 @@ pub type Command(msg) {
   SelectRange(widget_id: String, start: Int, end: Int)
 
   /// Scroll a scrollable widget to an absolute offset.
-  /// Both axes are optional; omitted axes are unchanged.
-  ScrollTo(widget_id: String, x: Option(Float), y: Option(Float))
+  ScrollTo(widget_id: String, x: Float, y: Float)
   /// Snap a scrollable widget to an absolute x/y offset instantly
   /// (no smooth scrolling).
   SnapTo(widget_id: String, x: Float, y: Float)
@@ -212,9 +211,9 @@ pub type Command(msg) {
 
   /// Send a command directly to a native widget, bypassing the
   /// normal tree diff/patch cycle.
-  WidgetCommand(node_id: String, op: String, payload: Dict(String, PropValue))
+  NativeCommand(node_id: String, op: String, payload: Dict(String, PropValue))
   /// Send a batch of widget commands processed in one cycle.
-  WidgetCommands(commands: List(#(String, String, Dict(String, PropValue))))
+  NativeCommands(commands: List(#(String, String, Dict(String, PropValue))))
 
   /// Advance the renderer by one frame in test/headless mode. The
   /// timestamp is monotonic milliseconds. In normal mode the renderer
