@@ -27,6 +27,19 @@ pub type StrokeJoin {
   BevelJoin
 }
 
+/// Corner radius for canvas rectangles. Either uniform or per-corner.
+pub type CornerRadius {
+  /// Same radius on all corners.
+  Uniform(Float)
+  /// Per-corner radii.
+  PerCorner(
+    top_left: Float,
+    top_right: Float,
+    bottom_right: Float,
+    bottom_left: Float,
+  )
+}
+
 /// Shape options for styling and positioning.
 pub type ShapeOpt {
   Fill(String)
@@ -40,6 +53,8 @@ pub type ShapeOpt {
   AlignY(String)
   /// Rotation angle in degrees.
   Rotation(Float)
+  /// Corner radius for rectangles (uniform or per-corner).
+  Radius(CornerRadius)
   /// Horizontal position offset (used by group shapes, desugared to translate).
   X(Float)
   /// Vertical position offset (used by group shapes, desugared to translate).
@@ -531,6 +546,9 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
       AlignX(a) -> [#("align_x", StringVal(a))]
       AlignY(a) -> [#("align_y", StringVal(a))]
       Rotation(r) -> [#("rotation", FloatVal(r))]
+      Radius(corner_radius) -> [
+        #("radius", corner_radius_to_prop_value(corner_radius)),
+      ]
       // X and Y are handled by extract_xy in group(), not here.
       // If they appear on non-group shapes, emit as flat props.
       X(x) -> [#("x", FloatVal(x))]
@@ -539,6 +557,21 @@ fn shape_opts_to_props(opts: List(ShapeOpt)) -> List(#(String, PropValue)) {
       ClipRect(c) -> [#("clip", c)]
     }
   })
+}
+
+fn corner_radius_to_prop_value(cr: CornerRadius) -> PropValue {
+  case cr {
+    Uniform(r) -> FloatVal(r)
+    PerCorner(top_left:, top_right:, bottom_right:, bottom_left:) ->
+      DictVal(
+        dict.from_list([
+          #("top_left", FloatVal(top_left)),
+          #("top_right", FloatVal(top_right)),
+          #("bottom_right", FloatVal(bottom_right)),
+          #("bottom_left", FloatVal(bottom_left)),
+        ]),
+      )
+  }
 }
 
 fn cap_to_string(cap: StrokeCap) -> String {

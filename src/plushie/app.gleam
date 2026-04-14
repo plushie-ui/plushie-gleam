@@ -34,6 +34,9 @@ pub type Settings {
     /// (mouse moves, sensor resizes, etc.). None uses the renderer's
     /// built-in default. A value of 0 subscribes but never emits.
     default_event_rate: Option(Int),
+    /// Configuration passed to custom (native Rust) widgets.
+    /// Keys are widget type names; values are widget-specific config.
+    widget_config: Dict(String, PropValue),
   )
 }
 
@@ -48,6 +51,7 @@ pub fn default_settings() -> Settings {
     scale_factor: 1.0,
     default_font: option.None,
     default_event_rate: option.None,
+    widget_config: dict.new(),
   )
 }
 

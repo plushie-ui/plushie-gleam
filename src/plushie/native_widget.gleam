@@ -214,6 +214,16 @@ pub fn command_names(def: NativeDef) -> List(String) {
 /// Reserved property names that must not be used in native widget definitions.
 const reserved_names = ["id", "type", "children", "a11y"]
 
+/// Built-in widget type names. Native widgets must not shadow these.
+const builtin_widget_types = [
+  "button", "text", "text_input", "text_editor", "checkbox", "radio", "toggler",
+  "slider", "vertical_slider", "pick_list", "combo_box", "column", "row",
+  "container", "scrollable", "stack", "responsive", "space", "rule", "image",
+  "svg", "canvas", "tooltip", "progress_bar", "rich_text", "markdown", "grid",
+  "window", "keyed_column", "sensor", "floating", "pin", "overlay", "pane_grid",
+  "table", "qr_code", "pointer_area", "themer",
+]
+
 /// Validate a native widget definition at runtime.
 ///
 /// Returns `Ok(Nil)` when valid, or `Error(errors)` with a list of
@@ -229,6 +239,12 @@ pub fn validate(def: NativeDef) -> Result(Nil, List(String)) {
     "" -> ["kind must not be empty"]
     _ -> []
   }
+  let shadow_errors = case list.contains(builtin_widget_types, def.kind) {
+    True -> [
+      "widget type \"" <> def.kind <> "\" shadows a built-in widget type",
+    ]
+    False -> []
+  }
   let duplicate_errors = find_duplicate_names(names, [], [])
   let reserved_errors =
     list.filter_map(names, fn(name) {
@@ -238,7 +254,7 @@ pub fn validate(def: NativeDef) -> Result(Nil, List(String)) {
       }
     })
   let all_errors =
-    list.flatten([kind_errors, duplicate_errors, reserved_errors])
+    list.flatten([kind_errors, shadow_errors, duplicate_errors, reserved_errors])
   case all_errors {
     [] -> Ok(Nil)
     errors -> Error(errors)

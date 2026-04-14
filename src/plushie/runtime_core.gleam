@@ -82,7 +82,7 @@ pub const window_prop_keys = [
   "title", "size", "width", "height", "position", "min_size", "max_size",
   "maximized", "fullscreen", "visible", "resizable", "closeable", "minimizable",
   "decorations", "transparent", "blur", "level", "exit_on_close_request",
-  "scale_factor",
+  "scale_factor", "theme",
 ]
 
 /// Extract the tracked window props from a window node found in the tree.

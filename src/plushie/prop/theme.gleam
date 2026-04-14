@@ -6,6 +6,8 @@
 //// an iced::Theme::custom() palette.
 
 import gleam/dict.{type Dict}
+import gleam/list
+import gleam/set.{type Set}
 import plushie/node.{type PropValue, DictVal, StringVal}
 
 pub type Theme {
@@ -40,12 +42,59 @@ pub type Theme {
 /// The returned dict is passed through to the Rust renderer, which uses it
 /// to construct an iced::Theme::custom() with a modified Palette.
 ///
-/// Common keys: "name" (string, required), "base" (built-in theme string),
-/// "background", "text", "primary", "success", "danger", "warning" (hex
-/// strings). Shade override keys like "primary_strong",
-/// "background_weakest", "primary_strong_text" are also accepted.
+/// Core seed keys: "background", "text", "primary", "success", "danger",
+/// "warning". Shade overrides use the pattern "family_shade" (e.g.
+/// "primary_strong", "background_weakest") with optional "_text" suffix
+/// for text colors. The "base" key selects a built-in theme to extend.
+///
+/// Unknown keys are rejected at construction time to catch typos early.
 pub fn custom(name: String, palette: Dict(String, PropValue)) -> Theme {
+  validate_custom_keys(palette)
   Custom(dict.insert(palette, "name", StringVal(name)))
+}
+
+fn validate_custom_keys(palette: Dict(String, PropValue)) -> Nil {
+  let valid = valid_custom_key_set()
+  dict.each(palette, fn(key, _) {
+    case key == "base" || set.contains(valid, key) {
+      True -> Nil
+      False ->
+        panic as {
+          "unknown theme key \""
+          <> key
+          <> "\". Valid keys: background, text, primary, success, danger, warning, "
+          <> "and shade overrides like primary_strong, background_weakest, etc."
+        }
+    }
+  })
+}
+
+fn valid_custom_key_set() -> Set(String) {
+  let core_seeds = [
+    "background", "text", "primary", "success", "danger", "warning",
+  ]
+  let color_families = ["primary", "secondary", "success", "warning", "danger"]
+  let shades = ["base", "weak", "strong"]
+  let background_shades = [
+    "background_base", "background_weakest", "background_weaker",
+    "background_weak", "background_neutral", "background_strong",
+    "background_stronger", "background_strongest",
+  ]
+
+  // Generate family_shade and family_shade_text keys
+  let color_shade_keys =
+    list.flat_map(color_families, fn(family) {
+      list.flat_map(shades, fn(shade) {
+        let base_key = family <> "_" <> shade
+        [base_key, base_key <> "_text"]
+      })
+    })
+
+  // Generate background shade keys with _text variants
+  let background_keys =
+    list.flat_map(background_shades, fn(shade) { [shade, shade <> "_text"] })
+
+  set.from_list(list.flatten([core_seeds, color_shade_keys, background_keys]))
 }
 
 /// Encode a Theme to its wire-format PropValue.

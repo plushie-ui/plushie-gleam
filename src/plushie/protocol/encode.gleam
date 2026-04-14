@@ -235,6 +235,13 @@ pub fn encode_settings(
     option.Some(t) -> [#("token", StringVal(t)), ..settings_fields]
     option.None -> settings_fields
   }
+  let settings_fields = case dict.is_empty(settings.widget_config) {
+    True -> settings_fields
+    False -> [
+      #("widget_config", DictVal(settings.widget_config)),
+      ..settings_fields
+    ]
+  }
   let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]
   serialize(message("settings", session, fields), format)
 }
