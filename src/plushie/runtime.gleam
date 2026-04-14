@@ -609,12 +609,17 @@ fn handle_message(
 
     InternalMsg(dyn_msg, nonce) -> {
       // Done/SendAfter deliver msg values wrapped as Dynamic.
-      // Check nonce: discard stale deliveries from cancelled timers.
+      // Nonce -1 means "always deliver" (from Done, not a timer).
+      // Otherwise, check nonce against the pending timer entry to
+      // detect stale deliveries from cancelled timers.
       let timer_key = platform.stable_hash_key(dyn_msg)
-      let is_current = case dict.get(state.pending_timers, timer_key) {
-        Ok(#(_, expected_nonce)) -> expected_nonce == nonce
-        // No entry means Done (not SendAfter) or already delivered
-        Error(_) -> True
+      let is_current = case nonce {
+        -1 -> True
+        _ ->
+          case dict.get(state.pending_timers, timer_key) {
+            Ok(#(_, expected_nonce)) -> expected_nonce == nonce
+            Error(_) -> True
+          }
       }
       case is_current {
         True -> {
@@ -1728,8 +1733,8 @@ fn execute_commands(
 
     command_encode.DoneImmediate(value, mapper) -> {
       let mapped_msg = mapper(value)
-      // Nonce 0 for Done (no timer to match; always delivered)
-      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg), 0))
+      // Nonce -1 signals "always deliver" (Done, not a timer)
+      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg), -1))
       state
     }
 

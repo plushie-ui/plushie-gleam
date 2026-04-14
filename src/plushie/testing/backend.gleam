@@ -57,13 +57,14 @@ pub fn parse_selector(input: String) -> Selector {
     ":focused" -> Focused
     _ ->
       case string.split_once(input, "#:") {
-        // "window#:focused"
-        Ok(#(window, "focused")) -> InWindow(window, Focused)
-        Ok(#(window, rest)) -> InWindow(window, parse_inner(":" <> rest))
+        // "window#:focused" (window must be non-empty)
+        Ok(#(window, "focused")) if window != "" -> InWindow(window, Focused)
+        Ok(#(window, rest)) if window != "" ->
+          InWindow(window, parse_inner(":" <> rest))
         _ ->
           case string.split_once(input, "#[") {
-            // "window#[attr=val]"
-            Ok(#(window, rest)) ->
+            // "window#[attr=val]" (window must be non-empty)
+            Ok(#(window, rest)) if window != "" ->
               InWindow(window, parse_attribute_selector("[" <> rest))
             _ ->
               case
