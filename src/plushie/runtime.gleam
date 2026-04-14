@@ -1173,8 +1173,12 @@ fn track_focus_from_status(
   status_value: Dynamic,
 ) -> LoopState(model, msg) {
   let id = target.id
-  // Coerce status value from Dynamic. Status events carry a string.
-  let status = coerce_to_string(status_value)
+  // Status events carry a string value. If the coercion fails (non-string
+  // value), treat as empty status to avoid crashing.
+  let status = case dynamic.classify(status_value) {
+    "String" -> coerce_to_string(status_value)
+    _ -> ""
+  }
   let prev_status = case dict.get(state.widget_statuses, id) {
     Ok(s) -> s
     Error(_) -> ""
@@ -1193,8 +1197,9 @@ fn track_focus_from_status(
   LoopState(..state, widget_statuses:, focused_widget_id:)
 }
 
-/// Inject a frozen UI error indicator into the stale tree (dev mode only).
+/// Inject a frozen UI error indicator into the stale tree.
 /// Sends a snapshot with an error text node prepended to the tree.
+/// Called after 5 consecutive view failures to make the frozen state visible.
 fn inject_frozen_indicator(state: LoopState(model, msg)) -> Nil {
   let error_node = node.new("__plushie_frozen_ui__", "text")
   let error_node =

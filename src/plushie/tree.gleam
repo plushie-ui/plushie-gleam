@@ -236,11 +236,11 @@ fn infer_radio_a11y(children: List(Node)) -> List(Node) {
   case radio_count > 0 {
     False -> children
     True -> {
-      let #(result, _) =
+      let #(result_rev, _) =
         list.fold(children, #([], 0), fn(acc, child) {
           let #(nodes, pos) = acc
           case child.kind == "radio" {
-            False -> #(list.append(nodes, [child]), pos)
+            False -> #([child, ..nodes], pos)
             True -> {
               let new_pos = pos + 1
               let a11y_props = case dict.get(child.props, "a11y") {
@@ -252,11 +252,11 @@ fn infer_radio_a11y(children: List(Node)) -> List(Node) {
                 |> dict.insert("position_in_set", IntVal(new_pos))
                 |> dict.insert("size_of_set", IntVal(radio_count))
               let props = dict.insert(child.props, "a11y", DictVal(a11y_props))
-              #(list.append(nodes, [Node(..child, props:)]), new_pos)
+              #([Node(..child, props:), ..nodes], new_pos)
             }
           }
         })
-      result
+      list.reverse(result_rev)
     }
   }
 }

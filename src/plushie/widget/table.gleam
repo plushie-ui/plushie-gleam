@@ -337,7 +337,7 @@ fn expand_rows(
 ) -> List(Node) {
   let col_keys = case columns {
     Some(cols) -> list.map(cols, fn(c) { c.key })
-    None -> []
+    None -> panic as "table rows require columns to be set for cell expansion"
   }
   list.index_map(row_data, fn(row, row_idx) {
     let row_id = "row_" <> int.to_string(row_idx)
