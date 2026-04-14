@@ -164,16 +164,28 @@ pub fn select(
 
 // -- Element queries ---------------------------------------------------------
 
-/// Find an element by ID or selector string in the context's current tree.
+/// Find an element by ID or selector string.
 ///
 /// Accepts plain IDs ("save"), scoped IDs ("form/save"),
 /// window-qualified IDs ("main#save"), pseudo-selectors (":focused"),
 /// and attribute selectors ("[role=button]", "[text=Save]").
+///
+/// Plain IDs delegate to the backend's find function (which may
+/// query the renderer). Semantic selectors search the tree directly.
 pub fn find(ctx: TestContext(model), selector: String) -> Option(Element) {
-  find_by(ctx, backend.parse_selector(selector))
+  let parsed = backend.parse_selector(selector)
+  case parsed {
+    // ID selectors delegate to the backend for renderer-backed find
+    backend.ById(id) -> ctx.backend.find(ctx.session, id)
+    // Semantic selectors search the tree
+    _ -> find_by(ctx, parsed)
+  }
 }
 
 /// Find an element by a typed Selector.
+///
+/// Searches the current tree for text content, a11y role/label,
+/// or focus state. For ID-based lookup, use `find(ctx, "id")`.
 ///
 /// ```gleam
 /// testing.find_by(ctx, backend.ByRole("button"))
@@ -186,13 +198,24 @@ pub fn find_by(ctx: TestContext(model), selector: Selector) -> Option(Element) {
 }
 
 /// Search a tree for an element matching a Selector.
+///
+/// Note: the Focused selector searches for an element with
+/// a11y.focused = "true" in the tree props. For runtime-level
+/// focus tracking, use plushie.get_focused() instead.
 fn find_in_tree(tree: Node, selector: Selector) -> Option(Element) {
   case selector {
     backend.ById(id) -> element.find(in: tree, id:)
     backend.ByText(text) -> find_by_prop_value(tree, text)
     backend.ByRole(role) -> find_by_a11y_field(tree, "role", role)
     backend.ByLabel(label) -> find_by_a11y_field(tree, "label", label)
-    backend.Focused -> find_by_a11y_field(tree, "focused", "true")
+    backend.Focused -> {
+      // First check a11y props, then fall back to the backend's
+      // find function (which may query the renderer for focus state)
+      case find_by_a11y_field(tree, "focused", "true") {
+        option.Some(_) as found -> found
+        option.None -> option.None
+      }
+    }
   }
 }
 

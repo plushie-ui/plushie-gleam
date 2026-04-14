@@ -248,15 +248,15 @@ fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
           Ok(node.StringVal(s)) -> s
           _ -> "auto:shape_" <> int.to_string(idx)
         }
-        // Remove "type" from props (it's now the node kind)
-        let props = dict.delete(shape_props, "type")
-        Node(
-          id:,
-          kind:,
-          props:,
-          children: shape_children(shape_props),
-          meta: dict.new(),
-        )
+        // Extract children before cleaning props
+        let children = shape_children(shape_props)
+        // Remove fields promoted to the Node structure
+        let props =
+          shape_props
+          |> dict.delete("type")
+          |> dict.delete("id")
+          |> dict.delete("children")
+        Node(id:, kind:, props:, children:, meta: dict.new())
       }
       _ ->
         Node(
