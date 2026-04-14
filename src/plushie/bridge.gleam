@@ -157,10 +157,11 @@ pub opaque type BridgeState {
     /// The bridge's own subject, needed for scheduling RestartPort.
     self: Option(Subject(BridgeMessage)),
     /// Heartbeat watchdog timer. Reset on every renderer message.
-    /// Fires HeartbeatTimeout if no messages arrive within the interval.
     heartbeat_timer: Option(process.Timer),
     /// Heartbeat interval in ms. None disables the watchdog.
     heartbeat_interval_ms: Option(Int),
+    /// Whether the iostream adapter process is alive (iostream transport only).
+    iostream_alive: Bool,
   )
 }
 
@@ -303,6 +304,10 @@ fn make_state(
     self: Some(subject),
     heartbeat_timer: None,
     heartbeat_interval_ms: Some(30_000),
+    iostream_alive: case transport {
+      TransportIoStream(..) -> True
+      _ -> False
+    },
   )
 }
 
@@ -528,21 +533,21 @@ fn handle_message(
 ) -> actor.Next(BridgeState, BridgeMessage) {
   case msg {
     Send(data:) -> {
-      // Rebuildable: send when port is ready, drop otherwise.
-      case state.port {
-        Some(_) -> {
+      // Rebuildable: send when transport is ready, drop otherwise.
+      case is_transport_ready(state) {
+        True -> {
           send_data(state, data)
           actor.continue(state)
         }
-        None -> actor.continue(state)
+        False -> actor.continue(state)
       }
     }
 
     SendTransient(data:) -> {
-      // Transient: send when port is ready AND not awaiting resync.
-      // Queue when port is down or resync is in progress.
-      case state.port, state.awaiting_resync {
-        Some(_), False -> {
+      // Transient: send when transport is ready AND not awaiting resync.
+      // Queue when transport is down or resync is in progress.
+      case is_transport_ready(state), state.awaiting_resync {
+        True, False -> {
           send_data(state, data)
           actor.continue(state)
         }
@@ -679,7 +684,7 @@ fn handle_message(
     }
 
     ResyncComplete -> {
-      let state = BridgeState(..state, awaiting_resync: False)
+      let state = BridgeState(..state, awaiting_resync: False, restart_count: 0)
       let state = flush_queued_messages(state)
       actor.continue(state)
     }
@@ -806,6 +811,20 @@ fn do_flush_queued(state: BridgeState, queue: List(BitArray)) -> BridgeState {
 }
 
 @target(erlang)
+/// Check whether the transport is ready to send data.
+/// For port-based transports (Spawn, Stdio), checks if the port exists.
+/// For iostream transport, checks if the adapter is alive.
+fn is_transport_ready(state: BridgeState) -> Bool {
+  case state.transport {
+    TransportIoStream(..) -> state.iostream_alive
+    _ ->
+      case state.port {
+        Some(_) -> True
+        None -> False
+      }
+  }
+}
+
 /// Reset the heartbeat watchdog timer. Called on every incoming
 /// renderer message. Cancels the existing timer and starts a new one.
 fn reset_heartbeat(state: BridgeState) -> BridgeState {

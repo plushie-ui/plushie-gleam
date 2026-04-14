@@ -109,14 +109,17 @@ pub fn register_effect_stub(
   rt: TestApp(_),
   kind: String,
   response: node.PropValue,
-) -> Result(Nil, Nil) {
+) -> Result(Nil, String) {
   plushie.register_effect_stub(rt.instance, kind, response)
 }
 
 /// Remove a previously registered effect stub.
 ///
 /// Blocks until the renderer confirms the stub is removed.
-pub fn unregister_effect_stub(rt: TestApp(_), kind: String) -> Result(Nil, Nil) {
+pub fn unregister_effect_stub(
+  rt: TestApp(_),
+  kind: String,
+) -> Result(Nil, String) {
   plushie.unregister_effect_stub(rt.instance, kind)
 }
 

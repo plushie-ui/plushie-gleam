@@ -64,7 +64,8 @@ pub type RuntimeMessage {
   /// Internal event dispatch (timer ticks, etc.).
   InternalEvent(Event)
   /// Internal msg dispatch (Done, SendAfter, already mapped to msg).
-  InternalMsg(Dynamic)
+  /// The nonce distinguishes current from stale timer deliveries.
+  InternalMsg(Dynamic, Int)
   /// Subscription timer fired.
   TimerFired(tag: String)
   /// Async task completed with nonce for freshness validation.
@@ -94,11 +95,11 @@ pub type RuntimeMessage {
   RegisterEffectStub(
     kind: String,
     response: node.PropValue,
-    reply: Subject(Nil),
+    reply: Subject(Result(Nil, String)),
   )
   /// Remove a previously registered effect stub. The renderer sends
   /// an ack after removing the stub; the reply Subject is notified.
-  UnregisterEffectStub(kind: String, reply: Subject(Nil))
+  UnregisterEffectStub(kind: String, reply: Subject(Result(Nil, String)))
   /// Query accumulated prop validation warnings and clear them.
   GetPropWarnings(reply: Subject(List(#(String, String, List(String)))))
   /// Wait for an async task to complete. Replies when the task with
@@ -207,10 +208,12 @@ type LoopState(model, msg) {
     nonce_counter: Int,
     // wire_id -> (tag, timeout_timer) for pending platform effects
     pending_effects: Dict(String, #(String, process.Timer)),
-    // event key -> timer for SendAfter deduplication
-    pending_timers: Dict(String, process.Timer),
+    // event key -> (timer, nonce) for SendAfter deduplication
+    pending_timers: Dict(String, #(process.Timer, Int)),
     // Pending effect stub ack replies, keyed by kind
-    pending_stub_acks: Dict(String, Subject(Nil)),
+    // Pending effect stub ack replies. Ok(Nil) on success,
+    // Error("renderer_restarted") if the renderer dies before acking.
+    pending_stub_acks: Dict(String, Subject(Result(Nil, String))),
     // Accumulated prop validation warnings from the renderer
     prop_warnings: List(#(String, String, List(String))),
     // Canvas widget state registry (window-aware widget key -> entry)
@@ -550,7 +553,7 @@ fn handle_message(
     FromBridge(InboundEvent(EffectStubAck(kind:))) -> {
       case dict.get(state.pending_stub_acks, kind) {
         Ok(reply) -> {
-          process.send(reply, Nil)
+          process.send(reply, Ok(Nil))
           LoopState(
             ..state,
             pending_stub_acks: dict.delete(state.pending_stub_acks, kind),
@@ -604,19 +607,29 @@ fn handle_message(
       }
     }
 
-    InternalMsg(dyn_msg) -> {
+    InternalMsg(dyn_msg, nonce) -> {
       // Done/SendAfter deliver msg values wrapped as Dynamic.
-      // Remove delivered timer entry for deduplication.
+      // Check nonce: discard stale deliveries from cancelled timers.
       let timer_key = platform.stable_hash_key(dyn_msg)
-      let state =
-        LoopState(
-          ..state,
-          pending_timers: dict.delete(state.pending_timers, timer_key),
-        )
-      // Unsafe coerce: the Dynamic contains a value of type msg
-      let msg = unsafe_coerce_dynamic(dyn_msg)
-      let new_state = handle_msg(state, msg)
-      actor.continue(new_state)
+      let is_current = case dict.get(state.pending_timers, timer_key) {
+        Ok(#(_, expected_nonce)) -> expected_nonce == nonce
+        // No entry means Done (not SendAfter) or already delivered
+        Error(_) -> True
+      }
+      case is_current {
+        True -> {
+          let state =
+            LoopState(
+              ..state,
+              pending_timers: dict.delete(state.pending_timers, timer_key),
+            )
+          let msg = unsafe_coerce_dynamic(dyn_msg)
+          let new_state = handle_msg(state, msg)
+          actor.continue(new_state)
+        }
+        // Stale delivery from a cancelled timer; discard silently
+        False -> actor.continue(state)
+      }
     }
 
     TimerFired(tag:) -> {
@@ -790,7 +803,8 @@ fn handle_message(
       }
 
       // Cancel all pending send_after timers
-      dict.each(state.pending_timers, fn(_key, timer) {
+      dict.each(state.pending_timers, fn(_key, entry) {
+        let #(timer, _nonce) = entry
         process.cancel_timer(timer)
         Nil
       })
@@ -802,9 +816,9 @@ fn handle_message(
       // Flush pending effects with error (old renderer is gone).
       let state = flush_pending_effects_on_restart(state)
 
-      // Flush pending stub acks (old renderer is gone, stubs lost).
+      // Flush pending stub acks with error (old renderer's stubs are lost).
       dict.each(state.pending_stub_acks, fn(_kind, reply) {
-        process.send(reply, Nil)
+        process.send(reply, Error("renderer_restarted"))
       })
       let state = LoopState(..state, pending_stub_acks: dict.new())
 
@@ -1006,7 +1020,8 @@ fn handle_message(
         Nil
       })
       // Cancel all pending send_after timers
-      dict.each(state.pending_timers, fn(_key, timer) {
+      dict.each(state.pending_timers, fn(_key, entry) {
+        let #(timer, _nonce) = entry
         process.cancel_timer(timer)
         Nil
       })
@@ -1018,9 +1033,9 @@ fn handle_message(
         }
         None -> Nil
       }
-      // Flush pending stub acks
+      // Flush pending stub acks with error
       dict.each(state.pending_stub_acks, fn(_kind, reply) {
-        process.send(reply, Nil)
+        process.send(reply, Error("renderer_restarted"))
       })
       // Fail pending interact
       let _state = fail_pending_interact(state, "runtime_shutdown")
@@ -1121,7 +1136,7 @@ fn handle_message(
             <> kind
             <> " already has a pending ack",
           )
-          process.send(reply, Nil)
+          process.send(reply, Error("stub_ack_pending"))
           actor.continue(state)
         }
         False -> {
@@ -1144,13 +1159,12 @@ fn handle_message(
     UnregisterEffectStub(kind:, reply:) -> {
       case dict.has_key(state.pending_stub_acks, kind) {
         True -> {
-          // Reply immediately so the caller doesn't hang.
           platform.log_warning(
             "plushie: unregister_effect_stub rejected: "
             <> kind
             <> " already has a pending ack",
           )
-          process.send(reply, Nil)
+          process.send(reply, Error("stub_ack_pending"))
           actor.continue(state)
         }
         False -> {
@@ -1687,28 +1701,35 @@ fn execute_commands(
       let timer_key = platform.stable_hash_key(msg)
       // Cancel any existing timer for the same event key
       let state = case dict.get(state.pending_timers, timer_key) {
-        Ok(old_timer) -> {
+        Ok(#(old_timer, _)) -> {
           process.cancel_timer(old_timer)
           state
         }
         Error(_) -> state
       }
+      // Assign a nonce to detect stale deliveries from cancelled timers
+      let nonce = state.nonce_counter + 1
+      let state = LoopState(..state, nonce_counter: nonce)
       // Wrap msg as Dynamic since RuntimeMessage is not parameterized
       let timer =
         process.send_after(
           state.self,
           delay_ms,
-          InternalMsg(coerce_to_dynamic(msg)),
+          InternalMsg(coerce_to_dynamic(msg), nonce),
         )
       LoopState(
         ..state,
-        pending_timers: dict.insert(state.pending_timers, timer_key, timer),
+        pending_timers: dict.insert(state.pending_timers, timer_key, #(
+          timer,
+          nonce,
+        )),
       )
     }
 
     command_encode.DoneImmediate(value, mapper) -> {
       let mapped_msg = mapper(value)
-      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg)))
+      // Nonce 0 for Done (no timer to match; always delivered)
+      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg), 0))
       state
     }
 

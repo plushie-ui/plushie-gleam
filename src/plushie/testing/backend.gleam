@@ -25,25 +25,31 @@ import plushie/node.{type Node}
 import plushie/testing/element.{type Element}
 import plushie/testing/session.{type TestSession}
 
-/// Selector for finding elements: by ID string, by role, by label, or focused.
+/// Selector for finding elements.
 pub type Selector {
+  /// Match a widget by ID (local, scoped, or window-qualified).
   ById(String)
+  /// Match a widget by accessibility role.
   ByRole(String)
+  /// Match a widget by accessibility label or content.
   ByLabel(String)
+  /// Match a widget by visible text content.
   ByText(String)
+  /// Match the focused widget.
   Focused
+  /// Scope any selector to a specific window subtree.
+  InWindow(window_id: String, selector: Selector)
 }
 
 /// Parse a selector from a unified string syntax.
 ///
 /// Supported forms:
 /// - `"form/email"` or `"#form/email"` -> ById("form/email")
-/// - `"main#form/email"` -> ById("main#form/email") (window-qualified)
+/// - `"main#form/email"` -> ById("main#form/email") (window-qualified ID)
 /// - `":focused"` -> Focused
-/// - `"main#:focused"` -> Focused (window context for future use)
+/// - `"main#:focused"` -> InWindow("main", Focused)
 /// - `"[role=button]"` -> ByRole("button")
-/// - `"[label=Save]"` -> ByLabel("Save")
-/// - `"[text=Save]"` -> ByText("Save")
+/// - `"main#[text=Save]"` -> InWindow("main", ByText("Save"))
 ///
 /// Plain strings without special prefixes are treated as ID selectors.
 pub fn parse_selector(input: String) -> Selector {
@@ -52,17 +58,36 @@ pub fn parse_selector(input: String) -> Selector {
     _ ->
       case string.split_once(input, "#:") {
         // "window#:focused"
-        Ok(#(_, "focused")) -> Focused
+        Ok(#(window, "focused")) -> InWindow(window, Focused)
+        Ok(#(window, rest)) -> InWindow(window, parse_inner(":" <> rest))
         _ ->
-          case string.starts_with(input, "[") && string.ends_with(input, "]") {
-            True -> parse_attribute_selector(input)
-            False ->
-              // Strip leading # for bare ID selectors
-              case input {
-                "#" <> rest -> ById(rest)
-                _ -> ById(input)
+          case string.split_once(input, "#[") {
+            // "window#[attr=val]"
+            Ok(#(window, rest)) ->
+              InWindow(window, parse_attribute_selector("[" <> rest))
+            _ ->
+              case
+                string.starts_with(input, "[") && string.ends_with(input, "]")
+              {
+                True -> parse_attribute_selector(input)
+                False ->
+                  case input {
+                    "#" <> rest -> ById(rest)
+                    _ -> ById(input)
+                  }
               }
           }
+      }
+  }
+}
+
+fn parse_inner(input: String) -> Selector {
+  case input {
+    ":focused" -> Focused
+    _ ->
+      case string.starts_with(input, "[") && string.ends_with(input, "]") {
+        True -> parse_attribute_selector(input)
+        False -> ById(input)
       }
   }
 }

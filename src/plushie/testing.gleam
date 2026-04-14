@@ -208,14 +208,34 @@ fn find_in_tree(tree: Node, selector: Selector) -> Option(Element) {
     backend.ByText(text) -> find_by_prop_value(tree, text)
     backend.ByRole(role) -> find_by_a11y_field(tree, "role", role)
     backend.ByLabel(label) -> find_by_a11y_field(tree, "label", label)
+    backend.InWindow(window_id, inner_selector) -> {
+      // Scope the search to the named window's subtree
+      case find_window_subtree(tree, window_id) {
+        option.Some(window_node) -> find_in_tree(window_node, inner_selector)
+        option.None -> option.None
+      }
+    }
     backend.Focused -> {
-      // First check a11y props, then fall back to the backend's
-      // find function (which may query the renderer for focus state)
       case find_by_a11y_field(tree, "focused", "true") {
         option.Some(_) as found -> found
         option.None -> option.None
       }
     }
+  }
+}
+
+/// Find a window node by ID in the tree.
+fn find_window_subtree(tree: Node, window_id: String) -> Option(Node) {
+  case tree.kind == "window" && tree.id == window_id {
+    True -> option.Some(tree)
+    False ->
+      list.find_map(tree.children, fn(child) {
+        case find_window_subtree(child, window_id) {
+          option.Some(n) -> Ok(n)
+          option.None -> Error(Nil)
+        }
+      })
+      |> option.from_result
   }
 }
 

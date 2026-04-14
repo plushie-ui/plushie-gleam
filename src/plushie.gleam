@@ -379,13 +379,17 @@ pub fn register_effect_stub(
   instance: Instance(_),
   kind: String,
   response: node.PropValue,
-) -> Result(Nil, Nil) {
+) -> Result(Nil, String) {
   let reply = process.new_subject()
   process.send(
     instance.runtime,
     runtime.RegisterEffectStub(kind:, response:, reply:),
   )
-  process.receive(reply, 5000)
+  case process.receive(reply, 5000) {
+    Ok(Ok(Nil)) -> Ok(Nil)
+    Ok(Error(reason)) -> Error(reason)
+    Error(_) -> Error("timeout")
+  }
 }
 
 @target(erlang)
@@ -398,10 +402,14 @@ pub fn register_effect_stub(
 pub fn unregister_effect_stub(
   instance: Instance(_),
   kind: String,
-) -> Result(Nil, Nil) {
+) -> Result(Nil, String) {
   let reply = process.new_subject()
   process.send(instance.runtime, runtime.UnregisterEffectStub(kind:, reply:))
-  process.receive(reply, 5000)
+  case process.receive(reply, 5000) {
+    Ok(Ok(Nil)) -> Ok(Nil)
+    Ok(Error(reason)) -> Error(reason)
+    Error(_) -> Error("timeout")
+  }
 }
 
 @target(erlang)
