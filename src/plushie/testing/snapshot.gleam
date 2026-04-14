@@ -78,6 +78,7 @@ fn prop_value_to_json(pv: PropValue) -> json.Json {
     node.BoolVal(b) -> json.bool(b)
     node.NullVal -> json.null()
     node.BinaryVal(_) -> json.string("<binary>")
+    node.OpaqueVal(_) -> json.string("<opaque>")
     node.ListVal(items) -> json.array(items, prop_value_to_json)
     node.DictVal(d) -> {
       let entries =

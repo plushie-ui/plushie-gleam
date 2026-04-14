@@ -6,18 +6,31 @@
 //// the wire protocol.
 
 import gleam/dict.{type Dict}
+import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
 import plushie/node.{
-  type Node, type PropValue, DictVal, IntVal, Node, NullVal, StringVal,
+  type Node, type PropValue, DictVal, IntVal, Node, NullVal, OpaqueVal,
+  StringVal,
 }
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
 import plushie/platform
 import plushie/widget
+
+/// Cache of memo-ized subtrees from the previous render cycle. Maps
+/// scoped memo ID to (dependency_value, normalized_subtree). On cache
+/// hit (same dependency), the subtree is returned without re-normalizing.
+pub type MemoCache =
+  Dict(String, #(Dynamic, Node))
+
+/// Create an empty memo cache for the first render cycle.
+pub fn empty_memo_cache() -> MemoCache {
+  dict.new()
+}
 
 // --- Normalize ---------------------------------------------------------------
 
@@ -31,10 +44,24 @@ import plushie/widget
 ///   only appears at the window boundary).
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  normalize_ctx(node, "", "", widget.empty_registry(), 0)
+  let #(normalized, _cache) =
+    normalize_ctx(
+      node,
+      "",
+      "",
+      widget.empty_registry(),
+      0,
+      dict.new(),
+      dict.new(),
+    )
+  normalized
 }
 
 /// Normalize a top-level app view and enforce explicit windows.
+///
+/// Accepts the previous render cycle's memo cache and returns the
+/// new cache alongside the normalized tree. Memo nodes whose
+/// dependency hasn't changed reuse the cached subtree.
 ///
 /// A view must return either:
 /// - a single `window` node
@@ -42,18 +69,20 @@ pub fn normalize(node: Node) -> Node {
 pub fn normalize_view(
   node: Node,
   registry: widget.Registry,
-) -> Result(Node, String) {
-  let normalized = normalize_with_registry(node, registry)
+  prev_memo_cache: MemoCache,
+) -> Result(#(Node, MemoCache), String) {
+  let #(normalized, new_cache) =
+    normalize_with_memo(node, registry, prev_memo_cache)
 
   case normalized.kind {
-    "window" -> Ok(normalized)
+    "window" -> Ok(#(normalized, new_cache))
     _ -> {
       let direct_windows =
         !list.is_empty(normalized.children)
         && list.all(normalized.children, fn(child) { child.kind == "window" })
 
       case direct_windows {
-        True -> Ok(normalized)
+        True -> Ok(#(normalized, new_cache))
         False ->
           Error(
             "view must return a window node or a root node whose direct children are window nodes",
@@ -63,10 +92,23 @@ pub fn normalize_view(
   }
 }
 
+/// Normalize with a widget registry and memo cache.
+pub fn normalize_with_memo(
+  node: Node,
+  registry: widget.Registry,
+  prev_memo_cache: MemoCache,
+) -> #(Node, MemoCache) {
+  let #(normalized, new_cache) =
+    normalize_ctx(node, "", "", registry, 0, prev_memo_cache, dict.new())
+  #(normalized, new_cache)
+}
+
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
-  normalize_ctx(node, "", "", registry, 0)
+  let #(normalized, _cache) =
+    normalize_ctx(node, "", "", registry, 0, dict.new(), dict.new())
+  normalized
 }
 
 fn normalize_ctx(
@@ -75,7 +117,9 @@ fn normalize_ctx(
   window_id: String,
   registry: widget.Registry,
   depth: Int,
-) -> Node {
+  prev_cache: MemoCache,
+  new_cache: MemoCache,
+) -> #(Node, MemoCache) {
   case depth >= 256 {
     True -> panic as "tree exceeds maximum depth of 256 levels"
     False ->
@@ -105,52 +149,106 @@ fn normalize_ctx(
 
   let scoped_id = apply_scope(node.id, scope)
 
-  // Widget rendering: if this node is a placeholder, render it
-  // with stored state and normalize the output. The rendered node
-  // has no __widget__ tags in its meta, so normalization won't
-  // re-trigger rendering (no recursion). Widget metadata is
-  // attached to the final node's meta for registry derivation.
-  case widget.is_placeholder(node) {
-    True -> {
-      case
-        widget.render_placeholder(
-          node,
-          current_window_id,
-          scoped_id,
-          node.id,
-          registry,
-        )
-      {
-        Some(#(rendered_node, _entry)) -> {
-          // The rendered node already has the scoped_id set and metadata
-          // attached. Normalize its children at the same scope position
-          // and resolve a11y references in its props.
-          let child_scope = case rendered_node.kind, rendered_node.id {
-            "window", _ -> scoped_id <> "#"
-            _, "" -> scope
-            _, _ -> scoped_id
-          }
-          // Forward standard widget props (a11y, event_rate) from the
-          // placeholder to the rendered output so widget authors don't
-          // need to handle them manually.
-          let props =
-            widget.merge_standard_props(rendered_node.props, node.props)
-          let props = resolve_a11y_refs(props, scope)
-          let children =
-            list.map(rendered_node.children, fn(child) {
-              normalize_ctx(
-                child,
-                child_scope,
+  // Memo nodes: check cache before normalizing children. The __memo__
+  // wrapper is transparent; we return the normalized child directly.
+  case node.kind {
+    "__memo__" -> {
+      case dict.get(node.meta, "__memo_dep__") {
+        Ok(OpaqueVal(dep)) ->
+          case dict.get(prev_cache, scoped_id) {
+            Ok(#(prev_dep, cached_node)) if prev_dep == dep -> {
+              // Cache hit: reuse the previously normalized subtree
+              let new_cache =
+                dict.insert(new_cache, scoped_id, #(dep, cached_node))
+              #(cached_node, new_cache)
+            }
+            _ ->
+              normalize_memo_child(
+                node,
+                scoped_id,
+                scope,
                 current_window_id,
                 registry,
-                depth + 1,
+                depth,
+                prev_cache,
+                new_cache,
+                dep,
               )
-            })
-          check_duplicate_sibling_ids(children)
-          Node(..rendered_node, props:, children:)
+          }
+        _ ->
+          // No dependency stored; always normalize fresh (no caching)
+          normalize_memo_fresh(
+            node,
+            scope,
+            current_window_id,
+            registry,
+            depth,
+            prev_cache,
+            new_cache,
+          )
+      }
+    }
+    _ -> {
+      // Widget rendering: if this node is a placeholder, render it
+      // with stored state and normalize the output. The rendered node
+      // has no __widget__ tags in its meta, so normalization won't
+      // re-trigger rendering (no recursion). Widget metadata is
+      // attached to the final node's meta for registry derivation.
+      case widget.is_placeholder(node) {
+        True -> {
+          case
+            widget.render_placeholder(
+              node,
+              current_window_id,
+              scoped_id,
+              node.id,
+              registry,
+            )
+          {
+            Some(#(rendered_node, _entry)) -> {
+              // The rendered node already has the scoped_id set and metadata
+              // attached. Normalize its children at the same scope position
+              // and resolve a11y references in its props.
+              let child_scope = case rendered_node.kind, rendered_node.id {
+                "window", _ -> scoped_id <> "#"
+                _, "" -> scope
+                _, _ -> scoped_id
+              }
+              // Forward standard widget props (a11y, event_rate) from the
+              // placeholder to the rendered output so widget authors don't
+              // need to handle them manually.
+              let props =
+                widget.merge_standard_props(rendered_node.props, node.props)
+              let props = resolve_a11y_refs(props, scope)
+              let #(children, new_cache) =
+                normalize_children(
+                  rendered_node.children,
+                  child_scope,
+                  current_window_id,
+                  registry,
+                  depth + 1,
+                  prev_cache,
+                  new_cache,
+                )
+              check_duplicate_sibling_ids(children)
+              #(Node(..rendered_node, props:, children:), new_cache)
+            }
+            _ -> {
+              // Fallback: normalize as a regular node
+              normalize_regular(
+                node,
+                scoped_id,
+                scope,
+                current_window_id,
+                registry,
+                depth,
+                prev_cache,
+                new_cache,
+              )
+            }
+          }
         }
-        _ -> {
-          // Fallback: normalize as a regular node
+        False ->
           normalize_regular(
             node,
             scoped_id,
@@ -158,19 +256,11 @@ fn normalize_ctx(
             current_window_id,
             registry,
             depth,
+            prev_cache,
+            new_cache,
           )
-        }
       }
     }
-    False ->
-      normalize_regular(
-        node,
-        scoped_id,
-        scope,
-        current_window_id,
-        registry,
-        depth,
-      )
   }
 }
 
@@ -181,7 +271,9 @@ fn normalize_regular(
   window_id: String,
   registry: widget.Registry,
   depth: Int,
-) -> Node {
+  prev_cache: MemoCache,
+  new_cache: MemoCache,
+) -> #(Node, MemoCache) {
   // Windows set child scope to "window_id#"; empty IDs are transparent.
   let child_scope = case node.kind, node.id {
     "window", _ -> scoped_id <> "#"
@@ -191,17 +283,134 @@ fn normalize_regular(
 
   let props = resolve_a11y_refs(node.props, scope)
 
-  let children =
-    list.map(node.children, fn(child) {
-      normalize_ctx(child, child_scope, window_id, registry, depth + 1)
-    })
+  let #(children, new_cache) =
+    normalize_children(
+      node.children,
+      child_scope,
+      window_id,
+      registry,
+      depth + 1,
+      prev_cache,
+      new_cache,
+    )
 
   // Reject duplicate sibling IDs before diffing.
   check_duplicate_sibling_ids(children)
 
   let children = infer_radio_a11y(children)
 
-  Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new())
+  #(
+    Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new()),
+    new_cache,
+  )
+}
+
+/// Fold over children, threading the memo cache through each recursive
+/// normalize_ctx call so earlier siblings' cache entries are visible to
+/// later siblings.
+fn normalize_children(
+  children: List(Node),
+  scope: String,
+  window_id: String,
+  registry: widget.Registry,
+  depth: Int,
+  prev_cache: MemoCache,
+  new_cache: MemoCache,
+) -> #(List(Node), MemoCache) {
+  let #(children_rev, new_cache) =
+    list.fold(children, #([], new_cache), fn(acc, child) {
+      let #(kids, cache) = acc
+      let #(normalized_child, cache) =
+        normalize_ctx(
+          child,
+          scope,
+          window_id,
+          registry,
+          depth,
+          prev_cache,
+          cache,
+        )
+      #([normalized_child, ..kids], cache)
+    })
+  #(list.reverse(children_rev), new_cache)
+}
+
+/// Normalize a memo node's first child and cache the result.
+fn normalize_memo_child(
+  node: Node,
+  scoped_id: String,
+  scope: String,
+  window_id: String,
+  registry: widget.Registry,
+  depth: Int,
+  prev_cache: MemoCache,
+  new_cache: MemoCache,
+  dep: Dynamic,
+) -> #(Node, MemoCache) {
+  case node.children {
+    [content, ..] -> {
+      let #(normalized_child, new_cache) =
+        normalize_ctx(
+          content,
+          scope,
+          window_id,
+          registry,
+          depth + 1,
+          prev_cache,
+          new_cache,
+        )
+      let new_cache =
+        dict.insert(new_cache, scoped_id, #(dep, normalized_child))
+      #(normalized_child, new_cache)
+    }
+    [] -> {
+      let empty =
+        Node(
+          id: scoped_id,
+          kind: "container",
+          props: dict.new(),
+          children: [],
+          meta: dict.new(),
+        )
+      let new_cache = dict.insert(new_cache, scoped_id, #(dep, empty))
+      #(empty, new_cache)
+    }
+  }
+}
+
+/// Normalize a memo node's first child without caching (no dependency
+/// was provided, so we can't determine staleness).
+fn normalize_memo_fresh(
+  node: Node,
+  scope: String,
+  window_id: String,
+  registry: widget.Registry,
+  depth: Int,
+  prev_cache: MemoCache,
+  new_cache: MemoCache,
+) -> #(Node, MemoCache) {
+  case node.children {
+    [content, ..] ->
+      normalize_ctx(
+        content,
+        scope,
+        window_id,
+        registry,
+        depth + 1,
+        prev_cache,
+        new_cache,
+      )
+    [] -> #(
+      Node(
+        id: "",
+        kind: "container",
+        props: dict.new(),
+        children: [],
+        meta: dict.new(),
+      ),
+      new_cache,
+    )
+  }
 }
 
 fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {

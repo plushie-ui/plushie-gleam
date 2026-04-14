@@ -61,8 +61,14 @@ pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
 
 fn render(app: App(model, msg), model: model) -> Node {
   let view_fn = app.get_view(app)
-  case tree.normalize_view(view_fn(model), widget.empty_registry()) {
-    Ok(normalized) -> normalized
+  case
+    tree.normalize_view(
+      view_fn(model),
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+    )
+  {
+    Ok(#(normalized, _cache)) -> normalized
     Error(message) -> panic as message
   }
 }

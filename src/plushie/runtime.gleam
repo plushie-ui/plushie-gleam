@@ -230,6 +230,8 @@ type LoopState(model, msg) {
     widget_statuses: Dict(String, String),
     // Currently focused widget ID (tracked from status events)
     focused_widget_id: Option(String),
+    // Memo cache for subtree caching across render cycles
+    memo_cache: tree.MemoCache,
   )
 }
 
@@ -280,9 +282,12 @@ fn init_runtime(
   )
 
   // Render initial view
-  let initial_tree =
-    app.get_view(app)(model)
-    |> normalize_view_or_panic(widget.empty_registry())
+  let #(initial_tree, initial_memo_cache) =
+    normalize_view_or_panic(
+      app.get_view(app)(model),
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+    )
   let initial_cw_registry = widget.derive_registry(initial_tree)
 
   // Send initial snapshot
@@ -338,6 +343,7 @@ fn init_runtime(
       coalesce_timer: None,
       widget_statuses: dict.new(),
       focused_widget_id: None,
+      memo_cache: initial_memo_cache,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -827,14 +833,15 @@ fn handle_message(
 
       // Re-render view and send fresh snapshot
       let view_fn = app.get_view(state.app)
-      let #(tree, cw_registry) = case
+      let #(tree, cw_registry, new_memo_cache) = case
         platform.try_call(fn() { view_fn(state.model) })
       {
         Ok(t) -> {
-          let normalized = normalize_view_or_panic(t, state.cw_registry)
-          #(Some(normalized), widget.derive_registry(normalized))
+          let #(normalized, new_cache) =
+            normalize_view_or_panic(t, state.cw_registry, state.memo_cache)
+          #(Some(normalized), widget.derive_registry(normalized), new_cache)
         }
-        Error(_) -> #(state.tree, state.cw_registry)
+        Error(_) -> #(state.tree, state.cw_registry, state.memo_cache)
       }
       case tree {
         Some(t) ->
@@ -884,6 +891,7 @@ fn handle_message(
           windows:,
           cw_registry:,
           consecutive_view_errors: 0,
+          memo_cache: new_memo_cache,
         )
 
       // Tell the bridge resync is done. It will flush queued
@@ -898,8 +906,12 @@ fn handle_message(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(state.model) }) {
         Ok(new_tree_raw) -> {
-          let new_tree =
-            normalize_view_or_panic(new_tree_raw, state.cw_registry)
+          let #(new_tree, new_memo_cache) =
+            normalize_view_or_panic(
+              new_tree_raw,
+              state.cw_registry,
+              state.memo_cache,
+            )
           let new_cw_registry = widget.derive_registry(new_tree)
           // Diff and send patch (or snapshot if no previous tree)
           case state.tree {
@@ -958,6 +970,7 @@ fn handle_message(
             windows: new_windows,
             cw_registry: new_cw_registry,
             consecutive_view_errors: 0,
+            memo_cache: new_memo_cache,
           )
           |> actor.continue()
         }
@@ -1346,7 +1359,12 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let view_fn = app.get_view(state.app)
   case platform.try_call(fn() { view_fn(state.model) }) {
     Ok(new_tree_raw) -> {
-      let new_tree = normalize_view_or_panic(new_tree_raw, state.cw_registry)
+      let #(new_tree, new_memo_cache) =
+        normalize_view_or_panic(
+          new_tree_raw,
+          state.cw_registry,
+          state.memo_cache,
+        )
       let new_cw_registry = widget.derive_registry(new_tree)
 
       // Diff and send patch
@@ -1404,6 +1422,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
         windows: new_windows,
         cw_registry: new_cw_registry,
         consecutive_view_errors: 0,
+        memo_cache: new_memo_cache,
       )
     }
     Error(reason) -> {
@@ -1513,8 +1532,12 @@ fn dispatch_update(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(new_model) }) {
         Ok(new_tree_raw) -> {
-          let new_tree =
-            normalize_view_or_panic(new_tree_raw, state_after_cmds.cw_registry)
+          let #(new_tree, new_memo_cache) =
+            normalize_view_or_panic(
+              new_tree_raw,
+              state_after_cmds.cw_registry,
+              state_after_cmds.memo_cache,
+            )
           let new_cw_registry = widget.derive_registry(new_tree)
 
           // Diff and send patch
@@ -1584,6 +1607,7 @@ fn dispatch_update(
             async_tasks: state_after_cmds.async_tasks,
             nonce_counter: state_after_cmds.nonce_counter,
             pending_effects: state_after_cmds.pending_effects,
+            memo_cache: new_memo_cache,
           )
         }
         Error(reason) -> {
@@ -2243,9 +2267,13 @@ fn sync_windows(
   Nil
 }
 
-fn normalize_view_or_panic(view_tree: Node, registry: widget.Registry) -> Node {
-  case tree.normalize_view(view_tree, registry) {
-    Ok(normalized) -> normalized
+fn normalize_view_or_panic(
+  view_tree: Node,
+  registry: widget.Registry,
+  memo_cache: tree.MemoCache,
+) -> #(Node, tree.MemoCache) {
+  case tree.normalize_view(view_tree, registry, memo_cache) {
+    Ok(#(normalized, new_cache)) -> #(normalized, new_cache)
     Error(message) -> panic as message
   }
 }

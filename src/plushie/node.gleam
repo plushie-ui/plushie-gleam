@@ -6,6 +6,7 @@
 //// them to wire format.
 
 import gleam/dict.{type Dict}
+import gleam/dynamic.{type Dynamic}
 import gleam/list
 
 // --- PropValue ---------------------------------------------------------------
@@ -24,6 +25,10 @@ pub type PropValue {
   BinaryVal(BitArray)
   ListVal(List(PropValue))
   DictVal(Dict(String, PropValue))
+  /// Opaque runtime value. Used internally by the memo system and
+  /// widget state storage. Never sent on the wire; the encoder
+  /// ignores this variant.
+  OpaqueVal(Dynamic)
 }
 
 // --- Node --------------------------------------------------------------------

@@ -17,7 +17,7 @@ import glepack/data
 import plushie/app.{type Settings}
 import plushie/node.{
   type Node, type PropValue, BinaryVal, BoolVal, DictVal, FloatVal, IntVal,
-  ListVal, NullVal, StringVal,
+  ListVal, NullVal, OpaqueVal, StringVal,
 }
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
@@ -44,6 +44,7 @@ pub fn prop_value_to_json(v: PropValue) -> json.Json {
       dict.to_list(d)
       |> list.map(fn(pair) { #(pair.0, prop_value_to_json(pair.1)) })
       |> json.object
+    OpaqueVal(_) -> json.null()
   }
 }
 
@@ -58,6 +59,7 @@ pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
     NullVal -> data.Nil
     BinaryVal(bytes) -> data.Binary(bytes)
     ListVal(items) -> data.Array(list.map(items, prop_value_to_msgpack))
+    OpaqueVal(_) -> data.Nil
     DictVal(d) ->
       dict.to_list(d)
       |> list.map(fn(pair) {

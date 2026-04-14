@@ -289,8 +289,8 @@ fn render_and_sync(
 
 @target(javascript)
 fn normalize_view_or_panic(view_tree: Node, registry: widget.Registry) -> Node {
-  case tree.normalize_view(view_tree, registry) {
-    Ok(normalized) -> normalized
+  case tree.normalize_view(view_tree, registry, tree.empty_memo_cache()) {
+    Ok(#(normalized, _cache)) -> normalized
     Error(message) -> panic as message
   }
 }

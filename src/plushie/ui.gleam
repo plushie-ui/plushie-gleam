@@ -5,6 +5,8 @@
 //// a `List(widget.Opt)` of typed options specific to that widget,
 //// giving compile-time validation of property names and types.
 
+import gleam/dict
+import gleam/dynamic.{type Dynamic}
 import gleam/option.{type Option}
 import plushie/node.{type Node}
 import plushie/prop/length.{type Length}
@@ -344,6 +346,36 @@ pub fn markdown(id: String, content: String, opts: List(markdown.Opt)) -> Node {
   |> markdown.with_opts(opts)
   |> markdown.build()
 }
+
+// --- Memo (subtree caching) --------------------------------------------------
+
+/// Mark a subtree for caching across render cycles. The content function
+/// is evaluated eagerly. The dependency is stored with the result so the
+/// runtime can skip re-normalization when the dependency hasn't changed.
+///
+/// ```gleam
+/// ui.memo("sidebar", model.sidebar_version, fn() {
+///   sidebar_view(model.sidebar_data)
+/// })
+/// ```
+///
+/// The key must be unique within siblings. The dependency can be any
+/// value; it's compared with `==` each render cycle.
+pub fn memo(key: String, dependency: a, content: fn() -> Node) -> Node {
+  let child = content()
+  node.Node(
+    id: "memo:" <> key,
+    kind: "__memo__",
+    props: dict.new(),
+    children: [child],
+    meta: dict.from_list([
+      #("__memo_dep__", node.OpaqueVal(coerce(dependency))),
+    ]),
+  )
+}
+
+@external(erlang, "plushie_ffi", "identity")
+fn coerce(value: a) -> Dynamic
 
 // --- Tree query delegates ----------------------------------------------------
 
