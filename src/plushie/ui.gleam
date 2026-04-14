@@ -375,6 +375,7 @@ pub fn memo(key: String, dependency: a, content: fn() -> Node) -> Node {
 }
 
 @external(erlang, "plushie_ffi", "identity")
+@external(javascript, "../plushie_platform_ffi.mjs", "identity")
 fn coerce(value: a) -> Dynamic
 
 // --- Tree query delegates ----------------------------------------------------

@@ -11,9 +11,10 @@ import gleam/list
 
 // --- PropValue ---------------------------------------------------------------
 
-/// A wire-compatible value. Covers all JSON/MessagePack primitive types.
-/// Widget builders convert typed Gleam values (Length, Padding, Color, etc.)
-/// into PropValue at `build()` time.
+/// Value type for node props and meta. Most variants are wire-compatible
+/// (JSON/MessagePack). Widget builders convert typed Gleam values
+/// (Length, Padding, Color, etc.) into PropValue at `build()` time.
+/// `OpaqueVal` is runtime-only and encodes as null on the wire.
 pub type PropValue {
   StringVal(String)
   IntVal(Int)
