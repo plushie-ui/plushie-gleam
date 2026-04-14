@@ -30,9 +30,9 @@ start(Addr, Format) ->
     end.
 
 socket_options(msgpack) ->
-    [binary, {packet, 4}, {active, true}];
+    [binary, {packet, 4}, {active, true}, {nodelay, true}];
 socket_options(json) ->
-    [binary, {packet, line}, {active, true}].
+    [binary, {packet, line}, {active, true}, {nodelay, true}].
 
 connect(Addr, Opts) ->
     case parse_addr(Addr) of

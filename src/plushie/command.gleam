@@ -6,8 +6,10 @@
 //// calls `view` with the new model. Batched commands execute in
 //// list order. For no side effects, return `command.none()`.
 
+import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
+import gleam/int
 import gleam/option.{type Option}
 import plushie/node.{type PropValue}
 
@@ -351,6 +353,51 @@ pub fn announce(text: String) -> Command(msg) {
 /// given handle for use in image widgets.
 pub fn create_image(handle: String, data: BitArray) -> Command(msg) {
   CreateImage(handle:, data:)
+}
+
+/// Register an image from raw RGBA pixel data under the given handle.
+/// The pixel buffer must be exactly `width * height * 4` bytes
+/// (R, G, B, A per pixel, row-major).
+pub fn create_image_rgba(
+  handle: String,
+  width: Int,
+  height: Int,
+  pixels: BitArray,
+) -> Command(msg) {
+  validate_rgba_buffer(pixels, width, height)
+  CreateImageRgba(handle:, width:, height:, pixels:)
+}
+
+/// Update an existing image handle with new raw RGBA pixel data.
+/// The pixel buffer must be exactly `width * height * 4` bytes
+/// (R, G, B, A per pixel, row-major).
+pub fn update_image_rgba(
+  handle: String,
+  width: Int,
+  height: Int,
+  pixels: BitArray,
+) -> Command(msg) {
+  validate_rgba_buffer(pixels, width, height)
+  UpdateImageRgba(handle:, width:, height:, pixels:)
+}
+
+fn validate_rgba_buffer(pixels: BitArray, width: Int, height: Int) -> Nil {
+  let expected = width * height * 4
+  let actual = bit_array.byte_size(pixels)
+  case actual == expected {
+    True -> Nil
+    False ->
+      panic as {
+        "RGBA pixel buffer size mismatch: expected "
+        <> int.to_string(expected)
+        <> " bytes ("
+        <> int.to_string(width)
+        <> "x"
+        <> int.to_string(height)
+        <> "x4) but got "
+        <> int.to_string(actual)
+      }
+  }
 }
 
 /// Delete a previously registered image by its handle.

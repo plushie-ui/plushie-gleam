@@ -5,6 +5,7 @@
 //// of string-keyed PropValues.
 
 import gleam/dict.{type Dict}
+import gleam/string
 import plushie/node.{type PropValue, BoolVal, DictVal, IntVal, StringVal}
 
 pub type A11y {
@@ -131,9 +132,15 @@ pub fn read_only(a: A11y, b: Bool) -> A11y {
   A11y(props: dict.insert(a.props, "read_only", BoolVal(b)))
 }
 
-/// Set an Alt+letter keyboard shortcut (single character).
+/// Set an Alt+letter keyboard shortcut (single grapheme).
 pub fn mnemonic(a: A11y, s: String) -> A11y {
-  A11y(props: dict.insert(a.props, "mnemonic", StringVal(s)))
+  case string.to_graphemes(s) {
+    [_] -> A11y(props: dict.insert(a.props, "mnemonic", StringVal(s)))
+    _ -> {
+      let message = "mnemonic must be a single grapheme, got: \"" <> s <> "\""
+      panic as message
+    }
+  }
 }
 
 /// Set toggled/checked state for custom toggle widgets.

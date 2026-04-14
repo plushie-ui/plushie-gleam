@@ -16,6 +16,7 @@ import plushie/node.{
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
+import plushie/platform
 import plushie/widget
 
 // --- Normalize ---------------------------------------------------------------
@@ -30,7 +31,7 @@ import plushie/widget
 ///   only appears at the window boundary).
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  normalize_ctx(node, "", "", widget.empty_registry())
+  normalize_ctx(node, "", "", widget.empty_registry(), 0)
 }
 
 /// Normalize a top-level app view and enforce explicit windows.
@@ -65,7 +66,7 @@ pub fn normalize_view(
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
-  normalize_ctx(node, "", "", registry)
+  normalize_ctx(node, "", "", registry, 0)
 }
 
 fn normalize_ctx(
@@ -73,7 +74,20 @@ fn normalize_ctx(
   scope: String,
   window_id: String,
   registry: widget.Registry,
+  depth: Int,
 ) -> Node {
+  case depth >= 256 {
+    True -> panic as "tree exceeds maximum depth of 256 levels"
+    False ->
+      case depth == 200 {
+        True ->
+          platform.log_warning(
+            "plushie: tree depth reached 200 levels, maximum is 256",
+          )
+        False -> Nil
+      }
+  }
+
   let current_window_id = case node.kind {
     "window" -> node.id
     _ -> window_id
@@ -124,19 +138,39 @@ fn normalize_ctx(
           let props = resolve_a11y_refs(props, scope)
           let children =
             list.map(rendered_node.children, fn(child) {
-              normalize_ctx(child, child_scope, current_window_id, registry)
+              normalize_ctx(
+                child,
+                child_scope,
+                current_window_id,
+                registry,
+                depth + 1,
+              )
             })
           check_duplicate_sibling_ids(children)
           Node(..rendered_node, props:, children:)
         }
         _ -> {
           // Fallback: normalize as a regular node
-          normalize_regular(node, scoped_id, scope, current_window_id, registry)
+          normalize_regular(
+            node,
+            scoped_id,
+            scope,
+            current_window_id,
+            registry,
+            depth,
+          )
         }
       }
     }
     False ->
-      normalize_regular(node, scoped_id, scope, current_window_id, registry)
+      normalize_regular(
+        node,
+        scoped_id,
+        scope,
+        current_window_id,
+        registry,
+        depth,
+      )
   }
 }
 
@@ -146,6 +180,7 @@ fn normalize_regular(
   scope: String,
   window_id: String,
   registry: widget.Registry,
+  depth: Int,
 ) -> Node {
   // Windows set child scope to "window_id#"; empty IDs are transparent.
   let child_scope = case node.kind, node.id {
@@ -158,7 +193,7 @@ fn normalize_regular(
 
   let children =
     list.map(node.children, fn(child) {
-      normalize_ctx(child, child_scope, window_id, registry)
+      normalize_ctx(child, child_scope, window_id, registry, depth + 1)
     })
 
   // Reject duplicate sibling IDs before diffing.
