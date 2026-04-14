@@ -9,6 +9,7 @@ import plushie/prop/alignment.{type Alignment}
 import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -31,7 +32,7 @@ pub opaque type Text {
     font: Option(Font),
     width: Option(Length),
     height: Option(Length),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     align_x: Option(Alignment),
     align_y: Option(Alignment),
     wrapping: Option(Wrapping),
@@ -89,8 +90,8 @@ pub fn height(text: Text, h: Length) -> Text {
 }
 
 /// Set the line height.
-pub fn line_height(text: Text, h: Float) -> Text {
-  Text(..text, line_height: option.Some(h))
+pub fn line_height(text: Text, lh: LineHeight) -> Text {
+  Text(..text, line_height: option.Some(lh))
 }
 
 /// Set the horizontal alignment.
@@ -135,7 +136,7 @@ pub type Opt {
   Font(Font)
   Width(Length)
   Height(Length)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   AlignX(Alignment)
   AlignY(Alignment)
   Wrapping(Wrapping)
@@ -187,7 +188,11 @@ pub fn build(text: Text) -> Node {
     |> build.put_optional("font", text.font, font.to_prop_value)
     |> build.put_optional("width", text.width, length.to_prop_value)
     |> build.put_optional("height", text.height, length.to_prop_value)
-    |> build.put_optional_float("line_height", text.line_height)
+    |> build.put_optional(
+      "line_height",
+      text.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("align_x", text.align_x, alignment.to_prop_value)
     |> build.put_optional("align_y", text.align_y, alignment.to_prop_value)
     |> build.put_optional("wrapping", text.wrapping, wrapping.to_prop_value)

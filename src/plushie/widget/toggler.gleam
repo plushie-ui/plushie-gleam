@@ -8,6 +8,7 @@ import plushie/prop/a11y.{type A11y}
 import plushie/prop/alignment.{type Alignment}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -22,7 +23,7 @@ pub opaque type Toggler {
     size: Option(Float),
     text_size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     shaping: Option(Shaping),
     wrapping: Option(Wrapping),
     text_alignment: Option(Alignment),
@@ -79,8 +80,8 @@ pub fn font(t: Toggler, f: Font) -> Toggler {
 }
 
 /// Set the line height.
-pub fn line_height(t: Toggler, h: Float) -> Toggler {
-  Toggler(..t, line_height: option.Some(h))
+pub fn line_height(t: Toggler, lh: LineHeight) -> Toggler {
+  Toggler(..t, line_height: option.Some(lh))
 }
 
 /// Set the text shaping strategy.
@@ -120,7 +121,7 @@ pub type Opt {
   Size(Float)
   TextSize(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   Shaping(Shaping)
   Wrapping(Wrapping)
   TextAlignment(Alignment)
@@ -160,7 +161,11 @@ pub fn build(t: Toggler) -> Node {
     |> build.put_optional_float("size", t.size)
     |> build.put_optional_float("text_size", t.text_size)
     |> build.put_optional("font", t.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", t.line_height)
+    |> build.put_optional(
+      "line_height",
+      t.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("shaping", t.shaping, shaping.to_prop_value)
     |> build.put_optional("wrapping", t.wrapping, wrapping.to_prop_value)
     |> build.put_optional(

@@ -7,6 +7,7 @@ import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -23,7 +24,7 @@ pub opaque type Radio {
     size: Option(Float),
     text_size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     shaping: Option(Shaping),
     wrapping: Option(Wrapping),
     style: Option(String),
@@ -88,8 +89,8 @@ pub fn font(r: Radio, f: Font) -> Radio {
 }
 
 /// Set the line height.
-pub fn line_height(r: Radio, h: Float) -> Radio {
-  Radio(..r, line_height: option.Some(h))
+pub fn line_height(r: Radio, lh: LineHeight) -> Radio {
+  Radio(..r, line_height: option.Some(lh))
 }
 
 /// Set the text shaping strategy.
@@ -120,7 +121,7 @@ pub type Opt {
   Size(Float)
   TextSize(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   Shaping(Shaping)
   Wrapping(Wrapping)
   Style(String)
@@ -159,7 +160,11 @@ pub fn build(r: Radio) -> Node {
     |> build.put_optional_float("size", r.size)
     |> build.put_optional_float("text_size", r.text_size)
     |> build.put_optional("font", r.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", r.line_height)
+    |> build.put_optional(
+      "line_height",
+      r.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("shaping", r.shaping, shaping.to_prop_value)
     |> build.put_optional("wrapping", r.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("style", r.style)

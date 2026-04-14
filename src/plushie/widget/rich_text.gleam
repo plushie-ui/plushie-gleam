@@ -14,6 +14,7 @@ import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -44,7 +45,7 @@ pub type Span {
     size: Option(Float),
     font: Option(Font),
     color: Option(Color),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     link: Option(String),
     underline: Option(Bool),
     strikethrough: Option(Bool),
@@ -85,7 +86,7 @@ pub fn span_color(s: Span, c: Color) -> Span {
 }
 
 /// Set the line height on a span.
-pub fn span_line_height(s: Span, lh: Float) -> Span {
+pub fn span_line_height(s: Span, lh: LineHeight) -> Span {
   Span(..s, line_height: Some(lh))
 }
 
@@ -165,7 +166,8 @@ pub fn span_to_prop_value(s: Span) -> PropValue {
     None -> fields
   }
   let fields = case s.line_height {
-    Some(lh) -> dict.insert(fields, "line_height", FloatVal(lh))
+    Some(lh) ->
+      dict.insert(fields, "line_height", line_height.to_prop_value(lh))
     None -> fields
   }
   let fields = case s.link {
@@ -202,7 +204,7 @@ pub opaque type RichText {
     size: Option(Float),
     font: Option(Font),
     color: Option(Color),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     wrapping: Option(Wrapping),
     ellipsis: Option(String),
     a11y: Option(A11y),
@@ -257,7 +259,7 @@ pub fn color(rt: RichText, c: Color) -> RichText {
 }
 
 /// Set the line height.
-pub fn line_height(rt: RichText, lh: Float) -> RichText {
+pub fn line_height(rt: RichText, lh: LineHeight) -> RichText {
   RichText(..rt, line_height: Some(lh))
 }
 
@@ -284,7 +286,7 @@ pub type Opt {
   Size(Float)
   Font(Font)
   Color(Color)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   Wrapping(Wrapping)
   Ellipsis(String)
   A11y(A11y)
@@ -320,7 +322,11 @@ pub fn build(rt: RichText) -> Node {
     |> build.put_optional_float("size", rt.size)
     |> build.put_optional("font", rt.font, font.to_prop_value)
     |> build.put_optional("color", rt.color, color.to_prop_value)
-    |> build.put_optional_float("line_height", rt.line_height)
+    |> build.put_optional(
+      "line_height",
+      rt.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("wrapping", rt.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("ellipsis", rt.ellipsis)
     |> build.put_optional("a11y", rt.a11y, a11y.to_prop_value)

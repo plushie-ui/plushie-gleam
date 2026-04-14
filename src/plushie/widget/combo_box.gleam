@@ -7,6 +7,7 @@ import plushie/node.{type Node, type PropValue, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/shaping.{type Shaping}
 import plushie/widget/build
@@ -21,7 +22,7 @@ pub opaque type ComboBox {
     padding: Option(Padding),
     size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     menu_height: Option(Float),
     icon: Option(PropValue),
     on_option_hovered: Option(Bool),
@@ -88,8 +89,8 @@ pub fn font(cb: ComboBox, f: Font) -> ComboBox {
 }
 
 /// Set the line height.
-pub fn line_height(cb: ComboBox, h: Float) -> ComboBox {
-  ComboBox(..cb, line_height: option.Some(h))
+pub fn line_height(cb: ComboBox, lh: LineHeight) -> ComboBox {
+  ComboBox(..cb, line_height: option.Some(lh))
 }
 
 /// Set the dropdown menu height.
@@ -155,7 +156,7 @@ pub type Opt {
   Padding(Padding)
   Size(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   MenuHeight(Float)
   Icon(PropValue)
   OnOptionHovered(Bool)
@@ -205,7 +206,11 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional("padding", cb.padding, padding.to_prop_value)
     |> build.put_optional_float("size", cb.size)
     |> build.put_optional("font", cb.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", cb.line_height)
+    |> build.put_optional(
+      "line_height",
+      cb.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional_float("menu_height", cb.menu_height)
     |> build.put_optional("icon", cb.icon, fn(i) { i })
     |> build.put_optional_bool("on_option_hovered", cb.on_option_hovered)

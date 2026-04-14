@@ -5,6 +5,7 @@ import plushie/node.{BoolVal, DictVal, FloatVal, ListVal, StringVal}
 import plushie/prop/color
 import plushie/prop/font
 import plushie/prop/length
+import plushie/prop/line_height
 import plushie/prop/padding
 import plushie/prop/wrapping
 import plushie/widget/rich_text
@@ -129,7 +130,7 @@ pub fn widget_level_props_test() {
     |> rich_text.size(16.0)
     |> rich_text.font(font.Monospace)
     |> rich_text.color(color.blue)
-    |> rich_text.line_height(1.5)
+    |> rich_text.line_height(line_height.relative(1.5))
     |> rich_text.wrapping(wrapping.Word)
     |> rich_text.ellipsis("end")
     |> rich_text.build()

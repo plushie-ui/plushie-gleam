@@ -8,6 +8,7 @@ import plushie/prop/a11y.{type A11y}
 import plushie/prop/alignment.{type Alignment}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/widget/build
 
@@ -20,7 +21,7 @@ pub opaque type TextInput {
     width: Option(Length),
     size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     align_x: Option(Alignment),
     on_submit: Option(Bool),
     on_paste: Option(Bool),
@@ -76,8 +77,8 @@ pub fn font(input: TextInput, f: Font) -> TextInput {
 }
 
 /// Set the line height.
-pub fn line_height(input: TextInput, h: Float) -> TextInput {
-  TextInput(..input, line_height: option.Some(h))
+pub fn line_height(input: TextInput, lh: LineHeight) -> TextInput {
+  TextInput(..input, line_height: option.Some(lh))
 }
 
 /// Set the horizontal alignment.
@@ -117,7 +118,7 @@ pub type Opt {
   Width(Length)
   Size(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   AlignX(Alignment)
   OnSubmit(Bool)
   OnPaste(Bool)
@@ -156,7 +157,11 @@ pub fn build(input: TextInput) -> Node {
     |> build.put_optional("width", input.width, length.to_prop_value)
     |> build.put_optional_float("size", input.size)
     |> build.put_optional("font", input.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", input.line_height)
+    |> build.put_optional(
+      "line_height",
+      input.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("align_x", input.align_x, alignment.to_prop_value)
     |> build.put_optional_bool("on_submit", input.on_submit)
     |> build.put_optional_bool("on_paste", input.on_paste)

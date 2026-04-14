@@ -7,6 +7,7 @@ import plushie/node.{type Node, type PropValue, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/shaping.{type Shaping}
 import plushie/widget/build
@@ -21,7 +22,7 @@ pub opaque type PickList {
     padding: Option(Padding),
     text_size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     menu_height: Option(Float),
     shaping: Option(Shaping),
     handle: Option(PropValue),
@@ -88,8 +89,8 @@ pub fn font(pl: PickList, f: Font) -> PickList {
 }
 
 /// Set the line height.
-pub fn line_height(pl: PickList, h: Float) -> PickList {
-  PickList(..pl, line_height: option.Some(h))
+pub fn line_height(pl: PickList, lh: LineHeight) -> PickList {
+  PickList(..pl, line_height: option.Some(lh))
 }
 
 /// Set the dropdown menu height.
@@ -144,7 +145,7 @@ pub type Opt {
   Padding(Padding)
   TextSize(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   MenuHeight(Float)
   Shaping(Shaping)
   Handle(PropValue)
@@ -190,7 +191,11 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional("padding", pl.padding, padding.to_prop_value)
     |> build.put_optional_float("text_size", pl.text_size)
     |> build.put_optional("font", pl.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", pl.line_height)
+    |> build.put_optional(
+      "line_height",
+      pl.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional_float("menu_height", pl.menu_height)
     |> build.put_optional("shaping", pl.shaping, shaping.to_prop_value)
     |> build.put_optional("handle", pl.handle, fn(h) { h })

@@ -8,6 +8,7 @@ import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -24,7 +25,7 @@ pub opaque type TextEditor {
     padding: Option(Padding),
     font: Option(Font),
     size: Option(Float),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     wrapping: Option(Wrapping),
     input_purpose: Option(String),
     highlight_syntax: Option(String),
@@ -104,8 +105,8 @@ pub fn size(te: TextEditor, s: Float) -> TextEditor {
 }
 
 /// Set the line height.
-pub fn line_height(te: TextEditor, h: Float) -> TextEditor {
-  TextEditor(..te, line_height: option.Some(h))
+pub fn line_height(te: TextEditor, lh: LineHeight) -> TextEditor {
+  TextEditor(..te, line_height: option.Some(lh))
 }
 
 /// Set the text wrapping mode.
@@ -163,7 +164,7 @@ pub type Opt {
   Padding(Padding)
   Font(Font)
   Size(Float)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   Wrapping(Wrapping)
   InputPurpose(String)
   HighlightSyntax(String)
@@ -214,7 +215,11 @@ pub fn build(te: TextEditor) -> Node {
     |> build.put_optional("padding", te.padding, padding.to_prop_value)
     |> build.put_optional("font", te.font, font.to_prop_value)
     |> build.put_optional_float("size", te.size)
-    |> build.put_optional_float("line_height", te.line_height)
+    |> build.put_optional(
+      "line_height",
+      te.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("wrapping", te.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("input_purpose", te.input_purpose)
     |> build.put_optional_string("highlight_syntax", te.highlight_syntax)

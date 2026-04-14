@@ -2,6 +2,7 @@ import gleam/dict
 import plushie/node.{BoolVal, FloatVal, StringVal}
 import plushie/prop/alignment
 import plushie/prop/length
+import plushie/prop/line_height
 import plushie/prop/padding
 import plushie/widget/text_input
 
@@ -101,7 +102,7 @@ pub fn style_sets_string_prop_test() {
 pub fn line_height_sets_float_prop_test() {
   let node =
     text_input.new("in", "")
-    |> text_input.line_height(1.5)
+    |> text_input.line_height(line_height.relative(1.5))
     |> text_input.build()
 
   assert dict.get(node.props, "line_height") == Ok(FloatVal(1.5))

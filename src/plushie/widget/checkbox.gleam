@@ -7,6 +7,7 @@ import plushie/node.{type Node, type PropValue, DictVal, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
+import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -16,7 +17,7 @@ pub type CheckboxIcon {
   CheckboxIcon(
     code_point: String,
     size: Option(Float),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     font: Option(Font),
     shaping: Option(Shaping),
   )
@@ -32,7 +33,7 @@ pub opaque type Checkbox {
     size: Option(Float),
     text_size: Option(Float),
     font: Option(Font),
-    line_height: Option(Float),
+    line_height: Option(LineHeight),
     shaping: Option(Shaping),
     wrapping: Option(Wrapping),
     style: Option(String),
@@ -89,8 +90,8 @@ pub fn font(cb: Checkbox, f: Font) -> Checkbox {
 }
 
 /// Set the line height.
-pub fn line_height(cb: Checkbox, h: Float) -> Checkbox {
-  Checkbox(..cb, line_height: option.Some(h))
+pub fn line_height(cb: Checkbox, lh: LineHeight) -> Checkbox {
+  Checkbox(..cb, line_height: option.Some(lh))
 }
 
 /// Set the text shaping strategy.
@@ -130,7 +131,7 @@ pub type Opt {
   Size(Float)
   TextSize(Float)
   Font(Font)
-  LineHeight(Float)
+  LineHeight(LineHeight)
   Shaping(Shaping)
   Wrapping(Wrapping)
   Style(String)
@@ -164,7 +165,11 @@ fn icon_to_prop_value(i: CheckboxIcon) -> PropValue {
     dict.new()
     |> dict.insert("code_point", node.StringVal(i.code_point))
     |> build.put_optional_float("size", i.size)
-    |> build.put_optional_float("line_height", i.line_height)
+    |> build.put_optional(
+      "line_height",
+      i.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("font", i.font, font.to_prop_value)
     |> build.put_optional("shaping", i.shaping, shaping.to_prop_value)
   DictVal(props)
@@ -181,7 +186,11 @@ pub fn build(cb: Checkbox) -> Node {
     |> build.put_optional_float("size", cb.size)
     |> build.put_optional_float("text_size", cb.text_size)
     |> build.put_optional("font", cb.font, font.to_prop_value)
-    |> build.put_optional_float("line_height", cb.line_height)
+    |> build.put_optional(
+      "line_height",
+      cb.line_height,
+      line_height.to_prop_value,
+    )
     |> build.put_optional("shaping", cb.shaping, shaping.to_prop_value)
     |> build.put_optional("wrapping", cb.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("style", cb.style)
