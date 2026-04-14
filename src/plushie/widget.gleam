@@ -548,10 +548,16 @@ pub fn collect_subscriptions(registry: Registry) -> List(Subscription) {
 }
 
 /// Namespace a subscription's tag for a widget.
+/// Only timer subscriptions have user-facing tags that need namespacing.
+/// Renderer subscriptions are returned unchanged.
 fn namespace_tag(sub: Subscription, widget_key: String) -> Subscription {
-  let old_tag = subscription.tag(sub)
-  let new_tag = cw_tag_prefix <> widget_key <> key_sep <> old_tag
-  subscription.set_tag(sub, new_tag)
+  case sub {
+    subscription.Every(interval_ms:, tag:) -> {
+      let new_tag = cw_tag_prefix <> widget_key <> key_sep <> tag
+      subscription.Every(interval_ms:, tag: new_tag)
+    }
+    subscription.Renderer(..) -> sub
+  }
 }
 
 /// Check if a subscription tag is namespaced for a widget.

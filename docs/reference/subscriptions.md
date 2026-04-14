@@ -50,7 +50,7 @@ the window ID and `scope` set to `[]`. The data includes `pointer`
 ## Rate limiting
 
 ```gleam
-subscription.on_pointer_move("mouse")
+subscription.on_pointer_move()
 |> subscription.max_rate(30)
 ```
 
@@ -70,7 +70,7 @@ subscription.on_pointer_move_with("mouse", [subscription.MaxRate(30)])
 
 ```gleam
 subscription.for_window("settings", [
-  subscription.on_key_press("settings_keys"),
+  subscription.on_key_press(),
 ])
 ```
 
@@ -78,7 +78,7 @@ subscription.for_window("settings", [
 
 ```gleam
 fn subscribe(model: Model) {
-  let subs = [subscription.on_key_press("keys")]
+  let subs = [subscription.on_key_press()]
 
   case model.auto_save && model.dirty {
     True -> [subscription.every(1000, "auto_save"), ..subs]

@@ -232,7 +232,7 @@ type SubEntry {
   TimerSub(timer: process.Timer, interval_ms: Int, tag: String)
   RendererSub(
     kind: String,
-    tag: String,
+    wire_tag: String,
     max_rate: option.Option(Int),
     window_id: option.Option(String),
   )
@@ -1967,7 +1967,7 @@ fn sync_subscriptions(
         case old_rate == new_rate && old_window_id == new_window_id {
           True -> acc
           False -> {
-            let tag = subscription.tag(sub)
+            let tag = subscription.wire_tag(sub)
             send_encoded(
               bridge,
               encode.encode_subscribe(
@@ -1984,7 +1984,7 @@ fn sync_subscriptions(
               key,
               RendererSub(
                 kind:,
-                tag:,
+                wire_tag: tag,
                 max_rate: new_rate,
                 window_id: new_window_id,
               ),
@@ -2011,7 +2011,7 @@ fn start_subscription(
     }
     _ -> {
       let kind = subscription.wire_kind(sub)
-      let tag = subscription.tag(sub)
+      let tag = subscription.wire_tag(sub)
       let max_rate = subscription.get_max_rate(sub)
       let window_id = subscription.get_window_id(sub)
       send_encoded(
@@ -2025,7 +2025,7 @@ fn start_subscription(
           opts.format,
         ),
       )
-      RendererSub(kind:, tag:, max_rate:, window_id:)
+      RendererSub(kind:, wire_tag: tag, max_rate:, window_id:)
     }
   }
 }
@@ -2041,10 +2041,10 @@ fn stop_subscription(
       process.cancel_timer(timer)
       Nil
     }
-    RendererSub(kind:, tag:, ..) -> {
+    RendererSub(kind:, wire_tag:, ..) -> {
       send_encoded(
         bridge,
-        encode.encode_unsubscribe(kind, tag, opts.session, opts.format),
+        encode.encode_unsubscribe(kind, wire_tag, opts.session, opts.format),
       )
     }
   }

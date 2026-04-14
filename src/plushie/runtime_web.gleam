@@ -391,7 +391,7 @@ fn sync_subscriptions(handle: WebRuntimeHandle, app: App(model, msg)) -> Nil {
             {
               True -> {
                 let kind = subscription.wire_kind(new_sub)
-                let stag = subscription.tag(new_sub)
+                let stag = subscription.wire_tag(new_sub)
                 let max_rate = subscription.get_max_rate(new_sub)
                 let window_id = subscription.get_window_id(new_sub)
                 let assert Ok(bytes) =
@@ -429,7 +429,7 @@ fn start_subscription(
     }
     _ -> {
       let kind = subscription.wire_kind(sub)
-      let stag = subscription.tag(sub)
+      let stag = subscription.wire_tag(sub)
       let max_rate = subscription.get_max_rate(sub)
       let window_id = subscription.get_window_id(sub)
       let assert Ok(bytes) =
@@ -454,7 +454,7 @@ fn stop_subscription(
     _ -> {
       // Renderer subscription: send unsubscribe
       let kind = subscription.wire_kind(sub)
-      let stag = subscription.tag(sub)
+      let stag = subscription.wire_tag(sub)
       let assert Ok(bytes) =
         encode.encode_unsubscribe(kind, stag, session, Json)
       do_send(handle, bytes)

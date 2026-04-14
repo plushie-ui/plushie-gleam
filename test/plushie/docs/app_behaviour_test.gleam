@@ -78,7 +78,7 @@ fn update(model: Model, event: Event) {
 // -- subscribe example --------------------------------------------------------
 
 fn subscribe(model: Model) -> List(subscription.Subscription) {
-  let subs = [subscription.on_key_press("key_event")]
+  let subs = [subscription.on_key_press()]
 
   case model.auto_refresh {
     True -> [subscription.every(5000, "refresh"), ..subs]
@@ -179,7 +179,7 @@ pub fn app_behaviour_subscribe_without_auto_refresh_test() {
   let model = Model(todos: [], input: "", auto_refresh: False, next_id: 1)
   let subs = subscribe(model)
   let assert [sub] = subs
-  assert sub == subscription.on_key_press("key_event")
+  assert sub == subscription.on_key_press()
 }
 
 pub fn app_behaviour_subscribe_with_auto_refresh_test() {
@@ -187,7 +187,7 @@ pub fn app_behaviour_subscribe_with_auto_refresh_test() {
   let subs = subscribe(model)
   let assert [timer, key_sub] = subs
   assert timer == subscription.every(5000, "refresh")
-  assert key_sub == subscription.on_key_press("key_event")
+  assert key_sub == subscription.on_key_press()
 }
 
 pub fn app_behaviour_settings_test() {

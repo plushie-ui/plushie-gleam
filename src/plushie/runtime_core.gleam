@@ -42,13 +42,17 @@ pub fn coalesce_key(ev: Event) -> Option(String) {
 /// Convert a Subscription to a unique string key for diffing.
 ///
 /// Timer subscriptions are keyed by interval + tag. Renderer
-/// subscriptions are keyed by kind + tag.
+/// subscriptions are keyed by kind + window_id.
 pub fn subscription_key_string(sub: Subscription) -> String {
   let key = subscription.key(sub)
   case key {
     subscription.TimerKey(interval_ms:, tag:) ->
       "timer:" <> int.to_string(interval_ms) <> ":" <> tag
-    subscription.RendererKey(kind:, tag:) -> "renderer:" <> kind <> ":" <> tag
+    subscription.RendererKey(kind:, window_id:) ->
+      case window_id {
+        option.None -> "renderer:" <> kind
+        option.Some(wid) -> "renderer:" <> kind <> ":" <> wid
+      }
   }
 }
 

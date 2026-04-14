@@ -43,21 +43,21 @@ pub fn running_settings_low_event_rate_test() {
 
 pub fn running_subscription_pointer_move_with_rate_test() {
   let sub =
-    subscription.on_pointer_move("mouse")
+    subscription.on_pointer_move()
     |> subscription.set_max_rate(30)
   should.equal(subscription.get_max_rate(sub), option.Some(30))
 }
 
 pub fn running_subscription_animation_frame_with_rate_test() {
   let sub =
-    subscription.on_animation_frame("frame")
+    subscription.on_animation_frame()
     |> subscription.set_max_rate(60)
   should.equal(subscription.get_max_rate(sub), option.Some(60))
 }
 
 pub fn running_subscription_zero_rate_capture_only_test() {
   let sub =
-    subscription.on_pointer_move("capture")
+    subscription.on_pointer_move()
     |> subscription.set_max_rate(0)
   should.equal(subscription.get_max_rate(sub), option.Some(0))
 }

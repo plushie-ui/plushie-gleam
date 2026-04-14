@@ -372,10 +372,9 @@ pub fn commands_subscription_every_construct_test() {
 }
 
 pub fn commands_subscription_on_key_press_construct_test() {
-  subscription.on_key_press("key_event")
+  subscription.on_key_press()
   |> should.equal(subscription.Renderer(
     kind: subscription.KeyPress,
-    tag: "key_event",
     max_rate: option.None,
     window_id: option.None,
   ))
@@ -383,21 +382,21 @@ pub fn commands_subscription_on_key_press_construct_test() {
 
 pub fn commands_subscription_set_max_rate_test() {
   let sub =
-    subscription.on_pointer_move("mouse")
+    subscription.on_pointer_move()
     |> subscription.set_max_rate(30)
   subscription.get_max_rate(sub) |> should.equal(option.Some(30))
 }
 
 pub fn commands_subscription_set_max_rate_zero_test() {
   let sub =
-    subscription.on_pointer_move("mouse")
+    subscription.on_pointer_move()
     |> subscription.set_max_rate(0)
   subscription.get_max_rate(sub) |> should.equal(option.Some(0))
 }
 
 pub fn commands_subscription_on_animation_frame_test() {
   let sub =
-    subscription.on_animation_frame("frame")
+    subscription.on_animation_frame()
     |> subscription.set_max_rate(60)
   subscription.get_max_rate(sub) |> should.equal(option.Some(60))
 }
@@ -409,49 +408,33 @@ pub fn commands_subscription_every_ignores_max_rate_test() {
   subscription.get_max_rate(sub) |> should.equal(option.None)
 }
 
-pub fn commands_subscription_on_window_close_test() {
-  let sub = subscription.on_window_close("win_close")
-  subscription.tag(sub) |> should.equal("win_close")
+pub fn commands_subscription_wire_tag_test() {
+  subscription.wire_tag(subscription.on_window_close())
+  |> should.equal("on_window_close")
 }
 
-pub fn commands_subscription_on_window_resize_test() {
-  let sub = subscription.on_window_resize("win_resize")
-  subscription.tag(sub) |> should.equal("win_resize")
+pub fn commands_subscription_window_scoped_wire_tag_test() {
+  subscription.on_key_press()
+  |> subscription.set_window("editor")
+  |> subscription.wire_tag()
+  |> should.equal("on_key_press:editor")
 }
 
-pub fn commands_subscription_on_pointer_button_test() {
-  let sub = subscription.on_pointer_button("mouse_btn")
-  subscription.tag(sub) |> should.equal("mouse_btn")
-}
-
-pub fn commands_subscription_on_pointer_scroll_test() {
-  let sub = subscription.on_pointer_scroll("scroll")
-  subscription.tag(sub) |> should.equal("scroll")
-}
-
-pub fn commands_subscription_on_touch_test() {
-  let sub = subscription.on_pointer_touch("touch")
-  subscription.tag(sub) |> should.equal("touch")
-}
-
-pub fn commands_subscription_on_ime_test() {
-  let sub = subscription.on_ime("ime")
-  subscription.tag(sub) |> should.equal("ime")
-}
-
-pub fn commands_subscription_on_theme_change_test() {
-  let sub = subscription.on_theme_change("theme")
-  subscription.tag(sub) |> should.equal("theme")
-}
-
-pub fn commands_subscription_on_file_drop_test() {
-  let sub = subscription.on_file_drop("files")
-  subscription.tag(sub) |> should.equal("files")
-}
-
-pub fn commands_subscription_on_event_test() {
-  let sub = subscription.on_event("all")
-  subscription.tag(sub) |> should.equal("all")
+pub fn commands_subscription_wire_kind_test() {
+  subscription.wire_kind(subscription.on_pointer_button())
+  |> should.equal("on_pointer_button")
+  subscription.wire_kind(subscription.on_pointer_scroll())
+  |> should.equal("on_pointer_scroll")
+  subscription.wire_kind(subscription.on_pointer_touch())
+  |> should.equal("on_pointer_touch")
+  subscription.wire_kind(subscription.on_ime())
+  |> should.equal("on_ime")
+  subscription.wire_kind(subscription.on_theme_change())
+  |> should.equal("on_theme_change")
+  subscription.wire_kind(subscription.on_file_drop())
+  |> should.equal("on_file_drop")
+  subscription.wire_kind(subscription.on_event())
+  |> should.equal("on_event")
 }
 
 // -- Subscription lifecycle --------------------------------------------------

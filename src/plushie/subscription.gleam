@@ -4,12 +4,14 @@
 //// diffs the list each cycle using `key/1`: subscriptions with the
 //// same key are considered identical and kept alive; new keys trigger
 //// a subscribe message to the renderer, and removed keys trigger an
-//// unsubscribe. This means a subscription's identity is its
-//// (kind, tag) pair; changing max_rate on an existing key updates
-//// the rate without re-subscribing.
+//// unsubscribe.
 ////
-//// Renderer subscriptions accept an optional `max_rate` that tells the
-//// renderer to coalesce events beyond the given rate (events per second).
+//// Timer subscriptions have a tag that appears in the TimerTick event,
+//// giving each timer a stable identity.
+////
+//// Renderer subscriptions have no user-facing tag (the tag was
+//// management-only and never appeared in delivered events). Their
+//// identity is derived from (kind, window_id).
 ////
 //// Subscriptions can be scoped to a specific window using `set_window`
 //// or `for_window`. Window-scoped subscriptions only receive events
@@ -51,7 +53,6 @@ pub type Subscription {
   /// matching events to the runtime.
   Renderer(
     kind: RendererSubKind,
-    tag: String,
     max_rate: Option(Int),
     window_id: Option(String),
   )
@@ -60,7 +61,9 @@ pub type Subscription {
 /// Unique identity for subscription diffing.
 pub type SubscriptionKey {
   TimerKey(interval_ms: Int, tag: String)
-  RendererKey(kind: String, tag: String)
+  /// Renderer sub identity is (kind, window_id). Two renderer subs
+  /// of the same kind and window scope are the same subscription.
+  RendererKey(kind: String, window_id: Option(String))
 }
 
 // --- Constructor functions ---------------------------------------------------
@@ -71,104 +74,104 @@ pub fn every(interval_ms: Int, tag: String) -> Subscription {
   Every(interval_ms:, tag:)
 }
 
-/// Subscribe to key press events. Delivers KeyPress events to update.
-pub fn on_key_press(tag: String) -> Subscription {
-  Renderer(kind: KeyPress, tag:, max_rate: None, window_id: None)
+/// Subscribe to key press events.
+pub fn on_key_press() -> Subscription {
+  Renderer(kind: KeyPress, max_rate: None, window_id: None)
 }
 
-/// Subscribe to key release events. Delivers KeyRelease events to update.
-pub fn on_key_release(tag: String) -> Subscription {
-  Renderer(kind: KeyRelease, tag:, max_rate: None, window_id: None)
+/// Subscribe to key release events.
+pub fn on_key_release() -> Subscription {
+  Renderer(kind: KeyRelease, max_rate: None, window_id: None)
 }
 
 /// Subscribe to keyboard modifier state changes (shift, ctrl, alt, etc.).
-pub fn on_modifiers_changed(tag: String) -> Subscription {
-  Renderer(kind: ModifiersChanged, tag:, max_rate: None, window_id: None)
+pub fn on_modifiers_changed() -> Subscription {
+  Renderer(kind: ModifiersChanged, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window close request events.
-pub fn on_window_close(tag: String) -> Subscription {
-  Renderer(kind: WindowClose, tag:, max_rate: None, window_id: None)
+pub fn on_window_close() -> Subscription {
+  Renderer(kind: WindowClose, max_rate: None, window_id: None)
 }
 
 /// Subscribe to all window events (resize, move, focus, etc.). If both
 /// this and a specific subscription (e.g. on_window_resize) are active,
 /// matching events are delivered twice.
-pub fn on_window_event(tag: String) -> Subscription {
-  Renderer(kind: WindowEvent, tag:, max_rate: None, window_id: None)
+pub fn on_window_event() -> Subscription {
+  Renderer(kind: WindowEvent, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window open events.
-pub fn on_window_open(tag: String) -> Subscription {
-  Renderer(kind: WindowOpen, tag:, max_rate: None, window_id: None)
+pub fn on_window_open() -> Subscription {
+  Renderer(kind: WindowOpen, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window resize events.
-pub fn on_window_resize(tag: String) -> Subscription {
-  Renderer(kind: WindowResize, tag:, max_rate: None, window_id: None)
+pub fn on_window_resize() -> Subscription {
+  Renderer(kind: WindowResize, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window focus gained events.
-pub fn on_window_focus(tag: String) -> Subscription {
-  Renderer(kind: WindowFocus, tag:, max_rate: None, window_id: None)
+pub fn on_window_focus() -> Subscription {
+  Renderer(kind: WindowFocus, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window focus lost events.
-pub fn on_window_unfocus(tag: String) -> Subscription {
-  Renderer(kind: WindowUnfocus, tag:, max_rate: None, window_id: None)
+pub fn on_window_unfocus() -> Subscription {
+  Renderer(kind: WindowUnfocus, max_rate: None, window_id: None)
 }
 
 /// Subscribe to window move events.
-pub fn on_window_move(tag: String) -> Subscription {
-  Renderer(kind: WindowMove, tag:, max_rate: None, window_id: None)
+pub fn on_window_move() -> Subscription {
+  Renderer(kind: WindowMove, max_rate: None, window_id: None)
 }
 
 /// Subscribe to pointer movement events (mouse or touch). Also delivers
 /// enter and exit events for cursor enter/leave.
-pub fn on_pointer_move(tag: String) -> Subscription {
-  Renderer(kind: PointerMove, tag:, max_rate: None, window_id: None)
+pub fn on_pointer_move() -> Subscription {
+  Renderer(kind: PointerMove, max_rate: None, window_id: None)
 }
 
 /// Subscribe to pointer button press and release events (mouse or touch).
-pub fn on_pointer_button(tag: String) -> Subscription {
-  Renderer(kind: PointerButton, tag:, max_rate: None, window_id: None)
+pub fn on_pointer_button() -> Subscription {
+  Renderer(kind: PointerButton, max_rate: None, window_id: None)
 }
 
 /// Subscribe to pointer scroll events.
-pub fn on_pointer_scroll(tag: String) -> Subscription {
-  Renderer(kind: PointerScroll, tag:, max_rate: None, window_id: None)
+pub fn on_pointer_scroll() -> Subscription {
+  Renderer(kind: PointerScroll, max_rate: None, window_id: None)
 }
 
 /// Subscribe to touch events (pressed, moved, lifted, lost).
-pub fn on_pointer_touch(tag: String) -> Subscription {
-  Renderer(kind: PointerTouch, tag:, max_rate: None, window_id: None)
+pub fn on_pointer_touch() -> Subscription {
+  Renderer(kind: PointerTouch, max_rate: None, window_id: None)
 }
 
 /// Subscribe to IME (Input Method Editor) events for international
 /// text input.
-pub fn on_ime(tag: String) -> Subscription {
-  Renderer(kind: Ime, tag:, max_rate: None, window_id: None)
+pub fn on_ime() -> Subscription {
+  Renderer(kind: Ime, max_rate: None, window_id: None)
 }
 
 /// Subscribe to system theme changes (light/dark mode).
-pub fn on_theme_change(tag: String) -> Subscription {
-  Renderer(kind: ThemeChange, tag:, max_rate: None, window_id: None)
+pub fn on_theme_change() -> Subscription {
+  Renderer(kind: ThemeChange, max_rate: None, window_id: None)
 }
 
 /// Subscribe to animation frame events (vsync ticks).
-pub fn on_animation_frame(tag: String) -> Subscription {
-  Renderer(kind: AnimationFrame, tag:, max_rate: None, window_id: None)
+pub fn on_animation_frame() -> Subscription {
+  Renderer(kind: AnimationFrame, max_rate: None, window_id: None)
 }
 
 /// Subscribe to file drop events. Also delivers file hovered and
 /// hover-left events.
-pub fn on_file_drop(tag: String) -> Subscription {
-  Renderer(kind: FileDrop, tag:, max_rate: None, window_id: None)
+pub fn on_file_drop() -> Subscription {
+  Renderer(kind: FileDrop, max_rate: None, window_id: None)
 }
 
 /// Subscribe to all renderer events (catch-all).
-pub fn on_event(tag: String) -> Subscription {
-  Renderer(kind: AllEvents, tag:, max_rate: None, window_id: None)
+pub fn on_event() -> Subscription {
+  Renderer(kind: AllEvents, max_rate: None, window_id: None)
 }
 
 // --- Modifiers ---------------------------------------------------------------
@@ -179,8 +182,8 @@ pub fn on_event(tag: String) -> Subscription {
 pub fn set_max_rate(sub: Subscription, rate: Int) -> Subscription {
   case sub {
     Every(..) -> sub
-    Renderer(kind:, tag:, window_id:, ..) ->
-      Renderer(kind:, tag:, max_rate: Some(rate), window_id:)
+    Renderer(kind:, window_id:, ..) ->
+      Renderer(kind:, max_rate: Some(rate), window_id:)
   }
 }
 
@@ -190,8 +193,8 @@ pub fn set_max_rate(sub: Subscription, rate: Int) -> Subscription {
 pub fn set_window(sub: Subscription, window_id: String) -> Subscription {
   case sub {
     Every(..) -> sub
-    Renderer(kind:, tag:, max_rate:, ..) ->
-      Renderer(kind:, tag:, max_rate:, window_id: Some(window_id))
+    Renderer(kind:, max_rate:, ..) ->
+      Renderer(kind:, max_rate:, window_id: Some(window_id))
   }
 }
 
@@ -200,8 +203,8 @@ pub fn set_window(sub: Subscription, window_id: String) -> Subscription {
 ///
 /// ```gleam
 /// subscription.for_window("editor", [
-///   subscription.on_key_press("editor_keys"),
-///   subscription.on_pointer_move("editor_mouse") |> subscription.set_max_rate(60),
+///   subscription.on_key_press(),
+///   subscription.on_pointer_move() |> subscription.set_max_rate(60),
 /// ])
 /// ```
 pub fn for_window(
@@ -217,7 +220,8 @@ pub fn for_window(
 pub fn key(sub: Subscription) -> SubscriptionKey {
   case sub {
     Every(interval_ms:, tag:) -> TimerKey(interval_ms:, tag:)
-    Renderer(kind:, tag:, ..) -> RendererKey(kind: wire_kind_str(kind), tag:)
+    Renderer(kind:, window_id:, ..) ->
+      RendererKey(kind: wire_kind_str(kind), window_id:)
   }
 }
 
@@ -229,20 +233,26 @@ pub fn wire_kind(sub: Subscription) -> String {
   }
 }
 
-/// Get the tag from any subscription.
-pub fn tag(sub: Subscription) -> String {
+/// Derive the wire tag sent to the renderer. The tag is the stable
+/// identity for this subscription entry in the renderer's storage.
+/// Window-scoped subscriptions include the window_id so they don't
+/// collide with global subscriptions of the same kind.
+pub fn wire_tag(sub: Subscription) -> String {
   case sub {
     Every(tag:, ..) -> tag
-    Renderer(tag:, ..) -> tag
+    Renderer(kind:, window_id: None, ..) -> wire_kind_str(kind)
+    Renderer(kind:, window_id: Some(wid), ..) ->
+      wire_kind_str(kind) <> ":" <> wid
   }
 }
 
-/// Set the tag on any subscription.
-pub fn set_tag(sub: Subscription, new_tag: String) -> Subscription {
+/// Get the tag from a timer subscription. Returns the tag that
+/// appears in TimerTick events.
+pub fn timer_tag(sub: Subscription) -> String {
   case sub {
-    Every(interval_ms:, ..) -> Every(interval_ms:, tag: new_tag)
-    Renderer(kind:, max_rate:, window_id:, ..) ->
-      Renderer(kind:, tag: new_tag, max_rate:, window_id:)
+    Every(tag:, ..) -> tag
+    Renderer(..) ->
+      panic as "timer_tag called on a renderer subscription (renderer subs have no user tag)"
   }
 }
 

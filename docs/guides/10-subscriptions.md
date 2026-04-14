@@ -8,7 +8,7 @@ of subscription specs:
 import plushie/subscription
 
 fn subscribe(model: Model) -> List(subscription.Subscription) {
-  [subscription.on_key_press("keys")]
+  [subscription.on_key_press()]
 }
 ```
 
@@ -64,7 +64,7 @@ subscriptions conditionally:
 
 ```gleam
 fn subscribe(model: Model) -> List(subscription.Subscription) {
-  let subs = [subscription.on_key_press("keys")]
+  let subs = [subscription.on_key_press()]
 
   case model.auto_save && model.dirty {
     True -> [subscription.every(1000, "auto_save"), ..subs]
@@ -76,7 +76,7 @@ fn subscribe(model: Model) -> List(subscription.Subscription) {
 ## Rate limiting
 
 ```gleam
-subscription.on_pointer_move("mouse")
+subscription.on_pointer_move()
 |> subscription.max_rate(30)
 ```
 

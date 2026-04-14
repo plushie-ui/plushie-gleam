@@ -104,7 +104,7 @@ fn push_if(acc: List(String), cond: Bool, label: String) -> List(String) {
 }
 
 fn subscribe(_model: Model) -> List(subscription.Subscription) {
-  [subscription.on_key_press("keys")]
+  [subscription.on_key_press()]
 }
 
 fn view(model: Model) -> Node {

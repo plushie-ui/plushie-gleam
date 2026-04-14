@@ -121,7 +121,7 @@ import plushie/animation/tween
 let anim = tween.new(tween.From(0.0), tween.To(1.0), tween.Duration(300))
 ```
 
-Requires `subscription.on_animation_frame("frame")` for the timestamp
+Requires `subscription.on_animation_frame()` for the timestamp
 source.
 
 ## Accessibility
