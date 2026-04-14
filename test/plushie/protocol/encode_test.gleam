@@ -489,22 +489,26 @@ pub fn prop_value_to_msgpack_binary_test() {
   should.equal(v, data.Binary(<<10, 20>>))
 }
 
-// --- encode_extension_command ------------------------------------------------
+// --- encode_command ----------------------------------------------------------
 
-pub fn encode_extension_command_test() {
+pub fn encode_command_test() {
   let payload = dict.from_list([#("color", StringVal("red"))])
   let assert Ok(bytes) =
-    encode.encode_extension_command(
-      "canvas-1",
-      "set_bg",
-      payload,
-      "",
-      protocol.Json,
-    )
+    encode.encode_command("canvas-1", "set_bg", payload, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
-  assert string.contains(s, "\"type\":\"extension_command\"")
-  assert string.contains(s, "\"node_id\":\"canvas-1\"")
-  assert string.contains(s, "\"op\":\"set_bg\"")
+  assert string.contains(s, "\"type\":\"command\"")
+  assert string.contains(s, "\"id\":\"canvas-1\"")
+  assert string.contains(s, "\"family\":\"set_bg\"")
+}
+
+pub fn encode_command_null_value_test() {
+  let assert Ok(bytes) =
+    encode.encode_command("input-1", "focus", dict.new(), "", protocol.Json)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"type\":\"command\"")
+  assert string.contains(s, "\"id\":\"input-1\"")
+  assert string.contains(s, "\"family\":\"focus\"")
+  assert string.contains(s, "\"value\":null")
 }
 
 // --- encode_advance_frame ----------------------------------------------------

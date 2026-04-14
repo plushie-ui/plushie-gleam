@@ -17,10 +17,13 @@
 //// ```
 
 import gleam/dict
+import gleam/float
 import gleam/list
 import plushie/node.{type PropValue, DictVal, FloatVal, ListVal, StringVal}
 import plushie/platform
 import plushie/prop/color.{type Color}
+
+const pi = 3.14159265358979323846
 
 pub type Gradient {
   Gradient(
@@ -52,13 +55,14 @@ pub fn linear_from_angle(
   angle_degrees: Float,
   stops: List(GradientStop),
 ) -> Gradient {
-  let radians = angle_degrees *. 3.14159265358979 /. 180.0
+  let radians = angle_degrees *. pi /. 180.0
 
   // Project angle onto unit square edges
   let dx = platform.math_cos(radians)
   let dy = platform.math_sin(radians)
 
-  let half_len = float_abs(dx) /. 2.0 +. float_abs(dy) /. 2.0
+  let half_len =
+    float.absolute_value(dx) /. 2.0 +. float.absolute_value(dy) /. 2.0
   let cx = 0.5
   let cy = 0.5
 
@@ -89,11 +93,4 @@ pub fn to_prop_value(g: Gradient) -> PropValue {
       #("stops", ListVal(stop_values)),
     ]),
   )
-}
-
-fn float_abs(x: Float) -> Float {
-  case x <. 0.0 {
-    True -> 0.0 -. x
-    False -> x
-  }
 }

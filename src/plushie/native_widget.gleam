@@ -177,7 +177,7 @@ pub fn build_container(
 
 /// Create a native widget command targeting a specific widget instance.
 ///
-/// The command is sent via the wire protocol's `extension_command`
+/// The command is sent via the wire protocol's unified `command`
 /// message type and delivered to the Rust widget by node ID.
 pub fn command(
   _def: NativeDef,

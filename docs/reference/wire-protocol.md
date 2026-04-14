@@ -60,12 +60,12 @@ Read the version programmatically: `plushie/protocol.protocol_version`.
 | `settings` | Startup config (nested under `"settings"` key) |
 | `snapshot` | Full tree |
 | `patch` | Incremental update (ops with `List(Int)` paths) |
-| `widget_op` | Focus, scroll, select, cursor, announce |
+| `command` / `commands` | Widget-targeted operations (focus, scroll, text, pane, custom) |
+| `widget_op` | Global operations (focus_next, announce, close_window) |
 | `window_op` | Window open, close, update |
 | `subscribe` / `unsubscribe` | Event source management |
 | `effect` | Platform request (file dialog, clipboard) |
 | `image_op` | Image create/update/delete |
-| `extension_command` | Native widget action |
 | `advance_frame` | Test/headless tick |
 
 ## Inbound messages (renderer -> SDK)

@@ -428,23 +428,6 @@ pub fn encode_image_op(
   serialize(merged, format)
 }
 
-/// Encode a widget command for native widget operations.
-/// Wire key: "extension_command" (renderer-defined).
-pub fn encode_extension_command(
-  node_id: String,
-  op: String,
-  payload: Dict(String, PropValue),
-  session: String,
-  format: Format,
-) -> Result(BitArray, EncodeError) {
-  let fields = [
-    #("node_id", StringVal(node_id)),
-    #("op", StringVal(op)),
-    #("payload", DictVal(payload)),
-  ]
-  serialize(message("extension_command", session, fields), format)
-}
-
 /// Encode a frame advance (test/headless mode).
 pub fn encode_advance_frame(
   timestamp: Int,

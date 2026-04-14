@@ -11,6 +11,8 @@ import plushie/node.{
   type PropValue, BoolVal, DictVal, FloatVal, ListVal, StringVal,
 }
 
+const pi = 3.14159265358979323846
+
 /// Stroke line cap style.
 pub type StrokeCap {
   ButtCap
@@ -273,7 +275,7 @@ pub fn rotate(degrees: Float) -> PropValue {
 /// Create a rotation transform from a radian angle.
 /// Converts to degrees for the wire format.
 pub fn rotate_radians(radians: Float) -> PropValue {
-  let degrees = radians *. 180.0 /. 3.14159265358979
+  let degrees = radians *. 180.0 /. pi
   DictVal(
     dict.from_list([
       #("type", StringVal("rotate")),

@@ -192,13 +192,10 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
   }
 }
 
-/// Validate a user-provided widget ID. Called for non-auto-generated IDs
-/// during normalization. Panics on invalid IDs (programming error).
+/// Validate a user-provided widget ID. Called for non-auto-generated,
+/// non-empty IDs during normalization. Panics on invalid IDs
+/// (programming error).
 fn validate_user_id(id: String) -> Nil {
-  case id {
-    "" -> panic as "widget ID must not be empty"
-    _ -> Nil
-  }
   case string.contains(id, "/") {
     True ->
       panic as {

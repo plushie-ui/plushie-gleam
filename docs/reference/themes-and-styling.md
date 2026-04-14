@@ -93,13 +93,16 @@ Common presets: `Primary`, `Secondary`, `Success`, `Danger`, `Warning`,
 
 ```gleam
 import plushie/prop/gradient
+import plushie/prop/color
 
+let assert Ok(start_color) = color.from_hex("#3b82f6")
+let assert Ok(end_color) = color.from_hex("#1d4ed8")
 let bg = gradient.linear_from_angle(90.0, [
-  gradient.stop(0.0, color.from_hex_unchecked("#3b82f6")),
-  gradient.stop(1.0, color.from_hex_unchecked("#1d4ed8")),
+  gradient.stop(0.0, start_color),
+  gradient.stop(1.0, end_color),
 ])
 
-ui.container("card", [container.Background(gradient.Gradient(bg))], [...])
+ui.container("card", [container.BgGradient(bg)], [...])
 ```
 
 ## Border
