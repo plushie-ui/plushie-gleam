@@ -278,7 +278,21 @@ fn install_binary(
   copy_file(src, dest)
   chmod(dest, 0o755)
   create_bin_symlink(dest)
+  copy_cargo_lock(source_dir, dest_dir)
   io.println("Installed to " <> dest)
+}
+
+@target(erlang)
+fn copy_cargo_lock(source_dir: String, dest_dir: String) -> Nil {
+  let lock_src = source_dir <> "/Cargo.lock"
+  let lock_dest = dest_dir <> "/Cargo.lock"
+  case platform.file_exists(lock_src) {
+    True -> {
+      copy_file(lock_src, lock_dest)
+      io.println("Copied Cargo.lock to " <> dest_dir)
+    }
+    False -> io.println("Warning: Cargo.lock not found at " <> lock_src)
+  }
 }
 
 @target(erlang)

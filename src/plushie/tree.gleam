@@ -11,7 +11,7 @@ import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
 import plushie/node.{
-  type Node, type PropValue, DictVal, Node, NullVal, StringVal,
+  type Node, type PropValue, DictVal, IntVal, Node, NullVal, StringVal,
 }
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
@@ -199,6 +199,8 @@ fn normalize_regular(
   // Reject duplicate sibling IDs before diffing.
   check_duplicate_sibling_ids(children)
 
+  let children = infer_radio_a11y(children)
+
   Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new())
 }
 
@@ -223,6 +225,38 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
         "plushie: duplicate sibling IDs detected during normalize: "
         <> string.inspect(dupes)
       panic as message
+    }
+  }
+}
+
+/// Detect radio button siblings and auto-set position_in_set and
+/// size_of_set a11y props. Non-radio children pass through unchanged.
+fn infer_radio_a11y(children: List(Node)) -> List(Node) {
+  let radio_count = list.count(children, fn(child) { child.kind == "radio" })
+  case radio_count > 0 {
+    False -> children
+    True -> {
+      let #(result, _) =
+        list.fold(children, #([], 0), fn(acc, child) {
+          let #(nodes, pos) = acc
+          case child.kind == "radio" {
+            False -> #(list.append(nodes, [child]), pos)
+            True -> {
+              let new_pos = pos + 1
+              let a11y_props = case dict.get(child.props, "a11y") {
+                Ok(DictVal(existing)) -> existing
+                _ -> dict.new()
+              }
+              let a11y_props =
+                a11y_props
+                |> dict.insert("position_in_set", IntVal(new_pos))
+                |> dict.insert("size_of_set", IntVal(radio_count))
+              let props = dict.insert(child.props, "a11y", DictVal(a11y_props))
+              #(list.append(nodes, [Node(..child, props:)]), new_pos)
+            }
+          }
+        })
+      result
     }
   }
 }

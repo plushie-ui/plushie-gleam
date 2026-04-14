@@ -308,6 +308,17 @@ pub type Event {
   /// Response to a FindFocused query. The widget_id is None if no
   /// widget currently has focus.
   FocusedWidget(tag: String, widget_id: Option(String))
+  /// Response to a Screenshot command with decoded pixel data.
+  /// The hash is a SHA-256 digest of the pixel buffer. Width and
+  /// height are in physical pixels. Pixels is raw RGBA bytes
+  /// (base64 is decoded at the wire boundary).
+  ScreenshotData(
+    tag: String,
+    hash: String,
+    width: Int,
+    height: Int,
+    pixels: BitArray,
+  )
 
   // --- Timer ---
   /// A timer subscription fired. The tag identifies which subscription,

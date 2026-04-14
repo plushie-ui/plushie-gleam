@@ -1,9 +1,12 @@
-//// Table widget builder. Data table with typed columns and row maps.
+//// Table widget builder. Data table with typed columns and children-based rows.
 ////
-//// Columns and rows are encoded as props (list of maps), not as child nodes.
-//// The Rust renderer expects this structure.
+//// Columns are encoded as a prop. Rows are encoded as `table_row` children,
+//// each containing `table_cell` children. The `rows()` setter is a
+//// convenience that converts dict-based row data into children at build
+//// time. You can also provide `table_row` children directly.
 
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import plushie/node.{
@@ -84,18 +87,12 @@ fn sort_order_to_prop_value(order: SortOrder) -> PropValue {
   }
 }
 
-// --- Row encoding ------------------------------------------------------------
-
-/// Encode a row (string-keyed dict of PropValues) to a PropValue dict.
-fn row_to_prop_value(row: Dict(String, PropValue)) -> PropValue {
-  DictVal(row)
-}
-
 // --- Table -------------------------------------------------------------------
 
 pub opaque type Table {
   Table(
     id: String,
+    children: List(Node),
     columns: Option(List(Column)),
     rows: Option(List(Dict(String, PropValue))),
     header: Option(Bool),
@@ -119,6 +116,7 @@ pub opaque type Table {
 pub fn new(id: String) -> Table {
   Table(
     id:,
+    children: [],
     columns: None,
     rows: None,
     header: None,
@@ -262,15 +260,54 @@ pub fn with_opts(t: Table, opts: List(Opt)) -> Table {
   })
 }
 
+/// Set children (table_row nodes) directly.
+pub fn with_children(t: Table, children: List(Node)) -> Table {
+  Table(..t, children:)
+}
+
+/// Create a table_row node from a list of table_cell children.
+pub fn table_row(id: String, cells: List(Node)) -> Node {
+  Node(
+    id:,
+    kind: "table_row",
+    props: dict.new(),
+    children: cells,
+    meta: dict.new(),
+  )
+}
+
+/// Create a table_cell node containing a single child widget.
+pub fn table_cell(id: String, child: Node) -> Node {
+  Node(
+    id:,
+    kind: "table_cell",
+    props: dict.new(),
+    children: [child],
+    meta: dict.new(),
+  )
+}
+
 /// Build the table into a renderable Node.
+///
+/// If `rows` is set (convenience dict format), they are expanded into
+/// `table_row`/`table_cell` children. If children are set directly
+/// (via `with_children`), they are used as-is. Both cannot be combined.
 pub fn build(t: Table) -> Node {
+  // Expand rows prop into children if set
+  let children = case t.rows, t.children {
+    Some(row_data), [] -> expand_rows(row_data, t.columns)
+    None, kids -> kids
+    Some(_), [_, ..] ->
+      panic as {
+        "table \""
+        <> t.id
+        <> "\": cannot combine rows prop with direct children; use one or the other"
+      }
+  }
   let props =
     dict.new()
     |> build.put_optional("columns", t.columns, fn(cols) {
       ListVal(list.map(cols, column_to_prop_value))
-    })
-    |> build.put_optional("rows", t.rows, fn(row_list) {
-      ListVal(list.map(row_list, row_to_prop_value))
     })
     |> build.put_optional_bool("header", t.header)
     |> build.put_optional_bool("separator", t.separator)
@@ -290,5 +327,51 @@ pub fn build(t: Table) -> Node {
       color.to_prop_value,
     )
     |> build.apply_default_a11y(t.a11y, "table", option.None)
-  Node(id: t.id, kind: "table", props:, children: [], meta: dict.new())
+  Node(id: t.id, kind: "table", props:, children:, meta: dict.new())
+}
+
+/// Expand rows from dict format into table_row/table_cell children.
+fn expand_rows(
+  row_data: List(Dict(String, PropValue)),
+  columns: Option(List(Column)),
+) -> List(Node) {
+  let col_keys = case columns {
+    Some(cols) -> list.map(cols, fn(c) { c.key })
+    None -> []
+  }
+  list.index_map(row_data, fn(row, row_idx) {
+    let row_id = "row_" <> int.to_string(row_idx)
+    let cells =
+      list.index_map(col_keys, fn(key, col_idx) {
+        let cell_id = "cell_" <> int.to_string(col_idx)
+        let value = case dict.get(row, key) {
+          Ok(StringVal(s)) ->
+            Node(
+              id: "",
+              kind: "text",
+              props: dict.from_list([#("content", StringVal(s))]),
+              children: [],
+              meta: dict.new(),
+            )
+          Ok(v) ->
+            Node(
+              id: "",
+              kind: "text",
+              props: dict.from_list([#("content", v)]),
+              children: [],
+              meta: dict.new(),
+            )
+          Error(_) ->
+            Node(
+              id: "",
+              kind: "text",
+              props: dict.from_list([#("content", StringVal(""))]),
+              children: [],
+              meta: dict.new(),
+            )
+        }
+        table_cell(cell_id, value)
+      })
+    table_row(row_id, cells)
+  })
 }

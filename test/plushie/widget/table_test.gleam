@@ -49,7 +49,7 @@ pub fn columns_encoded_as_list_of_dicts_test() {
   assert dict.get(second, "sortable") == Ok(BoolVal(True))
 }
 
-pub fn rows_encoded_as_list_of_dicts_test() {
+pub fn rows_expanded_to_children_test() {
   let row1 =
     dict.from_list([
       #("name", StringVal("Arthur")),
@@ -63,13 +63,15 @@ pub fn rows_encoded_as_list_of_dicts_test() {
 
   let node =
     table.new("tbl3")
+    |> table.columns([table.column("name", "Name"), table.column("age", "Age")])
     |> table.rows([row1, row2])
     |> table.build()
 
-  let assert Ok(ListVal(row_list)) = dict.get(node.props, "rows")
-  assert list.length(row_list) == 2
-  let assert [DictVal(first), _] = row_list
-  assert dict.get(first, "name") == Ok(StringVal("Arthur"))
+  // Rows are expanded into table_row children, not a "rows" prop
+  assert list.length(node.children) == 2
+  let assert [first_row, _] = node.children
+  assert first_row.kind == "table_row"
+  assert list.length(first_row.children) == 2
 }
 
 pub fn header_and_separator_booleans_test() {

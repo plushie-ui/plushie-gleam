@@ -538,6 +538,21 @@ fn decode_op_query_response(
       let widget_id = get_optional_string(data_map, "focused")
       event.FocusedWidget(tag:, widget_id:)
     }
+    "screenshot" -> {
+      let data_map = get_map(map, "data")
+      let hash = get_string_or(data_map, "hash", "")
+      let width = get_int_or(data_map, "width", 0)
+      let height = get_int_or(data_map, "height", 0)
+      let pixels = case dict.get(data_map, "rgba") {
+        Ok(PString(b64)) ->
+          case bit_array.base64_decode(b64) {
+            Ok(bytes) -> bytes
+            Error(_) -> <<>>
+          }
+        _ -> <<>>
+      }
+      event.ScreenshotData(tag:, hash:, width:, height:, pixels:)
+    }
     _ -> event.SystemInfo(tag:, data: data_val)
   }
   Ok(EventMessage(evt))
