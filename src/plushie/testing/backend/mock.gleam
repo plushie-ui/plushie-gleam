@@ -126,13 +126,31 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
       )
     },
     press_key: fn(sess, key) {
-      do_interact(sess, pool, "press", None, parse_key_payload(key))
+      do_interact(
+        sess,
+        pool,
+        "press",
+        None,
+        dict.from_list([#("combo", node.StringVal(key))]),
+      )
     },
     release_key: fn(sess, key) {
-      do_interact(sess, pool, "release", None, parse_key_payload(key))
+      do_interact(
+        sess,
+        pool,
+        "release",
+        None,
+        dict.from_list([#("combo", node.StringVal(key))]),
+      )
     },
     type_key: fn(sess, key) {
-      do_interact(sess, pool, "type_key", None, parse_key_payload(key))
+      do_interact(
+        sess,
+        pool,
+        "type_key",
+        None,
+        dict.from_list([#("combo", node.StringVal(key))]),
+      )
     },
     canvas_press: fn(sess, id, x, y) {
       do_interact(
@@ -552,34 +570,5 @@ fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
 @external(erlang, "plushie_test_ffi", "identity")
 fn event_to_msg(value: Event) -> msg
 
-@target(erlang)
-/// Parse a key string into an interact payload using key.parse.
-fn parse_key_payload(key_str: String) -> Dict(String, node.PropValue) {
-  let parsed = key.parse(key_str)
-  let d = dict.from_list([#("key", node.StringVal(parsed.key))])
-  let d = case parsed.ctrl {
-    True -> dict.insert(d, "ctrl", node.StringVal("true"))
-    False -> d
-  }
-  let d = case parsed.shift {
-    True -> dict.insert(d, "shift", node.StringVal("true"))
-    False -> d
-  }
-  let d = case parsed.alt {
-    True -> dict.insert(d, "alt", node.StringVal("true"))
-    False -> d
-  }
-  let d = case parsed.logo {
-    True -> dict.insert(d, "logo", node.StringVal("true"))
-    False -> d
-  }
-  case parsed.command {
-    True -> dict.insert(d, "command", node.StringVal("true"))
-    False -> d
-  }
-}
-
-@target(erlang)
-import plushie/key
 @target(erlang)
 import plushie/testing/element

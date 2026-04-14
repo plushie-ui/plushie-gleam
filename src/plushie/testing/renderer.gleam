@@ -55,8 +55,6 @@ import plushie/binary
 @target(erlang)
 import plushie/event.{type Event}
 @target(erlang)
-import plushie/key
-@target(erlang)
 import plushie/node.{type Node, StringVal}
 @target(erlang)
 import plushie/protocol
@@ -338,17 +336,16 @@ pub fn reset(subject: Subject(RendererMessage)) -> Nil {
 }
 
 @target(erlang)
-/// Press a key (no selector).
+/// Press a key (no selector). The combo string is passed directly to the
+/// renderer for normalization (case-insensitive, alias resolution).
 pub fn press(subject: Subject(RendererMessage), key: String) -> Nil {
-  let payload = parse_key(key)
-  interact(subject, "press", None, payload)
+  interact(subject, "press", None, dict.from_list([#("combo", key)]))
 }
 
 @target(erlang)
 /// Release a key (no selector).
 pub fn release(subject: Subject(RendererMessage), key: String) -> Nil {
-  let payload = parse_key(key)
-  interact(subject, "release", None, payload)
+  interact(subject, "release", None, dict.from_list([#("combo", key)]))
 }
 
 @target(erlang)
@@ -368,8 +365,7 @@ pub fn move_to(subject: Subject(RendererMessage), x: Float, y: Float) -> Nil {
 @target(erlang)
 /// Press and release a key (no selector).
 pub fn type_key(subject: Subject(RendererMessage), key: String) -> Nil {
-  let payload = parse_key(key)
-  interact(subject, "type_key", None, payload)
+  interact(subject, "type_key", None, dict.from_list([#("combo", key)]))
 }
 
 @target(erlang)
@@ -1019,32 +1015,6 @@ fn classify_port_message(
             Error(_) -> PortData(data: msg)
           }
       }
-  }
-}
-
-@target(erlang)
-fn parse_key(key_str: String) -> Dict(String, String) {
-  let parsed = key.parse(key_str)
-  let d = dict.from_list([#("key", parsed.key)])
-  let d = case parsed.ctrl {
-    True -> dict.insert(d, "ctrl", "true")
-    False -> d
-  }
-  let d = case parsed.shift {
-    True -> dict.insert(d, "shift", "true")
-    False -> d
-  }
-  let d = case parsed.alt {
-    True -> dict.insert(d, "alt", "true")
-    False -> d
-  }
-  let d = case parsed.logo {
-    True -> dict.insert(d, "logo", "true")
-    False -> d
-  }
-  case parsed.command {
-    True -> dict.insert(d, "command", "true")
-    False -> d
   }
 }
 

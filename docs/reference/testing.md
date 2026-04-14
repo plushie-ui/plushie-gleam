@@ -61,6 +61,22 @@ pub fn save_compiles_preview_test() {
 
 All interactions are synchronous.
 
+### Key name normalization
+
+Key names are normalized by the renderer: case-insensitive, with
+whitespace, underscores, and hyphens stripped before lookup.
+All of these are equivalent:
+
+- `"LeftArrow"`, `"left_arrow"`, `"left-arrow"`, `"leftarrow"`, `"Left"`
+
+Common aliases: `"enter"`/`"return"`, `"esc"`/`"escape"`,
+`"bs"`/`"backspace"`, `"del"`/`"delete"`, `"pageup"`/`"pgup"`.
+
+Modifier combos: `"Ctrl+s"`, `"Shift+Left_Arrow"`, `"Alt+F4"`.
+
+Modifier aliases: `ctrl`/`control`, `alt`/`option`/`opt`,
+`logo`/`super`/`win`/`meta`/`command`/`cmd`.
+
 ### Multi-window interactions
 
 ```gleam
