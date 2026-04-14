@@ -35,3 +35,4 @@ file_system = ">= 1.0.0 and < 2.0.0"
 
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
+qcheck = ">= 1.0.4 and < 2.0.0"
