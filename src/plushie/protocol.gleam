@@ -9,6 +9,10 @@ import gleam/int
 
 pub const protocol_version = 1
 
+/// Expected renderer binary version. Logged as a warning on mismatch
+/// (not fatal; protocol_version mismatch is the fatal check).
+pub const expected_renderer_version = "0.6.1"
+
 /// Wire serialization format.
 pub type Format {
   Json

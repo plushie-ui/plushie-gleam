@@ -426,7 +426,24 @@ fn handle_message(
       }
     }
 
-    FromBridge(InboundEvent(Hello(protocol: proto, native_widgets:, ..))) -> {
+    FromBridge(InboundEvent(Hello(
+      protocol: proto,
+      version:,
+      native_widgets:,
+      ..,
+    ))) -> {
+      // Warn on renderer binary version mismatch (non-fatal)
+      case version != "" && version != protocol.expected_renderer_version {
+        True ->
+          platform.log_warning(
+            "plushie: renderer version mismatch (SDK expects "
+            <> protocol.expected_renderer_version
+            <> ", renderer reports "
+            <> version
+            <> ")",
+          )
+        False -> Nil
+      }
       case proto == protocol.protocol_version {
         True ->
           case
