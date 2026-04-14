@@ -662,7 +662,7 @@ fn decode_event(
     // Prop validation warnings
     "prop_validation" -> decode_prop_validation(map)
 
-    // Unknown family: wrap in the catch-all WidgetEvent
+    // Unknown family: wrap in CustomWidget catch-all
     _ -> decode_generic_widget_event(map, family)
   }
 }

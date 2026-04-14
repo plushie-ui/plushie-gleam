@@ -40,7 +40,7 @@
 //// Events flow through the scope chain before reaching `app.update`.
 //// Each widget in the chain gets a chance to handle the event:
 //// `Ignored` passes through, `Consumed` stops the chain, and
-//// `Emit(kind, data)` replaces the event with a WidgetEvent and
+//// `Emit(kind, data)` replaces the event with a CustomWidget event and
 //// continues. The runtime fills in `id` and `scope` automatically
 //// from the widget's position in the tree.
 
@@ -137,7 +137,7 @@ pub type EventAction {
   /// Captured, no output: stop chain, don't dispatch to app.
   Consumed
   /// Captured with semantic event. The runtime constructs a
-  /// WidgetEvent with the widget's id/scope filled in automatically.
+  /// CustomWidget event with the widget's id/scope filled in automatically.
   /// `kind` is the event family (e.g., "click", "select", "change").
   /// `data` carries event-specific payload as Dynamic.
   Emit(kind: String, data: Dynamic)

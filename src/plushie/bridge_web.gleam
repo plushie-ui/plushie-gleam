@@ -49,7 +49,7 @@ pub fn create(
 /// The message is parsed by the renderer on the next event loop
 /// tick. Accepts any valid protocol message: Snapshot, Patch,
 /// Settings, Subscribe, Unsubscribe, WidgetOp, WindowOp, Effect,
-/// WidgetCommand, etc.
+/// Command, etc.
 @external(javascript, "../plushie_bridge_web_ffi.mjs", "send")
 pub fn send(transport: WebTransport, json: String) -> Nil
 

@@ -1,4 +1,4 @@
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import gleeunit/should
 import plushie/event.{
   type Event, Click, Closed, EventTarget, Input, Key, KeyEvent, KeyPressed,
@@ -50,7 +50,7 @@ pub fn key_press_with_modifiers_test() {
       captured: False,
     ))
 
-  let assert Key(KeyEvent(key:, modifiers:, repeat:, ..)) = evt
+  let Key(KeyEvent(key:, modifiers:, repeat:, ..)) = evt
   assert key == "s"
   assert modifiers.ctrl == True
   assert modifiers.command == True
