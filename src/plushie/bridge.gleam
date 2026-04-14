@@ -103,6 +103,8 @@ pub type BridgeMessage {
   IoStreamData(data: BitArray)
   /// The iostream adapter closed the transport.
   IoStreamClosed
+  /// Heartbeat watchdog timer fired (no renderer messages within interval).
+  HeartbeatTimeout
   /// Register the runtime's notification subject. Sent by the runtime
   /// after it starts under the supervisor. Any events received before
   /// this message are buffered and flushed on receipt.
@@ -154,6 +156,11 @@ pub opaque type BridgeState {
     renderer_args: List(String),
     /// The bridge's own subject, needed for scheduling RestartPort.
     self: Option(Subject(BridgeMessage)),
+    /// Heartbeat watchdog timer. Reset on every renderer message.
+    /// Fires HeartbeatTimeout if no messages arrive within the interval.
+    heartbeat_timer: Option(process.Timer),
+    /// Heartbeat interval in ms. None disables the watchdog.
+    heartbeat_interval_ms: Option(Int),
   )
 }
 
@@ -294,6 +301,8 @@ fn make_state(
     binary_path:,
     renderer_args:,
     self: Some(subject),
+    heartbeat_timer: None,
+    heartbeat_interval_ms: Some(30_000),
   )
 }
 
@@ -545,11 +554,13 @@ fn handle_message(
     }
 
     PortData(data:) -> {
+      let state = reset_heartbeat(state)
       let new_state = handle_port_data(state, data)
       actor.continue(new_state)
     }
 
     PortLineData(line_data:) -> {
+      let state = reset_heartbeat(state)
       let new_state = handle_line_data(state, line_data)
       actor.continue(new_state)
     }
@@ -617,7 +628,29 @@ fn handle_message(
       }
     }
 
+    HeartbeatTimeout -> {
+      platform.log_warning(
+        "plushie: bridge heartbeat timeout, no renderer messages in "
+        <> case state.heartbeat_interval_ms {
+          Some(ms) -> int.to_string(ms) <> "ms"
+          None -> "?"
+        }
+        <> "; triggering renderer restart",
+      )
+      // Kill the port and trigger restart (same path as a crash)
+      case state.port {
+        Some(port) -> {
+          renderer_port.port_close(port)
+          Nil
+        }
+        None -> Nil
+      }
+      // The PortExit handler will handle restart logic
+      actor.continue(state)
+    }
+
     IoStreamData(data:) -> {
+      let state = reset_heartbeat(state)
       let byte_size = bit_array.byte_size(data)
       telemetry.execute(
         ["plushie", "bridge", "receive"],
@@ -773,6 +806,27 @@ fn do_flush_queued(state: BridgeState, queue: List(BitArray)) -> BridgeState {
 }
 
 @target(erlang)
+/// Reset the heartbeat watchdog timer. Called on every incoming
+/// renderer message. Cancels the existing timer and starts a new one.
+fn reset_heartbeat(state: BridgeState) -> BridgeState {
+  // Cancel existing timer
+  case state.heartbeat_timer {
+    Some(timer) -> {
+      process.cancel_timer(timer)
+      Nil
+    }
+    None -> Nil
+  }
+  // Start new timer if heartbeat is enabled and we have a self subject
+  case state.heartbeat_interval_ms, state.self {
+    Some(interval), Some(self) if !state.awaiting_resync -> {
+      let timer = process.send_after(self, interval, HeartbeatTimeout)
+      BridgeState(..state, heartbeat_timer: Some(timer))
+    }
+    _, _ -> BridgeState(..state, heartbeat_timer: None)
+  }
+}
+
 fn calculate_backoff(base: Int, attempt: Int) -> Int {
   let delay = float.truncate(int.to_float(base) *. pow2_float(attempt))
   case delay > max_backoff_ms {
