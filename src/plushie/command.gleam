@@ -36,10 +36,9 @@ pub type Command(msg) {
   /// Shut down the runtime and close all windows.
   Exit
 
-  /// Move keyboard focus to the given widget.
+  /// Move keyboard focus to the given widget. For canvas elements,
+  /// use the scoped path (e.g. "canvas/element").
   Focus(widget_id: String)
-  /// Focus a specific element within a canvas widget.
-  FocusElement(canvas_id: String, element_id: String)
   /// Move focus to the next focusable widget in tab order.
   FocusNext
   /// Move focus to the previous focusable widget in tab order.
@@ -57,8 +56,8 @@ pub type Command(msg) {
   SelectRange(widget_id: String, start: Int, end: Int)
 
   /// Scroll a scrollable widget to an absolute offset.
-  /// Both axes are optional and default to 0.0.
-  ScrollTo(widget_id: String, offset_x: Option(Float), offset_y: Option(Float))
+  /// Both axes are optional; omitted axes are unchanged.
+  ScrollTo(widget_id: String, x: Option(Float), y: Option(Float))
   /// Snap a scrollable widget to an absolute x/y offset instantly
   /// (no smooth scrolling).
   SnapTo(widget_id: String, x: Float, y: Float)
@@ -84,7 +83,7 @@ pub type Command(msg) {
   /// Toggle window decorations (title bar, borders).
   ToggleDecorations(window_id: String)
   /// Give keyboard/input focus to a window, bringing it to the front.
-  GainFocus(window_id: String)
+  FocusWindow(window_id: String)
   /// Set window stacking level ("normal", "always_on_top",
   /// "always_on_bottom"). May be ignored on Wayland.
   SetWindowLevel(window_id: String, level: String)
@@ -279,11 +278,6 @@ pub fn focus(widget_id: String) -> Command(msg) {
   Focus(widget_id:)
 }
 
-/// Focus a specific element within a canvas widget.
-pub fn focus_element(canvas_id: String, element_id: String) -> Command(msg) {
-  FocusElement(canvas_id:, element_id:)
-}
-
 /// Move focus to the next focusable widget.
 pub fn focus_next() -> Command(msg) {
   FocusNext
@@ -339,8 +333,8 @@ pub fn toggle_decorations(window_id: String) -> Command(msg) {
 }
 
 /// Give focus to a window, bringing it to the front.
-pub fn gain_focus(window_id: String) -> Command(msg) {
-  GainFocus(window_id:)
+pub fn focus_window(window_id: String) -> Command(msg) {
+  FocusWindow(window_id:)
 }
 
 /// Take a screenshot of a window. The result arrives as a tagged event.

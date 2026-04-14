@@ -261,7 +261,54 @@ pub fn encode_patch(
   serialize(message("patch", session, fields), format)
 }
 
-/// Encode a widget operation (focus, scroll, etc.).
+/// Encode a widget-targeted command using the unified format.
+/// Wire: {type: "command", session, id, family, value}
+pub fn encode_command(
+  id: String,
+  family: String,
+  value: Dict(String, PropValue),
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let value_pv = case dict.is_empty(value) {
+    True -> NullVal
+    False -> DictVal(value)
+  }
+  let fields = [
+    #("id", StringVal(id)),
+    #("family", StringVal(family)),
+    #("value", value_pv),
+  ]
+  serialize(message("command", session, fields), format)
+}
+
+/// Encode a batch of widget-targeted commands.
+/// Wire: {type: "commands", session, commands: [{id, family, value}, ...]}
+pub fn encode_commands(
+  commands: List(#(String, String, Dict(String, PropValue))),
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let items =
+    list.map(commands, fn(cmd) {
+      let #(id, family, value) = cmd
+      let value_pv = case dict.is_empty(value) {
+        True -> NullVal
+        False -> DictVal(value)
+      }
+      DictVal(
+        dict.from_list([
+          #("id", StringVal(id)),
+          #("family", StringVal(family)),
+          #("value", value_pv),
+        ]),
+      )
+    })
+  let fields = [#("commands", ListVal(items))]
+  serialize(message("commands", session, fields), format)
+}
+
+/// Encode a global widget operation (no target ID: focus_next, announce, etc.).
 pub fn encode_widget_op(
   op: String,
   payload: Dict(String, PropValue),

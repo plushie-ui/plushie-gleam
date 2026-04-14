@@ -13,9 +13,10 @@ pub fn focus_creates_focus_variant_test() {
   assert command.focus("search") == command.Focus(widget_id: "search")
 }
 
-pub fn focus_element_creates_focus_element_variant_test() {
-  assert command.focus_element("my_canvas", "input-0")
-    == command.FocusElement(canvas_id: "my_canvas", element_id: "input-0")
+pub fn focus_canvas_element_via_scoped_path_test() {
+  // Canvas element focus uses scoped path: "canvas/element"
+  assert command.focus("my_canvas/input-0")
+    == command.Focus(widget_id: "my_canvas/input-0")
 }
 
 pub fn focus_next_test() {
@@ -68,8 +69,8 @@ pub fn toggle_decorations_test() {
     == command.ToggleDecorations(window_id: "main")
 }
 
-pub fn gain_focus_test() {
-  assert command.gain_focus("main") == command.GainFocus(window_id: "main")
+pub fn focus_window_test() {
+  assert command.focus_window("main") == command.FocusWindow(window_id: "main")
 }
 
 pub fn screenshot_test() {

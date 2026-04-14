@@ -9,7 +9,6 @@ import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/option
-import gleam/string
 import plushie/command.{type Command}
 import plushie/node.{
   type PropValue, BinaryVal, BoolVal, FloatVal, IntVal, StringVal,
@@ -35,7 +34,13 @@ pub type WireOp(msg) {
   /// Cancel a running async/stream task.
   CancelTask(tag: String)
 
-  /// Widget operation (focus, scroll, select, pane ops, announce, etc.).
+  /// Unified widget-targeted command (focus, scroll, text, pane, custom).
+  /// Wire format: {type: "command", id, family, value}
+  Command(id: String, family: String, value: Dict(String, PropValue))
+  /// Batch of widget-targeted commands.
+  /// Wire format: {type: "commands", commands: [{id, family, value}, ...]}
+  CommandBatch(commands: List(#(String, String, Dict(String, PropValue))))
+  /// Global widget operation (no target ID: focus_next, announce, etc.).
   WidgetOp(op: String, payload: List(#(String, PropValue)))
   /// Window lifecycle operation (resize, move, maximize, etc.).
   WindowOp(op: String, window_id: String, settings: List(#(String, PropValue)))
@@ -54,10 +59,6 @@ pub type WireOp(msg) {
     kind: String,
     payload: Dict(String, PropValue),
   )
-  /// Single widget command for a native widget.
-  WidgetCmd(node_id: String, op: String, payload: Dict(String, PropValue))
-  /// Batch of widget commands for native widgets.
-  WidgetCmdBatch(commands: List(#(String, String, Dict(String, PropValue))))
   /// Advance one frame in test/headless mode.
   AdvanceFrame(timestamp: Int)
 }
@@ -76,60 +77,56 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.Stream(work:, tag:) -> SpawnStream(tag, work)
     command.Cancel(tag:) -> CancelTask(tag)
 
-    // -- Widget ops --
-    command.Focus(widget_id:) -> WidgetOp("focus", target_props(widget_id))
-    command.FocusElement(canvas_id:, element_id:) -> {
-      let props = [
-        #("element_id", StringVal(element_id)),
-        ..target_props(canvas_id)
-      ]
-      WidgetOp("focus_element", props)
-    }
+    // -- Widget-targeted commands (unified format) --
+    command.Focus(widget_id:) -> Command(widget_id, "focus", dict.new())
     command.FocusNext -> WidgetOp("focus_next", [])
     command.FocusPrevious -> WidgetOp("focus_previous", [])
     command.SelectAll(widget_id:) ->
-      WidgetOp("select_all", target_props(widget_id))
+      Command(widget_id, "select_all", dict.new())
     command.MoveCursorToFront(widget_id:) ->
-      WidgetOp("move_cursor_to_front", target_props(widget_id))
+      Command(widget_id, "move_cursor_to_front", dict.new())
     command.MoveCursorToEnd(widget_id:) ->
-      WidgetOp("move_cursor_to_end", target_props(widget_id))
+      Command(widget_id, "move_cursor_to_end", dict.new())
     command.MoveCursorTo(widget_id:, position:) ->
-      WidgetOp("move_cursor_to", [
-        #("position", IntVal(position)),
-        ..target_props(widget_id)
-      ])
+      Command(
+        widget_id,
+        "move_cursor_to",
+        dict.from_list([#("position", IntVal(position))]),
+      )
     command.SelectRange(widget_id:, start:, end:) ->
-      WidgetOp("select_range", [
-        #("start", IntVal(start)),
-        #("end", IntVal(end)),
-        ..target_props(widget_id)
-      ])
-    command.ScrollTo(widget_id:, offset_x:, offset_y:) -> {
-      let payload = target_props(widget_id)
-      let payload = case offset_x {
-        option.Some(x) -> [#("offset_x", FloatVal(x)), ..payload]
-        option.None -> payload
+      Command(
+        widget_id,
+        "select_range",
+        dict.from_list([#("start", IntVal(start)), #("end", IntVal(end))]),
+      )
+    command.ScrollTo(widget_id:, x:, y:) -> {
+      let value = dict.new()
+      let value = case x {
+        option.Some(xv) -> dict.insert(value, "x", FloatVal(xv))
+        option.None -> value
       }
-      let payload = case offset_y {
-        option.Some(y) -> [#("offset_y", FloatVal(y)), ..payload]
-        option.None -> payload
+      let value = case y {
+        option.Some(yv) -> dict.insert(value, "y", FloatVal(yv))
+        option.None -> value
       }
-      WidgetOp("scroll_to", payload)
+      Command(widget_id, "scroll_to", value)
     }
     command.SnapTo(widget_id:, x:, y:) ->
-      WidgetOp("snap_to", [
-        #("x", FloatVal(x)),
-        #("y", FloatVal(y)),
-        ..target_props(widget_id)
-      ])
+      Command(
+        widget_id,
+        "snap_to",
+        dict.from_list([#("x", FloatVal(x)), #("y", FloatVal(y))]),
+      )
     command.SnapToEnd(widget_id:) ->
-      WidgetOp("snap_to_end", target_props(widget_id))
+      Command(widget_id, "snap_to_end", dict.new())
     command.ScrollBy(widget_id:, x:, y:) ->
-      WidgetOp("scroll_by", [
-        #("x", FloatVal(x)),
-        #("y", FloatVal(y)),
-        ..target_props(widget_id)
-      ])
+      Command(
+        widget_id,
+        "scroll_by",
+        dict.from_list([#("x", FloatVal(x)), #("y", FloatVal(y))]),
+      )
+
+    // -- Global ops (no target ID, stay as widget_op) --
     command.CloseWindow(window_id:) ->
       WidgetOp("close_window", [#("window_id", StringVal(window_id))])
     command.Announce(text:) ->
@@ -146,32 +143,37 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WidgetOp("list_images", [#("tag", StringVal(tag))])
     command.ClearImages -> WidgetOp("clear_images", [])
 
-    // -- Pane grid ops (widget_op) --
+    // -- Pane grid commands (widget-targeted) --
     command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) ->
-      WidgetOp("pane_split", [
-        #("target", StringVal(pane_grid_id)),
-        #("pane", StringVal(pane_id)),
-        #("axis", StringVal(axis)),
-        #("new_pane_id", StringVal(new_pane_id)),
-      ])
+      Command(
+        pane_grid_id,
+        "pane_split",
+        dict.from_list([
+          #("pane", StringVal(pane_id)),
+          #("axis", StringVal(axis)),
+          #("new_pane_id", StringVal(new_pane_id)),
+        ]),
+      )
     command.PaneClose(pane_grid_id:, pane_id:) ->
-      WidgetOp("pane_close", [
-        #("target", StringVal(pane_grid_id)),
-        #("pane", StringVal(pane_id)),
-      ])
+      Command(
+        pane_grid_id,
+        "pane_close",
+        dict.from_list([#("pane", StringVal(pane_id))]),
+      )
     command.PaneSwap(pane_grid_id:, pane_a:, pane_b:) ->
-      WidgetOp("pane_swap", [
-        #("target", StringVal(pane_grid_id)),
-        #("a", StringVal(pane_a)),
-        #("b", StringVal(pane_b)),
-      ])
+      Command(
+        pane_grid_id,
+        "pane_swap",
+        dict.from_list([#("a", StringVal(pane_a)), #("b", StringVal(pane_b))]),
+      )
     command.PaneMaximize(pane_grid_id:, pane_id:) ->
-      WidgetOp("pane_maximize", [
-        #("target", StringVal(pane_grid_id)),
-        #("pane", StringVal(pane_id)),
-      ])
+      Command(
+        pane_grid_id,
+        "pane_maximize",
+        dict.from_list([#("pane", StringVal(pane_id))]),
+      )
     command.PaneRestore(pane_grid_id:) ->
-      WidgetOp("pane_restore", [#("target", StringVal(pane_grid_id))])
+      Command(pane_grid_id, "pane_restore", dict.new())
 
     // -- Window ops --
     command.ResizeWindow(window_id:, width:, height:) ->
@@ -194,7 +196,7 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WindowOp("toggle_maximize", window_id, [])
     command.ToggleDecorations(window_id:) ->
       WindowOp("toggle_decorations", window_id, [])
-    command.GainFocus(window_id:) -> WindowOp("gain_focus", window_id, [])
+    command.FocusWindow(window_id:) -> WindowOp("gain_focus", window_id, [])
     command.SetWindowLevel(window_id:, level:) ->
       WindowOp("set_level", window_id, [#("level", StringVal(level))])
     command.DragWindow(window_id:) -> WindowOp("drag", window_id, [])
@@ -305,31 +307,8 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.Effect(id:, tag:, kind:, payload:) ->
       EffectRequest(id, tag, kind, payload)
     command.WidgetCommand(node_id:, op:, payload:) ->
-      WidgetCmd(node_id, op, payload)
-    command.WidgetCommands(commands:) -> WidgetCmdBatch(commands)
+      Command(node_id, op, payload)
+    command.WidgetCommands(commands:) -> CommandBatch(commands)
     command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
-  }
-}
-
-/// Parse a window-qualified target string. "window#widget/path" splits
-/// into (Some(window_id), "widget/path"). Plain "widget" returns (None, "widget").
-/// Only splits on the first `#`; subsequent `#` characters are part of the path.
-fn parse_target(target: String) -> #(option.Option(String), String) {
-  case string.split_once(target, "#") {
-    Ok(#(window_id, widget_path)) if window_id != "" -> #(
-      option.Some(window_id),
-      widget_path,
-    )
-    _ -> #(option.None, target)
-  }
-}
-
-/// Build a target prop list, including window_id when present.
-fn target_props(target: String) -> List(#(String, PropValue)) {
-  let #(window_id, widget_target) = parse_target(target)
-  let props = [#("target", StringVal(widget_target))]
-  case window_id {
-    option.Some(wid) -> [#("window_id", StringVal(wid)), ..props]
-    option.None -> props
   }
 }

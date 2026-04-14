@@ -1678,13 +1678,13 @@ fn execute_commands(
       )
     }
 
-    command_encode.WidgetCmd(node_id, op, payload) -> {
+    command_encode.Command(id, family, value) -> {
       send_transient(
         state.bridge,
-        encode.encode_extension_command(
-          node_id,
-          op,
-          payload,
+        encode.encode_command(
+          id,
+          family,
+          value,
           state.opts.session,
           state.opts.format,
         ),
@@ -1692,20 +1692,11 @@ fn execute_commands(
       state
     }
 
-    command_encode.WidgetCmdBatch(commands) -> {
-      list.each(commands, fn(cmd_tuple) {
-        let #(node_id, op, payload) = cmd_tuple
-        send_transient(
-          state.bridge,
-          encode.encode_extension_command(
-            node_id,
-            op,
-            payload,
-            state.opts.session,
-            state.opts.format,
-          ),
-        )
-      })
+    command_encode.CommandBatch(commands) -> {
+      send_transient(
+        state.bridge,
+        encode.encode_commands(commands, state.opts.session, state.opts.format),
+      )
       state
     }
 

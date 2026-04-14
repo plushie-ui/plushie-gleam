@@ -166,9 +166,9 @@ pub fn commands_toggle_decorations_construct_test() {
   |> should.equal(command.ToggleDecorations(window_id: "main"))
 }
 
-pub fn commands_gain_focus_construct_test() {
-  command.gain_focus("main")
-  |> should.equal(command.GainFocus(window_id: "main"))
+pub fn commands_focus_window_construct_test() {
+  command.focus_window("main")
+  |> should.equal(command.FocusWindow(window_id: "main"))
 }
 
 pub fn commands_screenshot_construct_test() {

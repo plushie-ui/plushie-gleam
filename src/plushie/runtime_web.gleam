@@ -594,19 +594,15 @@ fn execute_commands(
       do_send(handle, bytes)
     }
 
-    command_encode.WidgetCmd(node_id, op, payload) -> {
+    command_encode.Command(id, family, value) -> {
       let assert Ok(bytes) =
-        encode.encode_extension_command(node_id, op, payload, session, Json)
+        encode.encode_command(id, family, value, session, Json)
       do_send(handle, bytes)
     }
 
-    command_encode.WidgetCmdBatch(commands) -> {
-      list.each(commands, fn(cmd_tuple) {
-        let #(nid, o, p) = cmd_tuple
-        let assert Ok(bytes) =
-          encode.encode_extension_command(nid, o, p, session, Json)
-        do_send(handle, bytes)
-      })
+    command_encode.CommandBatch(commands) -> {
+      let assert Ok(bytes) = encode.encode_commands(commands, session, Json)
+      do_send(handle, bytes)
     }
 
     command_encode.AdvanceFrame(timestamp) -> {

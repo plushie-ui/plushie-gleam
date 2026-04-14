@@ -1503,17 +1503,17 @@ fn decode_error_event(
       }
       Ok(EventMessage(event.DuplicateNodeIds(details:)))
     }
-    "extension_command" -> {
+    "widget_command" | "extension_command" -> {
       let data = case dict.get(map, "data") {
         Ok(PMap(data)) -> data
         _ -> dict.new()
       }
       Ok(
-        EventMessage(event.WidgetCommandError(
+        EventMessage(event.CommandError(
           reason: get_string_or(data, "reason", ""),
           node_id: get_optional_string(data, "node_id"),
-          op: get_optional_string(data, "op"),
-          extension: get_optional_string(data, "extension"),
+          family: get_optional_string(data, "family"),
+          widget_type: get_optional_string(data, "widget_type"),
           message: get_optional_string(data, "message"),
         )),
       )

@@ -65,7 +65,7 @@ All functions in `plushie/command` unless noted.
 ### Window operations
 
 `close_window`, `resize_window`, `move_window`, `maximize_window`,
-`minimize_window`, `toggle_maximize`, `gain_focus`, `screenshot`.
+`minimize_window`, `toggle_maximize`, `focus_window`, `screenshot`.
 
 ### Window-qualified selectors
 
