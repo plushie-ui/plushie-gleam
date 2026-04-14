@@ -11,27 +11,52 @@ import plushie/protocol/decode
 // ---------------------------------------------------------------------------
 
 pub fn split_scoped_id_simple_test() {
-  let #(id, scope) = types.split_scoped_id("button")
+  let #(id, scope, window) = types.split_scoped_id("button")
   should.equal(id, "button")
   should.equal(scope, [])
+  should.equal(window, "")
 }
 
 pub fn split_scoped_id_single_scope_test() {
-  let #(id, scope) = types.split_scoped_id("form/email")
+  let #(id, scope, window) = types.split_scoped_id("form/email")
   should.equal(id, "email")
   should.equal(scope, ["form"])
+  should.equal(window, "")
 }
 
 pub fn split_scoped_id_multi_scope_test() {
-  let #(id, scope) = types.split_scoped_id("sidebar/form/email")
+  let #(id, scope, window) = types.split_scoped_id("sidebar/form/email")
   should.equal(id, "email")
   should.equal(scope, ["form", "sidebar"])
+  should.equal(window, "")
 }
 
 pub fn split_scoped_id_deep_scope_test() {
-  let #(id, scope) = types.split_scoped_id("a/b/c/d")
+  let #(id, scope, window) = types.split_scoped_id("a/b/c/d")
   should.equal(id, "d")
   should.equal(scope, ["c", "b", "a"])
+  should.equal(window, "")
+}
+
+pub fn split_scoped_id_with_window_test() {
+  let #(id, scope, window) = types.split_scoped_id("main#form/email")
+  should.equal(id, "email")
+  should.equal(scope, ["form"])
+  should.equal(window, "main")
+}
+
+pub fn split_scoped_id_window_no_scope_test() {
+  let #(id, scope, window) = types.split_scoped_id("main#save")
+  should.equal(id, "save")
+  should.equal(scope, [])
+  should.equal(window, "main")
+}
+
+pub fn split_scoped_id_window_deep_test() {
+  let #(id, scope, window) = types.split_scoped_id("settings#panel/form/email")
+  should.equal(id, "email")
+  should.equal(scope, ["form", "panel"])
+  should.equal(window, "settings")
 }
 
 // ---------------------------------------------------------------------------
@@ -83,14 +108,14 @@ pub fn decode_hello_with_extras_json_test() {
 
 pub fn decode_click_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"click\",\"window_id\":\"main\",\"id\":\"btn_save\"}"
+    "{\"type\":\"event\",\"family\":\"click\",\"id\":\"main#btn_save\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
     event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
       should.equal(id, "btn_save")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }
@@ -98,14 +123,14 @@ pub fn decode_click_json_test() {
 
 pub fn decode_click_scoped_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"click\",\"window_id\":\"main\",\"id\":\"form/btn_save\"}"
+    "{\"type\":\"event\",\"family\":\"click\",\"id\":\"main#form/btn_save\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
     event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
       should.equal(id, "btn_save")
-      should.equal(scope, ["form"])
+      should.equal(scope, ["form", "main"])
     }
     _ -> should.fail()
   }
@@ -117,7 +142,7 @@ pub fn decode_click_scoped_json_test() {
 
 pub fn decode_input_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"input\",\"window_id\":\"main\",\"id\":\"name_field\",\"value\":\"Arthur Dent\"}"
+    "{\"type\":\"event\",\"family\":\"input\",\"id\":\"main#name_field\",\"value\":\"Arthur Dent\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -127,7 +152,7 @@ pub fn decode_input_json_test() {
       value:,
     ) -> {
       should.equal(id, "name_field")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
       should.equal(value, "Arthur Dent")
     }
     _ -> should.fail()
@@ -140,7 +165,7 @@ pub fn decode_input_json_test() {
 
 pub fn decode_toggle_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"toggle\",\"window_id\":\"main\",\"id\":\"dark_mode\",\"value\":true}"
+    "{\"type\":\"event\",\"family\":\"toggle\",\"id\":\"main#dark_mode\",\"value\":true}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -150,7 +175,7 @@ pub fn decode_toggle_json_test() {
       value:,
     ) -> {
       should.equal(id, "dark_mode")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
       should.equal(value, True)
     }
     _ -> should.fail()
@@ -163,7 +188,7 @@ pub fn decode_toggle_json_test() {
 
 pub fn decode_slide_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"slide\",\"window_id\":\"main\",\"id\":\"volume\",\"value\":0.75}"
+    "{\"type\":\"event\",\"family\":\"slide\",\"id\":\"main#volume\",\"value\":0.75}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -173,7 +198,7 @@ pub fn decode_slide_json_test() {
       value:,
     ) -> {
       should.equal(id, "volume")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
       should.equal(value, 0.75)
     }
     _ -> should.fail()
@@ -336,7 +361,7 @@ pub fn decode_effect_response_error_json_test() {
 
 pub fn decode_unknown_family_falls_through_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"quantum_flux\",\"window_id\":\"main\",\"id\":\"widget_x\",\"value\":42}"
+    "{\"type\":\"event\",\"family\":\"quantum_flux\",\"id\":\"main#widget_x\",\"value\":42}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -344,7 +369,7 @@ pub fn decode_unknown_family_falls_through_json_test() {
     event.WidgetEvent(kind:, target: EventTarget(id:, scope:, ..), ..) -> {
       should.equal(kind, "quantum_flux")
       should.equal(id, "widget_x")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }
@@ -752,7 +777,7 @@ pub fn decode_window_opened_nested_position_json_test() {
 
 pub fn decode_widget_right_press_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"press\",\"window_id\":\"main\",\"id\":\"area1\",\"data\":{\"button\":\"right\"}}"
+    "{\"type\":\"event\",\"family\":\"press\",\"id\":\"main#area1\",\"data\":{\"button\":\"right\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -763,7 +788,7 @@ pub fn decode_widget_right_press_json_test() {
       ..,
     ) -> {
       should.equal(id, "area1")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
       should.equal(button, types.RightButton)
     }
     _ -> should.fail()
@@ -772,7 +797,7 @@ pub fn decode_widget_right_press_json_test() {
 
 pub fn decode_widget_double_click_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"double_click\",\"window_id\":\"main\",\"id\":\"area2\",\"data\":{}}"
+    "{\"type\":\"event\",\"family\":\"double_click\",\"id\":\"main#area2\",\"data\":{}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -782,7 +807,7 @@ pub fn decode_widget_double_click_json_test() {
       ..,
     ) -> {
       should.equal(id, "area2")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }
@@ -808,23 +833,20 @@ pub fn decode_button_pressed_json_test() {
 }
 
 // ---------------------------------------------------------------------------
-// Canvas element events (decoded as WidgetEvent catch-all)
+// Canvas element events (standard families with scoped IDs)
 // ---------------------------------------------------------------------------
 
 pub fn decode_canvas_element_enter_json_test() {
+  // Canvas element events now use standard families with scoped wire IDs
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_enter\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"star-1\",\"x\":10.0,\"y\":20.0}}"
+    "{\"type\":\"event\",\"family\":\"enter\",\"id\":\"main#my_canvas/star-1\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_enter",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
+    event.WidgetEnter(target: EventTarget(window_id: "main", id:, scope:)) -> {
+      should.equal(id, "star-1")
+      should.equal(scope, ["my_canvas", "main"])
     }
     _ -> should.fail()
   }
@@ -832,18 +854,14 @@ pub fn decode_canvas_element_enter_json_test() {
 
 pub fn decode_canvas_element_leave_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_leave\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"star-1\"}}"
+    "{\"type\":\"event\",\"family\":\"exit\",\"id\":\"main#my_canvas/star-1\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_leave",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
+    event.WidgetExit(target: EventTarget(window_id: "main", id:, scope:)) -> {
+      should.equal(id, "star-1")
+      should.equal(scope, ["my_canvas", "main"])
     }
     _ -> should.fail()
   }
@@ -851,56 +869,14 @@ pub fn decode_canvas_element_leave_json_test() {
 
 pub fn decode_canvas_element_click_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_click\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"btn-0\",\"x\":5.0,\"y\":15.0,\"button\":\"left\"}}"
+    "{\"type\":\"event\",\"family\":\"click\",\"id\":\"main#my_canvas/btn-0\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_click",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn decode_canvas_element_drag_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_drag\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"slider\",\"x\":50.0,\"y\":25.0,\"delta_x\":3.0,\"delta_y\":-1.0}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_drag",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn decode_canvas_element_drag_end_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_drag_end\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"slider\",\"x\":53.0,\"y\":24.0}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_drag_end",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
+    event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
+      should.equal(id, "btn-0")
+      should.equal(scope, ["my_canvas", "main"])
     }
     _ -> should.fail()
   }
@@ -908,95 +884,45 @@ pub fn decode_canvas_element_drag_end_json_test() {
 
 pub fn decode_canvas_element_focused_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_focused\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"input-0\"}}"
+    "{\"type\":\"event\",\"family\":\"focused\",\"id\":\"main#my_canvas/input-0\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_focused",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
+    event.WidgetFocused(target: EventTarget(window_id: "main", id:, scope:)) -> {
+      should.equal(id, "input-0")
+      should.equal(scope, ["my_canvas", "main"])
     }
     _ -> should.fail()
   }
 }
-
-pub fn decode_canvas_element_enter_catch_all_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_enter\",\"window_id\":\"main\",\"id\":\"c\",\"data\":{\"element_id\":\"s\",\"x\":0.0,\"y\":0.0}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_enter",
-      target: EventTarget(id: "c", ..),
-      ..,
-    ) -> should.be_true(True)
-    _ -> should.fail()
-  }
-}
-
-pub fn decode_canvas_element_click_scoped_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_click\",\"window_id\":\"main\",\"id\":\"panel/my_canvas\",\"data\":{\"element_id\":\"s\",\"x\":0.0,\"y\":0.0,\"button\":\"right\"}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_click",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, ["panel"])
-    }
-    _ -> should.fail()
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Canvas lifecycle events (decoded as WidgetEvent or unified types)
-// ---------------------------------------------------------------------------
 
 pub fn decode_canvas_element_blurred_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_element_blurred\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"element_id\":\"input-0\"}}"
+    "{\"type\":\"event\",\"family\":\"blurred\",\"id\":\"main#my_canvas/input-0\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_element_blurred",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
+    event.WidgetBlurred(target: EventTarget(window_id: "main", id:, scope:)) -> {
+      should.equal(id, "input-0")
+      should.equal(scope, ["my_canvas", "main"])
     }
     _ -> should.fail()
   }
 }
 
 pub fn decode_canvas_focused_json_test() {
+  // Canvas-level focus: standard "focused" with canvas as the target
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_focused\",\"window_id\":\"main\",\"id\":\"my_canvas\"}"
+    "{\"type\":\"event\",\"family\":\"focused\",\"id\":\"main#my_canvas\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_focused",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
+    event.WidgetFocused(target: EventTarget(window_id: "main", id:, scope:)) -> {
       should.equal(id, "my_canvas")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }
@@ -1004,56 +930,14 @@ pub fn decode_canvas_focused_json_test() {
 
 pub fn decode_canvas_blurred_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_blurred\",\"window_id\":\"main\",\"id\":\"my_canvas\"}"
+    "{\"type\":\"event\",\"family\":\"blurred\",\"id\":\"main#my_canvas\"}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
-      kind: "canvas_blurred",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
+    event.WidgetBlurred(target: EventTarget(window_id: "main", id:, scope:)) -> {
       should.equal(id, "my_canvas")
-      should.equal(scope, [])
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn decode_canvas_group_focused_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_group_focused\",\"window_id\":\"main\",\"id\":\"my_canvas\",\"data\":{\"group_id\":\"toolbar\"}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_group_focused",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, [])
-    }
-    _ -> should.fail()
-  }
-}
-
-pub fn decode_canvas_group_blurred_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"canvas_group_blurred\",\"window_id\":\"main\",\"id\":\"panel/my_canvas\",\"data\":{\"group_id\":\"toolbar\"}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.WidgetEvent(
-      kind: "canvas_group_blurred",
-      target: EventTarget(window_id: "main", id:, scope:),
-      ..,
-    ) -> {
-      should.equal(id, "my_canvas")
-      should.equal(scope, ["panel"])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }
@@ -1082,7 +966,7 @@ pub fn decode_diagnostic_json_test() {
 
 pub fn decode_canvas_scroll_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_scroll\",\"window_id\":\"main\",\"id\":\"canvas1\",\"data\":{\"x\":100.0,\"y\":200.0,\"delta_x\":0.0,\"delta_y\":-3.0}}"
+    "{\"type\":\"event\",\"family\":\"canvas_scroll\",\"id\":\"main#canvas1\",\"data\":{\"x\":100.0,\"y\":200.0,\"delta_x\":0.0,\"delta_y\":-3.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -1093,7 +977,7 @@ pub fn decode_canvas_scroll_json_test() {
       ..,
     ) -> {
       should.equal(id, "canvas1")
-      should.equal(scope, [])
+      should.equal(scope, ["main"])
     }
     _ -> should.fail()
   }

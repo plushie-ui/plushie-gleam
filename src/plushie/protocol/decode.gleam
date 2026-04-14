@@ -1450,7 +1450,9 @@ fn decode_windowed_target(
   map: Dict(String, PropValue),
 ) -> Result(EventTarget, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
-  use window_id <- result.try(get_string(map, "window_id"))
+  // Window is encoded in the ID via # prefix (e.g. "main#form/email").
+  // Fall back to separate window_id field for backwards compatibility.
+  let window_id = get_string_or(map, "window_id", "")
   Ok(types.make_target(id, window_id))
 }
 

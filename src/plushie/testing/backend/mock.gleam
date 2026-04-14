@@ -333,7 +333,8 @@ fn dispatch_events(
 /// (e.g. "content/count") by searching the local tree. If the ID
 /// already contains "/" (already scoped) or isn't found, return as-is.
 fn resolve_scoped_id(current_tree: Node, id: String) -> String {
-  case string.contains(id, "/") {
+  // If already scoped (contains "/" or "#"), use as-is
+  case string.contains(id, "/") || string.contains(id, "#") {
     True -> id
     False ->
       case tree.find(current_tree, id) {

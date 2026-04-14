@@ -16,7 +16,6 @@ import plushie/node.{
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
-import plushie/platform
 import plushie/widget
 
 // --- Normalize ---------------------------------------------------------------
@@ -25,9 +24,10 @@ import plushie/widget
 /// references. Call this on the output of `view(model)` before diffing.
 ///
 /// Scoping rules:
+/// - Window nodes keep bare IDs. Their children get `window#child_id`.
 /// - Named (non-empty-ID) non-window nodes create scope boundaries.
-///   Their children's IDs become `parent_id/child_id`.
-/// - Window nodes reset scope: children start with no scope prefix.
+///   Deeper descendants get `window#parent/child` (the `#` separator
+///   only appears at the window boundary).
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
   normalize_ctx(node, "", "", widget.empty_registry())
@@ -79,18 +79,13 @@ fn normalize_ctx(
     _ -> window_id
   }
 
-  // Validate: user-provided IDs (non-empty) must not contain "/"
+  // Validate user-provided IDs (skip auto-generated IDs starting with "auto:")
   case node.id {
     "" -> Nil
     id ->
-      case string.contains(id, "/") {
-        True ->
-          platform.log_warning(
-            "plushie: widget ID \""
-            <> id
-            <> "\" contains \"/\"; scoped paths are built automatically by named containers",
-          )
-        False -> Nil
+      case string.starts_with(id, "auto:") {
+        True -> Nil
+        False -> validate_user_id(id)
       }
   }
 
@@ -117,7 +112,7 @@ fn normalize_ctx(
           // attached. Normalize its children at the same scope position
           // and resolve a11y references in its props.
           let child_scope = case rendered_node.kind, rendered_node.id {
-            "window", _ -> ""
+            "window", _ -> scoped_id <> "#"
             _, "" -> scope
             _, _ -> scoped_id
           }
@@ -152,9 +147,9 @@ fn normalize_regular(
   window_id: String,
   registry: widget.Registry,
 ) -> Node {
-  // Windows reset scope; empty IDs don't create scope boundaries.
+  // Windows set child scope to "window_id#"; empty IDs are transparent.
   let child_scope = case node.kind, node.id {
-    "window", _ -> ""
+    "window", _ -> scoped_id <> "#"
     _, "" -> scope
     _, _ -> scoped_id
   }
@@ -197,11 +192,70 @@ fn check_duplicate_sibling_ids(children: List(Node)) -> Nil {
   }
 }
 
+/// Validate a user-provided widget ID. Called for non-auto-generated IDs
+/// during normalization. Panics on invalid IDs (programming error).
+fn validate_user_id(id: String) -> Nil {
+  case id {
+    "" -> panic as "widget ID must not be empty"
+    _ -> Nil
+  }
+  case string.contains(id, "/") {
+    True ->
+      panic as {
+        "widget ID \""
+        <> id
+        <> "\" cannot contain \"/\": scoped paths are built automatically by named containers"
+      }
+    False -> Nil
+  }
+  case string.contains(id, "#") {
+    True ->
+      panic as {
+        "widget ID \""
+        <> id
+        <> "\" cannot contain \"#\": \"#\" is reserved for window-qualified paths (e.g., \"window#widget\")"
+      }
+    False -> Nil
+  }
+  case string.byte_size(id) > 1024 {
+    True ->
+      panic as {
+        "widget ID \"" <> id <> "\" exceeds maximum length of 1024 bytes"
+      }
+    False -> Nil
+  }
+  case is_printable_ascii(id) {
+    False ->
+      panic as {
+        "widget ID \""
+        <> id
+        <> "\" contains invalid characters: IDs must contain only printable ASCII (0x21-0x7E)"
+      }
+    True -> Nil
+  }
+}
+
+/// Check that all bytes in a string are printable ASCII (0x21-0x7E).
+fn is_printable_ascii(s: String) -> Bool {
+  s
+  |> string.to_utf_codepoints
+  |> list.all(fn(cp) {
+    let v = string.utf_codepoint_to_int(cp)
+    v >= 0x21 && v <= 0x7E
+  })
+}
+
 fn apply_scope(id: String, scope: String) -> String {
   case scope, id {
     "", _ -> id
     _, "" -> id
-    _, _ -> scope <> "/" <> id
+    _, _ ->
+      case string.ends_with(scope, "#") {
+        // Window boundary: scope is "window#", join without "/"
+        True -> scope <> id
+        // Normal scope: join with "/"
+        False -> scope <> "/" <> id
+      }
   }
 }
 
@@ -445,11 +499,17 @@ fn find_exact_in_children(children: List(Node), id: String) -> Option(Node) {
 }
 
 fn find_by_local(tree: Node, target: String) -> Option(Node) {
+  // Extract local ID: last segment after "/" and after "#"
   let local = case string.split(tree.id, "/") {
     [] -> tree.id
     segments ->
       case list.last(segments) {
-        Ok(last) -> last
+        Ok(last) ->
+          // Also strip the window# prefix if present
+          case string.split_once(last, "#") {
+            Ok(#(_, after)) -> after
+            Error(_) -> last
+          }
         Error(_) -> tree.id
       }
   }

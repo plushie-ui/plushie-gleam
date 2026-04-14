@@ -67,12 +67,12 @@ pub fn initial_tree_is_normalized_test() {
   should.equal(tree.id, "main")
 
   let assert [root] = tree.children
-  should.equal(root.id, "root")
+  should.equal(root.id, "main#root")
   let assert [label, inc, dec] = root.children
-  // Children get scoped IDs
-  should.equal(label.id, "root/label")
-  should.equal(inc.id, "root/inc")
-  should.equal(dec.id, "root/dec")
+  // Children get scoped IDs with window# prefix
+  should.equal(label.id, "main#root/label")
+  should.equal(inc.id, "main#root/inc")
+  should.equal(dec.id, "main#root/dec")
 }
 
 // -- Click interaction --------------------------------------------------------

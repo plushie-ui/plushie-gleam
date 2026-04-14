@@ -27,33 +27,62 @@ pub type EventTarget {
   EventTarget(window_id: String, id: String, scope: List(String))
 }
 
-/// Split a wire-format scoped ID into (local_id, scope_list).
+/// Parse a wire-format scoped ID into (local_id, scope_list, window_id).
 ///
-/// The wire ID uses `/` as the scope separator: `"form/save"` becomes
-/// `("save", ["form"])`. The scope list is reversed (nearest ancestor
-/// first).
-pub fn split_scoped_id(wire_id: String) -> #(String, List(String)) {
-  case string.split(wire_id, "/") {
-    [local] -> #(local, [])
+/// Handles the canonical `window#scope/path/id` format. The `#` separates
+/// the window from the widget path. The `/` separates scope levels.
+///
+///     split_scoped_id("main#form/save") -> #("save", ["form"], "main")
+///     split_scoped_id("form/save")      -> #("save", ["form"], "")
+///     split_scoped_id("save")           -> #("save", [], "")
+///     split_scoped_id("main#save")      -> #("save", [], "main")
+pub fn split_scoped_id(wire_id: String) -> #(String, List(String), String) {
+  // Split window from path on #
+  let #(window, path) = case string.split_once(wire_id, "#") {
+    Ok(#(win, rest)) if win != "" -> #(win, rest)
+    _ -> #("", wire_id)
+  }
+  // Split path into scope chain
+  let #(local, scope) = case string.split(path, "/") {
+    [single] -> #(single, [])
     parts ->
       case list.reverse(parts) {
         [local, ..scope] -> #(local, scope)
         [] -> #("", [])
       }
   }
+  #(local, scope, window)
 }
 
-/// Build an EventTarget from a wire-format scoped ID and window ID.
+/// Build an EventTarget from a wire-format scoped ID.
 ///
-/// Splits the wire ID into local ID and scope, then appends the window_id
-/// to the scope chain as the outermost ancestor (when non-empty).
-pub fn make_target(wire_id: String, window_id: String) -> EventTarget {
-  let #(local, scope) = split_scoped_id(wire_id)
-  let scope = case window_id {
+/// Parses the `window#scope/path/id` format to extract the local ID,
+/// scope chain, and window ID. The window is appended to the scope as
+/// the outermost ancestor (when present).
+pub fn make_target_from_wire_id(wire_id: String) -> EventTarget {
+  let #(local, scope, window) = split_scoped_id(wire_id)
+  let scope = case window {
     "" -> scope
-    _ -> list.append(scope, [window_id])
+    _ -> list.append(scope, [window])
   }
-  EventTarget(window_id:, id: local, scope:)
+  EventTarget(window_id: window, id: local, scope:)
+}
+
+/// Build an EventTarget from a wire-format scoped ID and explicit window ID.
+///
+/// Prefers the window extracted from the `#` in the ID. Falls back to the
+/// explicit window_id parameter for backwards compatibility.
+pub fn make_target(wire_id: String, window_id: String) -> EventTarget {
+  let #(local, scope, window_from_id) = split_scoped_id(wire_id)
+  let window = case window_from_id {
+    "" -> window_id
+    _ -> window_from_id
+  }
+  let scope = case window {
+    "" -> scope
+    _ -> list.append(scope, [window])
+  }
+  EventTarget(window_id: window, id: local, scope:)
 }
 
 // -- Modifier state -----------------------------------------------------------

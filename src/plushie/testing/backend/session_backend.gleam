@@ -181,7 +181,8 @@ fn find_event_target(
 
   let local_id = last_segment(tree.id)
   let exact_match = tree.id == target
-  let local_match = !string.contains(target, "/") && local_id == target
+  let is_scoped = string.contains(target, "/") || string.contains(target, "#")
+  let local_match = !is_scoped && local_id == target
 
   case tree.kind != "window" && { exact_match || local_match } {
     True -> {
@@ -209,12 +210,17 @@ fn find_event_target_in_children(
 }
 
 fn last_segment(id: String) -> String {
-  case string.split(id, "/") {
-    [] -> id
+  // Strip window# prefix first
+  let path = case string.split_once(id, "#") {
+    Ok(#(_, after)) -> after
+    Error(_) -> id
+  }
+  case string.split(path, "/") {
+    [] -> path
     segments ->
       case list.last(segments) {
         Ok(last) -> last
-        Error(_) -> id
+        Error(_) -> path
       }
   }
 }

@@ -199,15 +199,15 @@ pub fn testing_doc_tree_find_all_test() {
 
 // Note: the test framework normalizes the tree, so IDs are scoped.
 // counter_app: window("main") -> column("content") -> children
-// Scoped IDs: "content/increment", "content/decrement", "content/count"
+// Scoped IDs: "main#increment", "main#decrement", "main#count"
 // todo_app: window("main") -> column("layout") -> children
-// Scoped IDs: "layout/todo_input", "layout/add_todo", "layout/todo_count"
+// Scoped IDs: "main#todo_input", "main#add_todo", "main#todo_count"
 
 pub fn testing_doc_clicking_increment_updates_counter_test() {
   let session = t.start(counter_app())
-  let session = t.click(session, "content/increment")
+  let session = t.click(session, "increment")
 
-  let assert option.Some(el) = t.find(session, "content/count")
+  let assert option.Some(el) = t.find(session, "count")
   let assert option.Some(text) = element.text(el)
   should.equal(text, "1")
 }
@@ -218,14 +218,14 @@ pub fn testing_doc_clicking_increment_updates_counter_test() {
 
 pub fn testing_doc_element_id_and_kind_test() {
   let session = t.start(counter_app())
-  let assert option.Some(el) = t.find(session, "content/increment")
-  should.equal(element.id(el), "content/increment")
+  let assert option.Some(el) = t.find(session, "increment")
+  should.equal(element.id(el), "main#content/increment")
   should.equal(element.kind(el), "button")
 }
 
 pub fn testing_doc_element_text_test() {
   let session = t.start(counter_app())
-  let assert option.Some(el) = t.find(session, "content/count")
+  let assert option.Some(el) = t.find(session, "count")
   let assert option.Some(txt) = element.text(el)
   should.equal(txt, "0")
 }
@@ -244,29 +244,29 @@ pub fn testing_doc_element_children_test() {
 
 pub fn testing_doc_text_content_assertion_test() {
   let session = t.start(counter_app())
-  let session = t.click(session, "content/increment")
-  let session = t.click(session, "content/increment")
+  let session = t.click(session, "increment")
+  let session = t.click(session, "increment")
 
-  let assert option.Some(el) = t.find(session, "content/count")
+  let assert option.Some(el) = t.find(session, "count")
   let assert option.Some(txt) = element.text(el)
   should.equal(txt, "2")
 }
 
 pub fn testing_doc_existence_assertion_test() {
   let session = t.start(counter_app())
-  should.be_true(option.is_some(t.find(session, "content/increment")))
+  should.be_true(option.is_some(t.find(session, "increment")))
   should.be_true(option.is_none(t.find(session, "admin-panel")))
 }
 
 pub fn testing_doc_model_assertion_test() {
   let session = t.start(counter_app())
-  let session = t.click(session, "content/increment")
+  let session = t.click(session, "increment")
   should.equal(t.model(session).count, 1)
 }
 
 pub fn testing_doc_element_kind_assertion_test() {
   let session = t.start(counter_app())
-  let assert option.Some(el) = t.find(session, "content/count")
+  let assert option.Some(el) = t.find(session, "count")
   should.equal(element.kind(el), "text")
 }
 
@@ -276,19 +276,19 @@ pub fn testing_doc_element_kind_assertion_test() {
 
 pub fn testing_doc_type_text_and_submit_test() {
   let session = t.start(todo_app())
-  let session = t.type_text(session, "layout/todo_input", "Buy milk")
+  let session = t.type_text(session, "todo_input", "Buy milk")
   should.equal(t.model(session).input, "Buy milk")
 
-  let session = t.submit(session, "layout/todo_input")
+  let session = t.submit(session, "todo_input")
   should.equal(list.length(t.model(session).todos), 1)
   should.equal(t.model(session).input, "")
 }
 
 pub fn testing_doc_click_interaction_test() {
   let session = t.start(counter_app())
-  let session = t.click(session, "content/increment")
-  let session = t.click(session, "content/increment")
-  let session = t.click(session, "content/decrement")
+  let session = t.click(session, "increment")
+  let session = t.click(session, "increment")
+  let session = t.click(session, "decrement")
   should.equal(t.model(session).count, 1)
 }
 
@@ -307,8 +307,8 @@ pub fn testing_doc_find_nonexistent_returns_none_test() {
 
 pub fn testing_doc_full_model_equality_test() {
   let session = t.start(counter_app())
-  let session = t.click(session, "content/increment")
-  let session = t.click(session, "content/increment")
-  let session = t.click(session, "content/increment")
+  let session = t.click(session, "increment")
+  let session = t.click(session, "increment")
+  let session = t.click(session, "increment")
   should.equal(t.model(session), CounterModel(count: 3))
 }

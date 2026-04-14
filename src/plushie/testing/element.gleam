@@ -100,14 +100,19 @@ pub fn find_all(
   |> list.map(from_node)
 }
 
-/// Get the local ID (last segment after "/").
+/// Get the local ID (last segment after "/" and "#").
 pub fn local_id(element: Element) -> String {
-  case string.split(element.node.id, "/") {
-    [] -> element.node.id
+  // Strip window# prefix first
+  let path = case string.split_once(element.node.id, "#") {
+    Ok(#(_, after)) -> after
+    Error(_) -> element.node.id
+  }
+  case string.split(path, "/") {
+    [] -> path
     segments ->
       case list.last(segments) {
         Ok(last) -> last
-        Error(_) -> element.node.id
+        Error(_) -> path
       }
   }
 }

@@ -5,7 +5,6 @@ import gleeunit/should
 import plushie/node.{DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import plushie/platform
-import plushie/support
 import plushie/tree
 
 // --- normalize ---------------------------------------------------------------
@@ -44,7 +43,7 @@ pub fn normalize_nested_scoping_test() {
   should.equal(leaf_result.id, "a/b/c")
 }
 
-pub fn normalize_window_does_not_propagate_scope_test() {
+pub fn normalize_window_uses_hash_scope_test() {
   let child = node.new("t", "text")
   let win =
     node.new("main", "window")
@@ -52,8 +51,26 @@ pub fn normalize_window_does_not_propagate_scope_test() {
 
   let result = tree.normalize(win)
   let assert [scoped_child] = result.children
-  // Window resets scope, so "t" stays "t", not "main/t".
-  should.equal(scoped_child.id, "t")
+  // Window children get "window#child" format.
+  should.equal(scoped_child.id, "main#t")
+}
+
+pub fn normalize_window_nested_scope_test() {
+  let leaf = node.new("save", "button")
+  let form =
+    node.new("form", "container")
+    |> node.with_children([leaf])
+  let win =
+    node.new("main", "window")
+    |> node.with_children([form])
+
+  let result = tree.normalize(win)
+  let assert [form_result] = result.children
+  let assert [leaf_result] = form_result.children
+  // Children of windows get "window#child" format.
+  should.equal(form_result.id, "main#form")
+  // Deeper descendants get "window#parent/child".
+  should.equal(leaf_result.id, "main#form/save")
 }
 
 pub fn normalize_empty_id_does_not_create_scope_boundary_test() {
@@ -121,17 +138,19 @@ pub fn normalize_a11y_empty_scope_leaves_ref_alone_test() {
   should.equal(dict.get(resolved_a11y, "described_by"), Ok(StringVal("help")))
 }
 
-pub fn normalize_warns_on_slash_in_user_id_test() {
-  // A node with "/" in its user-provided ID should still normalize
-  // (we warn, not crash), but the ID ends up in the tree as-is.
+pub fn normalize_rejects_slash_in_user_id_test() {
   let n = node.new("bad/id", "button")
-  let result = support.quiet_logs(fn() { tree.normalize(n) })
-  // Normalization continues despite the warning
-  should.equal(result.id, "bad/id")
+  platform.try_call(fn() { tree.normalize(n) })
+  |> should.be_error
+}
+
+pub fn normalize_rejects_hash_in_user_id_test() {
+  let n = node.new("bad#id", "button")
+  platform.try_call(fn() { tree.normalize(n) })
+  |> should.be_error
 }
 
 pub fn normalize_no_warning_on_empty_id_test() {
-  // Empty IDs are auto-generated equivalents; no slash warning.
   let n = node.new("", "container")
   let result = tree.normalize(n)
   should.equal(result.id, "")
