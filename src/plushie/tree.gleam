@@ -32,6 +32,21 @@ pub fn empty_memo_cache() -> MemoCache {
   dict.new()
 }
 
+/// Internal context threaded through the normalize pipeline. Bundles
+/// the immutable environment (registry, prev_cache) and the mutable
+/// accumulator (new_cache) alongside per-recursion state (scope,
+/// window_id, depth).
+type NormalizeCtx {
+  NormalizeCtx(
+    scope: String,
+    window_id: String,
+    registry: widget.Registry,
+    depth: Int,
+    prev_cache: MemoCache,
+    new_cache: MemoCache,
+  )
+}
+
 // --- Normalize ---------------------------------------------------------------
 
 /// Normalize a node tree by applying scoped IDs and resolving a11y
@@ -44,16 +59,16 @@ pub fn empty_memo_cache() -> MemoCache {
 ///   only appears at the window boundary).
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  let #(normalized, _cache) =
-    normalize_ctx(
-      node,
-      "",
-      "",
-      widget.empty_registry(),
-      0,
-      dict.new(),
-      dict.new(),
+  let ctx =
+    NormalizeCtx(
+      scope: "",
+      window_id: "",
+      registry: widget.empty_registry(),
+      depth: 0,
+      prev_cache: dict.new(),
+      new_cache: dict.new(),
     )
+  let #(normalized, _ctx) = normalize_ctx(node, ctx)
   normalized
 }
 
@@ -98,32 +113,40 @@ pub fn normalize_with_memo(
   registry: widget.Registry,
   prev_memo_cache: MemoCache,
 ) -> #(Node, MemoCache) {
-  let #(normalized, new_cache) =
-    normalize_ctx(node, "", "", registry, 0, prev_memo_cache, dict.new())
-  #(normalized, new_cache)
+  let ctx =
+    NormalizeCtx(
+      scope: "",
+      window_id: "",
+      registry:,
+      depth: 0,
+      prev_cache: prev_memo_cache,
+      new_cache: dict.new(),
+    )
+  let #(normalized, ctx) = normalize_ctx(node, ctx)
+  #(normalized, ctx.new_cache)
 }
 
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
-  let #(normalized, _cache) =
-    normalize_ctx(node, "", "", registry, 0, dict.new(), dict.new())
+  let ctx =
+    NormalizeCtx(
+      scope: "",
+      window_id: "",
+      registry:,
+      depth: 0,
+      prev_cache: dict.new(),
+      new_cache: dict.new(),
+    )
+  let #(normalized, _ctx) = normalize_ctx(node, ctx)
   normalized
 }
 
-fn normalize_ctx(
-  node: Node,
-  scope: String,
-  window_id: String,
-  registry: widget.Registry,
-  depth: Int,
-  prev_cache: MemoCache,
-  new_cache: MemoCache,
-) -> #(Node, MemoCache) {
-  case depth >= 256 {
+fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
+  case ctx.depth >= 256 {
     True -> panic as "tree exceeds maximum depth of 256 levels"
     False ->
-      case depth == 200 {
+      case ctx.depth == 200 {
         True ->
           platform.log_warning(
             "plushie: tree depth reached 200 levels, maximum is 256",
@@ -132,9 +155,9 @@ fn normalize_ctx(
       }
   }
 
-  let current_window_id = case node.kind {
-    "window" -> node.id
-    _ -> window_id
+  let ctx = case node.kind {
+    "window" -> NormalizeCtx(..ctx, window_id: node.id)
+    _ -> ctx
   }
 
   // Validate user-provided IDs (skip auto-generated IDs starting with "auto:")
@@ -147,7 +170,7 @@ fn normalize_ctx(
       }
   }
 
-  let scoped_id = apply_scope(node.id, scope)
+  let scoped_id = apply_scope(node.id, ctx.scope)
 
   // Memo nodes: check cache before normalizing children. The __memo__
   // wrapper is transparent; we return the normalized child directly.
@@ -155,37 +178,18 @@ fn normalize_ctx(
     "__memo__" -> {
       case dict.get(node.meta, "__memo_dep__") {
         Ok(OpaqueVal(dep)) ->
-          case dict.get(prev_cache, scoped_id) {
+          case dict.get(ctx.prev_cache, scoped_id) {
             Ok(#(prev_dep, cached_node)) if prev_dep == dep -> {
               // Cache hit: reuse the previously normalized subtree
               let new_cache =
-                dict.insert(new_cache, scoped_id, #(dep, cached_node))
-              #(cached_node, new_cache)
+                dict.insert(ctx.new_cache, scoped_id, #(dep, cached_node))
+              #(cached_node, NormalizeCtx(..ctx, new_cache:))
             }
-            _ ->
-              normalize_memo_child(
-                node,
-                scoped_id,
-                scope,
-                current_window_id,
-                registry,
-                depth,
-                prev_cache,
-                new_cache,
-                dep,
-              )
+            _ -> normalize_memo_child(node, scoped_id, ctx, dep)
           }
         _ ->
           // No dependency stored; always normalize fresh (no caching)
-          normalize_memo_fresh(
-            node,
-            scope,
-            current_window_id,
-            registry,
-            depth,
-            prev_cache,
-            new_cache,
-          )
+          normalize_memo_fresh(node, ctx)
       }
     }
     _ -> {
@@ -199,10 +203,10 @@ fn normalize_ctx(
           case
             widget.render_placeholder(
               node,
-              current_window_id,
+              ctx.window_id,
               scoped_id,
               node.id,
-              registry,
+              ctx.registry,
             )
           {
             Some(#(rendered_node, _entry)) -> {
@@ -211,7 +215,7 @@ fn normalize_ctx(
               // and resolve a11y references in its props.
               let child_scope = case rendered_node.kind, rendered_node.id {
                 "window", _ -> scoped_id <> "#"
-                _, "" -> scope
+                _, "" -> ctx.scope
                 _, _ -> scoped_id
               }
               // Forward standard widget props (a11y, event_rate) from the
@@ -219,46 +223,24 @@ fn normalize_ctx(
               // need to handle them manually.
               let props =
                 widget.merge_standard_props(rendered_node.props, node.props)
-              let props = resolve_a11y_refs(props, scope)
-              let #(children, new_cache) =
-                normalize_children(
-                  rendered_node.children,
-                  child_scope,
-                  current_window_id,
-                  registry,
-                  depth + 1,
-                  prev_cache,
-                  new_cache,
-                )
+              let props = resolve_a11y_refs(props, ctx.scope)
+              let child_ctx =
+                NormalizeCtx(..ctx, scope: child_scope, depth: ctx.depth + 1)
+              let #(children, child_ctx) =
+                normalize_children(rendered_node.children, child_ctx)
               check_duplicate_sibling_ids(children)
-              #(Node(..rendered_node, props:, children:), new_cache)
+              #(
+                Node(..rendered_node, props:, children:),
+                NormalizeCtx(..ctx, new_cache: child_ctx.new_cache),
+              )
             }
             _ -> {
               // Fallback: normalize as a regular node
-              normalize_regular(
-                node,
-                scoped_id,
-                scope,
-                current_window_id,
-                registry,
-                depth,
-                prev_cache,
-                new_cache,
-              )
+              normalize_regular(node, scoped_id, ctx)
             }
           }
         }
-        False ->
-          normalize_regular(
-            node,
-            scoped_id,
-            scope,
-            current_window_id,
-            registry,
-            depth,
-            prev_cache,
-            new_cache,
-          )
+        False -> normalize_regular(node, scoped_id, ctx)
       }
     }
   }
@@ -267,32 +249,19 @@ fn normalize_ctx(
 fn normalize_regular(
   node: Node,
   scoped_id: String,
-  scope: String,
-  window_id: String,
-  registry: widget.Registry,
-  depth: Int,
-  prev_cache: MemoCache,
-  new_cache: MemoCache,
-) -> #(Node, MemoCache) {
+  ctx: NormalizeCtx,
+) -> #(Node, NormalizeCtx) {
   // Windows set child scope to "window_id#"; empty IDs are transparent.
   let child_scope = case node.kind, node.id {
     "window", _ -> scoped_id <> "#"
-    _, "" -> scope
+    _, "" -> ctx.scope
     _, _ -> scoped_id
   }
 
-  let props = resolve_a11y_refs(node.props, scope)
+  let props = resolve_a11y_refs(node.props, ctx.scope)
 
-  let #(children, new_cache) =
-    normalize_children(
-      node.children,
-      child_scope,
-      window_id,
-      registry,
-      depth + 1,
-      prev_cache,
-      new_cache,
-    )
+  let child_ctx = NormalizeCtx(..ctx, scope: child_scope, depth: ctx.depth + 1)
+  let #(children, child_ctx) = normalize_children(node.children, child_ctx)
 
   // Reject duplicate sibling IDs before diffing.
   check_duplicate_sibling_ids(children)
@@ -301,7 +270,7 @@ fn normalize_regular(
 
   #(
     Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new()),
-    new_cache,
+    NormalizeCtx(..ctx, new_cache: child_ctx.new_cache),
   )
 }
 
@@ -310,58 +279,31 @@ fn normalize_regular(
 /// later siblings.
 fn normalize_children(
   children: List(Node),
-  scope: String,
-  window_id: String,
-  registry: widget.Registry,
-  depth: Int,
-  prev_cache: MemoCache,
-  new_cache: MemoCache,
-) -> #(List(Node), MemoCache) {
-  let #(children_rev, new_cache) =
-    list.fold(children, #([], new_cache), fn(acc, child) {
-      let #(kids, cache) = acc
-      let #(normalized_child, cache) =
-        normalize_ctx(
-          child,
-          scope,
-          window_id,
-          registry,
-          depth,
-          prev_cache,
-          cache,
-        )
-      #([normalized_child, ..kids], cache)
+  ctx: NormalizeCtx,
+) -> #(List(Node), NormalizeCtx) {
+  let #(children_rev, ctx) =
+    list.fold(children, #([], ctx), fn(acc, child) {
+      let #(kids, ctx) = acc
+      let #(normalized_child, ctx) = normalize_ctx(child, ctx)
+      #([normalized_child, ..kids], ctx)
     })
-  #(list.reverse(children_rev), new_cache)
+  #(list.reverse(children_rev), ctx)
 }
 
 /// Normalize a memo node's first child and cache the result.
 fn normalize_memo_child(
   node: Node,
   scoped_id: String,
-  scope: String,
-  window_id: String,
-  registry: widget.Registry,
-  depth: Int,
-  prev_cache: MemoCache,
-  new_cache: MemoCache,
+  ctx: NormalizeCtx,
   dep: Dynamic,
-) -> #(Node, MemoCache) {
+) -> #(Node, NormalizeCtx) {
   case node.children {
     [content, ..] -> {
-      let #(normalized_child, new_cache) =
-        normalize_ctx(
-          content,
-          scope,
-          window_id,
-          registry,
-          depth + 1,
-          prev_cache,
-          new_cache,
-        )
+      let child_ctx = NormalizeCtx(..ctx, depth: ctx.depth + 1)
+      let #(normalized_child, child_ctx) = normalize_ctx(content, child_ctx)
       let new_cache =
-        dict.insert(new_cache, scoped_id, #(dep, normalized_child))
-      #(normalized_child, new_cache)
+        dict.insert(child_ctx.new_cache, scoped_id, #(dep, normalized_child))
+      #(normalized_child, NormalizeCtx(..ctx, new_cache:))
     }
     [] -> {
       let empty =
@@ -372,34 +314,21 @@ fn normalize_memo_child(
           children: [],
           meta: dict.new(),
         )
-      let new_cache = dict.insert(new_cache, scoped_id, #(dep, empty))
-      #(empty, new_cache)
+      let new_cache = dict.insert(ctx.new_cache, scoped_id, #(dep, empty))
+      #(empty, NormalizeCtx(..ctx, new_cache:))
     }
   }
 }
 
 /// Normalize a memo node's first child without caching (no dependency
 /// was provided, so we can't determine staleness).
-fn normalize_memo_fresh(
-  node: Node,
-  scope: String,
-  window_id: String,
-  registry: widget.Registry,
-  depth: Int,
-  prev_cache: MemoCache,
-  new_cache: MemoCache,
-) -> #(Node, MemoCache) {
+fn normalize_memo_fresh(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
   case node.children {
-    [content, ..] ->
-      normalize_ctx(
-        content,
-        scope,
-        window_id,
-        registry,
-        depth + 1,
-        prev_cache,
-        new_cache,
-      )
+    [content, ..] -> {
+      let child_ctx = NormalizeCtx(..ctx, depth: ctx.depth + 1)
+      let #(normalized, child_ctx) = normalize_ctx(content, child_ctx)
+      #(normalized, NormalizeCtx(..ctx, new_cache: child_ctx.new_cache))
+    }
     [] -> #(
       Node(
         id: "",
@@ -408,7 +337,7 @@ fn normalize_memo_fresh(
         children: [],
         meta: dict.new(),
       ),
-      new_cache,
+      ctx,
     )
   }
 }
@@ -710,10 +639,9 @@ fn has_id_key(item: PropValue) -> Bool {
 }
 
 /// Check if common elements between old and new children maintain
-/// their relative order. Returns True if reordered.
-fn children_reordered(old: List(Node), new: List(Node)) -> Bool {
-  let old_ids = list.map(old, fn(c) { c.id })
-  let new_ids = list.map(new, fn(c) { c.id })
+/// their relative order. Returns True if reordered. Accepts
+/// pre-computed ID lists to avoid re-extracting them from nodes.
+fn children_reordered(old_ids: List(String), new_ids: List(String)) -> Bool {
   let old_set = set.from_list(old_ids)
   let new_set = set.from_list(new_ids)
   let common_old = list.filter(old_ids, fn(id) { set.contains(new_set, id) })
@@ -744,7 +672,7 @@ fn diff_children(
   case old_ids == new_ids {
     True -> diff_children_pairwise(old_children, new_children, parent_path, 0)
     False ->
-      case children_reordered(old_children, new_children) {
+      case children_reordered(old_ids, new_ids) {
         // Reorder: remove all old children and insert all new ones.
         // This preserves the parent's props (unlike ReplaceNode) and
         // produces correct results for any reorder pattern.
@@ -910,21 +838,25 @@ fn find_exact_in_children(children: List(Node), id: String) -> Option(Node) {
   }
 }
 
-fn find_by_local(tree: Node, target: String) -> Option(Node) {
-  // Extract local ID: last segment after "/" and after "#"
-  let local = case string.split(tree.id, "/") {
-    [] -> tree.id
+/// Extract the local portion of a scoped ID. Takes the last segment
+/// after "/" and, if that segment contains "#", the part after "#".
+fn extract_local_id(id: String) -> String {
+  let last_segment = case string.split(id, "/") {
+    [] -> id
     segments ->
       case list.last(segments) {
-        Ok(last) ->
-          // Also strip the window# prefix if present
-          case string.split_once(last, "#") {
-            Ok(#(_, after)) -> after
-            Error(_) -> last
-          }
-        Error(_) -> tree.id
+        Ok(last) -> last
+        Error(_) -> id
       }
   }
+  case string.split_once(last_segment, "#") {
+    Ok(#(_, after)) -> after
+    Error(_) -> last_segment
+  }
+}
+
+fn find_by_local(tree: Node, target: String) -> Option(Node) {
+  let local = extract_local_id(tree.id)
   case local == target {
     True -> option.Some(tree)
     False -> find_by_local_in_children(tree.children, target)

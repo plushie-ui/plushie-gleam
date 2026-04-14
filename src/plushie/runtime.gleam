@@ -679,10 +679,7 @@ fn handle_message(
           // Remove the old entry BEFORE dispatching. If update starts a
           // new task with the same tag, the new entry must not be wiped.
           let state =
-            LoopState(
-              ..state,
-              async_tasks: dict.delete(state.async_tasks, tag),
-            )
+            LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
           let state =
             handle_event(state, event.Async(event.AsyncEvent(tag:, result:)))
           notify_await_async(state, tag)
@@ -872,17 +869,18 @@ fn handle_message(
       })
 
       // Re-send settings (protected: a crash here should not block restart)
-      let settings =
-        case platform.try_call(fn() { app.get_settings(state.app)() }) {
-          Ok(s) -> s
-          Error(reason) -> {
-            platform.log_error(
-              "plushie: settings() callback crashed on restart: "
-              <> string.inspect(reason),
-            )
-            app.default_settings()
-          }
+      let settings = case
+        platform.try_call(fn() { app.get_settings(state.app)() })
+      {
+        Ok(s) -> s
+        Error(reason) -> {
+          platform.log_error(
+            "plushie: settings() callback crashed on restart: "
+            <> string.inspect(reason),
+          )
+          app.default_settings()
         }
+      }
       send_encoded(
         state.bridge,
         encode.encode_settings(
@@ -893,79 +891,69 @@ fn handle_message(
         ),
       )
 
-      // Re-render view and send fresh snapshot
+      // Re-render view and send fresh snapshot, then sync subs/windows.
+      // On view failure, fall back to the existing tree so the renderer
+      // still receives a snapshot and subscriptions are re-registered.
       let view_fn = app.get_view(state.app)
-      let #(tree, cw_registry, new_memo_cache) = case
-        platform.try_call(fn() { view_fn(state.model) })
-      {
-        Ok(t) -> {
+      let restart_tree = case platform.try_call(fn() { view_fn(state.model) }) {
+        Ok(t) ->
           case try_normalize_view(t, state.cw_registry, state.memo_cache) {
-            Ok(#(normalized, new_cache)) ->
-              #(
-                Some(normalized),
-                widget.derive_registry(normalized),
-                new_cache,
-              )
+            Ok(#(normalized, new_cache)) -> Ok(#(normalized, new_cache))
             Error(msg) -> {
               platform.log_error(
                 "plushie: normalization failed on restart: " <> msg,
               )
-              #(state.tree, state.cw_registry, state.memo_cache)
+              Error(Nil)
             }
           }
-        }
-        Error(_) -> #(state.tree, state.cw_registry, state.memo_cache)
+        Error(_) -> Error(Nil)
       }
-      case tree {
-        Some(t) ->
+      let state = case restart_tree, state.tree {
+        Ok(#(new_tree, new_memo_cache)), _ -> {
           send_encoded(
             state.bridge,
-            encode.encode_snapshot(t, state.opts.session, state.opts.format),
+            encode.encode_snapshot(
+              new_tree,
+              state.opts.session,
+              state.opts.format,
+            ),
           )
-        None -> Nil
-      }
-
-      // Re-sync subscriptions (incl. custom widget subs)
-      let restart_app_subs = safe_subscribe(state.app, state.model)
-      let restart_cw_subs = widget.collect_subscriptions(cw_registry)
-      let new_subs =
-        sync_subscriptions(
-          list.append(restart_app_subs, restart_cw_subs),
-          dict.new(),
-          state.bridge,
-          state.self,
-          state.opts,
-        )
-
-      // Re-open all windows
-      let windows = case tree {
-        Some(t) -> {
-          let new_windows = runtime_core.detect_windows(t)
-          sync_windows(
-            t,
-            set.new(),
-            new_windows,
-            None,
-            state.bridge,
-            state.app,
+          sync_after_render(
+            state,
+            new_tree,
+            new_memo_cache,
             state.model,
-            state.opts,
+            dict.new(),
+            set.new(),
+            None,
+            False,
           )
-          new_windows
         }
-        None -> state.windows
+        Error(_), Some(old_tree) -> {
+          // View failed but we have a previous tree. Send it as a
+          // snapshot and re-sync subs/windows so the fresh renderer
+          // has consistent state.
+          send_encoded(
+            state.bridge,
+            encode.encode_snapshot(
+              old_tree,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+          sync_after_render(
+            state,
+            old_tree,
+            state.memo_cache,
+            state.model,
+            dict.new(),
+            set.new(),
+            None,
+            False,
+          )
+        }
+        Error(_), None -> state
       }
-
-      let state =
-        LoopState(
-          ..state,
-          tree:,
-          active_subs: new_subs,
-          windows:,
-          cw_registry:,
-          consecutive_view_errors: 0,
-          memo_cache: new_memo_cache,
-        )
 
       // Tell the bridge resync is done. It will flush queued
       // transient messages.
@@ -986,69 +974,18 @@ fn handle_message(
               state.memo_cache,
             )
           {
-            Ok(#(new_tree, new_memo_cache)) -> {
-              let new_cw_registry = widget.derive_registry(new_tree)
-              // Diff and send patch (or snapshot if no previous tree)
-              case state.tree {
-                Some(old_tree) -> {
-                  let ops = tree.diff(old_tree, new_tree)
-                  case ops {
-                    [] -> Nil
-                    _ ->
-                      send_encoded(
-                        state.bridge,
-                        encode.encode_patch(
-                          ops,
-                          state.opts.session,
-                          state.opts.format,
-                        ),
-                      )
-                  }
-                }
-                None ->
-                  send_encoded(
-                    state.bridge,
-                    encode.encode_snapshot(
-                      new_tree,
-                      state.opts.session,
-                      state.opts.format,
-                    ),
-                  )
-              }
-              // Re-sync subscriptions (including widget subscriptions)
-              let app_subs = safe_subscribe(state.app, state.model)
-              let cw_subs = widget.collect_subscriptions(new_cw_registry)
-              let new_subs =
-                sync_subscriptions(
-                  list.append(app_subs, cw_subs),
-                  state.active_subs,
-                  state.bridge,
-                  state.self,
-                  state.opts,
-                )
-              // Re-sync windows
-              let new_windows = runtime_core.detect_windows(new_tree)
-              sync_windows(
+            Ok(#(new_tree, new_memo_cache)) ->
+              sync_after_render(
+                state,
                 new_tree,
-                state.windows,
-                new_windows,
-                state.tree,
-                state.bridge,
-                state.app,
+                new_memo_cache,
                 state.model,
-                state.opts,
-              )
-              LoopState(
-                ..state,
-                tree: Some(new_tree),
-                active_subs: new_subs,
-                windows: new_windows,
-                cw_registry: new_cw_registry,
-                consecutive_view_errors: 0,
-                memo_cache: new_memo_cache,
+                state.active_subs,
+                state.windows,
+                state.tree,
+                True,
               )
               |> actor.continue()
-            }
             Error(msg) -> {
               platform.log_error(
                 "plushie: normalization failed on force re-render: " <> msg,
@@ -1444,32 +1381,33 @@ fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
 }
 
 @target(erlang)
-/// Re-render the view without going through update. Used when
-/// widget state changes internally (event consumed or
-/// timer handled by widget) but the app model hasn't changed.
-fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
-  let view_fn = app.get_view(state.app)
-  case platform.try_call(fn() { view_fn(state.model) }) {
-    Ok(new_tree_raw) -> {
-      case
-        try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
-      {
-        Error(msg) -> {
-          platform.log_error(
-            "plushie: normalization failed during rerender: " <> msg,
-          )
-          LoopState(
-            ..state,
-            consecutive_view_errors: state.consecutive_view_errors + 1,
-          )
-        }
-        Ok(#(new_tree, new_memo_cache)) -> {
-      let new_cw_registry = widget.derive_registry(new_tree)
+/// Perform post-render synchronization: derive widget registry, optionally
+/// send tree diff/patch to the bridge, sync subscriptions, and sync windows.
+///
+/// Call sites pass `current_subs` and `old_windows` explicitly because the
+/// restart handler uses `dict.new()` / `set.new()` (fresh renderer state)
+/// while normal renders diff against the live state.
+///
+/// When `send_tree` is False, the caller has already sent the tree update
+/// (e.g. the restart handler sends a full snapshot before calling this).
+fn sync_after_render(
+  state: LoopState(model, msg),
+  new_tree: Node,
+  new_memo_cache: tree.MemoCache,
+  model: model,
+  current_subs: Dict(String, SubEntry),
+  old_windows: Set(String),
+  old_tree: Option(Node),
+  send_tree: Bool,
+) -> LoopState(model, msg) {
+  let new_cw_registry = widget.derive_registry(new_tree)
 
-      // Diff and send patch
-      case state.tree {
-        Some(old_tree) -> {
-          let ops = tree.diff(old_tree, new_tree)
+  // Send tree diff/patch (or snapshot) to the bridge
+  case send_tree {
+    True ->
+      case old_tree {
+        Some(old) -> {
+          let ops = tree.diff(old, new_tree)
           case ops {
             [] -> Nil
             _ ->
@@ -1489,41 +1427,76 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
             ),
           )
       }
+    False -> Nil
+  }
 
-      // Sync subscriptions (including widget subscriptions)
-      let app_subs = safe_subscribe(state.app, state.model)
-      let cw_subs = widget.collect_subscriptions(new_cw_registry)
-      let new_subs =
-        sync_subscriptions(
-          list.append(app_subs, cw_subs),
-          state.active_subs,
-          state.bridge,
-          state.self,
-          state.opts,
-        )
+  // Sync subscriptions (app + widget)
+  let app_subs = safe_subscribe(state.app, model)
+  let cw_subs = widget.collect_subscriptions(new_cw_registry)
+  let new_subs =
+    sync_subscriptions(
+      list.append(app_subs, cw_subs),
+      current_subs,
+      state.bridge,
+      state.self,
+      state.opts,
+    )
 
-      let new_windows = runtime_core.detect_windows(new_tree)
-      sync_windows(
-        new_tree,
-        state.windows,
-        new_windows,
-        state.tree,
-        state.bridge,
-        state.app,
-        state.model,
-        state.opts,
-      )
+  // Sync windows
+  let new_windows = runtime_core.detect_windows(new_tree)
+  sync_windows(
+    new_tree,
+    old_windows,
+    new_windows,
+    old_tree,
+    state.bridge,
+    state.app,
+    model,
+    state.opts,
+  )
 
-      LoopState(
-        ..state,
-        tree: Some(new_tree),
-        active_subs: new_subs,
-        windows: new_windows,
-        cw_registry: new_cw_registry,
-        consecutive_view_errors: 0,
-        memo_cache: new_memo_cache,
-      )
-    }
+  LoopState(
+    ..state,
+    tree: Some(new_tree),
+    active_subs: new_subs,
+    windows: new_windows,
+    cw_registry: new_cw_registry,
+    consecutive_view_errors: 0,
+    memo_cache: new_memo_cache,
+  )
+}
+
+@target(erlang)
+/// Re-render the view without going through update. Used when
+/// widget state changes internally (event consumed or
+/// timer handled by widget) but the app model hasn't changed.
+fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
+  let view_fn = app.get_view(state.app)
+  case platform.try_call(fn() { view_fn(state.model) }) {
+    Ok(new_tree_raw) -> {
+      case
+        try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
+      {
+        Error(msg) -> {
+          platform.log_error(
+            "plushie: normalization failed during rerender: " <> msg,
+          )
+          LoopState(
+            ..state,
+            consecutive_view_errors: state.consecutive_view_errors + 1,
+          )
+        }
+        Ok(#(new_tree, new_memo_cache)) ->
+          sync_after_render(
+            state,
+            new_tree,
+            new_memo_cache,
+            state.model,
+            state.active_subs,
+            state.windows,
+            state.tree,
+            True,
+          )
       }
     }
     Error(reason) -> {
@@ -1651,78 +1624,19 @@ fn dispatch_update(
               )
             }
             Ok(#(new_tree, new_memo_cache)) -> {
-          let new_cw_registry = widget.derive_registry(new_tree)
-
-          // Diff and send patch
-          case state.tree {
-            Some(old_tree) -> {
-              let ops = tree.diff(old_tree, new_tree)
-              case ops {
-                [] -> Nil
-                _ ->
-                  send_encoded(
-                    state.bridge,
-                    encode.encode_patch(
-                      ops,
-                      state.opts.session,
-                      state.opts.format,
-                    ),
-                  )
-              }
-            }
-            None -> {
-              send_encoded(
-                state.bridge,
-                encode.encode_snapshot(
+              let synced =
+                sync_after_render(
+                  state_after_cmds,
                   new_tree,
-                  state.opts.session,
-                  state.opts.format,
-                ),
-              )
+                  new_memo_cache,
+                  new_model,
+                  state.active_subs,
+                  state.windows,
+                  state.tree,
+                  True,
+                )
+              LoopState(..synced, errors: 0)
             }
-          }
-
-          // Sync subscriptions (including widget subscriptions)
-          let app_subs = safe_subscribe(state.app, new_model)
-          let cw_subs = widget.collect_subscriptions(new_cw_registry)
-          let new_subs =
-            sync_subscriptions(
-              list.append(app_subs, cw_subs),
-              state.active_subs,
-              state.bridge,
-              state.self,
-              state.opts,
-            )
-
-          let new_windows = runtime_core.detect_windows(new_tree)
-
-          // Sync window lifecycle (open/close/update ops)
-          sync_windows(
-            new_tree,
-            state.windows,
-            new_windows,
-            state.tree,
-            state.bridge,
-            state.app,
-            new_model,
-            state.opts,
-          )
-
-          LoopState(
-            ..state,
-            model: new_model,
-            tree: Some(new_tree),
-            active_subs: new_subs,
-            windows: new_windows,
-            cw_registry: new_cw_registry,
-            errors: 0,
-            consecutive_view_errors: 0,
-            async_tasks: state_after_cmds.async_tasks,
-            nonce_counter: state_after_cmds.nonce_counter,
-            pending_effects: state_after_cmds.pending_effects,
-            memo_cache: new_memo_cache,
-          )
-        }
           }
         }
         Error(reason) -> {
@@ -1829,8 +1743,7 @@ fn execute_commands(
         }
         Error(reason) -> {
           platform.log_error(
-            "plushie: Command.done mapper crashed: "
-            <> string.inspect(reason),
+            "plushie: Command.done mapper crashed: " <> string.inspect(reason),
           )
         }
       }
@@ -2363,19 +2276,20 @@ fn sync_windows(
   // Open new windows
   let opened = set.difference(new_windows, old_windows)
   set.each(opened, fn(window_id) {
-    let base_config =
-      case platform.try_call(fn() { app.get_window_config(app)(model) }) {
-        Ok(c) -> c
-        Error(reason) -> {
-          platform.log_error(
-            "plushie: window_config() crashed for window '"
-            <> window_id
-            <> "': "
-            <> string.inspect(reason),
-          )
-          dict.new()
-        }
+    let base_config = case
+      platform.try_call(fn() { app.get_window_config(app)(model) })
+    {
+      Ok(c) -> c
+      Error(reason) -> {
+        platform.log_error(
+          "plushie: window_config() crashed for window '"
+          <> window_id
+          <> "': "
+          <> string.inspect(reason),
+        )
+        dict.new()
       }
+    }
     let per_window = runtime_core.extract_window_props(new_tree, window_id)
     let merged = dict.merge(base_config, per_window)
     send_window_op(bridge, "open", window_id, dict.to_list(merged), opts)
