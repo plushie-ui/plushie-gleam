@@ -21,6 +21,7 @@
 ////     view: view_stars,
 ////     handle_event: handle_star_event,
 ////     subscriptions: fn(_, _) { [] },
+////     cache_key: option.None,
 ////   )
 //// }
 ////
@@ -74,6 +75,16 @@ pub type WidgetDef(state, props) {
     handle_event: fn(Event, state) -> #(EventAction, state),
     /// Subscriptions for this widget instance.
     subscriptions: fn(props, state) -> List(Subscription),
+    /// Optional cache key derivation for view memoization.
+    ///
+    /// When `Some(f)`, `f(props, state)` produces a cheap comparison key.
+    /// If the key matches the previous render cycle, the normalizer can
+    /// skip calling `view` and reuse the cached subtree.
+    ///
+    /// The normalizer does not use this field yet. Declaring it now
+    /// lets widget authors opt in; the optimization will land in a
+    /// future release.
+    cache_key: Option(fn(props, state) -> Dynamic),
   )
 }
 
@@ -94,6 +105,7 @@ pub fn simple(view: fn(String, props) -> Node) -> WidgetDef(Nil, props) {
     view: fn(id, props, _state) { view(id, props) },
     handle_event: fn(_event, state) { #(Ignored, state) },
     subscriptions: fn(_, _) { [] },
+    cache_key: None,
   )
 }
 
@@ -127,6 +139,7 @@ pub fn with_handler(
     view: fn(id, props, _state) { view(id, props) },
     handle_event: fn(event, state) { #(handle_event(event), state) },
     subscriptions: fn(_, _) { [] },
+    cache_key: None,
   )
 }
 

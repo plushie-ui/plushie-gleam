@@ -14,6 +14,7 @@ import gleam/dynamic
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option
 import plushie/canvas/shape
 import plushie/event.{
   type Event, type Modifiers, CustomWidget, EventTarget, LeftButton, Move, Press,
@@ -73,6 +74,7 @@ pub fn def() -> WidgetDef(PickerState, Nil) {
     view: render,
     handle_event: handle_event,
     subscriptions: fn(_, _) { [] },
+    cache_key: option.None,
   )
 }
 

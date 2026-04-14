@@ -13,6 +13,7 @@ import gleam/dict
 import gleam/dynamic
 import gleam/float
 import gleam/int
+import gleam/option
 import plushie/canvas/shape
 import plushie/event.{type Event, Click, EventTarget, Timer, TimerEvent, Widget}
 import plushie/node.{type Node, type PropValue}
@@ -48,6 +49,7 @@ pub fn def() -> WidgetDef(ToggleState, Nil) {
         False -> []
       }
     },
+    cache_key: option.None,
   )
 }
 

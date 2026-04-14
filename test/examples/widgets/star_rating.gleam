@@ -54,6 +54,7 @@ pub fn def() -> WidgetDef(StarState, StarRatingProps) {
     view: render,
     handle_event: handle_event,
     subscriptions: fn(_, _) { [] },
+    cache_key: option.None,
   )
 }
 

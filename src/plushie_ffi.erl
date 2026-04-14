@@ -34,6 +34,7 @@
     list_beam_files/1,
     start_file_watcher/1,
     file_watcher_subscribe/1,
+    stop_file_watcher/1,
     sha256_hex/1,
     crc32/1,
     zlib_compress/1,
@@ -289,6 +290,13 @@ start_file_watcher(Dirs) ->
 %% Subscribe the calling process to file events from the watcher.
 file_watcher_subscribe(Pid) ->
     file_system:subscribe(Pid),
+    nil.
+
+%% Stop a file_system watcher process (GenServer).
+stop_file_watcher(Pid) ->
+    try gen_server:stop(Pid, normal, 5000)
+    catch _:_ -> ok
+    end,
     nil.
 
 %% Compute SHA-256 hash and return as lowercase hex binary.

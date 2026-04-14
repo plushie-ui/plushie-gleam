@@ -42,6 +42,8 @@ pub opaque type DevMessage {
   Recompile
   /// Raw file event from the watcher (decoded from Dynamic).
   RawFileEvent(Dynamic)
+  /// Graceful shutdown: stop the file watcher and exit.
+  Shutdown
 }
 
 @target(erlang)
@@ -123,6 +125,17 @@ fn start_actor(
   |> actor.start
 }
 
+// -- Public API (shutdown) ----------------------------------------------------
+
+@target(erlang)
+/// Send a shutdown message to the dev server actor.
+///
+/// Stops the file watcher process and exits the actor cleanly.
+/// Called by the supervisor during graceful shutdown.
+pub fn stop(subject: Subject(DevMessage)) -> Nil {
+  process.send(subject, Shutdown)
+}
+
 // -- Actor loop --------------------------------------------------------------
 
 @target(erlang)
@@ -184,6 +197,12 @@ fn handle_message(
         }
       }
     }
+
+    Shutdown -> {
+      stop_file_watcher(state.watcher)
+      platform.log_info("plushie dev: stopped")
+      actor.stop()
+    }
   }
 }
 
@@ -244,3 +263,8 @@ fn start_file_watcher(dirs: List(String)) -> Dynamic
 /// Subscribe the calling process to file events from the watcher.
 @external(erlang, "plushie_ffi", "file_watcher_subscribe")
 fn file_watcher_subscribe(pid: Dynamic) -> Nil
+
+@target(erlang)
+/// Stop the file_system watcher process.
+@external(erlang, "plushie_ffi", "stop_file_watcher")
+fn stop_file_watcher(pid: Dynamic) -> Nil

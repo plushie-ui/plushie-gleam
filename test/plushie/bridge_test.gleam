@@ -19,9 +19,9 @@ import plushie/protocol
 
 // -- Helpers ------------------------------------------------------------------
 
+@target(erlang)
 /// Start a bridge with iostream transport and return the bridge subject
 /// plus a way to receive what the bridge sends.
-@target(erlang)
 fn start_iostream_bridge() -> #(
   process.Subject(BridgeMessage),
   process.Subject(IoStreamMessage),
@@ -46,8 +46,8 @@ fn start_iostream_bridge() -> #(
   #(bridge_subject, adapter, runtime)
 }
 
-/// Collect all IoStreamSend messages from the adapter subject.
 @target(erlang)
+/// Collect all IoStreamSend messages from the adapter subject.
 fn collect_sent(
   adapter: process.Subject(IoStreamMessage),
   acc: List(BitArray),
