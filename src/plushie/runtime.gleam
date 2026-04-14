@@ -786,6 +786,9 @@ fn handle_message(
       })
       let state = LoopState(..state, pending_timers: dict.new())
 
+      // Reset error counters (old renderer's failures don't carry over)
+      let state = LoopState(..state, errors: 0, consecutive_view_errors: 0)
+
       // Flush pending effects with error (old renderer is gone).
       let state = flush_pending_effects_on_restart(state)
 
