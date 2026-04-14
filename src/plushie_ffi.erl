@@ -21,6 +21,7 @@
     telemetry_attach/4,
     telemetry_handler/4,
     telemetry_detach/1,
+    telemetry_duration_measurement/1,
     stdio_port_options_msgpack/0,
     stdio_port_options_json/0,
     open_fd_port/3,
@@ -183,6 +184,9 @@ telemetry_detach(HandlerId) ->
     persistent_term:erase({plushie_telemetry_handler, HandlerId}),
     telemetry:detach(HandlerId),
     nil.
+
+telemetry_duration_measurement(DurationMs) ->
+    gleam@dict:from_list([{<<"duration_ms">>, DurationMs}]).
 
 %% Convert a Gleam Dict (with binary keys) to an Erlang map with atom keys.
 gleam_dict_to_atom_map(Dict) ->

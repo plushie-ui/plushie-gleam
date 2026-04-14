@@ -18,6 +18,7 @@
 //// `PLUSHIE_TEST_BACKEND` env var.
 
 import gleam/option.{type Option}
+import gleam/string
 import plushie/app.{type App}
 import plushie/event.{type Event}
 import plushie/node.{type Node}
@@ -29,7 +30,55 @@ pub type Selector {
   ById(String)
   ByRole(String)
   ByLabel(String)
+  ByText(String)
   Focused
+}
+
+/// Parse a selector from a unified string syntax.
+///
+/// Supported forms:
+/// - `"form/email"` or `"#form/email"` -> ById("form/email")
+/// - `"main#form/email"` -> ById("main#form/email") (window-qualified)
+/// - `":focused"` -> Focused
+/// - `"main#:focused"` -> Focused (window context for future use)
+/// - `"[role=button]"` -> ByRole("button")
+/// - `"[label=Save]"` -> ByLabel("Save")
+/// - `"[text=Save]"` -> ByText("Save")
+///
+/// Plain strings without special prefixes are treated as ID selectors.
+pub fn parse_selector(input: String) -> Selector {
+  case input {
+    ":focused" -> Focused
+    _ ->
+      case string.split_once(input, "#:") {
+        // "window#:focused"
+        Ok(#(_, "focused")) -> Focused
+        _ ->
+          case string.starts_with(input, "[") && string.ends_with(input, "]") {
+            True -> parse_attribute_selector(input)
+            False ->
+              // Strip leading # for bare ID selectors
+              case input {
+                "#" <> rest -> ById(rest)
+                _ -> ById(input)
+              }
+          }
+      }
+  }
+}
+
+fn parse_attribute_selector(input: String) -> Selector {
+  // Strip [ and ]
+  let inner =
+    input
+    |> string.drop_start(1)
+    |> string.drop_end(1)
+  case string.split_once(inner, "=") {
+    Ok(#("role", value)) -> ByRole(value)
+    Ok(#("label", value)) -> ByLabel(value)
+    Ok(#("text", value)) -> ByText(value)
+    _ -> ById(input)
+  }
 }
 
 /// A test backend defined as a record of functions.

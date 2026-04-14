@@ -21,6 +21,8 @@
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
+import gleam/list
+import plushie/platform
 
 /// Emit a telemetry event.
 ///
@@ -80,4 +82,35 @@ pub fn detach(handler_id: String) -> Nil {
 @external(erlang, "plushie_ffi", "telemetry_detach")
 fn do_detach(_handler_id: String) -> Nil {
   Nil
+}
+
+/// Execute a function and emit telemetry start/stop events with timing.
+///
+/// Emits `event_name ++ ["start"]` before and `event_name ++ ["stop"]`
+/// after the function runs. The stop event includes a `duration_ms`
+/// measurement (as a Dynamic integer).
+///
+/// Returns the function's result.
+pub fn span(
+  event_name: List(String),
+  metadata: Dict(String, Dynamic),
+  work: fn() -> a,
+) -> a {
+  let start_name = list.append(event_name, ["start"])
+  let stop_name = list.append(event_name, ["stop"])
+  let start_time = platform.monotonic_time_ms()
+  execute(start_name, dict.new(), metadata)
+  let result = work()
+  let duration = platform.monotonic_time_ms() - start_time
+  let measurements = do_duration_measurement(duration)
+  execute(stop_name, measurements, metadata)
+  result
+}
+
+/// Create a measurement dict with duration_ms. Uses FFI to coerce
+/// the Int to Dynamic without importing erlang-specific coercion.
+@external(erlang, "plushie_ffi", "telemetry_duration_measurement")
+fn do_duration_measurement(_duration_ms: Int) -> Dict(String, Dynamic) {
+  // JS fallback: empty measurements
+  dict.new()
 }
