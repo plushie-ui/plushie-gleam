@@ -80,7 +80,7 @@ pub fn decode_hello_json_test() {
 
 pub fn decode_hello_with_extras_json_test() {
   let json =
-    "{\"type\":\"hello\",\"protocol\":1,\"version\":\"0.2.0\",\"name\":\"plushie\",\"backend\":\"iced\",\"extensions\":[\"canvas\"]}"
+    "{\"type\":\"hello\",\"protocol\":1,\"version\":\"0.2.0\",\"name\":\"plushie\",\"mode\":\"headless\",\"backend\":\"tiny-skia\",\"transport\":\"stdio\",\"native_widgets\":[\"canvas\"],\"widgets\":[\"button\",\"canvas\"]}"
   let data = bit_array.from_string(json)
   let assert Ok(msg) = decode.decode_message(data, protocol.Json)
   case msg {
@@ -88,15 +88,19 @@ pub fn decode_hello_with_extras_json_test() {
       protocol:,
       version:,
       name:,
+      mode:,
       backend:,
-      extensions:,
-      transport: _,
+      native_widgets:,
+      widgets:,
+      ..,
     ) -> {
       should.equal(protocol, 1)
       should.equal(version, "0.2.0")
       should.equal(name, "plushie")
-      should.equal(backend, "iced")
-      should.equal(extensions, ["canvas"])
+      should.equal(mode, "headless")
+      should.equal(backend, "tiny-skia")
+      should.equal(native_widgets, ["canvas"])
+      should.equal(widgets, ["button", "canvas"])
     }
     _ -> should.fail()
   }

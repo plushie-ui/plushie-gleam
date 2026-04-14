@@ -24,6 +24,7 @@ pub opaque type PaneGrid {
     divider_color: Option(String),
     divider_width: Option(Float),
     leeway: Option(Float),
+    split_axis: Option(String),
     event_rate: Option(Int),
     a11y: Option(A11y),
   )
@@ -42,6 +43,7 @@ pub fn new(id: String) -> PaneGrid {
     divider_color: None,
     divider_width: None,
     leeway: None,
+    split_axis: None,
     event_rate: None,
     a11y: None,
   )
@@ -87,6 +89,11 @@ pub fn leeway(pg: PaneGrid, l: Float) -> PaneGrid {
   PaneGrid(..pg, leeway: option.Some(l))
 }
 
+/// Set the split axis.
+pub fn split_axis(pg: PaneGrid, axis: String) -> PaneGrid {
+  PaneGrid(..pg, split_axis: option.Some(axis))
+}
+
 /// Set the event throttle rate in milliseconds.
 pub fn event_rate(pg: PaneGrid, rate: Int) -> PaneGrid {
   PaneGrid(..pg, event_rate: option.Some(rate))
@@ -117,6 +124,7 @@ pub type Opt {
   DividerColor(String)
   DividerWidth(Float)
   Leeway(Float)
+  SplitAxis(String)
   EventRate(Int)
   A11y(A11y)
 }
@@ -133,6 +141,7 @@ pub fn with_opts(pg: PaneGrid, opts: List(Opt)) -> PaneGrid {
       DividerColor(c) -> divider_color(p, c)
       DividerWidth(w) -> divider_width(p, w)
       Leeway(l) -> leeway(p, l)
+      SplitAxis(axis) -> split_axis(p, axis)
       EventRate(r) -> event_rate(p, r)
       A11y(a) -> a11y(p, a)
     }
@@ -153,6 +162,7 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional_string("divider_color", pg.divider_color)
     |> build.put_optional_float("divider_width", pg.divider_width)
     |> build.put_optional_float("leeway", pg.leeway)
+    |> build.put_optional_string("split_axis", pg.split_axis)
     |> build.put_optional_int("event_rate", pg.event_rate)
     |> build.put_optional("a11y", pg.a11y, a11y.to_prop_value)
   Node(

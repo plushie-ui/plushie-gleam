@@ -1,5 +1,6 @@
 import gleam/dict
 import plushie/node.{BoolVal, FloatVal, Node, StringVal}
+import plushie/prop/length
 import plushie/widget/window
 
 pub fn new_builds_empty_window_test() {
@@ -23,7 +24,7 @@ pub fn title_sets_string_prop_test() {
 pub fn size_sets_width_and_height_test() {
   let node =
     window.new("main")
-    |> window.size(800.0, 600.0)
+    |> window.size(length.Fixed(800.0), length.Fixed(600.0))
     |> window.build()
 
   assert dict.get(node.props, "width") == Ok(FloatVal(800.0))

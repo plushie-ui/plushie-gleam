@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/length.{type Length}
 import plushie/prop/theme.{type Theme}
 import plushie/widget/build
 
@@ -19,8 +20,8 @@ pub opaque type Window {
     id: String,
     children: List(Node),
     title: Option(String),
-    width: Option(Float),
-    height: Option(Float),
+    width: Option(Length),
+    height: Option(Length),
     position: Option(#(Float, Float)),
     min_size: Option(#(Float, Float)),
     max_size: Option(#(Float, Float)),
@@ -75,17 +76,17 @@ pub fn title(w: Window, t: String) -> Window {
 }
 
 /// Set both width and height at once.
-pub fn size(w: Window, width: Float, height: Float) -> Window {
+pub fn size(w: Window, width: Length, height: Length) -> Window {
   Window(..w, width: option.Some(width), height: option.Some(height))
 }
 
 /// Set the width.
-pub fn width(w: Window, width: Float) -> Window {
+pub fn width(w: Window, width: Length) -> Window {
   Window(..w, width: option.Some(width))
 }
 
 /// Set the height.
-pub fn height(w: Window, height: Float) -> Window {
+pub fn height(w: Window, height: Length) -> Window {
   Window(..w, height: option.Some(height))
 }
 
@@ -190,9 +191,9 @@ pub fn a11y(w: Window, a: A11y) -> Window {
 /// Option type for window properties.
 pub type Opt {
   Title(String)
-  Size(Float, Float)
-  Width(Float)
-  Height(Float)
+  Size(Length, Length)
+  Width(Length)
+  Height(Length)
   Position(Float, Float)
   MinSize(Float, Float)
   MaxSize(Float, Float)
@@ -259,8 +260,8 @@ pub fn build(w: Window) -> Node {
   let props =
     dict.new()
     |> build.put_optional_string("title", w.title)
-    |> build.put_optional_float("width", w.width)
-    |> build.put_optional_float("height", w.height)
+    |> build.put_optional("width", w.width, length.to_prop_value)
+    |> build.put_optional("height", w.height, length.to_prop_value)
     |> build.put_optional("position", w.position, pair_to_prop_value)
     |> build.put_optional("min_size", w.min_size, pair_to_prop_value)
     |> build.put_optional("max_size", w.max_size, pair_to_prop_value)

@@ -6,7 +6,6 @@ import gleam/option.{type Option, None}
 import plushie/node.{type Node, FloatVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
-import plushie/prop/length.{type Length}
 import plushie/widget/build
 
 pub opaque type VerticalSlider {
@@ -17,7 +16,7 @@ pub opaque type VerticalSlider {
     step: Option(Float),
     shift_step: Option(Float),
     default_value: Option(Float),
-    width: Option(Length),
+    width: Option(Float),
     height: Option(Float),
     rail_color: Option(Color),
     rail_width: Option(Float),
@@ -64,7 +63,7 @@ pub fn default_value(vs: VerticalSlider, v: Float) -> VerticalSlider {
 }
 
 /// Set the width.
-pub fn width(vs: VerticalSlider, w: Length) -> VerticalSlider {
+pub fn width(vs: VerticalSlider, w: Float) -> VerticalSlider {
   VerticalSlider(..vs, width: option.Some(w))
 }
 
@@ -112,7 +111,7 @@ pub type Opt {
   Step(Float)
   ShiftStep(Float)
   DefaultValue(Float)
-  Width(Length)
+  Width(Float)
   Height(Float)
   RailColor(Color)
   RailWidth(Float)
@@ -150,7 +149,7 @@ pub fn build(vs: VerticalSlider) -> Node {
     |> build.put_optional_float("step", vs.step)
     |> build.put_optional_float("shift_step", vs.shift_step)
     |> build.put_optional_float("default", vs.default_value)
-    |> build.put_optional("width", vs.width, length.to_prop_value)
+    |> build.put_optional_float("width", vs.width)
     |> build.put_optional_float("height", vs.height)
     |> build.put_optional("rail_color", vs.rail_color, color.to_prop_value)
     |> build.put_optional_float("rail_width", vs.rail_width)

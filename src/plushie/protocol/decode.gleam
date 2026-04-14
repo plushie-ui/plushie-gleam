@@ -45,9 +45,11 @@ pub type InboundMessage {
     protocol: Int,
     version: String,
     name: String,
+    mode: String,
     backend: String,
-    extensions: List(String),
     transport: String,
+    native_widgets: List(String),
+    widgets: List(String),
   )
 
   /// A user interaction or system event.
@@ -451,10 +453,21 @@ fn decode_hello(
   use proto <- result.try(get_int(map, "protocol"))
   use version <- result.try(get_string(map, "version"))
   use name <- result.try(get_string(map, "name"))
+  let mode = get_string_or(map, "mode", "windowed")
   let backend = get_string_or(map, "backend", "unknown")
-  let extensions = get_string_list(map, "extensions")
   let transport = get_string_or(map, "transport", "stdio")
-  Ok(Hello(protocol: proto, version:, name:, backend:, extensions:, transport:))
+  let native_widgets = get_string_list(map, "native_widgets")
+  let widgets = get_string_list(map, "widgets")
+  Ok(Hello(
+    protocol: proto,
+    version:,
+    name:,
+    mode:,
+    backend:,
+    transport:,
+    native_widgets:,
+    widgets:,
+  ))
 }
 
 // ---------------------------------------------------------------------------

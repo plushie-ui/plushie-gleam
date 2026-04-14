@@ -22,6 +22,7 @@ pub opaque type Slider {
     circular_handle: Option(Bool),
     rail_color: Option(Color),
     rail_width: Option(Float),
+    handle_radius: Option(Float),
     style: Option(String),
     label: Option(String),
     event_rate: Option(Int),
@@ -43,6 +44,7 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> Slider {
     circular_handle: None,
     rail_color: None,
     rail_width: None,
+    handle_radius: None,
     style: None,
     label: None,
     event_rate: None,
@@ -90,6 +92,11 @@ pub fn rail_width(slider: Slider, w: Float) -> Slider {
   Slider(..slider, rail_width: option.Some(w))
 }
 
+/// Set the handle radius.
+pub fn handle_radius(slider: Slider, r: Float) -> Slider {
+  Slider(..slider, handle_radius: option.Some(r))
+}
+
 /// Set the style.
 pub fn style(slider: Slider, s: String) -> Slider {
   Slider(..slider, style: option.Some(s))
@@ -124,6 +131,7 @@ pub type Opt {
   CircularHandle(Bool)
   RailColor(Color)
   RailWidth(Float)
+  HandleRadius(Float)
   Style(String)
   Label(String)
   EventRate(Int)
@@ -142,6 +150,7 @@ pub fn with_opts(slider: Slider, opts: List(Opt)) -> Slider {
       CircularHandle(v) -> circular_handle(s, v)
       RailColor(c) -> rail_color(s, c)
       RailWidth(w) -> rail_width(s, w)
+      HandleRadius(r) -> handle_radius(s, r)
       Style(v) -> style(s, v)
       Label(l) -> label(s, l)
       EventRate(r) -> event_rate(s, r)
@@ -164,6 +173,7 @@ pub fn build(slider: Slider) -> Node {
     |> build.put_optional_bool("circular_handle", slider.circular_handle)
     |> build.put_optional("rail_color", slider.rail_color, color.to_prop_value)
     |> build.put_optional_float("rail_width", slider.rail_width)
+    |> build.put_optional_float("handle_radius", slider.handle_radius)
     |> build.put_optional_string("style", slider.style)
     |> build.put_optional_string("label", slider.label)
     |> build.put_optional_int("event_rate", slider.event_rate)

@@ -426,13 +426,13 @@ fn handle_message(
       }
     }
 
-    FromBridge(InboundEvent(Hello(protocol: proto, extensions:, ..))) -> {
+    FromBridge(InboundEvent(Hello(protocol: proto, native_widgets:, ..))) -> {
       case proto == protocol.protocol_version {
         True ->
           case
             missing_native_widgets(
               state.opts.required_native_widgets,
-              extensions,
+              native_widgets,
             )
           {
             [] -> {
@@ -443,7 +443,7 @@ fn handle_message(
                 "plushie: renderer is missing required native widgets "
                 <> string.inspect(missing)
                 <> " (reported "
-                <> string.inspect(extensions)
+                <> string.inspect(native_widgets)
                 <> "); stopping runtime",
               )
               actor.stop()

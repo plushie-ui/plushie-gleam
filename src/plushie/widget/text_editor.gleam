@@ -26,7 +26,7 @@ pub opaque type TextEditor {
     size: Option(Float),
     line_height: Option(Float),
     wrapping: Option(Wrapping),
-    ime_purpose: Option(String),
+    input_purpose: Option(String),
     highlight_syntax: Option(String),
     highlight_theme: Option(String),
     style: Option(String),
@@ -52,7 +52,7 @@ pub fn new(id: String, content: String) -> TextEditor {
     size: None,
     line_height: None,
     wrapping: None,
-    ime_purpose: None,
+    input_purpose: None,
     highlight_syntax: None,
     highlight_theme: None,
     style: None,
@@ -113,9 +113,9 @@ pub fn wrapping(te: TextEditor, w: Wrapping) -> TextEditor {
   TextEditor(..te, wrapping: option.Some(w))
 }
 
-/// Set the IME purpose hint.
-pub fn ime_purpose(te: TextEditor, p: String) -> TextEditor {
-  TextEditor(..te, ime_purpose: option.Some(p))
+/// Set the input purpose hint.
+pub fn input_purpose(te: TextEditor, p: String) -> TextEditor {
+  TextEditor(..te, input_purpose: option.Some(p))
 }
 
 /// Set the syntax highlighting language.
@@ -165,7 +165,7 @@ pub type Opt {
   Size(Float)
   LineHeight(Float)
   Wrapping(Wrapping)
-  ImePurpose(String)
+  InputPurpose(String)
   HighlightSyntax(String)
   HighlightTheme(String)
   Style(String)
@@ -189,7 +189,7 @@ pub fn with_opts(te: TextEditor, opts: List(Opt)) -> TextEditor {
       Size(s) -> size(t, s)
       LineHeight(h) -> line_height(t, h)
       Wrapping(w) -> wrapping(t, w)
-      ImePurpose(p) -> ime_purpose(t, p)
+      InputPurpose(p) -> input_purpose(t, p)
       HighlightSyntax(lang) -> highlight_syntax(t, lang)
       HighlightTheme(theme) -> highlight_theme(t, theme)
       Style(s) -> style(t, s)
@@ -216,7 +216,7 @@ pub fn build(te: TextEditor) -> Node {
     |> build.put_optional_float("size", te.size)
     |> build.put_optional_float("line_height", te.line_height)
     |> build.put_optional("wrapping", te.wrapping, wrapping.to_prop_value)
-    |> build.put_optional_string("ime_purpose", te.ime_purpose)
+    |> build.put_optional_string("input_purpose", te.input_purpose)
     |> build.put_optional_string("highlight_syntax", te.highlight_syntax)
     |> build.put_optional_string("highlight_theme", te.highlight_theme)
     |> build.put_optional_string("style", te.style)
