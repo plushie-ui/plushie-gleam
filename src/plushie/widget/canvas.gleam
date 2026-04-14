@@ -1,6 +1,7 @@
 //// Canvas widget builder. Layers are managed via widget commands.
 
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, DictVal, ListVal, Node}
@@ -175,22 +176,21 @@ pub fn with_opts(c: Canvas, opts: List(Opt)) -> Canvas {
   })
 }
 
-fn layers_to_prop_value(l: Dict(String, List(PropValue))) -> PropValue {
-  DictVal(
-    dict.fold(l, dict.new(), fn(acc, key, shapes) {
-      dict.insert(acc, key, ListVal(shapes))
-    }),
-  )
-}
-
 /// Build the canvas into a renderable Node.
+///
+/// Shapes are promoted to tree children (not props) matching the
+/// renderer's expected format. The renderer reads shapes from
+/// canvas children, not from a "shapes" or "layers" prop.
+///
+/// - With layers: each layer becomes a `__layer__` child node
+///   containing shape children.
+/// - Without layers (flat shapes): shapes become direct children,
+///   treated by the renderer as a "default" layer.
 pub fn build(c: Canvas) -> Node {
   let props =
     dict.new()
     |> dict.insert("width", length.to_prop_value(c.width))
     |> dict.insert("height", length.to_prop_value(c.height))
-    |> build.put_optional("layers", c.layers, layers_to_prop_value)
-    |> build.put_optional("shapes", c.shapes, fn(s) { ListVal(s) })
     |> build.put_optional("background", c.background, color.to_prop_value)
     |> build.put_optional_bool("interactive", c.interactive)
     |> build.put_optional_bool("on_press", c.on_press)
@@ -203,5 +203,77 @@ pub fn build(c: Canvas) -> Node {
     |> build.put_optional_string("arrow_mode", c.arrow_mode)
     |> build.put_optional_int("event_rate", c.event_rate)
     |> build.apply_default_a11y(c.a11y, "canvas", option.None)
-  Node(id: c.id, kind: "canvas", props:, children: [], meta: dict.new())
+
+  // Promote shapes to tree children
+  let children = case c.layers {
+    option.Some(layer_map) -> layers_to_children(layer_map)
+    None ->
+      case c.shapes {
+        option.Some(shape_list) -> shapes_to_children(shape_list)
+        None -> []
+      }
+  }
+
+  Node(id: c.id, kind: "canvas", props:, children:, meta: dict.new())
+}
+
+/// Convert named layers to __layer__ container children.
+fn layers_to_children(layer_map: Dict(String, List(PropValue))) -> List(Node) {
+  dict.to_list(layer_map)
+  |> list.map(fn(pair) {
+    let #(name, shapes) = pair
+    let layer_props = dict.from_list([#("name", node.StringVal(name))])
+    Node(
+      id: name,
+      kind: "__layer__",
+      props: layer_props,
+      children: shapes_to_children(shapes),
+      meta: dict.new(),
+    )
+  })
+}
+
+/// Convert a flat list of shape PropValues (DictVal) to child Nodes.
+/// Each shape's "type" field becomes the node kind, and the remaining
+/// fields become the node's props.
+fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
+  list.index_map(shapes, fn(shape, idx) {
+    case shape {
+      DictVal(shape_props) -> {
+        let kind = case dict.get(shape_props, "type") {
+          Ok(node.StringVal(t)) -> t
+          _ -> "unknown"
+        }
+        let id = case dict.get(shape_props, "id") {
+          Ok(node.StringVal(s)) -> s
+          _ -> "auto:shape_" <> int.to_string(idx)
+        }
+        // Remove "type" from props (it's now the node kind)
+        let props = dict.delete(shape_props, "type")
+        Node(
+          id:,
+          kind:,
+          props:,
+          children: shape_children(shape_props),
+          meta: dict.new(),
+        )
+      }
+      _ ->
+        Node(
+          id: "auto:shape_" <> int.to_string(idx),
+          kind: "unknown",
+          props: dict.new(),
+          children: [],
+          meta: dict.new(),
+        )
+    }
+  })
+}
+
+/// Extract children from a group shape (recursive).
+fn shape_children(shape_props: Dict(String, PropValue)) -> List(Node) {
+  case dict.get(shape_props, "children") {
+    Ok(ListVal(kids)) -> shapes_to_children(kids)
+    _ -> []
+  }
 }
