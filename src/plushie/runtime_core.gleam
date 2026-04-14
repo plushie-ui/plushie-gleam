@@ -75,8 +75,12 @@ fn collect_window_ids(node: Node, acc: List(String)) -> List(String) {
   list.fold(node.children, acc, fn(a, child) { collect_window_ids(child, a) })
 }
 
-/// Derive both the widget registry and window set in a single tree walk.
-/// Avoids walking the tree twice when both are needed.
+/// Derive both the widget registry and window set from a single tree walk.
+///
+/// Prefer using the registry and windows returned by
+/// `tree.normalize_view` / `tree.normalize_with_memo` which accumulate
+/// both during normalization at no extra cost. This function exists
+/// for cases where only a pre-normalized tree is available.
 pub fn derive_all(tree_node: Node) -> #(widget.Registry, Set(String)) {
   let registry = widget.derive_registry(tree_node)
   let windows = detect_windows(tree_node)

@@ -809,7 +809,7 @@ pub fn event_window_id(ev: Event) -> String {
 
 const key_sep = "\u{001F}"
 
-fn widget_key(window_id: String, scoped_id: String) -> String {
+pub fn widget_key(window_id: String, scoped_id: String) -> String {
   window_id <> key_sep <> scoped_id
 }
 

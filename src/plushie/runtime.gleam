@@ -297,22 +297,23 @@ fn init_runtime(
   )
 
   // Render initial view (panic on failure: no old tree to fall back to)
-  let assert Ok(#(initial_tree, initial_memo_cache)) =
+  let assert Ok(tree.NormalizeResult(
+    tree: initial_tree,
+    memo_cache: initial_memo_cache,
+    registry: initial_cw_registry,
+    windows: initial_windows,
+  )) =
     try_normalize_view(
       app.get_view(app)(model),
       widget.empty_registry(),
       tree.empty_memo_cache(),
     )
-  let initial_cw_registry = widget.derive_registry(initial_tree)
 
   // Send initial snapshot
   send_encoded(
     bridge,
     encode.encode_snapshot(initial_tree, opts.session, opts.format),
   )
-
-  // Detect initial windows
-  let initial_windows = runtime_core.detect_windows(initial_tree)
 
   // Get the bridge actor's PID for monitoring (D-039)
   let bridge_pid = case process.subject_owner(bridge) {
@@ -895,10 +896,12 @@ fn handle_message(
       // On view failure, fall back to the existing tree so the renderer
       // still receives a snapshot and subscriptions are re-registered.
       let view_fn = app.get_view(state.app)
-      let restart_tree = case platform.try_call(fn() { view_fn(state.model) }) {
+      let restart_result = case
+        platform.try_call(fn() { view_fn(state.model) })
+      {
         Ok(t) ->
           case try_normalize_view(t, state.cw_registry, state.memo_cache) {
-            Ok(#(normalized, new_cache)) -> Ok(#(normalized, new_cache))
+            Ok(result) -> Ok(result)
             Error(msg) -> {
               platform.log_error(
                 "plushie: normalization failed on restart: " <> msg,
@@ -908,20 +911,19 @@ fn handle_message(
           }
         Error(_) -> Error(Nil)
       }
-      let state = case restart_tree, state.tree {
-        Ok(#(new_tree, new_memo_cache)), _ -> {
+      let state = case restart_result, state.tree {
+        Ok(result), _ -> {
           send_encoded(
             state.bridge,
             encode.encode_snapshot(
-              new_tree,
+              result.tree,
               state.opts.session,
               state.opts.format,
             ),
           )
           sync_after_render(
             state,
-            new_tree,
-            new_memo_cache,
+            result,
             state.model,
             dict.new(),
             set.new(),
@@ -941,10 +943,16 @@ fn handle_message(
               state.opts.format,
             ),
           )
+          let fallback =
+            tree.NormalizeResult(
+              tree: old_tree,
+              memo_cache: state.memo_cache,
+              registry: state.cw_registry,
+              windows: state.windows,
+            )
           sync_after_render(
             state,
-            old_tree,
-            state.memo_cache,
+            fallback,
             state.model,
             dict.new(),
             set.new(),
@@ -974,11 +982,10 @@ fn handle_message(
               state.memo_cache,
             )
           {
-            Ok(#(new_tree, new_memo_cache)) ->
+            Ok(result) ->
               sync_after_render(
                 state,
-                new_tree,
-                new_memo_cache,
+                result,
                 state.model,
                 state.active_subs,
                 state.windows,
@@ -1392,15 +1399,16 @@ fn handle_msg(state: LoopState(model, msg), msg: msg) -> LoopState(model, msg) {
 /// (e.g. the restart handler sends a full snapshot before calling this).
 fn sync_after_render(
   state: LoopState(model, msg),
-  new_tree: Node,
-  new_memo_cache: tree.MemoCache,
+  result: tree.NormalizeResult,
   model: model,
   current_subs: Dict(String, SubEntry),
   old_windows: Set(String),
   old_tree: Option(Node),
   send_tree: Bool,
 ) -> LoopState(model, msg) {
-  let new_cw_registry = widget.derive_registry(new_tree)
+  let new_tree = result.tree
+  let new_cw_registry = result.registry
+  let new_windows = result.windows
 
   // Send tree diff/patch (or snapshot) to the bridge
   case send_tree {
@@ -1443,7 +1451,6 @@ fn sync_after_render(
     )
 
   // Sync windows
-  let new_windows = runtime_core.detect_windows(new_tree)
   sync_windows(
     new_tree,
     old_windows,
@@ -1462,7 +1469,7 @@ fn sync_after_render(
     windows: new_windows,
     cw_registry: new_cw_registry,
     consecutive_view_errors: 0,
-    memo_cache: new_memo_cache,
+    memo_cache: result.memo_cache,
   )
 }
 
@@ -1486,11 +1493,10 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
             consecutive_view_errors: state.consecutive_view_errors + 1,
           )
         }
-        Ok(#(new_tree, new_memo_cache)) ->
+        Ok(result) ->
           sync_after_render(
             state,
-            new_tree,
-            new_memo_cache,
+            result,
             state.model,
             state.active_subs,
             state.windows,
@@ -1623,12 +1629,11 @@ fn dispatch_update(
                   + 1,
               )
             }
-            Ok(#(new_tree, new_memo_cache)) -> {
+            Ok(result) -> {
               let synced =
                 sync_after_render(
                   state_after_cmds,
-                  new_tree,
-                  new_memo_cache,
+                  result,
                   new_model,
                   state.active_subs,
                   state.windows,
@@ -2331,6 +2336,6 @@ fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
   memo_cache: tree.MemoCache,
-) -> Result(#(Node, tree.MemoCache), String) {
+) -> Result(tree.NormalizeResult, String) {
   tree.normalize_view(view_tree, registry, memo_cache)
 }

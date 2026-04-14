@@ -251,8 +251,9 @@ fn render_and_sync(
   case platform.try_call(fn() { view_fn(model) }) {
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
-      let new_tree = normalize_view_or_panic(raw_tree, registry)
-      let new_registry = widget.derive_registry(new_tree)
+      let norm_result = normalize_view_or_panic(raw_tree, registry)
+      let new_tree = norm_result.tree
+      let new_registry = norm_result.registry
       do_set_cw_registry(handle, new_registry)
       let old_tree = do_get_tree(handle)
 
@@ -277,7 +278,7 @@ fn render_and_sync(
       // Sync subscriptions and windows BEFORE updating the stored
       // tree, so sync_windows can compare old vs new props.
       sync_subscriptions(handle, app)
-      sync_windows(handle, app, new_tree, session)
+      sync_windows(handle, app, new_tree, norm_result.windows, session)
       do_set_tree(handle, Some(new_tree))
     }
     Error(reason) -> {
@@ -288,9 +289,12 @@ fn render_and_sync(
 }
 
 @target(javascript)
-fn normalize_view_or_panic(view_tree: Node, registry: widget.Registry) -> Node {
+fn normalize_view_or_panic(
+  view_tree: Node,
+  registry: widget.Registry,
+) -> tree.NormalizeResult {
   case tree.normalize_view(view_tree, registry, tree.empty_memo_cache()) {
-    Ok(#(normalized, _cache)) -> normalized
+    Ok(result) -> result
     Error(message) -> panic as message
   }
 }
@@ -469,10 +473,10 @@ fn sync_windows(
   handle: WebRuntimeHandle,
   app: App(model, msg),
   new_tree: Node,
+  new_windows: Set(String),
   session: String,
 ) -> Nil {
   let old_windows = do_get_windows(handle)
-  let new_windows = runtime_core.detect_windows(new_tree)
   let model = do_get_model(handle)
 
   // Open new windows (merge base window_config with per-window props)

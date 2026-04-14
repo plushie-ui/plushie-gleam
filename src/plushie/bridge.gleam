@@ -130,6 +130,25 @@ pub type Transport {
 }
 
 @target(erlang)
+/// Transport operations record. Centralizes all transport-specific
+/// behavior so the message handler never branches on transport variant.
+type TransportOps {
+  TransportOps(
+    /// Send wire bytes over the transport.
+    send: fn(BridgeState, BitArray) -> Nil,
+    /// Check whether the transport is ready to accept data.
+    is_ready: fn(BridgeState) -> Bool,
+    /// Whether this transport supports automatic restart after a crash.
+    can_restart: Bool,
+    /// Attempt to reopen the transport after a crash.
+    /// Returns the new port on success.
+    restart: fn(BridgeState) -> Result(Port, Nil),
+    /// Close the transport on shutdown.
+    close: fn(BridgeState) -> Nil,
+  )
+}
+
+@target(erlang)
 /// Internal bridge state.
 pub opaque type BridgeState {
   BridgeState(
@@ -138,6 +157,7 @@ pub opaque type BridgeState {
     runtime: Option(Subject(RuntimeNotification)),
     session: String,
     transport: Transport,
+    ops: TransportOps,
     /// Buffer for accumulating partial JSON lines (noeol chunks).
     json_buffer: BitArray,
     /// Events received before the runtime registered. Stored in
@@ -273,6 +293,102 @@ pub fn start_supervised(
   |> actor.start
 }
 
+// -- TransportOps constructors ------------------------------------------------
+
+@target(erlang)
+/// Send data via the Erlang port. Shared by spawn and stdio transports.
+fn port_send(state: BridgeState, data: BitArray) -> Nil {
+  case state.port {
+    Some(port) -> {
+      case platform.try_call(fn() { renderer_port.port_command(port, data) }) {
+        Ok(_) -> emit_send_telemetry(data)
+        Error(_) -> {
+          platform.log_warning("plushie bridge: port closed during send")
+          Nil
+        }
+      }
+    }
+    None -> Nil
+  }
+}
+
+@target(erlang)
+/// Close the Erlang port. Shared by spawn and stdio transports.
+fn port_close(state: BridgeState) -> Nil {
+  case state.port {
+    Some(port) -> {
+      renderer_port.port_close(port)
+      Nil
+    }
+    None -> Nil
+  }
+}
+
+@target(erlang)
+fn spawn_ops() -> TransportOps {
+  TransportOps(
+    send: port_send,
+    is_ready: fn(state) { option.is_some(state.port) },
+    can_restart: True,
+    restart: fn(state) {
+      case
+        platform.try_call(fn() {
+          open_spawn_port(state.binary_path, state.format, state.renderer_args)
+        })
+      {
+        Ok(port) -> Ok(port)
+        Error(_) -> Error(Nil)
+      }
+    },
+    close: port_close,
+  )
+}
+
+@target(erlang)
+fn stdio_ops() -> TransportOps {
+  TransportOps(
+    send: port_send,
+    is_ready: fn(state) { option.is_some(state.port) },
+    can_restart: False,
+    restart: fn(_state) { Error(Nil) },
+    close: port_close,
+  )
+}
+
+@target(erlang)
+fn iostream_ops(adapter: Subject(IoStreamMessage)) -> TransportOps {
+  TransportOps(
+    send: fn(_state, data) {
+      process.send(adapter, IoStreamSend(data:))
+      emit_send_telemetry(data)
+    },
+    is_ready: fn(state) { state.iostream_alive },
+    can_restart: False,
+    restart: fn(_state) { Error(Nil) },
+    close: fn(_state) { Nil },
+  )
+}
+
+@target(erlang)
+fn emit_send_telemetry(data: BitArray) -> Nil {
+  let byte_size = bit_array.byte_size(data)
+  telemetry.execute(
+    ["plushie", "bridge", "send"],
+    dict.from_list([#("byte_size", dynamic.int(byte_size))]),
+    dict.new(),
+  )
+  Nil
+}
+
+@target(erlang)
+fn ops_for_transport(transport: Transport) -> TransportOps {
+  case transport {
+    TransportSpawn -> spawn_ops()
+    TransportStdio -> stdio_ops()
+    TransportIoStream(adapter:) -> iostream_ops(adapter)
+  }
+}
+
 // -- Init helpers (port-opening) -----------------------------------------------
 
 @target(erlang)
@@ -292,6 +408,7 @@ fn make_state(
     runtime:,
     session:,
     transport:,
+    ops: ops_for_transport(transport),
     json_buffer: <<>>,
     event_buffer: [],
     awaiting_resync: False,
@@ -534,9 +651,9 @@ fn handle_message(
   case msg {
     Send(data:) -> {
       // Rebuildable: send when transport is ready, drop otherwise.
-      case is_transport_ready(state) {
+      case { state.ops.is_ready }(state) {
         True -> {
-          send_data(state, data)
+          { state.ops.send }(state, data)
           actor.continue(state)
         }
         False -> actor.continue(state)
@@ -546,9 +663,9 @@ fn handle_message(
     SendTransient(data:) -> {
       // Transient: send when transport is ready AND not awaiting resync.
       // Queue when transport is down or resync is in progress.
-      case is_transport_ready(state), state.awaiting_resync {
+      case { state.ops.is_ready }(state), state.awaiting_resync {
         True, False -> {
-          send_data(state, data)
+          { state.ops.send }(state, data)
           actor.continue(state)
         }
         _, _ -> {
@@ -583,8 +700,8 @@ fn handle_message(
 
         // Crash: attempt restart with exponential backoff.
         _ -> {
-          case state.transport {
-            TransportSpawn ->
+          case state.ops.can_restart {
+            True ->
               case state.restart_count < state.max_restarts {
                 True -> {
                   let delay =
@@ -626,8 +743,8 @@ fn handle_message(
                 }
               }
 
-            // Non-spawn transports don't support restart.
-            _ -> actor.stop()
+            // Transport doesn't support restart.
+            False -> actor.stop()
           }
         }
       }
@@ -690,17 +807,9 @@ fn handle_message(
     }
 
     RestartPort -> {
-      case state.transport {
-        TransportSpawn -> {
-          case
-            platform.try_call(fn() {
-              open_spawn_port(
-                state.binary_path,
-                state.format,
-                state.renderer_args,
-              )
-            })
-          {
+      case state.ops.can_restart {
+        True -> {
+          case { state.ops.restart }(state) {
             Ok(new_port) -> {
               let new_count = state.restart_count + 1
               telemetry.execute(
@@ -731,65 +840,21 @@ fn handle_message(
             }
           }
         }
-        _ -> {
-          // Non-spawn transports can't restart
+        False -> {
+          // Transport doesn't support restart.
           actor.stop()
         }
       }
     }
 
     Shutdown -> {
-      case state.port {
-        Some(port) ->
-          case state.transport {
-            TransportIoStream(_) -> Nil
-            _ -> {
-              renderer_port.port_close(port)
-              Nil
-            }
-          }
-        None -> Nil
-      }
+      { state.ops.close }(state)
       actor.stop()
     }
   }
 }
 
 // -- Send helpers -------------------------------------------------------------
-
-@target(erlang)
-fn send_data(state: BridgeState, data: BitArray) -> Nil {
-  let byte_size = bit_array.byte_size(data)
-
-  case state.transport, state.port {
-    TransportIoStream(adapter:), _ -> {
-      process.send(adapter, IoStreamSend(data:))
-      telemetry.execute(
-        ["plushie", "bridge", "send"],
-        dict.from_list([#("byte_size", dynamic.int(byte_size))]),
-        dict.new(),
-      )
-      Nil
-    }
-    _, Some(port) -> {
-      case platform.try_call(fn() { renderer_port.port_command(port, data) }) {
-        Ok(_) -> {
-          telemetry.execute(
-            ["plushie", "bridge", "send"],
-            dict.from_list([#("byte_size", dynamic.int(byte_size))]),
-            dict.new(),
-          )
-          Nil
-        }
-        Error(_) -> {
-          platform.log_warning("plushie bridge: port closed during send")
-          Nil
-        }
-      }
-    }
-    _, None -> Nil
-  }
-}
 
 @target(erlang)
 fn flush_queued_messages(state: BridgeState) -> BridgeState {
@@ -804,24 +869,9 @@ fn do_flush_queued(state: BridgeState, queue: List(BitArray)) -> BridgeState {
   case queue {
     [] -> BridgeState(..state, queued_messages: [])
     [data, ..rest] -> {
-      send_data(state, data)
+      { state.ops.send }(state, data)
       do_flush_queued(state, rest)
     }
-  }
-}
-
-@target(erlang)
-/// Check whether the transport is ready to send data.
-/// For port-based transports (Spawn, Stdio), checks if the port exists.
-/// For iostream transport, checks if the adapter is alive.
-fn is_transport_ready(state: BridgeState) -> Bool {
-  case state.transport {
-    TransportIoStream(..) -> state.iostream_alive
-    _ ->
-      case state.port {
-        Some(_) -> True
-        None -> False
-      }
   }
 }
 

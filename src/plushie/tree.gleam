@@ -9,7 +9,8 @@ import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option, Some}
-import gleam/set
+import gleam/order
+import gleam/set.{type Set}
 import gleam/string
 import plushie/node.{
   type Node, type PropValue, DictVal, IntVal, ListVal, Node, NullVal, OpaqueVal,
@@ -22,20 +23,50 @@ import plushie/platform
 import plushie/widget
 
 /// Cache of memo-ized subtrees from the previous render cycle. Maps
-/// scoped memo ID to (dependency_value, normalized_subtree). On cache
-/// hit (same dependency), the subtree is returned without re-normalizing.
+/// scoped memo ID to the dependency value, normalized subtree, and
+/// the widget registry entries and window IDs accumulated while
+/// normalizing that subtree. On cache hit (same dependency), the
+/// subtree and its accumulated data are restored without
+/// re-normalizing.
 pub type MemoCache =
-  Dict(String, #(Dynamic, Node))
+  Dict(String, MemoCacheEntry)
+
+/// A single entry in the memo cache.
+pub type MemoCacheEntry {
+  MemoCacheEntry(
+    dep: Dynamic,
+    node: Node,
+    registry: widget.Registry,
+    windows: Set(String),
+  )
+}
 
 /// Create an empty memo cache for the first render cycle.
 pub fn empty_memo_cache() -> MemoCache {
   dict.new()
 }
 
+/// Result of a full view normalization including accumulated state.
+pub type NormalizeResult {
+  NormalizeResult(
+    tree: Node,
+    memo_cache: MemoCache,
+    registry: widget.Registry,
+    windows: Set(String),
+  )
+}
+
 /// Internal context threaded through the normalize pipeline. Bundles
 /// the immutable environment (registry, prev_cache) and the mutable
-/// accumulator (new_cache) alongside per-recursion state (scope,
-/// window_id, depth).
+/// accumulators (new_cache, accumulated_registry, accumulated_windows)
+/// alongside per-recursion state (scope, window_id, depth).
+///
+/// `accumulated_registry` collects widget registry entries as they are
+/// rendered during normalization, eliminating the need for a separate
+/// post-normalization tree walk.
+///
+/// `accumulated_windows` collects window node IDs encountered during
+/// normalization, eliminating the separate `detect_windows` walk.
 type NormalizeCtx {
   NormalizeCtx(
     scope: String,
@@ -44,6 +75,23 @@ type NormalizeCtx {
     depth: Int,
     prev_cache: MemoCache,
     new_cache: MemoCache,
+    accumulated_registry: widget.Registry,
+    accumulated_windows: Set(String),
+  )
+}
+
+/// Helper to build a fresh NormalizeCtx with the given registry and
+/// memo cache. All accumulators start empty.
+fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
+  NormalizeCtx(
+    scope: "",
+    window_id: "",
+    registry:,
+    depth: 0,
+    prev_cache:,
+    new_cache: dict.new(),
+    accumulated_registry: widget.empty_registry(),
+    accumulated_windows: set.new(),
   )
 }
 
@@ -59,15 +107,7 @@ type NormalizeCtx {
 ///   only appears at the window boundary).
 /// - Empty-ID nodes don't create scope boundaries.
 pub fn normalize(node: Node) -> Node {
-  let ctx =
-    NormalizeCtx(
-      scope: "",
-      window_id: "",
-      registry: widget.empty_registry(),
-      depth: 0,
-      prev_cache: dict.new(),
-      new_cache: dict.new(),
-    )
+  let ctx = new_ctx(widget.empty_registry(), dict.new())
   let #(normalized, _ctx) = normalize_ctx(node, ctx)
   normalized
 }
@@ -75,8 +115,9 @@ pub fn normalize(node: Node) -> Node {
 /// Normalize a top-level app view and enforce explicit windows.
 ///
 /// Accepts the previous render cycle's memo cache and returns the
-/// new cache alongside the normalized tree. Memo nodes whose
-/// dependency hasn't changed reuse the cached subtree.
+/// normalized tree, new memo cache, accumulated widget registry,
+/// and detected window IDs. The registry and windows are collected
+/// during normalization itself, eliminating separate tree walks.
 ///
 /// A view must return either:
 /// - a single `window` node
@@ -85,19 +126,18 @@ pub fn normalize_view(
   node: Node,
   registry: widget.Registry,
   prev_memo_cache: MemoCache,
-) -> Result(#(Node, MemoCache), String) {
-  let #(normalized, new_cache) =
-    normalize_with_memo(node, registry, prev_memo_cache)
+) -> Result(NormalizeResult, String) {
+  let result = normalize_with_memo(node, registry, prev_memo_cache)
 
-  case normalized.kind {
-    "window" -> Ok(#(normalized, new_cache))
+  case result.tree.kind {
+    "window" -> Ok(result)
     _ -> {
       let direct_windows =
-        !list.is_empty(normalized.children)
-        && list.all(normalized.children, fn(child) { child.kind == "window" })
+        !list.is_empty(result.tree.children)
+        && list.all(result.tree.children, fn(child) { child.kind == "window" })
 
       case direct_windows {
-        True -> Ok(#(normalized, new_cache))
+        True -> Ok(result)
         False ->
           Error(
             "view must return a window node or a root node whose direct children are window nodes",
@@ -107,37 +147,28 @@ pub fn normalize_view(
   }
 }
 
-/// Normalize with a widget registry and memo cache.
+/// Normalize with a widget registry and memo cache. Returns the
+/// normalized tree, new memo cache, accumulated widget registry,
+/// and detected window IDs.
 pub fn normalize_with_memo(
   node: Node,
   registry: widget.Registry,
   prev_memo_cache: MemoCache,
-) -> #(Node, MemoCache) {
-  let ctx =
-    NormalizeCtx(
-      scope: "",
-      window_id: "",
-      registry:,
-      depth: 0,
-      prev_cache: prev_memo_cache,
-      new_cache: dict.new(),
-    )
+) -> NormalizeResult {
+  let ctx = new_ctx(registry, prev_memo_cache)
   let #(normalized, ctx) = normalize_ctx(node, ctx)
-  #(normalized, ctx.new_cache)
+  NormalizeResult(
+    tree: normalized,
+    memo_cache: ctx.new_cache,
+    registry: ctx.accumulated_registry,
+    windows: ctx.accumulated_windows,
+  )
 }
 
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
-  let ctx =
-    NormalizeCtx(
-      scope: "",
-      window_id: "",
-      registry:,
-      depth: 0,
-      prev_cache: dict.new(),
-      new_cache: dict.new(),
-    )
+  let ctx = new_ctx(registry, dict.new())
   let #(normalized, _ctx) = normalize_ctx(node, ctx)
   normalized
 }
@@ -172,6 +203,16 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
 
   let scoped_id = apply_scope(node.id, ctx.scope)
 
+  // Accumulate window IDs as we encounter them
+  let ctx = case node.kind {
+    "window" ->
+      NormalizeCtx(
+        ..ctx,
+        accumulated_windows: set.insert(ctx.accumulated_windows, scoped_id),
+      )
+    _ -> ctx
+  }
+
   // Memo nodes: check cache before normalizing children. The __memo__
   // wrapper is transparent; we return the normalized child directly.
   case node.kind {
@@ -179,11 +220,40 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
       case dict.get(node.meta, "__memo_dep__") {
         Ok(OpaqueVal(dep)) ->
           case dict.get(ctx.prev_cache, scoped_id) {
-            Ok(#(prev_dep, cached_node)) if prev_dep == dep -> {
+            Ok(MemoCacheEntry(
+              dep: prev_dep,
+              node: cached_node,
+              registry: cached_registry,
+              windows: cached_windows,
+            ))
+              if prev_dep == dep
+            -> {
               // Cache hit: reuse the previously normalized subtree
+              // and restore its accumulated registry/windows.
               let new_cache =
-                dict.insert(ctx.new_cache, scoped_id, #(dep, cached_node))
-              #(cached_node, NormalizeCtx(..ctx, new_cache:))
+                dict.insert(
+                  ctx.new_cache,
+                  scoped_id,
+                  MemoCacheEntry(
+                    dep:,
+                    node: cached_node,
+                    registry: cached_registry,
+                    windows: cached_windows,
+                  ),
+                )
+              let accumulated_registry =
+                dict.merge(ctx.accumulated_registry, cached_registry)
+              let accumulated_windows =
+                set.union(ctx.accumulated_windows, cached_windows)
+              #(
+                cached_node,
+                NormalizeCtx(
+                  ..ctx,
+                  new_cache:,
+                  accumulated_registry:,
+                  accumulated_windows:,
+                ),
+              )
             }
             _ -> normalize_memo_child(node, scoped_id, ctx, dep)
           }
@@ -209,7 +279,19 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
               ctx.registry,
             )
           {
-            Some(#(rendered_node, _entry)) -> {
+            Some(#(rendered_node, entry)) -> {
+              // Accumulate the widget registry entry
+              let widget_reg_key = widget.widget_key(ctx.window_id, scoped_id)
+              let ctx =
+                NormalizeCtx(
+                  ..ctx,
+                  accumulated_registry: dict.insert(
+                    ctx.accumulated_registry,
+                    widget_reg_key,
+                    entry,
+                  ),
+                )
+
               // The rendered node already has the scoped_id set and metadata
               // attached. Normalize its children at the same scope position
               // and resolve a11y references in its props.
@@ -231,7 +313,12 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
               check_duplicate_sibling_ids(children)
               #(
                 Node(..rendered_node, props:, children:),
-                NormalizeCtx(..ctx, new_cache: child_ctx.new_cache),
+                NormalizeCtx(
+                  ..ctx,
+                  new_cache: child_ctx.new_cache,
+                  accumulated_registry: child_ctx.accumulated_registry,
+                  accumulated_windows: child_ctx.accumulated_windows,
+                ),
               )
             }
             _ -> {
@@ -270,7 +357,12 @@ fn normalize_regular(
 
   #(
     Node(id: scoped_id, kind: node.kind, props:, children:, meta: dict.new()),
-    NormalizeCtx(..ctx, new_cache: child_ctx.new_cache),
+    NormalizeCtx(
+      ..ctx,
+      new_cache: child_ctx.new_cache,
+      accumulated_registry: child_ctx.accumulated_registry,
+      accumulated_windows: child_ctx.accumulated_windows,
+    ),
   )
 }
 
@@ -291,6 +383,9 @@ fn normalize_children(
 }
 
 /// Normalize a memo node's first child and cache the result.
+/// The cache entry captures the registry entries and window IDs
+/// accumulated while normalizing this subtree, so they can be
+/// restored on cache hit without re-walking.
 fn normalize_memo_child(
   node: Node,
   scoped_id: String,
@@ -299,11 +394,37 @@ fn normalize_memo_child(
 ) -> #(Node, NormalizeCtx) {
   case node.children {
     [content, ..] -> {
+      // Snapshot accumulators before normalizing the child so we can
+      // capture the delta for the cache entry.
+      let pre_registry = ctx.accumulated_registry
+      let pre_windows = ctx.accumulated_windows
       let child_ctx = NormalizeCtx(..ctx, depth: ctx.depth + 1)
       let #(normalized_child, child_ctx) = normalize_ctx(content, child_ctx)
+      // Delta: entries added during this subtree's normalization
+      let registry_delta =
+        dict.drop(child_ctx.accumulated_registry, dict.keys(pre_registry))
+      let windows_delta =
+        set.difference(child_ctx.accumulated_windows, pre_windows)
       let new_cache =
-        dict.insert(child_ctx.new_cache, scoped_id, #(dep, normalized_child))
-      #(normalized_child, NormalizeCtx(..ctx, new_cache:))
+        dict.insert(
+          child_ctx.new_cache,
+          scoped_id,
+          MemoCacheEntry(
+            dep:,
+            node: normalized_child,
+            registry: registry_delta,
+            windows: windows_delta,
+          ),
+        )
+      #(
+        normalized_child,
+        NormalizeCtx(
+          ..ctx,
+          new_cache:,
+          accumulated_registry: child_ctx.accumulated_registry,
+          accumulated_windows: child_ctx.accumulated_windows,
+        ),
+      )
     }
     [] -> {
       let empty =
@@ -314,7 +435,17 @@ fn normalize_memo_child(
           children: [],
           meta: dict.new(),
         )
-      let new_cache = dict.insert(ctx.new_cache, scoped_id, #(dep, empty))
+      let new_cache =
+        dict.insert(
+          ctx.new_cache,
+          scoped_id,
+          MemoCacheEntry(
+            dep:,
+            node: empty,
+            registry: widget.empty_registry(),
+            windows: set.new(),
+          ),
+        )
       #(empty, NormalizeCtx(..ctx, new_cache:))
     }
   }
@@ -327,7 +458,15 @@ fn normalize_memo_fresh(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) 
     [content, ..] -> {
       let child_ctx = NormalizeCtx(..ctx, depth: ctx.depth + 1)
       let #(normalized, child_ctx) = normalize_ctx(content, child_ctx)
-      #(normalized, NormalizeCtx(..ctx, new_cache: child_ctx.new_cache))
+      #(
+        normalized,
+        NormalizeCtx(
+          ..ctx,
+          new_cache: child_ctx.new_cache,
+          accumulated_registry: child_ctx.accumulated_registry,
+          accumulated_windows: child_ctx.accumulated_windows,
+        ),
+      )
     }
     [] -> #(
       Node(
@@ -799,8 +938,6 @@ fn index_after_removals(old_idx: Int, removed_indices: List(Int)) -> Int {
     list.count(removed_indices, fn(removed_idx) { removed_idx < old_idx })
   old_idx - count_below
 }
-
-import gleam/order
 
 // --- Search ------------------------------------------------------------------
 

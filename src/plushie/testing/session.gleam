@@ -68,7 +68,7 @@ fn render(app: App(model, msg), model: model) -> Node {
       tree.empty_memo_cache(),
     )
   {
-    Ok(#(normalized, _cache)) -> normalized
+    Ok(result) -> result.tree
     Error(message) -> panic as message
   }
 }
