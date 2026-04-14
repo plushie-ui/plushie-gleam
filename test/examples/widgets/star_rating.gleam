@@ -101,7 +101,7 @@ fn handle_event(event: Event, state: StarState) -> #(EventAction, StarState) {
       }
 
     // Hover enter -> update internal hover state for preview highlight.
-    Widget(Enter(target: EventTarget(id: element_id, ..))) ->
+    Widget(Enter(target: EventTarget(id: element_id, ..), ..)) ->
       case parse_star_index(element_id) {
         Ok(n) -> #(UpdateState, StarState(hover: Some(n + 1)))
         Error(_) -> #(Consumed, state)

@@ -312,15 +312,19 @@ pub fn events_widget_sort_match_test() {
 pub fn events_widget_enter_match_test() {
   let event: Event =
     Widget(
-      Enter(target: EventTarget(
-        window_id: "main",
-        id: "hover_zone",
-        scope: [],
-        full: "hover_zone",
-      )),
+      Enter(
+        target: EventTarget(
+          window_id: "main",
+          id: "hover_zone",
+          scope: [],
+          full: "hover_zone",
+        ),
+        x: option.None,
+        y: option.None,
+      ),
     )
   case event {
-    Widget(Enter(target: EventTarget(id: "hover_zone", ..))) ->
+    Widget(Enter(target: EventTarget(id: "hover_zone", ..), ..)) ->
       should.be_true(True)
     _ -> should.fail()
   }

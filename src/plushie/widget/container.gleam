@@ -39,6 +39,7 @@ pub opaque type Container {
     shadow: Option(Shadow),
     style: Option(String),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, PropValue),
   )
 }
 
@@ -62,6 +63,7 @@ pub fn new(id: String) -> Container {
     shadow: None,
     style: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -155,6 +157,51 @@ pub fn a11y(c: Container, a: A11y) -> Container {
   Container(..c, a11y: option.Some(a))
 }
 
+/// Set width to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn width_animated(c: Container, animation: PropValue) -> Container {
+  Container(
+    ..c,
+    animated_props: dict.insert(c.animated_props, "width", animation),
+  )
+}
+
+/// Set height to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn height_animated(c: Container, animation: PropValue) -> Container {
+  Container(
+    ..c,
+    animated_props: dict.insert(c.animated_props, "height", animation),
+  )
+}
+
+/// Set max_width to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn max_width_animated(c: Container, animation: PropValue) -> Container {
+  Container(
+    ..c,
+    animated_props: dict.insert(c.animated_props, "max_width", animation),
+  )
+}
+
+/// Set max_height to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn max_height_animated(c: Container, animation: PropValue) -> Container {
+  Container(
+    ..c,
+    animated_props: dict.insert(c.animated_props, "max_height", animation),
+  )
+}
+
+/// Set padding to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn padding_animated(c: Container, animation: PropValue) -> Container {
+  Container(
+    ..c,
+    animated_props: dict.insert(c.animated_props, "padding", animation),
+  )
+}
+
 /// Option type for container properties.
 pub type Opt {
   Padding(Padding)
@@ -226,6 +273,7 @@ pub fn build(c: Container) -> Node {
     |> build.put_optional("shadow", c.shadow, shadow.to_prop_value)
     |> build.put_optional_string("style", c.style)
     |> build.put_optional("a11y", c.a11y, a11y.to_prop_value)
+    |> build.merge_animated(c.animated_props)
   Node(
     id: c.id,
     kind: "container",

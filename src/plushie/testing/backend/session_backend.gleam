@@ -152,6 +152,61 @@ pub fn backend() -> TestBackend(model) {
         )),
       )
     },
+    paste: fn(sess, id, text) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(sess, event.Widget(event.Paste(target:, value: text)))
+    },
+    sort: fn(sess, id, column) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(sess, event.Widget(event.Sort(target:, value: column)))
+    },
+    canvas_touch_press: fn(sess, id, x, y, finger) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(
+        sess,
+        event.Widget(event.Press(
+          target:,
+          x:,
+          y:,
+          button: event.LeftButton,
+          pointer: event.Touch,
+          finger: option.Some(finger),
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )),
+      )
+    },
+    canvas_touch_release: fn(sess, id, x, y, finger) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(
+        sess,
+        event.Widget(event.Release(
+          target:,
+          x:,
+          y:,
+          button: event.LeftButton,
+          pointer: event.Touch,
+          finger: option.Some(finger),
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )),
+      )
+    },
+    canvas_touch_move: fn(sess, id, x, y, finger) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(
+        sess,
+        event.Widget(event.Move(
+          target:,
+          x:,
+          y:,
+          pointer: event.Touch,
+          finger: option.Some(finger),
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )),
+      )
+    },
     model: fn(sess) { session.model(sess) },
     tree: fn(sess) { session.current_tree(sess) },
     reset: fn(sess) {

@@ -131,10 +131,12 @@ pub type WidgetEvent {
     unit: Option(ScrollUnit),
     captured: Bool,
   )
-  /// A pointer entered a widget's bounds.
-  Enter(target: EventTarget)
-  /// A pointer exited a widget's bounds.
-  Exit(target: EventTarget)
+  /// A pointer entered a widget's bounds. Canvas elements include
+  /// x/y coordinates; widget-level events leave them as None.
+  Enter(target: EventTarget, x: Option(Float), y: Option(Float))
+  /// A pointer exited a widget's bounds. Canvas elements may include
+  /// x/y coordinates; widget-level events leave them as None.
+  Exit(target: EventTarget, x: Option(Float), y: Option(Float))
   /// A double-click was detected.
   DoubleClick(
     target: EventTarget,

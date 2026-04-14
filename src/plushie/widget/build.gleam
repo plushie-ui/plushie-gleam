@@ -9,6 +9,26 @@ import plushie/node.{
 }
 import plushie/prop/a11y.{type A11y}
 
+/// Insert a pre-encoded animation descriptor (Transition, Spring, or
+/// Sequence) as a prop value. The animation must already be encoded via
+/// its module's `encode` function.
+pub fn put_animated(
+  props: Dict(String, PropValue),
+  key: String,
+  animation: PropValue,
+) -> Dict(String, PropValue) {
+  dict.insert(props, key, animation)
+}
+
+/// Merge animated prop overrides into a props dict. Animated values
+/// take precedence over statically-encoded values for the same key.
+pub fn merge_animated(
+  props: Dict(String, PropValue),
+  animated: Dict(String, PropValue),
+) -> Dict(String, PropValue) {
+  dict.merge(props, animated)
+}
+
 /// Insert a string prop.
 pub fn put_string(
   props: Dict(String, PropValue),

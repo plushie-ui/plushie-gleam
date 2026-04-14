@@ -332,8 +332,8 @@ pub fn decode_window_resized_json_test() {
     event.Window(event.WindowEvent(
       event_type: event.Resized,
       window_id:,
-      width: option.Some(width),
-      height: option.Some(height),
+      width: Some(width),
+      height: Some(height),
       ..,
     )) -> {
       should.equal(window_id, "main")
@@ -465,19 +465,21 @@ pub fn decode_cursor_moved_json_test() {
 pub fn decode_cursor_entered_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_entered\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.Widget(event.Enter(target: EventTarget(
-    scope: [],
-    ..,
-  ))))) = decode.decode_message(data, protocol.Json)
+  let assert Ok(decode.EventMessage(event.Widget(event.Enter(
+    target: EventTarget(scope: [], ..),
+    x: None,
+    y: None,
+  )))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_cursor_left_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_left\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.Widget(event.Exit(target: EventTarget(
-    scope: [],
-    ..,
-  ))))) = decode.decode_message(data, protocol.Json)
+  let assert Ok(decode.EventMessage(event.Widget(event.Exit(
+    target: EventTarget(scope: [], ..),
+    x: None,
+    y: None,
+  )))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_wheel_scrolled_json_test() {
@@ -676,10 +678,11 @@ pub fn decode_cursor_entered_captured_json_test() {
   let json =
     "{\"type\":\"event\",\"family\":\"cursor_entered\",\"captured\":true}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.Widget(event.Enter(target: EventTarget(
-    scope: [],
-    ..,
-  ))))) = decode.decode_message(data, protocol.Json)
+  let assert Ok(decode.EventMessage(event.Widget(event.Enter(
+    target: EventTarget(scope: [], ..),
+    x: None,
+    y: None,
+  )))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_finger_pressed_captured_json_test() {
@@ -917,14 +920,34 @@ pub fn decode_canvas_element_enter_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Widget(event.Enter(target: EventTarget(
-      window_id: "main",
-      id:,
-      scope:,
+    event.Widget(event.Enter(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       ..,
-    ))) -> {
+    )) -> {
       should.equal(id, "star-1")
       should.equal(scope, ["my_canvas", "main"])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_canvas_element_enter_with_coords_json_test() {
+  // Canvas enter events can carry x/y coordinates
+  let json =
+    "{\"type\":\"event\",\"family\":\"enter\",\"id\":\"main#my_canvas/star-1\",\"value\":{\"x\":10.5,\"y\":20.3}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Widget(event.Enter(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
+      x:,
+      y:,
+    )) -> {
+      should.equal(id, "star-1")
+      should.equal(scope, ["my_canvas", "main"])
+      should.equal(x, Some(10.5))
+      should.equal(y, Some(20.3))
     }
     _ -> should.fail()
   }
@@ -937,12 +960,10 @@ pub fn decode_canvas_element_leave_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Widget(event.Exit(target: EventTarget(
-      window_id: "main",
-      id:,
-      scope:,
+    event.Widget(event.Exit(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       ..,
-    ))) -> {
+    )) -> {
       should.equal(id, "star-1")
       should.equal(scope, ["my_canvas", "main"])
     }

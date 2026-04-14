@@ -40,6 +40,7 @@ pub opaque type Text {
     shaping: Option(Shaping),
     style: Option(TextStyle),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, node.PropValue),
   )
 }
 
@@ -61,6 +62,7 @@ pub fn new(id: String, content: String) -> Text {
     shaping: None,
     style: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -127,6 +129,24 @@ pub fn style(text: Text, s: TextStyle) -> Text {
 /// Set accessibility properties for this widget.
 pub fn a11y(text: Text, a: A11y) -> Text {
   Text(..text, a11y: option.Some(a))
+}
+
+/// Set size to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn size_animated(text: Text, animation: node.PropValue) -> Text {
+  Text(
+    ..text,
+    animated_props: dict.insert(text.animated_props, "size", animation),
+  )
+}
+
+/// Set line_height to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn line_height_animated(text: Text, animation: node.PropValue) -> Text {
+  Text(
+    ..text,
+    animated_props: dict.insert(text.animated_props, "line_height", animation),
+  )
 }
 
 /// Option type for text properties.
@@ -202,5 +222,6 @@ pub fn build(text: Text) -> Node {
       StringVal(style_to_string(s))
     })
     |> build.apply_default_a11y(text.a11y, "label", option.Some("content"))
+    |> build.merge_animated(text.animated_props)
   Node(id: text.id, kind: "text", props:, children: [], meta: dict.new())
 }

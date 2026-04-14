@@ -130,6 +130,22 @@ pub type TestBackend(model) {
     type_key: fn(TestSession(model, Event), String) -> TestSession(model, Event),
     canvas_press: fn(TestSession(model, Event), String, Float, Float) ->
       TestSession(model, Event),
+    paste: fn(TestSession(model, Event), String, String) ->
+      TestSession(model, Event),
+    sort: fn(TestSession(model, Event), String, String) ->
+      TestSession(model, Event),
+    canvas_touch_press: fn(TestSession(model, Event), String, Float, Float, Int) ->
+      TestSession(model, Event),
+    canvas_touch_release: fn(
+      TestSession(model, Event),
+      String,
+      Float,
+      Float,
+      Int,
+    ) ->
+      TestSession(model, Event),
+    canvas_touch_move: fn(TestSession(model, Event), String, Float, Float, Int) ->
+      TestSession(model, Event),
     model: fn(TestSession(model, Event)) -> model,
     tree: fn(TestSession(model, Event)) -> Node,
     reset: fn(TestSession(model, Event)) -> TestSession(model, Event),

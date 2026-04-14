@@ -127,6 +127,31 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
       renderer.canvas_press(subj, "#" <> id, x, y)
       sess
     },
+    paste: fn(sess, id, text) {
+      let subj = require_renderer()
+      renderer.paste(subj, "#" <> id, text)
+      sess
+    },
+    sort: fn(sess, id, column) {
+      let subj = require_renderer()
+      renderer.sort(subj, "#" <> id, column)
+      sess
+    },
+    canvas_touch_press: fn(sess, id, x, y, finger) {
+      let subj = require_renderer()
+      renderer.canvas_touch_press(subj, "#" <> id, x, y, finger)
+      sess
+    },
+    canvas_touch_release: fn(sess, id, x, y, finger) {
+      let subj = require_renderer()
+      renderer.canvas_touch_release(subj, "#" <> id, x, y, finger)
+      sess
+    },
+    canvas_touch_move: fn(sess, id, x, y, finger) {
+      let subj = require_renderer()
+      renderer.canvas_touch_move(subj, "#" <> id, x, y, finger)
+      sess
+    },
     model: fn(_sess) {
       let subj = require_renderer()
       from_dynamic(renderer.model(subj))

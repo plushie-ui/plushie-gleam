@@ -165,6 +165,68 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
         ]),
       )
     },
+    paste: fn(sess, id, text) {
+      do_interact(
+        sess,
+        pool,
+        "paste",
+        Some("#" <> id),
+        dict.from_list([#("text", node.StringVal(text))]),
+      )
+    },
+    sort: fn(sess, id, column) {
+      do_interact(
+        sess,
+        pool,
+        "sort",
+        Some("#" <> id),
+        dict.from_list([#("column", node.StringVal(column))]),
+      )
+    },
+    canvas_touch_press: fn(sess, id, x, y, finger) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_press",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+          #("button", node.StringVal("left")),
+          #("pointer", node.StringVal("touch")),
+          #("finger", node.IntVal(finger)),
+        ]),
+      )
+    },
+    canvas_touch_release: fn(sess, id, x, y, finger) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_release",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+          #("button", node.StringVal("left")),
+          #("pointer", node.StringVal("touch")),
+          #("finger", node.IntVal(finger)),
+        ]),
+      )
+    },
+    canvas_touch_move: fn(sess, id, x, y, finger) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_move",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+          #("pointer", node.StringVal("touch")),
+          #("finger", node.IntVal(finger)),
+        ]),
+      )
+    },
     model: fn(sess) { session.model(sess) },
     tree: fn(sess) { session.current_tree(sess) },
     reset: fn(sess) {

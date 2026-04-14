@@ -388,6 +388,104 @@ pub fn canvas_press(
   )
 }
 
+@target(erlang)
+/// Paste text into a widget identified by selector.
+pub fn paste(
+  subject: Subject(RendererMessage),
+  selector: String,
+  text: String,
+) -> Nil {
+  interact(
+    subject,
+    "paste",
+    Some(selector),
+    dict.from_list([#("text", text)]),
+  )
+}
+
+@target(erlang)
+/// Trigger sort on a table column identified by selector and column.
+pub fn sort(
+  subject: Subject(RendererMessage),
+  selector: String,
+  column: String,
+) -> Nil {
+  interact(
+    subject,
+    "sort",
+    Some(selector),
+    dict.from_list([#("column", column)]),
+  )
+}
+
+@target(erlang)
+/// Touch press on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_press(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_press",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
+      #("button", "left"),
+      #("pointer", "touch"),
+      #("finger", int.to_string(finger)),
+    ]),
+  )
+}
+
+@target(erlang)
+/// Touch release on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_release(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_release",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
+      #("button", "left"),
+      #("pointer", "touch"),
+      #("finger", int.to_string(finger)),
+    ]),
+  )
+}
+
+@target(erlang)
+/// Touch move on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_move(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_move",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
+      #("pointer", "touch"),
+      #("finger", int.to_string(finger)),
+    ]),
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Internal: interact helper
 // ---------------------------------------------------------------------------

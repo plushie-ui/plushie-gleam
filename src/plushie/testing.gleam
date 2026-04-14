@@ -153,6 +153,66 @@ pub fn canvas_press(
   TestContext(..ctx, session: ctx.backend.canvas_press(ctx.session, id, x, y))
 }
 
+/// Simulate pasting text into a widget by ID.
+pub fn paste(
+  ctx: TestContext(model),
+  id: String,
+  text: String,
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.paste(ctx.session, id, text))
+}
+
+/// Trigger sort on a table widget by ID and column name.
+pub fn sort(
+  ctx: TestContext(model),
+  id: String,
+  column: String,
+) -> TestContext(model) {
+  TestContext(..ctx, session: ctx.backend.sort(ctx.session, id, column))
+}
+
+/// Simulate a touch press on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_press(
+  ctx: TestContext(model),
+  id: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> TestContext(model) {
+  TestContext(
+    ..ctx,
+    session: ctx.backend.canvas_touch_press(ctx.session, id, x, y, finger),
+  )
+}
+
+/// Simulate a touch release on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_release(
+  ctx: TestContext(model),
+  id: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> TestContext(model) {
+  TestContext(
+    ..ctx,
+    session: ctx.backend.canvas_touch_release(ctx.session, id, x, y, finger),
+  )
+}
+
+/// Simulate a touch move on a canvas widget at (x, y) with a finger index.
+pub fn canvas_touch_move(
+  ctx: TestContext(model),
+  id: String,
+  x: Float,
+  y: Float,
+  finger: Int,
+) -> TestContext(model) {
+  TestContext(
+    ..ctx,
+    session: ctx.backend.canvas_touch_move(ctx.session, id, x, y, finger),
+  )
+}
+
 /// Simulate selection on a widget by ID.
 pub fn select(
   ctx: TestContext(model),
@@ -305,6 +365,94 @@ pub fn element_prop(el: Element, key: String) -> Option(PropValue) {
 /// Get an element's children.
 pub fn element_children(el: Element) -> List(Element) {
   element.children(el)
+}
+
+// -- Assertion helpers -------------------------------------------------------
+
+/// Assert that an element with the given selector exists.
+pub fn assert_exists(
+  ctx: TestContext(model),
+  selector: String,
+) -> TestContext(model) {
+  case find(ctx, selector) {
+    option.Some(_) -> ctx
+    option.None ->
+      panic as {
+        "Expected element '" <> selector <> "' to exist, but it was not found"
+      }
+  }
+}
+
+/// Assert that no element with the given selector exists.
+pub fn assert_not_exists(
+  ctx: TestContext(model),
+  selector: String,
+) -> TestContext(model) {
+  case find(ctx, selector) {
+    option.None -> ctx
+    option.Some(_) ->
+      panic as {
+        "Expected element '"
+        <> selector
+        <> "' to not exist, but it was found"
+      }
+  }
+}
+
+/// Assert that an element's text matches the expected value.
+pub fn assert_text(
+  ctx: TestContext(model),
+  selector: String,
+  expected: String,
+) -> TestContext(model) {
+  case find(ctx, selector) {
+    option.None ->
+      panic as {
+        "Expected element '"
+        <> selector
+        <> "' to exist with text '"
+        <> expected
+        <> "', but element was not found"
+      }
+    option.Some(el) -> {
+      case element.text(el) {
+        option.Some(actual) if actual == expected -> ctx
+        option.Some(actual) ->
+          panic as {
+            "Expected text '"
+            <> expected
+            <> "' on '"
+            <> selector
+            <> "', but got '"
+            <> actual
+            <> "'"
+          }
+        option.None ->
+          panic as {
+            "Expected text '"
+            <> expected
+            <> "' on '"
+            <> selector
+            <> "', but element has no text content"
+          }
+      }
+    }
+  }
+}
+
+/// Dispatch an AnimationFrame event to advance frame-based animations.
+pub fn advance_frame(
+  ctx: TestContext(model),
+  timestamp: Int,
+) -> TestContext(model) {
+  send_event(ctx, event.System(event.AnimationFrame(timestamp:)))
+}
+
+/// Get diagnostic events from the test context.
+/// This is a placeholder that returns an empty list; it will be
+/// expanded when runtime telemetry diagnostic interception is added.
+pub fn diagnostics(_ctx: TestContext(model)) -> List(String) {
+  []
 }
 
 // -- Backend resolution (target-specific) ------------------------------------

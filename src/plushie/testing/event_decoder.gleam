@@ -143,12 +143,16 @@ pub fn decode_test_event(
       let wid = result.unwrap(window_id, "")
       Ok(
         event.Widget(
-          event.Enter(target: EventTarget(
-            window_id: wid,
-            id: wid,
-            scope: [],
-            full: wid,
-          )),
+          event.Enter(
+            target: EventTarget(
+              window_id: wid,
+              id: wid,
+              scope: [],
+              full: wid,
+            ),
+            x: None,
+            y: None,
+          ),
         ),
       )
     }
@@ -156,12 +160,16 @@ pub fn decode_test_event(
       let wid = result.unwrap(window_id, "")
       Ok(
         event.Widget(
-          event.Exit(target: EventTarget(
-            window_id: wid,
-            id: wid,
-            scope: [],
-            full: wid,
-          )),
+          event.Exit(
+            target: EventTarget(
+              window_id: wid,
+              id: wid,
+              scope: [],
+              full: wid,
+            ),
+            x: None,
+            y: None,
+          ),
         ),
       )
     }
@@ -511,11 +519,19 @@ pub fn decode_test_event(
       })
     "enter" ->
       require_window_event(window_id, fn(_window_id) {
-        event.Widget(event.Enter(target:))
+        event.Widget(event.Enter(
+          target:,
+          x: get_optional_float(data, "x"),
+          y: get_optional_float(data, "y"),
+        ))
       })
     "exit" ->
       require_window_event(window_id, fn(_window_id) {
-        event.Widget(event.Exit(target:))
+        event.Widget(event.Exit(
+          target:,
+          x: get_optional_float(data, "x"),
+          y: get_optional_float(data, "y"),
+        ))
       })
     "double_click" ->
       require_window_event(window_id, fn(_window_id) {

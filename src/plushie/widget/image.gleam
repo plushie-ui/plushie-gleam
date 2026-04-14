@@ -33,6 +33,7 @@ pub opaque type Image {
     description: Option(String),
     decorative: Option(Bool),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, PropValue),
   )
 }
 
@@ -55,6 +56,7 @@ pub fn new(id: String, source: String) -> Image {
     description: None,
     decorative: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -126,6 +128,42 @@ pub fn decorative(img: Image, d: Bool) -> Image {
 /// Set accessibility properties for this widget.
 pub fn a11y(img: Image, a: A11y) -> Image {
   Image(..img, a11y: option.Some(a))
+}
+
+/// Set width to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn width_animated(img: Image, animation: PropValue) -> Image {
+  Image(
+    ..img,
+    animated_props: dict.insert(img.animated_props, "width", animation),
+  )
+}
+
+/// Set height to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn height_animated(img: Image, animation: PropValue) -> Image {
+  Image(
+    ..img,
+    animated_props: dict.insert(img.animated_props, "height", animation),
+  )
+}
+
+/// Set rotation to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn rotation_animated(img: Image, animation: PropValue) -> Image {
+  Image(
+    ..img,
+    animated_props: dict.insert(img.animated_props, "rotation", animation),
+  )
+}
+
+/// Set opacity to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn opacity_animated(img: Image, animation: PropValue) -> Image {
+  Image(
+    ..img,
+    animated_props: dict.insert(img.animated_props, "opacity", animation),
+  )
 }
 
 /// Option type for image properties.
@@ -206,5 +244,6 @@ pub fn build(img: Image) -> Node {
     |> build.put_optional_string("description", img.description)
     |> build.put_optional_bool("decorative", img.decorative)
     |> build.apply_default_a11y(img.a11y, "image", option.None)
+    |> build.merge_animated(img.animated_props)
   Node(id: img.id, kind: "image", props:, children: [], meta: dict.new())
 }

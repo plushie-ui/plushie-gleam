@@ -31,6 +31,7 @@ pub opaque type Button {
     clip: Option(Bool),
     disabled: Option(Bool),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, node.PropValue),
   )
 }
 
@@ -46,6 +47,7 @@ pub fn new(id: String, label: String) -> Button {
     clip: None,
     disabled: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -82,6 +84,33 @@ pub fn disabled(button: Button, d: Bool) -> Button {
 /// Set accessibility properties for this button.
 pub fn a11y(button: Button, a: A11y) -> Button {
   Button(..button, a11y: option.Some(a))
+}
+
+/// Set width to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn width_animated(button: Button, animation: node.PropValue) -> Button {
+  Button(
+    ..button,
+    animated_props: dict.insert(button.animated_props, "width", animation),
+  )
+}
+
+/// Set height to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn height_animated(button: Button, animation: node.PropValue) -> Button {
+  Button(
+    ..button,
+    animated_props: dict.insert(button.animated_props, "height", animation),
+  )
+}
+
+/// Set padding to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn padding_animated(button: Button, animation: node.PropValue) -> Button {
+  Button(
+    ..button,
+    animated_props: dict.insert(button.animated_props, "padding", animation),
+  )
 }
 
 /// Option type for button properties.
@@ -124,6 +153,7 @@ pub fn build(button: Button) -> Node {
     |> build.put_optional_bool("clip", button.clip)
     |> build.put_optional_bool("disabled", button.disabled)
     |> build.apply_default_a11y(button.a11y, "button", option.Some("label"))
+    |> build.merge_animated(button.animated_props)
   Node(id: button.id, kind: "button", props:, children: [], meta: dict.new())
 }
 

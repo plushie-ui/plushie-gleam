@@ -146,6 +146,31 @@ pub type EventAction {
   UpdateState
 }
 
+/// Emit a string value. Convenience for `Emit(kind, dynamic.string(value))`.
+pub fn emit_string(kind: String, value: String) -> EventAction {
+  Emit(kind:, data: dynamic.string(value))
+}
+
+/// Emit a float value. Convenience for `Emit(kind, dynamic.float(value))`.
+pub fn emit_float(kind: String, value: Float) -> EventAction {
+  Emit(kind:, data: dynamic.float(value))
+}
+
+/// Emit an int value. Convenience for `Emit(kind, dynamic.int(value))`.
+pub fn emit_int(kind: String, value: Int) -> EventAction {
+  Emit(kind:, data: dynamic.int(value))
+}
+
+/// Emit a bool value. Convenience for `Emit(kind, dynamic.bool(value))`.
+pub fn emit_bool(kind: String, value: Bool) -> EventAction {
+  Emit(kind:, data: dynamic.bool(value))
+}
+
+/// Emit with no payload value. Convenience for `Emit(kind, dynamic.nil())`.
+pub fn emit_none(kind: String) -> EventAction {
+  Emit(kind:, data: dynamic.nil())
+}
+
 // -- Placeholder node --------------------------------------------------------
 
 /// Metadata key marking a node as a widget placeholder.
@@ -753,8 +778,8 @@ fn widget_event_target(ev: event.WidgetEvent) -> EventTarget {
     event.Release(target:, ..) -> target
     event.Move(target:, ..) -> target
     event.Scroll(target:, ..) -> target
-    event.Enter(target:) -> target
-    event.Exit(target:) -> target
+    event.Enter(target:, ..) -> target
+    event.Exit(target:, ..) -> target
     event.DoubleClick(target:, ..) -> target
     event.Resize(target:, ..) -> target
     event.Focused(target:) -> target

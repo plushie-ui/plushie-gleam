@@ -606,8 +606,8 @@ fn decode_event(
     "release" -> decode_pointer_release(map)
     "move" -> decode_pointer_move(map)
     "scroll" -> decode_pointer_scroll(map)
-    "enter" -> decode_widget_no_value(map, event.Enter)
-    "exit" -> decode_widget_no_value(map, event.Exit)
+    "enter" -> decode_enter_exit(map, event.Enter)
+    "exit" -> decode_enter_exit(map, event.Exit)
     "double_click" -> decode_pointer_double_click(map)
     "resize" -> decode_widget_resize(map)
 
@@ -745,6 +745,18 @@ fn decode_widget_no_value(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   Ok(EventMessage(event.Widget(constructor(target))))
+}
+
+fn decode_enter_exit(
+  map: Dict(String, PropValue),
+  constructor: fn(EventTarget, Option(Float), Option(Float)) ->
+    event.WidgetEvent,
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use target <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "value")
+  let x = get_optional_float(data, "x")
+  let y = get_optional_float(data, "y")
+  Ok(EventMessage(event.Widget(constructor(target, x, y))))
 }
 
 fn decode_widget_sort(
@@ -1300,7 +1312,7 @@ fn decode_sub_cursor_entered(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
   let target = EventTarget(window_id: wid, id: wid, scope: [], full: wid)
-  Ok(EventMessage(event.Widget(event.Enter(target:))))
+  Ok(EventMessage(event.Widget(event.Enter(target:, x: None, y: None))))
 }
 
 fn decode_sub_cursor_left(
@@ -1308,7 +1320,7 @@ fn decode_sub_cursor_left(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
   let target = EventTarget(window_id: wid, id: wid, scope: [], full: wid)
-  Ok(EventMessage(event.Widget(event.Exit(target:))))
+  Ok(EventMessage(event.Widget(event.Exit(target:, x: None, y: None))))
 }
 
 fn decode_sub_button_pressed(

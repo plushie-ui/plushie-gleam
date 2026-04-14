@@ -426,6 +426,26 @@ fn handle_message(
       |> actor.continue()
     }
 
+    // Intercept diagnostic events: emit as telemetry, don't dispatch to update.
+    FromBridge(InboundEvent(EventMessage(event.Error(event.Diagnostic(
+      level:,
+      element_id:,
+      code:,
+      message:,
+    ))))) -> {
+      platform.log_info(
+        "plushie: diagnostic ["
+        <> level
+        <> "] "
+        <> code
+        <> " on '"
+        <> element_id
+        <> "': "
+        <> message,
+      )
+      actor.continue(state)
+    }
+
     // Intercept status events for focus tracking before normal dispatch
     FromBridge(InboundEvent(EventMessage(event.Widget(event.Status(
       target:,
