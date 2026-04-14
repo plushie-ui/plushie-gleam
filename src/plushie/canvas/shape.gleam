@@ -459,10 +459,79 @@ pub fn interactive(
         Focusable(v) -> [#("focusable", BoolVal(v)), ..acc]
       }
     })
+  // Apply default a11y annotations if not explicitly set.
+  let has_a11y =
+    list.any(opts, fn(opt) {
+      case opt {
+        A11y(_) -> True
+        _ -> False
+      }
+    })
+  let props = case has_a11y {
+    True -> props
+    False -> {
+      let default_a11y = infer_a11y_defaults(opts)
+      case default_a11y {
+        [] -> props
+        _ -> [#("a11y", DictVal(dict.from_list(default_a11y))), ..props]
+      }
+    }
+  }
   // Merge interactive props directly into the group dict.
   let merged =
     list.fold(props, shape_dict, fn(d, pair) { dict.insert(d, pair.0, pair.1) })
   DictVal(merged)
+}
+
+/// Infer default a11y props based on interactive options.
+fn infer_a11y_defaults(opts: List(InteractiveOpt)) -> List(#(String, PropValue)) {
+  let has_click =
+    list.any(opts, fn(o) {
+      case o {
+        OnClick(True) -> True
+        _ -> False
+      }
+    })
+  let has_drag =
+    list.any(opts, fn(o) {
+      case o {
+        Draggable(True) -> True
+        _ -> False
+      }
+    })
+  let has_focusable =
+    list.any(opts, fn(o) {
+      case o {
+        Focusable(True) -> True
+        _ -> False
+      }
+    })
+  let tooltip =
+    list.find_map(opts, fn(o) {
+      case o {
+        Tooltip(t) -> Ok(t)
+        _ -> Error(Nil)
+      }
+    })
+
+  // Determine default role
+  let role = case has_click, has_drag, has_focusable {
+    True, _, _ -> "button"
+    _, True, _ -> "slider"
+    _, _, True -> "group"
+    _, _, _ -> ""
+  }
+
+  let acc = case role {
+    "" -> []
+    r -> [#("role", StringVal(r))]
+  }
+
+  // Use tooltip as default label for focusable elements
+  case tooltip, has_focusable || has_click {
+    Ok(text), True -> [#("label", StringVal(text)), ..acc]
+    _, _ -> acc
+  }
 }
 
 // -- Path command encoding ----------------------------------------------------
