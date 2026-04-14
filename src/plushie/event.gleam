@@ -344,6 +344,11 @@ pub type Event {
   /// Generic renderer error event.
   RendererError(id: String, data: Dynamic)
 
+  /// Dispatched when the app's renderer restart callback crashes.
+  /// Allows the app to react (show an error banner, reset to a safe
+  /// state) instead of the failure being silently absorbed.
+  RecoveryFailed(reason: Dynamic)
+
   /// Diagnostic message from the renderer (warnings, errors).
   Diagnostic(level: String, element_id: String, code: String, message: String)
 

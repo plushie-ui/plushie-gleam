@@ -231,6 +231,10 @@ pub fn encode_settings(
     ]
     option.None -> settings_fields
   }
+  let settings_fields = case settings.validate_props {
+    True -> [#("validate_props", BoolVal(True)), ..settings_fields]
+    False -> settings_fields
+  }
   let settings_fields = case token {
     option.Some(t) -> [#("token", StringVal(t)), ..settings_fields]
     option.None -> settings_fields
