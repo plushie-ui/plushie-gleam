@@ -4,9 +4,8 @@ import gleeunit/should
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
+  type Event, Click, EventTarget, Input, Submit, Toggle, Widget,
 }
-import plushie/event/types.{EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/prop/padding
 import plushie/testing
@@ -27,11 +26,11 @@ fn counter_init() {
 
 fn counter_update(model: CounterModel, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "inc", ..))) -> #(
       CounterModel(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(target: EventTarget(id: "dec", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "dec", ..))) -> #(
       CounterModel(count: model.count - 1),
       command.none(),
     )
@@ -161,8 +160,13 @@ pub fn send_raw_event_test() {
   let ctx =
     testing.send_event(
       ctx,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "inc", scope: ["root"]),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "inc",
+          scope: ["root"],
+          full: "inc",
+        )),
       ),
     )
   should.equal(testing.model(ctx).count, 1)
@@ -178,11 +182,12 @@ fn scoped_init() {
 
 fn scoped_update(model: ScopedModel, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(
+    Widget(Click(target: EventTarget(
       window_id: "main",
       id: "save",
       scope: ["form", "panel"],
-    )) -> #(ScopedModel(last_scope: ["form", "panel"]), command.none())
+      ..,
+    ))) -> #(ScopedModel(last_scope: ["form", "panel"]), command.none())
     _ -> #(model, command.none())
   }
 }
@@ -251,11 +256,11 @@ fn todo_init() {
 
 fn todo_update(model: TodoModel, event: Event) {
   case event {
-    WidgetInput(target: EventTarget(id: "input", ..), value:) -> #(
+    Widget(Input(target: EventTarget(id: "input", ..), value:)) -> #(
       TodoModel(..model, input: value),
       command.none(),
     )
-    WidgetSubmit(target: EventTarget(id: "input", ..), ..) -> {
+    Widget(Submit(target: EventTarget(id: "input", ..), ..)) -> {
       case model.input {
         "" -> #(model, command.none())
         text -> #(
@@ -267,7 +272,7 @@ fn todo_update(model: TodoModel, event: Event) {
         )
       }
     }
-    WidgetToggle(target: EventTarget(id: "toggle-0", ..), value:) -> {
+    Widget(Toggle(target: EventTarget(id: "toggle-0", ..), value:)) -> {
       let items = case model.items {
         [first, ..rest] -> [TodoItem(..first, done: value), ..rest]
         other -> other
@@ -344,8 +349,13 @@ fn cmd_init() {
   #(
     CmdModel(value: "init"),
     command.done(dynamic.string("from_init"), fn(_d) {
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "from_init", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "from_init",
+          scope: [],
+          full: "from_init",
+        )),
       )
     }),
   )
@@ -353,7 +363,7 @@ fn cmd_init() {
 
 fn cmd_update(model: CmdModel, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: value, ..)) -> #(
+    Widget(Click(target: EventTarget(id: value, ..))) -> #(
       CmdModel(value:),
       command.none(),
     )

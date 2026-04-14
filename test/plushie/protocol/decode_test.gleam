@@ -1,8 +1,7 @@
 import gleam/bit_array
 import gleam/option.{None, Some}
 import gleeunit/should
-import plushie/event
-import plushie/event/types.{EventTarget}
+import plushie/event.{EventTarget}
 import plushie/protocol
 import plushie/protocol/decode
 
@@ -11,49 +10,49 @@ import plushie/protocol/decode
 // ---------------------------------------------------------------------------
 
 pub fn split_scoped_id_simple_test() {
-  let #(id, scope, window) = types.split_scoped_id("button")
+  let #(id, scope, window) = event.split_scoped_id("button")
   should.equal(id, "button")
   should.equal(scope, [])
   should.equal(window, "")
 }
 
 pub fn split_scoped_id_single_scope_test() {
-  let #(id, scope, window) = types.split_scoped_id("form/email")
+  let #(id, scope, window) = event.split_scoped_id("form/email")
   should.equal(id, "email")
   should.equal(scope, ["form"])
   should.equal(window, "")
 }
 
 pub fn split_scoped_id_multi_scope_test() {
-  let #(id, scope, window) = types.split_scoped_id("sidebar/form/email")
+  let #(id, scope, window) = event.split_scoped_id("sidebar/form/email")
   should.equal(id, "email")
   should.equal(scope, ["form", "sidebar"])
   should.equal(window, "")
 }
 
 pub fn split_scoped_id_deep_scope_test() {
-  let #(id, scope, window) = types.split_scoped_id("a/b/c/d")
+  let #(id, scope, window) = event.split_scoped_id("a/b/c/d")
   should.equal(id, "d")
   should.equal(scope, ["c", "b", "a"])
   should.equal(window, "")
 }
 
 pub fn split_scoped_id_with_window_test() {
-  let #(id, scope, window) = types.split_scoped_id("main#form/email")
+  let #(id, scope, window) = event.split_scoped_id("main#form/email")
   should.equal(id, "email")
   should.equal(scope, ["form"])
   should.equal(window, "main")
 }
 
 pub fn split_scoped_id_window_no_scope_test() {
-  let #(id, scope, window) = types.split_scoped_id("main#save")
+  let #(id, scope, window) = event.split_scoped_id("main#save")
   should.equal(id, "save")
   should.equal(scope, [])
   should.equal(window, "main")
 }
 
 pub fn split_scoped_id_window_deep_test() {
-  let #(id, scope, window) = types.split_scoped_id("settings#panel/form/email")
+  let #(id, scope, window) = event.split_scoped_id("settings#panel/form/email")
   should.equal(id, "email")
   should.equal(scope, ["form", "panel"])
   should.equal(window, "settings")
@@ -117,7 +116,12 @@ pub fn decode_click_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Click(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "btn_save")
       should.equal(scope, ["main"])
     }
@@ -132,7 +136,12 @@ pub fn decode_click_scoped_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Click(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "btn_save")
       should.equal(scope, ["form", "main"])
     }
@@ -151,10 +160,10 @@ pub fn decode_input_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetInput(
-      target: EventTarget(window_id: "main", id:, scope:),
+    event.Widget(event.Input(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       value:,
-    ) -> {
+    )) -> {
       should.equal(id, "name_field")
       should.equal(scope, ["main"])
       should.equal(value, "Arthur Dent")
@@ -174,10 +183,10 @@ pub fn decode_toggle_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetToggle(
-      target: EventTarget(window_id: "main", id:, scope:),
+    event.Widget(event.Toggle(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       value:,
-    ) -> {
+    )) -> {
       should.equal(id, "dark_mode")
       should.equal(scope, ["main"])
       should.equal(value, True)
@@ -197,10 +206,10 @@ pub fn decode_slide_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetSlide(
-      target: EventTarget(window_id: "main", id:, scope:),
+    event.Widget(event.Slide(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       value:,
-    ) -> {
+    )) -> {
       should.equal(id, "volume")
       should.equal(scope, ["main"])
       should.equal(value, 0.75)
@@ -220,7 +229,8 @@ pub fn decode_key_press_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.KeyPress(
+    event.Key(event.KeyEvent(
+      event_type: event.KeyPressed,
       window_id: _,
       key:,
       modified_key:,
@@ -230,13 +240,13 @@ pub fn decode_key_press_json_test() {
       text:,
       repeat:,
       captured:,
-    ) -> {
+    )) -> {
       should.equal(key, "s")
       should.equal(modified_key, "s")
       should.equal(modifiers.ctrl, True)
       should.equal(modifiers.shift, False)
       should.equal(physical_key, Some("KeyS"))
-      should.equal(location, types.Standard)
+      should.equal(location, event.Standard)
       should.equal(text, Some("s"))
       should.equal(repeat, False)
       should.equal(captured, False)
@@ -252,9 +262,15 @@ pub fn decode_key_press_numpad_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.KeyPress(key:, location:, repeat:, ..) -> {
+    event.Key(event.KeyEvent(
+      event_type: event.KeyPressed,
+      key:,
+      location:,
+      repeat:,
+      ..,
+    )) -> {
       should.equal(key, "5")
-      should.equal(location, types.Numpad)
+      should.equal(location, event.Numpad)
       should.equal(repeat, True)
     }
     _ -> should.fail()
@@ -272,14 +288,16 @@ pub fn decode_window_opened_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowOpened(
+    event.Window(event.WindowEvent(
+      event_type: event.Opened,
       window_id:,
-      width:,
-      height:,
-      position_x:,
-      position_y:,
-      scale_factor:,
-    ) -> {
+      width: Some(width),
+      height: Some(height),
+      x: position_x,
+      y: position_y,
+      scale_factor: Some(scale_factor),
+      ..,
+    )) -> {
       should.equal(window_id, "main")
       should.equal(width, 800.0)
       should.equal(height, 600.0)
@@ -298,7 +316,8 @@ pub fn decode_window_closed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowClosed(window_id:) -> should.equal(window_id, "settings")
+    event.Window(event.WindowEvent(event_type: event.Closed, window_id:, ..)) ->
+      should.equal(window_id, "settings")
     _ -> should.fail()
   }
 }
@@ -310,7 +329,13 @@ pub fn decode_window_resized_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowResized(window_id:, width:, height:) -> {
+    event.Window(event.WindowEvent(
+      event_type: event.Resized,
+      window_id:,
+      width: option.Some(width),
+      height: option.Some(height),
+      ..,
+    )) -> {
       should.equal(window_id, "main")
       should.equal(width, 1024.0)
       should.equal(height, 768.0)
@@ -331,7 +356,7 @@ pub fn decode_effect_response_ok_json_test() {
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_42")
   case result {
-    types.EffectOk(_) -> Nil
+    event.EffectOk(_) -> Nil
     _ -> should.fail()
   }
 }
@@ -343,7 +368,7 @@ pub fn decode_effect_response_cancelled_json_test() {
   let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_99")
-  should.equal(result, types.EffectCancelled)
+  should.equal(result, event.EffectCancelled)
 }
 
 pub fn decode_effect_response_error_json_test() {
@@ -354,7 +379,7 @@ pub fn decode_effect_response_error_json_test() {
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_7")
   case result {
-    types.EffectError(_) -> Nil
+    event.EffectError(_) -> Nil
     _ -> should.fail()
   }
 }
@@ -370,7 +395,11 @@ pub fn decode_unknown_family_falls_through_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(kind:, target: EventTarget(id:, scope:, ..), ..) -> {
+    event.Widget(event.CustomWidget(
+      kind:,
+      target: EventTarget(id:, scope:, ..),
+      ..,
+    )) -> {
       should.equal(kind, "quantum_flux")
       should.equal(id, "widget_x")
       should.equal(scope, ["main"])
@@ -417,7 +446,14 @@ pub fn decode_cursor_moved_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetMove(target: _, x:, y:, pointer: types.Mouse, captured:, ..) -> {
+    event.Widget(event.Move(
+      target: _,
+      x:,
+      y:,
+      pointer: event.Mouse,
+      captured:,
+      ..,
+    )) -> {
       should.equal(x, 150.5)
       should.equal(y, 200.0)
       should.equal(captured, False)
@@ -429,19 +465,19 @@ pub fn decode_cursor_moved_json_test() {
 pub fn decode_cursor_entered_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_entered\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.WidgetEnter(target: EventTarget(
+  let assert Ok(decode.EventMessage(event.Widget(event.Enter(target: EventTarget(
     scope: [],
     ..,
-  )))) = decode.decode_message(data, protocol.Json)
+  ))))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_cursor_left_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"cursor_left\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.WidgetExit(target: EventTarget(
+  let assert Ok(decode.EventMessage(event.Widget(event.Exit(target: EventTarget(
     scope: [],
     ..,
-  )))) = decode.decode_message(data, protocol.Json)
+  ))))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_wheel_scrolled_json_test() {
@@ -451,17 +487,17 @@ pub fn decode_wheel_scrolled_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetScroll(
+    event.Widget(event.Scroll(
       target: _,
       delta_x:,
       delta_y:,
       unit: Some(unit),
       captured:,
       ..,
-    ) -> {
+    )) -> {
       should.equal(delta_x, 0.0)
       should.equal(delta_y, -3.0)
-      should.equal(unit, types.Line)
+      should.equal(unit, event.Line)
       should.equal(captured, False)
     }
     _ -> should.fail()
@@ -479,15 +515,15 @@ pub fn decode_finger_pressed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetPress(
+    event.Widget(event.Press(
       target: _,
-      pointer: types.Touch,
+      pointer: event.Touch,
       finger: Some(finger_id),
       x:,
       y:,
       captured:,
       ..,
-    ) -> {
+    )) -> {
       should.equal(finger_id, 1)
       should.equal(x, 100.0)
       should.equal(y, 200.0)
@@ -504,7 +540,7 @@ pub fn decode_finger_pressed_json_test() {
 pub fn decode_all_windows_closed_json_test() {
   let json = "{\"type\":\"event\",\"family\":\"all_windows_closed\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.AllWindowsClosed)) =
+  let assert Ok(decode.EventMessage(event.System(event.AllWindowsClosed))) =
     decode.decode_message(data, protocol.Json)
 }
 
@@ -519,7 +555,8 @@ pub fn decode_animation_frame_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.AnimationFrame(timestamp:) -> should.equal(timestamp, 1_234_567_890)
+    event.System(event.AnimationFrame(timestamp:)) ->
+      should.equal(timestamp, 1_234_567_890)
     _ -> should.fail()
   }
 }
@@ -535,7 +572,7 @@ pub fn decode_theme_changed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ThemeChanged(theme:) -> should.equal(theme, "dark")
+    event.System(event.ThemeChanged(theme:)) -> should.equal(theme, "dark")
     _ -> should.fail()
   }
 }
@@ -551,7 +588,11 @@ pub fn decode_modifiers_changed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ModifiersChanged(window_id: _, modifiers:, captured:) -> {
+    event.ModifiersChanged(event.ModifiersEvent(
+      window_id: _,
+      modifiers:,
+      captured:,
+    )) -> {
       should.equal(modifiers.shift, True)
       should.equal(modifiers.ctrl, False)
       should.equal(modifiers.alt, True)
@@ -583,7 +624,13 @@ pub fn decode_key_press_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.KeyPress(key:, modified_key:, captured:, ..) -> {
+    event.Key(event.KeyEvent(
+      event_type: event.KeyPressed,
+      key:,
+      modified_key:,
+      captured:,
+      ..,
+    )) -> {
       should.equal(key, "a")
       should.equal(modified_key, "A")
       should.equal(captured, True)
@@ -599,7 +646,12 @@ pub fn decode_key_press_modified_key_fallback_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.KeyPress(key:, modified_key:, ..) -> {
+    event.Key(event.KeyEvent(
+      event_type: event.KeyPressed,
+      key:,
+      modified_key:,
+      ..,
+    )) -> {
       should.equal(key, "Enter")
       should.equal(modified_key, "Enter")
     }
@@ -614,7 +666,8 @@ pub fn decode_cursor_moved_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetMove(target: _, captured:, ..) -> should.equal(captured, True)
+    event.Widget(event.Move(target: _, captured:, ..)) ->
+      should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -623,10 +676,10 @@ pub fn decode_cursor_entered_captured_json_test() {
   let json =
     "{\"type\":\"event\",\"family\":\"cursor_entered\",\"captured\":true}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(event.WidgetEnter(target: EventTarget(
+  let assert Ok(decode.EventMessage(event.Widget(event.Enter(target: EventTarget(
     scope: [],
     ..,
-  )))) = decode.decode_message(data, protocol.Json)
+  ))))) = decode.decode_message(data, protocol.Json)
 }
 
 pub fn decode_finger_pressed_captured_json_test() {
@@ -636,7 +689,7 @@ pub fn decode_finger_pressed_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetPress(pointer: types.Touch, captured:, ..) ->
+    event.Widget(event.Press(pointer: event.Touch, captured:, ..)) ->
       should.equal(captured, True)
     _ -> should.fail()
   }
@@ -649,7 +702,12 @@ pub fn decode_ime_opened_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.ImeOpened(window_id: _, captured:) -> should.equal(captured, True)
+    event.Ime(event.ImeEvent(
+      event_type: event.ImeOpened,
+      window_id: _,
+      captured:,
+      ..,
+    )) -> should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -661,7 +719,8 @@ pub fn decode_wheel_scrolled_captured_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetScroll(target: _, captured:, ..) -> should.equal(captured, True)
+    event.Widget(event.Scroll(target: _, captured:, ..)) ->
+      should.equal(captured, True)
     _ -> should.fail()
   }
 }
@@ -703,7 +762,7 @@ pub fn decode_announce_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Announce(text:) -> should.equal(text, "Item added")
+    event.System(event.Announce(text:)) -> should.equal(text, "Item added")
     _ -> should.fail()
   }
 }
@@ -719,7 +778,7 @@ pub fn decode_duplicate_node_ids_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.DuplicateNodeIds(..) -> Nil
+    event.Error(event.DuplicateNodeIds(..)) -> Nil
     _ -> should.fail()
   }
 }
@@ -731,7 +790,7 @@ pub fn decode_command_error_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.CommandError(reason:, id:, family:, message:, ..) -> {
+    event.Error(event.CommandError(reason:, id:, family:, message:, ..)) -> {
       should.equal(reason, "unknown_node")
       should.equal(id, Some("g1"))
       should.equal(family, Some("set_value"))
@@ -752,7 +811,12 @@ pub fn decode_window_opened_no_position_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowOpened(position_x:, position_y:, ..) -> {
+    event.Window(event.WindowEvent(
+      event_type: event.Opened,
+      x: position_x,
+      y: position_y,
+      ..,
+    )) -> {
       should.equal(position_x, None)
       should.equal(position_y, None)
     }
@@ -767,7 +831,12 @@ pub fn decode_window_opened_nested_position_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WindowOpened(position_x:, position_y:, ..) -> {
+    event.Window(event.WindowEvent(
+      event_type: event.Opened,
+      x: position_x,
+      y: position_y,
+      ..,
+    )) -> {
       should.equal(position_x, Some(10.0))
       should.equal(position_y, Some(20.0))
     }
@@ -786,14 +855,14 @@ pub fn decode_widget_right_press_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetPress(
-      target: EventTarget(window_id: "main", id:, scope:),
+    event.Widget(event.Press(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       button:,
       ..,
-    ) -> {
+    )) -> {
       should.equal(id, "area1")
       should.equal(scope, ["main"])
-      should.equal(button, types.RightButton)
+      should.equal(button, event.RightButton)
     }
     _ -> should.fail()
   }
@@ -806,10 +875,10 @@ pub fn decode_widget_double_click_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetDoubleClick(
-      target: EventTarget(window_id: "main", id:, scope:),
+    event.Widget(event.DoubleClick(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       ..,
-    ) -> {
+    )) -> {
       should.equal(id, "area2")
       should.equal(scope, ["main"])
     }
@@ -828,8 +897,8 @@ pub fn decode_button_pressed_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetPress(target: _, button:, captured:, ..) -> {
-      should.equal(button, types.RightButton)
+    event.Widget(event.Press(target: _, button:, captured:, ..)) -> {
+      should.equal(button, event.RightButton)
       should.equal(captured, False)
     }
     _ -> should.fail()
@@ -848,7 +917,12 @@ pub fn decode_canvas_element_enter_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEnter(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Enter(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "star-1")
       should.equal(scope, ["my_canvas", "main"])
     }
@@ -863,7 +937,12 @@ pub fn decode_canvas_element_leave_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetExit(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Exit(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "star-1")
       should.equal(scope, ["my_canvas", "main"])
     }
@@ -878,7 +957,12 @@ pub fn decode_canvas_element_click_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetClick(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Click(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "btn-0")
       should.equal(scope, ["my_canvas", "main"])
     }
@@ -893,7 +977,12 @@ pub fn decode_canvas_element_focused_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetFocused(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Focused(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "input-0")
       should.equal(scope, ["my_canvas", "main"])
     }
@@ -908,7 +997,12 @@ pub fn decode_canvas_element_blurred_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetBlurred(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Blurred(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "input-0")
       should.equal(scope, ["my_canvas", "main"])
     }
@@ -924,7 +1018,12 @@ pub fn decode_canvas_focused_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetFocused(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Focused(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "my_canvas")
       should.equal(scope, ["main"])
     }
@@ -939,7 +1038,12 @@ pub fn decode_canvas_blurred_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetBlurred(target: EventTarget(window_id: "main", id:, scope:)) -> {
+    event.Widget(event.Blurred(target: EventTarget(
+      window_id: "main",
+      id:,
+      scope:,
+      ..,
+    ))) -> {
       should.equal(id, "my_canvas")
       should.equal(scope, ["main"])
     }
@@ -954,7 +1058,7 @@ pub fn decode_diagnostic_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Diagnostic(level:, element_id:, code:, message:) -> {
+    event.Error(event.Diagnostic(level:, element_id:, code:, message:)) -> {
       should.equal(level, "warning")
       should.equal(element_id, "btn-1")
       should.equal(code, "W001")
@@ -975,11 +1079,11 @@ pub fn decode_canvas_scroll_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.WidgetEvent(
+    event.Widget(event.CustomWidget(
       kind: "canvas_scroll",
-      target: EventTarget(window_id: "main", id:, scope:),
+      target: EventTarget(window_id: "main", id:, scope:, ..),
       ..,
-    ) -> {
+    )) -> {
       should.equal(id, "canvas1")
       should.equal(scope, ["main"])
     }

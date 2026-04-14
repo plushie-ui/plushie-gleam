@@ -10,7 +10,7 @@ import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, TimerTick}
+import plushie/event.{type Event, Timer, TimerEvent}
 import plushie/node.{type Node}
 import plushie/prop/alignment
 import plushie/prop/color
@@ -32,7 +32,10 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    TimerTick(tag: "tick", ..) -> #(Model(time: current_time()), command.none())
+    Timer(TimerEvent(tag: "tick", ..)) -> #(
+      Model(time: current_time()),
+      command.none(),
+    )
     _ -> #(model, command.none())
   }
 }

@@ -10,8 +10,7 @@ import gleam/dynamic/decode as dyn_decode
 import plushie/app.{type App}
 import plushie/command
 import plushie/effect
-import plushie/event.{type Event}
-import plushie/event/types.{EffectOk, EffectUnsupported, EventTarget}
+import plushie/event.{type Event, EffectOk, EffectUnsupported, EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/support
 import plushie/ui
@@ -34,18 +33,18 @@ fn effect_update(
   event: Event,
 ) -> #(EffectModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(target: EventTarget(id: "read", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "read", ..))) -> #(
       model,
       effect.clipboard_read("test"),
     )
-    event.EffectResponse(result: EffectOk(data), ..) -> {
+    event.Effect(event.EffectEvent(result: EffectOk(data), ..)) -> {
       let text = case dyn_decode.run(data, dyn_decode.string) {
         Ok(s) -> s
         Error(_) -> ""
       }
       #(EffectModel(..model, clipboard_text: text), command.none())
     }
-    event.EffectResponse(result: EffectUnsupported, ..) -> #(
+    event.Effect(event.EffectEvent(result: EffectUnsupported, ..)) -> #(
       EffectModel(..model, got_unsupported: True),
       command.none(),
     )
@@ -80,8 +79,13 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
   // Trigger the clipboard read
   support.dispatch_event(
     rt,
-    event.WidgetClick(
-      target: EventTarget(window_id: "main", id: "read", scope: []),
+    event.Widget(
+      event.Click(target: EventTarget(
+        window_id: "main",
+        id: "read",
+        scope: [],
+        full: "read",
+      )),
     ),
   )
 
@@ -106,8 +110,13 @@ pub fn unregister_removes_stub_test() -> Nil {
   // Trigger the clipboard read; should not get "first" back
   support.dispatch_event(
     rt,
-    event.WidgetClick(
-      target: EventTarget(window_id: "main", id: "read", scope: []),
+    event.Widget(
+      event.Click(target: EventTarget(
+        window_id: "main",
+        id: "read",
+        scope: [],
+        full: "read",
+      )),
     ),
   )
 

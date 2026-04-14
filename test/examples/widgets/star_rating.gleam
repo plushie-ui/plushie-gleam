@@ -12,7 +12,7 @@
 ////     ))
 ////
 //// Events:
-//// - `WidgetEvent(kind: "select")` with value = star count (1-5)
+//// - `Widget(CustomWidget(kind: "select"))` with value = star count (1-5)
 
 import gleam/dict
 import gleam/dynamic
@@ -22,8 +22,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import plushie/canvas/shape
-import plushie/event.{type Event, WidgetClick, WidgetEnter, WidgetExit}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Click, Enter, EventTarget, Exit, Widget}
 import plushie/node.{type Node, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
@@ -95,21 +94,21 @@ pub fn theme_progress(p: StarRatingProps, v: Float) -> StarRatingProps {
 fn handle_event(event: Event, state: StarState) -> #(EventAction, StarState) {
   case event {
     // Click on a star -> emit :select with the 1-based star number.
-    WidgetClick(target: EventTarget(id: element_id, ..)) ->
+    Widget(Click(target: EventTarget(id: element_id, ..))) ->
       case parse_star_index(element_id) {
         Ok(n) -> #(Emit(kind: "select", data: dynamic.int(n + 1)), state)
         Error(_) -> #(Consumed, state)
       }
 
     // Hover enter -> update internal hover state for preview highlight.
-    WidgetEnter(target: EventTarget(id: element_id, ..)) ->
+    Widget(Enter(target: EventTarget(id: element_id, ..))) ->
       case parse_star_index(element_id) {
         Ok(n) -> #(UpdateState, StarState(hover: Some(n + 1)))
         Error(_) -> #(Consumed, state)
       }
 
     // Hover leave -> clear preview highlight.
-    WidgetExit(..) -> #(UpdateState, StarState(hover: None))
+    Widget(Exit(..)) -> #(UpdateState, StarState(hover: None))
 
     // All other events consumed.
     _ -> #(Consumed, state)

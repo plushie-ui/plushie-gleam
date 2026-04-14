@@ -24,7 +24,10 @@ pub fn timer_tick_updates_time_test() {
   let assert option.Some(_time_before) = element.text(before)
   // After a tick, the display still shows valid time
   let ctx =
-    testing.send_event(ctx, event.TimerTick(tag: "tick", timestamp: 1000))
+    testing.send_event(
+      ctx,
+      event.Timer(event.TimerEvent(tag: "tick", timestamp: 1000)),
+    )
   let assert option.Some(after) = testing.find(ctx, "clock_display")
   let assert option.Some(time_after) = element.text(after)
   should.equal(string.length(time_after), 8)

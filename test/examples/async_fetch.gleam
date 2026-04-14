@@ -8,8 +8,7 @@ import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, AsyncResult, WidgetClick}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Async, AsyncEvent, Click, EventTarget, Widget}
 import plushie/node.{type Node}
 import plushie/prop/color
 import plushie/prop/length
@@ -36,18 +35,18 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: "fetch", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "fetch", ..))) -> #(
       Model(..model, status: Loading),
       command.async(fetch_data, "fetch"),
     )
-    AsyncResult(tag: "fetch", result: Ok(value)) -> {
+    Async(AsyncEvent(tag: "fetch", result: Ok(value))) -> {
       let data = case decode.run(value, decode.string) {
         Ok(s) -> s
         Error(_) -> "unexpected value"
       }
       #(Model(status: Loaded, data:), command.none())
     }
-    AsyncResult(tag: "fetch", result: Error(_)) -> #(
+    Async(AsyncEvent(tag: "fetch", result: Error(_))) -> #(
       Model(..model, status: Failed("fetch failed")),
       command.none(),
     )

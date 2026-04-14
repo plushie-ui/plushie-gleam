@@ -12,8 +12,7 @@ import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, WidgetEvent}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, CustomWidget, EventTarget, Widget}
 import plushie/node.{type Node}
 import plushie/prop/a11y
 import plushie/prop/border
@@ -42,12 +41,12 @@ fn init() {
 fn update(model: Model, event: Event) {
   case event {
     // ColorPickerWidget emits "change" with { hue, saturation, value }.
-    WidgetEvent(
+    Widget(CustomWidget(
       kind: "change",
       target: EventTarget(id: "picker", ..),
       data: data,
       ..,
-    ) ->
+    )) ->
       case decode.run(data, hsv_decoder()) {
         Ok(#(hue, saturation, value)) -> #(
           Model(hue: hue, saturation: saturation, value: value),

@@ -3,24 +3,24 @@
 import gleam/option
 import gleeunit/should
 import plushie/event
-import plushie/event/types
 import plushie/testing
 import plushie/testing/element
 
 import examples/shortcuts
 
 fn key_press(key: String) -> event.Event {
-  event.KeyPress(
+  event.Key(event.KeyEvent(
+    event_type: event.KeyPressed,
     window_id: "",
     key: key,
     modified_key: key,
-    modifiers: types.modifiers_none(),
+    modifiers: event.modifiers_none(),
     physical_key: option.None,
-    location: types.Standard,
+    location: event.Standard,
     text: option.Some(key),
     repeat: False,
     captured: False,
-  )
+  ))
 }
 
 pub fn starts_with_zero_events_test() {

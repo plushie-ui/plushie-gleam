@@ -100,10 +100,10 @@ fn harness_view(widget_node: Node) -> Node {
 fn is_framework_event(ev: Event) -> Bool {
   case ev {
     // Standard focus/enter/exit events (used by both widgets and canvas elements)
-    event.WidgetFocused(..) -> True
-    event.WidgetBlurred(..) -> True
-    event.WidgetEnter(..) -> True
-    event.WidgetExit(..) -> True
+    event.Widget(event.Focused(..)) -> True
+    event.Widget(event.Blurred(..)) -> True
+    event.Widget(event.Enter(..)) -> True
+    event.Widget(event.Exit(..)) -> True
     _ -> False
   }
 }

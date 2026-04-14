@@ -14,9 +14,8 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, WidgetClick, WidgetInput, WidgetSubmit, WidgetToggle,
+  type Event, Click, EventTarget, Input, Submit, Toggle, Widget,
 }
-import plushie/event/types.{EventTarget}
 import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
@@ -51,17 +50,18 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetInput(target: EventTarget(id: "new_todo", ..), value: val) -> #(
+    Widget(Input(target: EventTarget(id: "new_todo", ..), value: val)) -> #(
       Model(..model, input: val),
       command.none(),
     )
 
-    WidgetSubmit(target: EventTarget(id: "new_todo", ..), ..) -> add_todo(model)
+    Widget(Submit(target: EventTarget(id: "new_todo", ..), ..)) ->
+      add_todo(model)
 
-    WidgetToggle(
+    Widget(Toggle(
       target: EventTarget(id: "toggle", scope: [todo_id, ..], ..),
       ..,
-    ) -> {
+    )) -> {
       let todos =
         list.map(model.todos, fn(t) {
           case t.id == todo_id {
@@ -72,20 +72,20 @@ fn update(model: Model, event: Event) {
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(target: EventTarget(id: "delete", scope: [todo_id, ..], ..)) -> {
+    Widget(Click(target: EventTarget(id: "delete", scope: [todo_id, ..], ..))) -> {
       let todos = list.filter(model.todos, fn(t) { t.id != todo_id })
       #(Model(..model, todos: todos), command.none())
     }
 
-    WidgetClick(target: EventTarget(id: "filter_all", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "filter_all", ..))) -> #(
       Model(..model, filter: All),
       command.none(),
     )
-    WidgetClick(target: EventTarget(id: "filter_active", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "filter_active", ..))) -> #(
       Model(..model, filter: Active),
       command.none(),
     )
-    WidgetClick(target: EventTarget(id: "filter_done", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "filter_done", ..))) -> #(
       Model(..model, filter: Done),
       command.none(),
     )

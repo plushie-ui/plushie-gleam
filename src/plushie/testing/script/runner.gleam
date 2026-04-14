@@ -9,8 +9,7 @@ import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string
-import plushie/event.{type Event}
-import plushie/event/types.{type EventTarget, EventTarget}
+import plushie/event.{type Event, type EventTarget, EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/testing/element
 import plushie/testing/script.{
@@ -64,77 +63,90 @@ fn execute(
   case instruction {
     Click(selector) -> {
       let target = resolve_event_target(session.current_tree(session), selector)
-      Ok(session.send_event(session, event.WidgetClick(target:)))
+      Ok(session.send_event(session, event.Widget(event.Click(target:))))
     }
 
     TypeText(selector, text) -> {
       let target = resolve_event_target(session.current_tree(session), selector)
-      Ok(session.send_event(session, event.WidgetInput(target:, value: text)))
+      Ok(session.send_event(
+        session,
+        event.Widget(event.Input(target:, value: text)),
+      ))
     }
 
     TypeKey(key) -> {
       Ok(session.send_event(
         session,
-        event.KeyPress(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyPressed,
           window_id: "",
           key:,
           modified_key: key,
-          modifiers: types.modifiers_none(),
+          modifiers: event.modifiers_none(),
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.Some(key),
           repeat: False,
           captured: False,
-        ),
+        )),
       ))
     }
 
     Press(key) -> {
       Ok(session.send_event(
         session,
-        event.KeyPress(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyPressed,
           window_id: "",
           key:,
           modified_key: key,
-          modifiers: types.modifiers_none(),
+          modifiers: event.modifiers_none(),
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.None,
           repeat: False,
           captured: False,
-        ),
+        )),
       ))
     }
 
     Release(key) -> {
       Ok(session.send_event(
         session,
-        event.KeyRelease(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyReleased,
           window_id: "",
           key:,
           modified_key: key,
-          modifiers: types.modifiers_none(),
+          modifiers: event.modifiers_none(),
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.None,
+          repeat: False,
           captured: False,
-        ),
+        )),
       ))
     }
 
     Toggle(selector) -> {
       let target = resolve_event_target(session.current_tree(session), selector)
-      Ok(session.send_event(session, event.WidgetToggle(target:, value: True)))
+      Ok(session.send_event(
+        session,
+        event.Widget(event.Toggle(target:, value: True)),
+      ))
     }
 
     Select(selector, value) -> {
       let target = resolve_event_target(session.current_tree(session), selector)
-      Ok(session.send_event(session, event.WidgetSelect(target:, value:)))
+      Ok(session.send_event(
+        session,
+        event.Widget(event.Select(target:, value:)),
+      ))
     }
 
     Slide(selector, value) -> {
       let target = resolve_event_target(session.current_tree(session), selector)
-      Ok(session.send_event(session, event.WidgetSlide(target:, value:)))
+      Ok(session.send_event(session, event.Widget(event.Slide(target:, value:))))
     }
 
     Move(_target) -> {
@@ -143,18 +155,17 @@ fn execute(
     }
 
     MoveTo(x, y) -> {
-      // Cursor movement dispatched as WidgetMove (subscription pointer event)
       Ok(session.send_event(
         session,
-        event.WidgetMove(
-          target: EventTarget(window_id: "", id: "", scope: []),
+        event.Widget(event.Move(
+          target: EventTarget(window_id: "", id: "", scope: [], full: ""),
           x: int.to_float(x),
           y: int.to_float(y),
-          pointer: types.Mouse,
+          pointer: event.Mouse,
           finger: option.None,
-          modifiers: types.modifiers_none(),
+          modifiers: event.modifiers_none(),
           captured: False,
-        ),
+        )),
       ))
     }
 
@@ -230,7 +241,12 @@ fn resolve_event_target(tree: Node, selector: String) -> EventTarget {
   case find_event_target(tree, selector, "") {
     option.Some(found) -> found
     option.None ->
-      EventTarget(window_id: default_window_id(tree), id: selector, scope: [])
+      EventTarget(
+        window_id: default_window_id(tree),
+        id: selector,
+        scope: [],
+        full: selector,
+      )
   }
 }
 
@@ -250,7 +266,7 @@ fn find_event_target(
 
   case tree.kind != "window" && { exact_match || local_match } {
     True -> {
-      let et = types.make_target(tree.id, window_id)
+      let et = event.make_target(tree.id, window_id)
       option.Some(et)
     }
     False -> find_event_target_in_children(tree.children, target, window_id)

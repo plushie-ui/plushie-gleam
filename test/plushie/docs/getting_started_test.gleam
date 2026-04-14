@@ -1,8 +1,7 @@
 import gleam/dict
 import gleam/int
 import plushie/command
-import plushie/event.{type Event, WidgetClick}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Click, EventTarget, Widget}
 import plushie/node.{type Node, FloatVal, IntVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
@@ -23,11 +22,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: "increment", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "increment", ..))) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(target: EventTarget(id: "decrement", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "decrement", ..))) -> #(
       Model(count: model.count - 1),
       command.none(),
     )
@@ -66,8 +65,13 @@ pub fn getting_started_counter_increment_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "increment",
+          scope: [],
+          full: "increment",
+        )),
       ),
     )
   assert model.count == 1
@@ -78,8 +82,13 @@ pub fn getting_started_counter_decrement_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "decrement", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "decrement",
+          scope: [],
+          full: "decrement",
+        )),
       ),
     )
   assert model.count == -1
@@ -90,8 +99,13 @@ pub fn getting_started_counter_unknown_event_test() {
   let #(model, cmd) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "unknown", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "unknown",
+          scope: [],
+          full: "unknown",
+        )),
       ),
     )
   assert model.count == 0
@@ -128,15 +142,25 @@ pub fn getting_started_counter_view_after_increments_test() {
   let #(model, _) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "increment",
+          scope: [],
+          full: "increment",
+        )),
       ),
     )
   let #(model, _) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "increment", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "increment",
+          scope: [],
+          full: "increment",
+        )),
       ),
     )
   let tree = view(model)

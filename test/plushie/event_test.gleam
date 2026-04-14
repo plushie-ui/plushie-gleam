@@ -1,26 +1,33 @@
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleeunit/should
 import plushie/event.{
-  type Event, KeyPress, TimerTick, WidgetClick, WidgetInput, WindowClosed,
+  type Event, Click, Closed, EventTarget, Input, Key, KeyEvent, KeyPressed,
+  Modifiers, Standard, Timer, TimerEvent, Widget, Window, WindowEvent,
 }
-import plushie/event/types.{EventTarget, Modifiers, Standard}
 
 pub fn widget_click_test() {
   let evt =
-    WidgetClick(
-      target: EventTarget(window_id: "main", id: "save_btn", scope: ["form"]),
+    Widget(
+      Click(target: EventTarget(
+        window_id: "main",
+        id: "save_btn",
+        scope: ["form"],
+        full: "save_btn",
+      )),
     )
 
-  assert evt.target.id == "save_btn"
-  assert evt.target.scope == ["form"]
+  let assert Widget(Click(target:)) = evt
+  assert target.id == "save_btn"
+  assert target.scope == ["form"]
 
   // Pattern match round-trip
   case evt {
-    WidgetClick(target: EventTarget(
+    Widget(Click(target: EventTarget(
       window_id: "main",
       id: "save_btn",
       scope: ["form"],
-    )) -> should.be_true(True)
+      ..,
+    ))) -> should.be_true(True)
     _ -> should.fail()
   }
 }
@@ -30,7 +37,8 @@ pub fn key_press_with_modifiers_test() {
     Modifiers(shift: False, ctrl: True, alt: False, logo: False, command: True)
 
   let evt =
-    KeyPress(
+    Key(KeyEvent(
+      event_type: KeyPressed,
       window_id: "",
       key: "s",
       modified_key: "s",
@@ -40,20 +48,21 @@ pub fn key_press_with_modifiers_test() {
       text: Some("s"),
       repeat: False,
       captured: False,
-    )
+    ))
 
-  assert evt.key == "s"
-  assert evt.modifiers.ctrl == True
-  assert evt.modifiers.command == True
-  assert evt.modifiers.shift == False
-  assert evt.repeat == False
+  let assert Key(KeyEvent(key:, modifiers:, repeat:, ..)) = evt
+  assert key == "s"
+  assert modifiers.ctrl == True
+  assert modifiers.command == True
+  assert modifiers.shift == False
+  assert repeat == False
 }
 
 pub fn timer_tick_test() {
-  let evt = TimerTick(tag: "refresh", timestamp: 1_710_000_000)
+  let evt = Timer(TimerEvent(tag: "refresh", timestamp: 1_710_000_000))
 
   case evt {
-    TimerTick(tag: "refresh", timestamp: ts) -> {
+    Timer(TimerEvent(tag: "refresh", timestamp: ts)) -> {
       assert ts == 1_710_000_000
     }
     _ -> should.fail()
@@ -61,7 +70,7 @@ pub fn timer_tick_test() {
 }
 
 pub fn modifiers_none_test() {
-  let mods = types.modifiers_none()
+  let mods = event.modifiers_none()
 
   assert mods.shift == False
   assert mods.ctrl == False
@@ -74,14 +83,42 @@ pub fn modifiers_none_test() {
 /// families with a single case expression and a catch-all wildcard.
 pub fn realistic_update_pattern_test() {
   let events: List(Event) = [
-    WidgetClick(target: EventTarget(window_id: "main", id: "inc", scope: [])),
-    WidgetClick(target: EventTarget(window_id: "main", id: "dec", scope: [])),
-    WidgetInput(
-      target: EventTarget(window_id: "main", id: "name", scope: ["form"]),
-      value: "Arthur",
+    Widget(
+      Click(target: EventTarget(
+        window_id: "main",
+        id: "inc",
+        scope: [],
+        full: "inc",
+      )),
     ),
-    WindowClosed(window_id: "main"),
-    TimerTick(tag: "poll", timestamp: 42),
+    Widget(
+      Click(target: EventTarget(
+        window_id: "main",
+        id: "dec",
+        scope: [],
+        full: "dec",
+      )),
+    ),
+    Widget(Input(
+      target: EventTarget(
+        window_id: "main",
+        id: "name",
+        scope: ["form"],
+        full: "name",
+      ),
+      value: "Arthur",
+    )),
+    Window(WindowEvent(
+      event_type: Closed,
+      window_id: "main",
+      width: option.None,
+      height: option.None,
+      x: option.None,
+      y: option.None,
+      scale_factor: option.None,
+      path: option.None,
+    )),
+    Timer(TimerEvent(tag: "poll", timestamp: 42)),
   ]
 
   // Simulate fold over events, accumulating a count
@@ -95,8 +132,8 @@ fn do_fold_events(events: List(Event), count: Int) -> Int {
     [] -> count
     [evt, ..rest] -> {
       let next = case evt {
-        WidgetClick(target: EventTarget(id: "inc", ..)) -> count + 1
-        WidgetClick(target: EventTarget(id: "dec", ..)) -> count - 1
+        Widget(Click(target: EventTarget(id: "inc", ..))) -> count + 1
+        Widget(Click(target: EventTarget(id: "dec", ..))) -> count - 1
         _ -> count
       }
       do_fold_events(rest, next)

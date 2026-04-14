@@ -2,8 +2,7 @@ import gleam/dict
 import gleam/option
 import plushie/app.{type Settings, Settings}
 import plushie/command
-import plushie/event.{type Event, WidgetClick, WidgetInput, WidgetSubmit}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Click, EventTarget, Input, Submit, Widget}
 import plushie/node.{type Node, StringVal}
 import plushie/prop/padding
 import plushie/subscription
@@ -40,7 +39,7 @@ fn init_simple() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: "add_todo", ..)) -> {
+    Widget(Click(target: EventTarget(id: "add_todo", ..))) -> {
       let new_todo = Todo(id: next_id(model), text: model.input, done: False)
       #(
         Model(
@@ -53,12 +52,12 @@ fn update(model: Model, event: Event) {
       )
     }
 
-    WidgetInput(target: EventTarget(id: "todo_field", ..), value:) -> #(
+    Widget(Input(target: EventTarget(id: "todo_field", ..), value:)) -> #(
       Model(..model, input: value),
       command.none(),
     )
 
-    WidgetSubmit(target: EventTarget(id: "todo_field", ..), ..) -> {
+    Widget(Submit(target: EventTarget(id: "todo_field", ..), ..)) -> {
       let new_todo = Todo(id: next_id(model), text: model.input, done: False)
       #(
         Model(
@@ -117,18 +116,28 @@ pub fn app_behaviour_update_add_todo_test() {
   let #(model, _) =
     update(
       model,
-      WidgetInput(
-        target: EventTarget(window_id: "main", id: "todo_field", scope: []),
+      Widget(Input(
+        target: EventTarget(
+          window_id: "main",
+          id: "todo_field",
+          scope: [],
+          full: "todo_field",
+        ),
         value: "Buy milk",
-      ),
+      )),
     )
   assert model.input == "Buy milk"
 
   let #(model, cmd) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "add_todo", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "add_todo",
+          scope: [],
+          full: "add_todo",
+        )),
       ),
     )
   assert model.input == ""
@@ -143,18 +152,28 @@ pub fn app_behaviour_update_submit_returns_focus_test() {
   let #(model, _) =
     update(
       model,
-      WidgetInput(
-        target: EventTarget(window_id: "main", id: "todo_field", scope: []),
+      Widget(Input(
+        target: EventTarget(
+          window_id: "main",
+          id: "todo_field",
+          scope: [],
+          full: "todo_field",
+        ),
         value: "Walk dog",
-      ),
+      )),
     )
   let #(model, cmd) =
     update(
       model,
-      WidgetSubmit(
-        target: EventTarget(window_id: "main", id: "todo_field", scope: []),
+      Widget(Submit(
+        target: EventTarget(
+          window_id: "main",
+          id: "todo_field",
+          scope: [],
+          full: "todo_field",
+        ),
         value: "Walk dog",
-      ),
+      )),
     )
   assert model.input == ""
   let assert [item] = model.todos
@@ -167,8 +186,13 @@ pub fn app_behaviour_update_unknown_event_test() {
   let #(model, cmd) =
     update(
       model,
-      WidgetClick(
-        target: EventTarget(window_id: "main", id: "unknown", scope: []),
+      Widget(
+        Click(target: EventTarget(
+          window_id: "main",
+          id: "unknown",
+          scope: [],
+          full: "unknown",
+        )),
       ),
     )
   assert model.todos == []

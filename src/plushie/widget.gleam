@@ -49,8 +49,7 @@ import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import plushie/event.{type Event}
-import plushie/event/types.{type EventTarget, EventTarget}
+import plushie/event.{type Event, type EventTarget, EventTarget}
 import plushie/node.{type Node, type PropValue, Node}
 import plushie/platform
 import plushie/prop/a11y.{type A11y}
@@ -112,7 +111,7 @@ pub fn simple(view: fn(String, props) -> Node) -> WidgetDef(Nil, props) {
 ///   },
 ///   fn(event) {
 ///     case event {
-///       event.WidgetClick(id: "open", ..) ->
+///       event.Widget(event.Click(target: event.EventTarget(id: "open", ..))) ->
 ///         widget.Emit("open", dynamic.nil())
 ///       _ -> widget.Ignored
 ///     }
@@ -504,12 +503,12 @@ fn walk_chain(
                   let #(window_id, id, scope) =
                     resolve_emit_identity(ev, widget_id)
                   let emitted =
-                    event.WidgetEvent(
+                    event.Widget(event.CustomWidget(
                       kind:,
-                      target: EventTarget(window_id:, id:, scope:),
+                      target: EventTarget(window_id:, id:, scope:, full: id),
                       value: coerce(Nil),
                       data:,
-                    )
+                    ))
                   walk_chain(registry, emitted, rest)
                 }
               }
@@ -601,7 +600,8 @@ pub fn handle_widget_timer(
     Some(#(widget_id, inner_tag)) -> {
       case dict.get(registry, widget_id) {
         Ok(entry) -> {
-          let timer_event = event.TimerTick(tag: inner_tag, timestamp:)
+          let timer_event =
+            event.Timer(event.TimerEvent(tag: inner_tag, timestamp:))
           case platform.try_call(fn() { entry.handle_event(timer_event) }) {
             Ok(#(action, new_entry)) -> {
               let registry = dict.insert(registry, widget_id, new_entry)
@@ -613,12 +613,12 @@ pub fn handle_widget_timer(
                   let #(window_id, id, scope) =
                     resolve_emit_identity(timer_event, widget_id)
                   let emitted =
-                    event.WidgetEvent(
+                    event.Widget(event.CustomWidget(
                       kind:,
-                      target: EventTarget(window_id:, id:, scope:),
+                      target: EventTarget(window_id:, id:, scope:, full: id),
                       value: coerce(Nil),
                       data:,
-                    )
+                    ))
                   let #(result, registry) =
                     dispatch_through_widgets(registry, emitted)
                   case result {
@@ -716,46 +716,47 @@ fn split_scoped_widget_id(widget_id: String) -> #(String, List(String)) {
 /// (system events, timer events, key events, etc.).
 pub fn extract_target(ev: Event) -> Option(EventTarget) {
   case ev {
-    // Widget events
-    event.WidgetClick(target:) -> Some(target)
-    event.WidgetInput(target:, ..) -> Some(target)
-    event.WidgetSubmit(target:, ..) -> Some(target)
-    event.WidgetToggle(target:, ..) -> Some(target)
-    event.WidgetSelect(target:, ..) -> Some(target)
-    event.WidgetSlide(target:, ..) -> Some(target)
-    event.WidgetSlideRelease(target:, ..) -> Some(target)
-    event.WidgetPaste(target:, ..) -> Some(target)
-    event.WidgetScrolled(target:, ..) -> Some(target)
-    event.WidgetOpen(target:) -> Some(target)
-    event.WidgetClose(target:) -> Some(target)
-    event.WidgetOptionHovered(target:, ..) -> Some(target)
-    event.WidgetSort(target:, ..) -> Some(target)
-    event.WidgetKeyBinding(target:, ..) -> Some(target)
-    event.WidgetEvent(target:, ..) -> Some(target)
-    // Unified pointer events
-    event.WidgetPress(target:, ..) -> Some(target)
-    event.WidgetRelease(target:, ..) -> Some(target)
-    event.WidgetMove(target:, ..) -> Some(target)
-    event.WidgetScroll(target:, ..) -> Some(target)
-    event.WidgetEnter(target:) -> Some(target)
-    event.WidgetExit(target:) -> Some(target)
-    event.WidgetDoubleClick(target:, ..) -> Some(target)
-    event.WidgetResize(target:, ..) -> Some(target)
-    // Generic element events
-    event.WidgetFocused(target:) -> Some(target)
-    event.WidgetBlurred(target:) -> Some(target)
-    event.WidgetDrag(target:, ..) -> Some(target)
-    event.WidgetDragEnd(target:, ..) -> Some(target)
-    event.WidgetElementKeyPress(target:, ..) -> Some(target)
-    event.WidgetElementKeyRelease(target:, ..) -> Some(target)
-    event.WidgetTransitionComplete(target:, ..) -> Some(target)
-    // Pane events
-    event.PaneResized(target:, ..) -> Some(target)
-    event.PaneDragged(target:, ..) -> Some(target)
-    event.PaneClicked(target:, ..) -> Some(target)
-    event.PaneFocusCycle(target:, ..) -> Some(target)
-    // Events without target
+    event.Widget(widget_ev) -> Some(widget_event_target(widget_ev))
     _ -> None
+  }
+}
+
+/// Extract the EventTarget from any WidgetEvent variant.
+fn widget_event_target(ev: event.WidgetEvent) -> EventTarget {
+  case ev {
+    event.Click(target:) -> target
+    event.Input(target:, ..) -> target
+    event.Submit(target:, ..) -> target
+    event.Toggle(target:, ..) -> target
+    event.Select(target:, ..) -> target
+    event.Slide(target:, ..) -> target
+    event.SlideRelease(target:, ..) -> target
+    event.Paste(target:, ..) -> target
+    event.Scrolled(target:, ..) -> target
+    event.Open(target:) -> target
+    event.Close(target:) -> target
+    event.OptionHovered(target:, ..) -> target
+    event.Sort(target:, ..) -> target
+    event.KeyBinding(target:, ..) -> target
+    event.Press(target:, ..) -> target
+    event.Release(target:, ..) -> target
+    event.Move(target:, ..) -> target
+    event.Scroll(target:, ..) -> target
+    event.Enter(target:) -> target
+    event.Exit(target:) -> target
+    event.DoubleClick(target:, ..) -> target
+    event.Resize(target:, ..) -> target
+    event.Focused(target:) -> target
+    event.Blurred(target:) -> target
+    event.Drag(target:, ..) -> target
+    event.DragEnd(target:, ..) -> target
+    event.TransitionComplete(target:, ..) -> target
+    event.Status(target:, ..) -> target
+    event.PaneResized(target:, ..) -> target
+    event.PaneDragged(target:, ..) -> target
+    event.PaneClicked(target:, ..) -> target
+    event.PaneFocusCycle(target:, ..) -> target
+    event.CustomWidget(target:, ..) -> target
   }
 }
 

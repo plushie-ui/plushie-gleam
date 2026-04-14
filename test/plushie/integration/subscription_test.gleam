@@ -8,8 +8,7 @@
 import gleam/erlang/process
 import plushie/app.{type App}
 import plushie/command
-import plushie/event.{type Event, TimerTick}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, EventTarget, Timer, TimerEvent}
 import plushie/node.{type Node}
 import plushie/subscription
 import plushie/support
@@ -33,7 +32,7 @@ fn tick_update(
   event: Event,
 ) -> #(TickModel, command.Command(Event)) {
   case event {
-    TimerTick(tag: "t", ..) -> #(
+    Timer(TimerEvent(tag: "t", ..)) -> #(
       TickModel(ticks: model.ticks + 1),
       command.none(),
     )
@@ -65,11 +64,11 @@ fn toggle_update(
   event: Event,
 ) -> #(ToggleModel, command.Command(Event)) {
   case event {
-    TimerTick(tag: "t", ..) -> #(
+    Timer(TimerEvent(tag: "t", ..)) -> #(
       ToggleModel(..model, ticks: model.ticks + 1),
       command.none(),
     )
-    event.WidgetClick(target: EventTarget(id: "stop", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "stop", ..))) -> #(
       ToggleModel(..model, timer_on: False),
       command.none(),
     )
@@ -110,11 +109,11 @@ fn multi_update(
   event: Event,
 ) -> #(MultiModel, command.Command(Event)) {
   case event {
-    TimerTick(tag: "fast", ..) -> #(
+    Timer(TimerEvent(tag: "fast", ..)) -> #(
       MultiModel(..model, fast: model.fast + 1),
       command.none(),
     )
-    TimerTick(tag: "slow", ..) -> #(
+    Timer(TimerEvent(tag: "slow", ..)) -> #(
       MultiModel(..model, slow: model.slow + 1),
       command.none(),
     )
@@ -156,8 +155,13 @@ pub fn subscription_toggle_off_stops_ticks_test() -> Nil {
   // Inject a click event to turn off the timer
   support.dispatch_event(
     rt,
-    event.WidgetClick(
-      target: EventTarget(window_id: "main", id: "stop", scope: []),
+    event.Widget(
+      event.Click(target: EventTarget(
+        window_id: "main",
+        id: "stop",
+        scope: [],
+        full: "stop",
+      )),
     ),
   )
 

@@ -13,8 +13,7 @@
 import gleam/list
 import gleam/option
 import gleam/string
-import plushie/event
-import plushie/event/types.{type EventTarget}
+import plushie/event.{type EventTarget}
 import plushie/key
 import plushie/node
 import plushie/testing/backend.{type TestBackend, TestBackend}
@@ -32,15 +31,15 @@ pub fn backend() -> TestBackend(model) {
     find: fn(sess, id) { element.find(in: session.current_tree(sess), id:) },
     click: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(sess, event.WidgetClick(target:))
+      session.send_event(sess, event.Widget(event.Click(target:)))
     },
     type_text: fn(sess, id, text) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(sess, event.WidgetInput(target:, value: text))
+      session.send_event(sess, event.Widget(event.Input(target:, value: text)))
     },
     submit: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(sess, event.WidgetSubmit(target:, value: ""))
+      session.send_event(sess, event.Widget(event.Submit(target:, value: "")))
     },
     toggle: fn(sess, id) {
       let target = resolve_event_target(session.current_tree(sess), id)
@@ -57,47 +56,50 @@ pub fn backend() -> TestBackend(model) {
           }
         option.None -> True
       }
-      session.send_event(sess, event.WidgetToggle(target:, value:))
+      session.send_event(sess, event.Widget(event.Toggle(target:, value:)))
     },
     select: fn(sess, id, value) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(sess, event.WidgetSelect(target:, value:))
+      session.send_event(sess, event.Widget(event.Select(target:, value:)))
     },
     slide: fn(sess, id, value) {
       let target = resolve_event_target(session.current_tree(sess), id)
-      session.send_event(sess, event.WidgetSlide(target:, value:))
+      session.send_event(sess, event.Widget(event.Slide(target:, value:)))
     },
     press_key: fn(sess, key_str) {
       let #(key_name, modifiers) = parse_key_event(key_str)
       session.send_event(
         sess,
-        event.KeyPress(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyPressed,
           window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.None,
           repeat: False,
           captured: False,
-        ),
+        )),
       )
     },
     release_key: fn(sess, key_str) {
       let #(key_name, modifiers) = parse_key_event(key_str)
       session.send_event(
         sess,
-        event.KeyRelease(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyReleased,
           window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.None,
+          repeat: False,
           captured: False,
-        ),
+        )),
       )
     },
     type_key: fn(sess, key_str) {
@@ -105,46 +107,49 @@ pub fn backend() -> TestBackend(model) {
       let sess =
         session.send_event(
           sess,
-          event.KeyPress(
+          event.Key(event.KeyEvent(
+            event_type: event.KeyPressed,
             window_id: "",
             key: key_name,
             modified_key: key_name,
             modifiers:,
             physical_key: option.None,
-            location: types.Standard,
+            location: event.Standard,
             text: option.None,
             repeat: False,
             captured: False,
-          ),
+          )),
         )
       session.send_event(
         sess,
-        event.KeyRelease(
+        event.Key(event.KeyEvent(
+          event_type: event.KeyReleased,
           window_id: "",
           key: key_name,
           modified_key: key_name,
           modifiers:,
           physical_key: option.None,
-          location: types.Standard,
+          location: event.Standard,
           text: option.None,
+          repeat: False,
           captured: False,
-        ),
+        )),
       )
     },
     canvas_press: fn(sess, id, x, y) {
       let target = resolve_event_target(session.current_tree(sess), id)
       session.send_event(
         sess,
-        event.WidgetPress(
+        event.Widget(event.Press(
           target:,
           x:,
           y:,
-          button: types.LeftButton,
-          pointer: types.Mouse,
+          button: event.LeftButton,
+          pointer: event.Mouse,
           finger: option.None,
-          modifiers: types.modifiers_none(),
+          modifiers: event.modifiers_none(),
           captured: False,
-        ),
+        )),
       )
     },
     model: fn(sess) { session.model(sess) },
@@ -186,7 +191,7 @@ fn find_event_target(
 
   case tree.kind != "window" && { exact_match || local_match } {
     True -> {
-      let et = types.make_target(tree.id, window_id)
+      let et = event.make_target(tree.id, window_id)
       option.Some(et)
     }
     False -> find_event_target_in_children(tree.children, target, window_id)
@@ -226,10 +231,10 @@ fn last_segment(id: String) -> String {
 }
 
 /// Parse a key string into a resolved key name and Modifiers.
-fn parse_key_event(key_str: String) -> #(String, types.Modifiers) {
+fn parse_key_event(key_str: String) -> #(String, event.Modifiers) {
   let parsed = key.parse(key_str)
   let modifiers =
-    types.Modifiers(
+    event.Modifiers(
       shift: parsed.shift,
       ctrl: parsed.ctrl,
       alt: parsed.alt,

@@ -4,7 +4,7 @@ import gleam/list
 import gleam/option
 import gleeunit/should
 import plushie/command
-import plushie/event.{type Event, SystemTheme, TimerTick}
+import plushie/event.{type Event, System, SystemTheme, Timer, TimerEvent}
 import plushie/subscription
 
 // -- command.none ------------------------------------------------------------
@@ -252,9 +252,9 @@ pub fn commands_get_system_theme_construct_test() {
 }
 
 pub fn commands_system_theme_event_match_test() {
-  let event: Event = SystemTheme(tag: "theme_detected", theme: "dark")
+  let event: Event = System(SystemTheme(tag: "theme_detected", theme: "dark"))
   case event {
-    SystemTheme(tag: "theme_detected", theme: mode) ->
+    System(SystemTheme(tag: "theme_detected", theme: mode)) ->
       mode |> should.equal("dark")
     _ -> should.fail()
   }
@@ -452,9 +452,9 @@ pub fn commands_subscription_lifecycle_off_test() {
 // -- Timer tick event from subscription --------------------------------------
 
 pub fn commands_timer_tick_event_test() {
-  let event: Event = TimerTick(tag: "poll", timestamp: 100)
+  let event: Event = Timer(TimerEvent(tag: "poll", timestamp: 100))
   case event {
-    TimerTick(tag: "poll", ..) -> should.be_true(True)
+    Timer(TimerEvent(tag: "poll", ..)) -> should.be_true(True)
     _ -> should.fail()
   }
 }

@@ -134,7 +134,7 @@ fn dispatch_async_result(
   max_depth: Int,
   events: List(Event),
 ) -> #(model, List(Event)) {
-  let raw_event = event.AsyncResult(tag:, result:)
+  let raw_event = event.Async(event.AsyncEvent(tag:, result:))
   let events = [raw_event, ..events]
   case app.get_on_event(app) {
     option.Some(on_event) -> {
@@ -162,7 +162,7 @@ fn dispatch_stream_value(
   max_depth: Int,
   events: List(Event),
 ) -> #(model, List(Event)) {
-  let raw_event = event.StreamValue(tag:, value:)
+  let raw_event = event.Stream(event.StreamEvent(tag:, value:))
   let events = [raw_event, ..events]
   case app.get_on_event(app) {
     option.Some(on_event) -> {

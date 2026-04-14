@@ -33,7 +33,6 @@ import plushie/command_encode
 import plushie/effect
 @target(erlang)
 import plushie/event.{type Event}
-import plushie/event/types as event_types
 import plushie/node.{type Node, type PropValue, StringVal}
 @target(erlang)
 import plushie/platform
@@ -389,11 +388,11 @@ fn handle_message(
   msg: RuntimeMessage,
 ) -> actor.Next(LoopState(model, msg), RuntimeMessage) {
   case msg {
-    FromBridge(InboundEvent(EventMessage(event.PropValidation(
+    FromBridge(InboundEvent(EventMessage(event.Error(event.PropValidation(
       node_id:,
       node_type:,
       warnings:,
-    )))) -> {
+    ))))) -> {
       // Prop validation warnings are SDK bugs, not app events.
       // Log and accumulate; never dispatch to the app.
       let warning_text =
@@ -413,12 +412,10 @@ fn handle_message(
     }
 
     // Intercept status events for focus tracking before normal dispatch
-    FromBridge(InboundEvent(EventMessage(event.WidgetEvent(
-      kind: "status",
+    FromBridge(InboundEvent(EventMessage(event.Widget(event.Status(
       target:,
       value: status_value,
-      ..,
-    )))) -> {
+    ))))) -> {
       let state = track_focus_from_status(state, target, status_value)
       actor.continue(state)
     }
@@ -446,7 +443,7 @@ fn handle_message(
           let new_state = handle_event(state, ev)
           // Stop runtime on AllWindowsClosed in non-daemon mode
           case ev, state.opts.daemon {
-            event.AllWindowsClosed, False -> actor.stop()
+            event.System(event.AllWindowsClosed), False -> actor.stop()
             _, _ -> actor.continue(new_state)
           }
         }
@@ -538,7 +535,7 @@ fn handle_message(
       case dict.get(state.pending_effects, wire_id) {
         Ok(#(tag, timer)) -> {
           process.cancel_timer(timer)
-          let ev = event.EffectResponse(tag:, result:)
+          let ev = event.Effect(event.EffectEvent(tag:, result:))
           let new_state = handle_event(state, ev)
           LoopState(
             ..new_state,
@@ -602,7 +599,7 @@ fn handle_message(
       let new_state = handle_event(state, event)
       // D-033: stop runtime on AllWindowsClosed in non-daemon mode
       case event, state.opts.daemon {
-        event.AllWindowsClosed, False -> actor.stop()
+        event.System(event.AllWindowsClosed), False -> actor.stop()
         _, _ -> actor.continue(new_state)
       }
     }
@@ -638,7 +635,8 @@ fn handle_message(
             None -> rerender(state)
           }
         }
-        False -> handle_event(state, event.TimerTick(tag:, timestamp:))
+        False ->
+          handle_event(state, event.Timer(event.TimerEvent(tag:, timestamp:)))
       }
       reschedule_timer(new_state, tag) |> actor.continue()
     }
@@ -648,7 +646,8 @@ fn handle_message(
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
           process.demonitor_process(monitor)
-          let new_state = handle_event(state, event.AsyncResult(tag:, result:))
+          let new_state =
+            handle_event(state, event.Async(event.AsyncEvent(tag:, result:)))
           let new_state =
             LoopState(
               ..new_state,
@@ -665,7 +664,7 @@ fn handle_message(
       // Validate nonce matches current stream; discard stale emissions
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, _)) if current_nonce == nonce -> {
-          handle_event(state, event.StreamValue(tag:, value:))
+          handle_event(state, event.Stream(event.StreamEvent(tag:, value:)))
           |> actor.continue()
         }
         _ -> actor.continue(state)
@@ -676,10 +675,10 @@ fn handle_message(
       case dict.get(state.pending_effects, request_id) {
         Ok(#(tag, _timer)) -> {
           let timeout_event =
-            event.EffectResponse(
+            event.Effect(event.EffectEvent(
               tag:,
-              result: event_types.EffectError(dynamic.string("timeout")),
-            )
+              result: event.EffectError(dynamic.string("timeout")),
+            ))
           let new_state = handle_event(state, timeout_event)
           LoopState(
             ..new_state,
@@ -759,7 +758,10 @@ fn handle_message(
                   }
                   handle_event(
                     state,
-                    event.AsyncResult(tag:, result: Error(crash_reason)),
+                    event.Async(event.AsyncEvent(
+                      tag:,
+                      result: Error(crash_reason),
+                    )),
                   )
                   |> actor.continue()
                 }
@@ -1189,7 +1191,7 @@ fn coerce_to_string(value: Dynamic) -> String
 /// Updates widget_statuses and focused_widget_id.
 fn track_focus_from_status(
   state: LoopState(model, msg),
-  target: event_types.EventTarget,
+  target: event.EventTarget,
   status_value: Dynamic,
 ) -> LoopState(model, msg) {
   let id = target.id
@@ -1292,10 +1294,10 @@ fn flush_pending_effects_on_restart(
     dict.fold(state.pending_effects, state, fn(st, _id, entry) {
       let #(tag, _timer) = entry
       let timeout_event =
-        event.EffectResponse(
+        event.Effect(event.EffectEvent(
           tag:,
-          result: event_types.EffectError(dynamic.string("renderer_restarted")),
-        )
+          result: event.EffectError(dynamic.string("renderer_restarted")),
+        ))
       handle_event(st, timeout_event)
     })
   LoopState(..state, pending_effects: dict.new())

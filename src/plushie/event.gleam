@@ -1,152 +1,94 @@
 //// Event types for the plushie wire protocol.
 ////
-//// Events are delivered to the app's `update` function from the Rust
-//// binary via the bridge actor. Pattern match on specific constructors
-//// and use `_ ->` for unhandled events.
+//// Events are delivered to the app's `update` function from the
+//// renderer. The top-level `Event` type categorizes events into
+//// families (Widget, Key, Window, etc.), each wrapping a dedicated
+//// sub-type with typed fields.
 ////
-//// Window-bound widget events carry an `EventTarget` with a `window_id`,
-//// an `id` (the widget's local ID after scope splitting), and a `scope`
-//// (list of ancestor container IDs, nearest first). For example,
-//// a button "save" inside container "form" in window "main"
-//// produces `WidgetClick(target: EventTarget(window_id: "main", id: "save", scope: ["form", "main"]))`.
-//// The window_id appears at the end of scope for global addressability;
-//// use `| _` at the end of scope patterns to ignore it in single-window apps.
-////
-//// Subscription events (Key, Pointer, IME, Modifiers) also carry
-//// a `window_id` identifying which window had focus when the event
-//// fired. Pointer subscription events are delivered as Widget*
-//// constructors with `id` set to the window_id and `scope` set to `[]`.
-////
-//// Fields typed as `Dynamic` carry wire-originated values whose shape
-//// varies by context. Use `gleam/dynamic/decode` to extract typed data.
-//// These appear in catch-all events, pane identifiers, async results,
-//// and effect responses.
+//// ```gleam
+//// case event {
+////   Widget(Click(target: EventTarget(id: "inc", ..))) ->
+////     #(Model(..model, count: model.count + 1), command.none())
+////   Widget(Input(target: EventTarget(id: "name", ..), value: text)) ->
+////     #(Model(..model, name: text), command.none())
+////   Key(KeyEvent(event_type: KeyPressed, key: "Escape", ..)) ->
+////     #(Model(..model, menu_open: False), command.none())
+////   _ -> #(model, command.none())
+//// }
+//// ```
 
 import gleam/dynamic.{type Dynamic}
+import gleam/list
 import gleam/option.{type Option}
-import plushie/event/types.{
-  type EffectResult, type EventTarget, type KeyLocation, type Modifiers,
-  type MouseButton, type PointerType, type ScrollData, type ScrollUnit,
+import gleam/string
+
+// ============================================================================
+// Top-level Event
+// ============================================================================
+
+/// All events from the plushie runtime, grouped by category.
+pub type Event {
+  /// Widget interaction events (clicks, input, focus, pointer, etc.)
+  Widget(WidgetEvent)
+  /// Keyboard events from subscriptions.
+  Key(KeyEvent)
+  /// Window lifecycle events.
+  Window(WindowEvent)
+  /// Timer tick events.
+  Timer(TimerEvent)
+  /// Async task results.
+  Async(AsyncEvent)
+  /// Stream intermediate values.
+  Stream(StreamEvent)
+  /// Platform effect responses (file dialogs, clipboard, etc.)
+  Effect(EffectEvent)
+  /// System queries, theme changes, animation frames, etc.
+  System(SystemEvent)
+  /// IME (Input Method Editor) events.
+  Ime(ImeEvent)
+  /// Modifier key state changes.
+  ModifiersChanged(ModifiersEvent)
+  /// Errors from the renderer or runtime.
+  Error(ErrorEvent)
 }
 
-/// All events from the plushie runtime.
-pub type Event {
+// ============================================================================
+// Widget events
+// ============================================================================
 
-  // --- Widget events ---
-  /// A widget was clicked. Fired by buttons and other clickable widgets.
-  WidgetClick(target: EventTarget)
-  /// Text was entered into a text_input or text_editor widget.
-  WidgetInput(target: EventTarget, value: String)
-  /// A text input was submitted (e.g. user pressed Enter).
-  WidgetSubmit(target: EventTarget, value: String)
-  /// A toggler or checkbox widget changed state.
-  WidgetToggle(target: EventTarget, value: Bool)
-  /// An option was selected in a pick_list or combo_box widget.
-  WidgetSelect(target: EventTarget, value: String)
+/// Widget interaction events. Each variant carries an `EventTarget`
+/// identifying which widget, in which scope, in which window.
+pub type WidgetEvent {
+  /// A widget was clicked.
+  Click(target: EventTarget)
+  /// Text was entered into a text_input or text_editor.
+  Input(target: EventTarget, value: String)
+  /// A text input was submitted (e.g. Enter pressed).
+  Submit(target: EventTarget, value: String)
+  /// A toggler or checkbox changed state.
+  Toggle(target: EventTarget, value: Bool)
+  /// An option was selected in a pick_list or combo_box.
+  Select(target: EventTarget, value: String)
   /// A slider value changed during dragging.
-  WidgetSlide(target: EventTarget, value: Float)
+  Slide(target: EventTarget, value: Float)
   /// A slider was released at its final value.
-  WidgetSlideRelease(target: EventTarget, value: Float)
-  /// Text was pasted into a text input or text editor.
-  WidgetPaste(target: EventTarget, value: String)
-  /// A scrollable widget's viewport changed position. The tense
-  /// distinction captures semantics: "scrolled" is state ("content
-  /// has scrolled"), vs WidgetScroll which is input ("user is scrolling").
-  WidgetScrolled(target: EventTarget, data: ScrollData)
-  /// A collapsible or expandable widget was opened (e.g. combo_box
-  /// dropdown, disclosure).
-  WidgetOpen(target: EventTarget)
-  /// A collapsible or expandable widget was closed.
-  WidgetClose(target: EventTarget)
+  SlideRelease(target: EventTarget, value: Float)
+  /// Text was pasted into a text input or editor.
+  Paste(target: EventTarget, value: String)
+  /// A scrollable widget's viewport position changed.
+  Scrolled(target: EventTarget, data: ScrollData)
+  /// A collapsible widget was opened (e.g. combo_box dropdown).
+  Open(target: EventTarget)
+  /// A collapsible widget was closed.
+  Close(target: EventTarget)
   /// An option in a pick_list or combo_box was hovered.
-  WidgetOptionHovered(target: EventTarget, value: String)
-  /// A sortable column header was clicked. The value is the column key.
-  WidgetSort(target: EventTarget, value: String)
+  OptionHovered(target: EventTarget, value: String)
+  /// A sortable column header was clicked.
+  Sort(target: EventTarget, value: String)
   /// A registered key binding was triggered on a widget.
-  WidgetKeyBinding(target: EventTarget, value: String)
-  /// Catch-all for uncommon or future widget event types not covered
-  /// by the typed constructors above.
-  WidgetEvent(kind: String, target: EventTarget, value: Dynamic, data: Dynamic)
-
-  // --- Key events ---
-  /// A key was pressed. Includes modifier state, physical key info,
-  /// and whether the event was already captured by a subscription.
-  /// In multi-window apps, `window_id` identifies which window had
-  /// focus when the key was pressed.
-  KeyPress(
-    window_id: String,
-    key: String,
-    /// The key value after applying modifier transforms. For example,
-    /// Shift+a produces modified_key "A". Falls back to the unmodified
-    /// key when no transform applies.
-    modified_key: String,
-    modifiers: Modifiers,
-    physical_key: Option(String),
-    location: KeyLocation,
-    text: Option(String),
-    repeat: Bool,
-    /// Whether a subscription already consumed this event. Apps can
-    /// check this to skip captured events and avoid double-processing.
-    captured: Bool,
-  )
-  /// A key was released.
-  KeyRelease(
-    window_id: String,
-    key: String,
-    /// The key value after applying modifier transforms.
-    modified_key: String,
-    modifiers: Modifiers,
-    physical_key: Option(String),
-    location: KeyLocation,
-    text: Option(String),
-    /// Whether a subscription already consumed this event.
-    captured: Bool,
-  )
-
-  // --- Window events ---
-  // Window lifecycle events track the full lifecycle of a window from
-  // creation through close. WindowCloseRequested gives the app a chance
-  // to confirm or cancel; WindowClosed fires after the window is gone.
-  /// A window finished opening. Includes initial size, position, and
-  /// DPI scale factor.
-  WindowOpened(
-    window_id: String,
-    width: Float,
-    height: Float,
-    position_x: Option(Float),
-    position_y: Option(Float),
-    scale_factor: Float,
-  )
-  /// A window was closed and destroyed.
-  WindowClosed(window_id: String)
-  /// The user requested to close a window (e.g. clicked the X button).
-  /// The app can handle this to show a confirmation dialog or ignore it.
-  WindowCloseRequested(window_id: String)
-  /// A window was resized to new dimensions in logical pixels.
-  WindowResized(window_id: String, width: Float, height: Float)
-  /// A window was moved to a new screen position in logical pixels.
-  WindowMoved(window_id: String, x: Float, y: Float)
-  /// A window gained keyboard/input focus.
-  WindowFocused(window_id: String)
-  /// A window lost keyboard/input focus.
-  WindowUnfocused(window_id: String)
-  /// A window's DPI scale factor changed (e.g. moved between monitors).
-  WindowRescaled(window_id: String, scale_factor: Float)
-  /// A file is being dragged over a window (not yet dropped).
-  WindowFileHovered(window_id: String, path: String)
-  /// A file was dropped onto a window.
-  WindowFileDropped(window_id: String, path: String)
-  /// A previously hovered file drag left the window without dropping.
-  WindowFilesHoveredLeft(window_id: String)
-
-  // --- Unified pointer events ---
-  // These replace the old canvas_*, mouse_area_*, sensor_*, mouse_*, and
-  // touch_* events with a device-agnostic model. All pointer interactions
-  // use the same event types regardless of source (widget, canvas, or
-  // subscription). For subscription events: id = window_id, scope = [].
-  // For widget events: id = widget id, scope = ancestor chain.
-  /// A pointer button was pressed (mouse click, touch start, pen down).
-  WidgetPress(
+  KeyBinding(target: EventTarget, value: String)
+  /// A pointer button was pressed (mouse click, touch start).
+  Press(
     target: EventTarget,
     x: Float,
     y: Float,
@@ -157,7 +99,7 @@ pub type Event {
     captured: Bool,
   )
   /// A pointer button was released.
-  WidgetRelease(
+  Release(
     target: EventTarget,
     x: Float,
     y: Float,
@@ -168,7 +110,7 @@ pub type Event {
     captured: Bool,
   )
   /// A pointer moved.
-  WidgetMove(
+  Move(
     target: EventTarget,
     x: Float,
     y: Float,
@@ -177,10 +119,8 @@ pub type Event {
     modifiers: Modifiers,
     captured: Bool,
   )
-  /// A pointer wheel/scroll event. For subscription events, `unit`
-  /// indicates line vs pixel granularity. For widget events, `unit`
-  /// is None.
-  WidgetScroll(
+  /// A pointer wheel/scroll event.
+  Scroll(
     target: EventTarget,
     x: Float,
     y: Float,
@@ -192,11 +132,11 @@ pub type Event {
     captured: Bool,
   )
   /// A pointer entered a widget's bounds.
-  WidgetEnter(target: EventTarget)
+  Enter(target: EventTarget)
   /// A pointer exited a widget's bounds.
-  WidgetExit(target: EventTarget)
+  Exit(target: EventTarget)
   /// A double-click was detected.
-  WidgetDoubleClick(
+  DoubleClick(
     target: EventTarget,
     x: Float,
     y: Float,
@@ -204,114 +144,179 @@ pub type Event {
     modifiers: Modifiers,
   )
   /// A widget was resized (e.g. sensor detecting layout changes).
-  WidgetResize(target: EventTarget, width: Float, height: Float)
-
-  // --- Generic element events ---
-  // Focus, blur, drag, and key events. Apply to any focusable or
-  // draggable element (canvas interactive groups, widgets, etc.).
-  // Distinguished from global key events by having an id and scope.
+  Resize(target: EventTarget, width: Float, height: Float)
   /// A focusable element gained focus.
-  WidgetFocused(target: EventTarget)
+  Focused(target: EventTarget)
   /// A focusable element lost focus.
-  WidgetBlurred(target: EventTarget)
+  Blurred(target: EventTarget)
   /// A draggable element is being dragged.
-  WidgetDrag(
-    target: EventTarget,
-    x: Float,
-    y: Float,
-    delta_x: Float,
-    delta_y: Float,
-  )
+  Drag(target: EventTarget, x: Float, y: Float, delta_x: Float, delta_y: Float)
   /// A drag ended on a draggable element.
-  WidgetDragEnd(target: EventTarget, x: Float, y: Float)
-  /// A key was pressed on a focused element (widget-scoped).
-  WidgetElementKeyPress(
-    target: EventTarget,
-    key: String,
-    modifiers: Modifiers,
-    text: Option(String),
-  )
-  /// A key was released on a focused element (widget-scoped).
-  WidgetElementKeyRelease(
-    target: EventTarget,
-    key: String,
-    modifiers: Modifiers,
-  )
-  /// A renderer-side transition completed on a widget.
-  WidgetTransitionComplete(target: EventTarget, tag: String, prop: String)
-
-  // --- IME events ---
-  // Input Method Editor events for CJK and other complex text input.
-  // Lifecycle: opened -> preedit (one or more) -> commit -> closed.
-  /// The IME composition session started.
-  ImeOpened(window_id: String, captured: Bool)
-  /// The IME is composing text. The cursor tuple is the selection
-  /// range within the preedit string (byte offsets).
-  ImePreedit(
-    window_id: String,
-    text: String,
-    cursor: Option(#(Int, Int)),
-    captured: Bool,
-  )
-  /// The IME committed final text to the input.
-  ImeCommit(window_id: String, text: String, captured: Bool)
-  /// The IME composition session ended.
-  ImeClosed(window_id: String, captured: Bool)
-
-  // --- Modifier change ---
-  /// The set of held modifier keys changed (Shift, Ctrl, Alt, etc.).
-  /// Useful for updating UI hints without waiting for a key event.
-  ModifiersChanged(window_id: String, modifiers: Modifiers, captured: Bool)
-
-  // --- Pane events ---
-  // Events from pane_grid widgets when panes are resized, dragged,
-  // or clicked.
-  /// A pane_grid split divider was resized. The ratio is the new
-  /// split position (0.0 to 1.0).
+  DragEnd(target: EventTarget, x: Float, y: Float)
+  /// A renderer-side transition completed.
+  TransitionComplete(target: EventTarget, tag: String, prop: String)
+  /// A widget status event (used internally for focus tracking).
+  Status(target: EventTarget, value: Dynamic)
+  /// A pane grid split was resized.
   PaneResized(target: EventTarget, split: Dynamic, ratio: Float)
-  /// A pane was dragged in a pane_grid. The action is "picked",
-  /// "dropped", or "canceled". Region and edge describe the drop target.
+  /// A pane was dragged (drag-and-drop reorder).
   PaneDragged(
     target: EventTarget,
     pane: Dynamic,
-    /// Note: `target` field name is taken by EventTarget, so the
-    /// pane drag target is `drop_target`.
     drop_target: Dynamic,
     action: String,
     region: Option(String),
     edge: Option(String),
   )
-  /// A pane was clicked in a pane_grid, making it the active pane.
+  /// A pane was clicked.
   PaneClicked(target: EventTarget, pane: Dynamic)
-  /// Focus cycled to the next pane in a pane_grid (e.g. via Tab).
+  /// A pane focus cycle was triggered (Tab navigation).
   PaneFocusCycle(target: EventTarget, pane: Dynamic)
+  /// Catch-all for custom or future widget event families.
+  CustomWidget(kind: String, target: EventTarget, value: Dynamic, data: Dynamic)
+}
 
-  // --- System events ---
-  /// Response to a GetSystemInfo query. The data Dynamic contains a
-  /// map with keys like "system_name", "cpu_brand", "memory_total", etc.
+// ============================================================================
+// Key events
+// ============================================================================
+
+/// Keyboard event type.
+pub type KeyEventType {
+  KeyPressed
+  KeyReleased
+}
+
+/// A keyboard event from a subscription.
+pub type KeyEvent {
+  KeyEvent(
+    event_type: KeyEventType,
+    window_id: String,
+    key: String,
+    /// Key value after modifier transforms (e.g. Shift+a -> "A").
+    modified_key: String,
+    modifiers: Modifiers,
+    physical_key: Option(String),
+    location: KeyLocation,
+    text: Option(String),
+    repeat: Bool,
+    /// Whether a widget already consumed this event.
+    captured: Bool,
+  )
+}
+
+// ============================================================================
+// Window events
+// ============================================================================
+
+/// Window lifecycle event type.
+pub type WindowEventType {
+  Opened
+  Closed
+  CloseRequested
+  Resized
+  Moved
+  WindowFocused
+  WindowUnfocused
+  Rescaled
+  FileHovered
+  FileDropped
+  FilesHoveredLeft
+}
+
+/// A window lifecycle event. Optional fields carry data relevant to
+/// the specific event type (e.g. width/height for Resized).
+pub type WindowEvent {
+  WindowEvent(
+    event_type: WindowEventType,
+    window_id: String,
+    width: Option(Float),
+    height: Option(Float),
+    x: Option(Float),
+    y: Option(Float),
+    scale_factor: Option(Float),
+    path: Option(String),
+  )
+}
+
+// ============================================================================
+// Timer / Async / Stream / Effect events
+// ============================================================================
+
+/// A timer subscription fired.
+pub type TimerEvent {
+  TimerEvent(tag: String, timestamp: Int)
+}
+
+/// An async task completed.
+pub type AsyncEvent {
+  AsyncEvent(tag: String, result: Result(Dynamic, Dynamic))
+}
+
+/// A stream emitted an intermediate value.
+pub type StreamEvent {
+  StreamEvent(tag: String, value: Dynamic)
+}
+
+/// A platform effect responded.
+pub type EffectEvent {
+  EffectEvent(tag: String, result: EffectResult)
+}
+
+// ============================================================================
+// IME events
+// ============================================================================
+
+/// IME event type. Lifecycle: Opened -> Preedit* -> Commit -> Closed.
+pub type ImeEventType {
+  ImeOpened
+  ImePreedit
+  ImeCommit
+  ImeClosed
+}
+
+/// An Input Method Editor event for CJK and complex text input.
+pub type ImeEvent {
+  ImeEvent(
+    event_type: ImeEventType,
+    window_id: String,
+    text: Option(String),
+    cursor: Option(#(Int, Int)),
+    captured: Bool,
+  )
+}
+
+// ============================================================================
+// Modifier events
+// ============================================================================
+
+/// The set of held modifier keys changed.
+pub type ModifiersEvent {
+  ModifiersEvent(window_id: String, modifiers: Modifiers, captured: Bool)
+}
+
+// ============================================================================
+// System events
+// ============================================================================
+
+/// System queries, theme changes, and runtime events.
+pub type SystemEvent {
+  /// Response to a GetSystemInfo query.
   SystemInfo(tag: String, data: Dynamic)
-  /// Response to a GetSystemTheme query. The theme is "light", "dark",
-  /// or "none".
+  /// Response to a GetSystemTheme query.
   SystemTheme(tag: String, theme: String)
   /// The OS theme preference changed at runtime.
   ThemeChanged(theme: String)
-  /// An animation frame tick with a monotonic timestamp in milliseconds.
-  /// Only fires when on_animation_frame is subscribed.
+  /// An animation frame tick (monotonic ms).
   AnimationFrame(timestamp: Int)
-  /// All windows have been closed. Typically used to trigger app exit.
+  /// All windows have been closed.
   AllWindowsClosed
-  /// Response to a ListImages query with all registered image handles.
+  /// Response to a ListImages query.
   ImageList(tag: String, handles: List(String))
-  /// Response to a TreeHashQuery with the SHA-256 hash of the current
-  /// renderer tree state.
+  /// Response to a TreeHashQuery.
   TreeHash(tag: String, hash: String)
-  /// Response to a FindFocused query. The widget_id is None if no
-  /// widget currently has focus.
+  /// Response to a FindFocused query.
   FocusedWidget(tag: String, widget_id: Option(String))
   /// Response to a Screenshot command with decoded pixel data.
-  /// The hash is a SHA-256 digest of the pixel buffer. Width and
-  /// height are in physical pixels. Pixels is raw RGBA bytes
-  /// (base64 is decoded at the wire boundary).
   ScreenshotData(
     tag: String,
     hash: String,
@@ -319,31 +324,17 @@ pub type Event {
     height: Int,
     pixels: BitArray,
   )
-
-  // --- Timer ---
-  /// A timer subscription fired. The tag identifies which subscription,
-  /// and timestamp is monotonic milliseconds.
-  TimerTick(tag: String, timestamp: Int)
-
-  // --- Async/Stream ---
-  /// Result from an Async command. Ok on success, Error on failure.
-  /// The tag matches the tag passed to the originating Async command.
-  AsyncResult(tag: String, result: Result(Dynamic, Dynamic))
-  /// An intermediate value emitted by a Stream command. The tag
-  /// matches the tag passed to the originating Stream command.
-  StreamValue(tag: String, value: Dynamic)
-
-  // --- Accessibility ---
-  /// Request the system screen reader to announce the given text.
+  /// Screen reader announcement (headless/mock mode).
   Announce(text: String)
+}
 
-  // --- Error events ---
-  /// Emitted when the tree contains duplicate node IDs after
-  /// normalization. The details Dynamic contains a list of the
-  /// offending IDs. Usually indicates a bug in the view function.
-  DuplicateNodeIds(details: Dynamic)
+// ============================================================================
+// Error events
+// ============================================================================
 
-  /// Renderer error for a widget command.
+/// Runtime and renderer errors.
+pub type ErrorEvent {
+  /// A widget command failed.
   CommandError(
     reason: String,
     id: Option(String),
@@ -351,28 +342,139 @@ pub type Event {
     widget_type: Option(String),
     message: Option(String),
   )
-
-  /// Generic renderer error event.
+  /// A generic renderer error.
   RendererError(id: String, data: Dynamic)
-
-  /// Dispatched when the app's renderer restart callback crashes.
-  /// Allows the app to react (show an error banner, reset to a safe
-  /// state) instead of the failure being silently absorbed.
+  /// The app's renderer restart callback crashed.
   RecoveryFailed(reason: Dynamic)
-
-  /// Diagnostic message from the renderer (warnings, errors).
+  /// The tree contains duplicate node IDs after normalization.
+  DuplicateNodeIds(details: Dynamic)
+  /// A renderer diagnostic message (warnings, errors).
   Diagnostic(level: String, element_id: String, code: String, message: String)
-
-  // --- Prop validation ---
-  /// Emitted by the renderer when validate_props is enabled and a
-  /// node has unexpected or mistyped properties. Indicates an SDK
-  /// or native widget bug; app code cannot produce these through the
-  /// typed builder API.
+  /// Prop validation warning from the renderer.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
+}
 
-  // --- Effect response ---
-  /// Response to a platform Effect command (file dialog, clipboard,
-  /// notification). The tag matches the tag passed to the originating
-  /// effect function for clean pattern matching.
-  EffectResponse(tag: String, result: EffectResult)
+// ============================================================================
+// Shared types (merged from event/types)
+// ============================================================================
+
+// -- Event identity -----------------------------------------------------------
+
+/// Widget identity: which widget, in which scope, in which window.
+///
+/// - `id`: the widget's local ID (last segment after scope splitting)
+/// - `scope`: ancestor chain (nearest first, window_id last)
+/// - `window_id`: the originating window
+/// - `full`: the canonical wire ID (e.g. "main#form/email")
+pub type EventTarget {
+  EventTarget(window_id: String, id: String, scope: List(String), full: String)
+}
+
+/// Parse a wire-format scoped ID into (local_id, scope_list, window_id).
+///
+/// Handles the canonical `window#scope/path/id` format.
+pub fn split_scoped_id(wire_id: String) -> #(String, List(String), String) {
+  let #(window, path) = case string.split_once(wire_id, "#") {
+    Ok(#(win, rest)) if win != "" -> #(win, rest)
+    _ -> #("", wire_id)
+  }
+  let #(local, scope) = case string.split(path, "/") {
+    [single] -> #(single, [])
+    parts ->
+      case list.reverse(parts) {
+        [local, ..scope] -> #(local, scope)
+        [] -> #("", [])
+      }
+  }
+  #(local, scope, window)
+}
+
+/// Build an EventTarget from a wire-format scoped ID and explicit window ID.
+///
+/// Prefers the window extracted from the `#` in the ID. Falls back to the
+/// explicit window_id parameter for backwards compatibility.
+pub fn make_target(wire_id: String, window_id: String) -> EventTarget {
+  let #(local, scope, window_from_id) = split_scoped_id(wire_id)
+  let window = case window_from_id {
+    "" -> window_id
+    _ -> window_from_id
+  }
+  let scope = case window {
+    "" -> scope
+    _ -> list.append(scope, [window])
+  }
+  EventTarget(window_id: window, id: local, scope:, full: wire_id)
+}
+
+// -- Modifier state -----------------------------------------------------------
+
+/// Keyboard modifier state.
+pub type Modifiers {
+  Modifiers(shift: Bool, ctrl: Bool, alt: Bool, logo: Bool, command: Bool)
+}
+
+/// No modifiers pressed.
+pub fn modifiers_none() -> Modifiers {
+  Modifiers(shift: False, ctrl: False, alt: False, logo: False, command: False)
+}
+
+// -- Key location -------------------------------------------------------------
+
+/// Key location on the keyboard.
+pub type KeyLocation {
+  Standard
+  LeftSide
+  RightSide
+  Numpad
+}
+
+// -- Pointer types ------------------------------------------------------------
+
+/// Input device type for pointer events.
+pub type PointerType {
+  Mouse
+  Touch
+  Pen
+}
+
+/// Mouse button identifier.
+pub type MouseButton {
+  LeftButton
+  RightButton
+  MiddleButton
+  BackButton
+  ForwardButton
+  OtherButton(String)
+}
+
+// -- Scroll types -------------------------------------------------------------
+
+/// Scroll measurement unit.
+pub type ScrollUnit {
+  Line
+  Pixel
+}
+
+/// Widget scroll viewport data.
+pub type ScrollData {
+  ScrollData(
+    absolute_x: Float,
+    absolute_y: Float,
+    relative_x: Float,
+    relative_y: Float,
+    bounds_width: Float,
+    bounds_height: Float,
+    content_width: Float,
+    content_height: Float,
+  )
+}
+
+// -- Effect result ------------------------------------------------------------
+
+/// Platform effect result.
+pub type EffectResult {
+  EffectOk(Dynamic)
+  EffectCancelled
+  EffectError(Dynamic)
+  EffectUnsupported
 }

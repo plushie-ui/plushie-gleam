@@ -14,8 +14,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import plushie/app.{type App}
-import plushie/event.{type Event}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, EventTarget}
 import plushie/node.{type Node, type PropValue}
 import plushie/subscription.{type Subscription}
 import plushie/widget
@@ -29,9 +28,9 @@ import plushie/widget
 /// events that should be dispatched immediately.
 pub fn coalesce_key(ev: Event) -> Option(String) {
   case ev {
-    event.WidgetMove(target: EventTarget(scope: [], ..), ..) ->
+    event.Widget(event.Move(target: EventTarget(scope: [], ..), ..)) ->
       Some("pointer_move")
-    event.WidgetResize(target: EventTarget(window_id:, id:, ..), ..) ->
+    event.Widget(event.Resize(target: EventTarget(window_id:, id:, ..), ..)) ->
       Some("resize:" <> window_id <> ":" <> id)
     _ -> None
   }

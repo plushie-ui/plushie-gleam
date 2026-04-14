@@ -7,15 +7,14 @@
 ////     theme_toggle.widget("my-toggle")
 ////
 //// Events:
-//// - `WidgetEvent(kind: "toggle")` with value = Bool (new dark mode state)
+//// - `Widget(CustomWidget(kind: "toggle"))` with value = Bool (new dark mode state)
 
 import gleam/dict
 import gleam/dynamic
 import gleam/float
 import gleam/int
 import plushie/canvas/shape
-import plushie/event.{type Event, TimerTick, WidgetClick}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Click, EventTarget, Timer, TimerEvent, Widget}
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/length
 import plushie/subscription
@@ -63,7 +62,7 @@ fn handle_event(event: Event, state: ToggleState) -> #(EventAction, ToggleState)
   case event {
     // Click on the switch group -> emit :toggle with the new boolean state
     // and flip the animation target.
-    WidgetClick(target: EventTarget(id: "switch", ..)) -> {
+    Widget(Click(target: EventTarget(id: "switch", ..))) -> {
       let new_target = case state.target == 0.0 {
         True -> 1.0
         False -> 0.0
@@ -75,7 +74,7 @@ fn handle_event(event: Event, state: ToggleState) -> #(EventAction, ToggleState)
     }
 
     // Animation tick -> step progress toward the target value.
-    TimerTick(tag: "animate", ..) -> {
+    Timer(TimerEvent(tag: "animate", ..)) -> {
       let new_progress = approach(state.progress, state.target, 0.06)
       #(UpdateState, ToggleState(..state, progress: new_progress))
     }

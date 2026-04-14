@@ -143,7 +143,7 @@ fn dispatch_async_result(
   result: Result(Dynamic, Dynamic),
   depth: Int,
 ) -> model {
-  let raw_event = event.AsyncResult(tag:, result:)
+  let raw_event = event.Async(event.AsyncEvent(tag:, result:))
   case app.get_on_event(app) {
     option.Some(on_event) -> {
       let msg = on_event(raw_event)
@@ -168,7 +168,7 @@ fn dispatch_stream_value(
   value: Dynamic,
   depth: Int,
 ) -> model {
-  let raw_event = event.StreamValue(tag:, value:)
+  let raw_event = event.Stream(event.StreamEvent(tag:, value:))
   case app.get_on_event(app) {
     option.Some(on_event) -> {
       let msg = on_event(raw_event)

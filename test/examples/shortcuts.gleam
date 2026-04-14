@@ -11,8 +11,7 @@ import gleam/string
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, KeyPress}
-import plushie/event/types.{type Modifiers}
+import plushie/event.{type Event, type Modifiers, Key, KeyEvent, KeyPressed}
 import plushie/key
 import plushie/node.{type Node}
 import plushie/prop/length
@@ -36,7 +35,13 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    KeyPress(key: k, modifiers: mods, physical_key: phys, ..) -> {
+    Key(KeyEvent(
+      event_type: KeyPressed,
+      key: k,
+      modifiers: mods,
+      physical_key: phys,
+      ..,
+    )) -> {
       let n = model.count + 1
       let entry = format_key_event(n, k, mods, phys)
       let log =

@@ -138,14 +138,14 @@ pub fn start(
           None -> render_and_sync(handle, app, False)
         }
       }
-      False -> dispatch(event.TimerTick(tag:, timestamp:))
+      False -> dispatch(event.Timer(event.TimerEvent(tag:, timestamp:)))
     }
   })
   register_async_callback(handle, fn(tag, result) {
-    dispatch(event.AsyncResult(tag:, result:))
+    dispatch(event.Async(event.AsyncEvent(tag:, result:)))
   })
   register_stream_callback(handle, fn(tag, value) {
-    dispatch(event.StreamValue(tag:, value:))
+    dispatch(event.Stream(event.StreamEvent(tag:, value:)))
   })
 
   // First render (always snapshot)

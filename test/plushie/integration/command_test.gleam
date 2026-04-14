@@ -14,8 +14,7 @@ import gleam/int
 import gleam/list
 import plushie/app.{type App}
 import plushie/command
-import plushie/event.{type Event}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, EventTarget}
 import plushie/node.{type Node}
 import plushie/support
 import plushie/ui
@@ -34,7 +33,10 @@ type SendAfterModel {
 fn send_after_init() -> #(SendAfterModel, command.Command(Event)) {
   #(
     SendAfterModel(value: 0),
-    command.send_after(20, event.TimerTick(tag: "init_timer", timestamp: 0)),
+    command.send_after(
+      20,
+      event.Timer(event.TimerEvent(tag: "init_timer", timestamp: 0)),
+    ),
   )
 }
 
@@ -43,7 +45,7 @@ fn send_after_update(
   event: Event,
 ) -> #(SendAfterModel, command.Command(Event)) {
   case event {
-    event.TimerTick(tag: "init_timer", ..) -> #(
+    event.Timer(event.TimerEvent(tag: "init_timer", ..)) -> #(
       SendAfterModel(value: model.value + 1),
       command.none(),
     )
@@ -76,11 +78,11 @@ fn async_update(
   event: Event,
 ) -> #(AsyncModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(target: EventTarget(id: "go", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "go", ..))) -> #(
       model,
       command.async(fn() { to_dynamic(42) }, "compute"),
     )
-    event.AsyncResult(tag: "compute", result: Ok(value)) -> {
+    event.Async(event.AsyncEvent(tag: "compute", result: Ok(value))) -> {
       let assert Ok(n) = dyn_decode.run(value, dyn_decode.int)
       #(AsyncModel(result: n), command.none())
     }
@@ -106,8 +108,14 @@ fn batch_init() -> #(BatchModel, command.Command(Event)) {
   #(
     BatchModel(a: False, b: False),
     command.batch([
-      command.send_after(15, event.TimerTick(tag: "batch_a", timestamp: 0)),
-      command.send_after(15, event.TimerTick(tag: "batch_b", timestamp: 0)),
+      command.send_after(
+        15,
+        event.Timer(event.TimerEvent(tag: "batch_a", timestamp: 0)),
+      ),
+      command.send_after(
+        15,
+        event.Timer(event.TimerEvent(tag: "batch_b", timestamp: 0)),
+      ),
     ]),
   )
 }
@@ -117,11 +125,11 @@ fn batch_update(
   event: Event,
 ) -> #(BatchModel, command.Command(Event)) {
   case event {
-    event.TimerTick(tag: "batch_a", ..) -> #(
+    event.Timer(event.TimerEvent(tag: "batch_a", ..)) -> #(
       BatchModel(..model, a: True),
       command.none(),
     )
-    event.TimerTick(tag: "batch_b", ..) -> #(
+    event.Timer(event.TimerEvent(tag: "batch_b", ..)) -> #(
       BatchModel(..model, b: True),
       command.none(),
     )
@@ -152,7 +160,7 @@ fn stream_update(
   event: Event,
 ) -> #(StreamModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(target: EventTarget(id: "go", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "go", ..))) -> #(
       model,
       command.stream(
         fn(emit) {
@@ -164,14 +172,14 @@ fn stream_update(
         "chunks",
       ),
     )
-    event.StreamValue(tag: "chunks", value:) -> {
+    event.Stream(event.StreamEvent(tag: "chunks", value:)) -> {
       let assert Ok(s) = dyn_decode.run(value, dyn_decode.string)
       #(
         StreamModel(..model, chunks: list.append(model.chunks, [s])),
         command.none(),
       )
     }
-    event.AsyncResult(tag: "chunks", ..) -> #(
+    event.Async(event.AsyncEvent(tag: "chunks", ..)) -> #(
       StreamModel(..model, done: True),
       command.none(),
     )
@@ -202,9 +210,9 @@ fn error_update(
   event: Event,
 ) -> #(ErrorModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(target: EventTarget(id: "crash", ..)) ->
+    event.Widget(event.Click(target: EventTarget(id: "crash", ..))) ->
       panic as "intentional test crash"
-    event.WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "inc", ..))) -> #(
       ErrorModel(count: model.count + 1),
       command.none(),
     )
@@ -236,11 +244,11 @@ fn view_crash_update(
   event: Event,
 ) -> #(ViewCrashModel, command.Command(Event)) {
   case event {
-    event.WidgetClick(target: EventTarget(id: "crash_view", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "crash_view", ..))) -> #(
       ViewCrashModel(..model, crash_view: True),
       command.none(),
     )
-    event.WidgetClick(target: EventTarget(id: "fix_view", ..)) -> #(
+    event.Widget(event.Click(target: EventTarget(id: "fix_view", ..))) -> #(
       ViewCrashModel(crash_view: False, count: model.count + 1),
       command.none(),
     )
@@ -283,7 +291,10 @@ fn done_init() -> #(DoneModel, command.Command(Event)) {
     DoneModel(result: 0),
     command.done(value, fn(d) {
       let assert Ok(n) = dyn_decode.run(d, dyn_decode.int)
-      event.TimerTick(tag: "done:" <> int.to_string(n), timestamp: 0)
+      event.Timer(event.TimerEvent(
+        tag: "done:" <> int.to_string(n),
+        timestamp: 0,
+      ))
     }),
   )
 }
@@ -296,7 +307,7 @@ fn done_update(
   event: Event,
 ) -> #(DoneModel, command.Command(Event)) {
   case event {
-    event.TimerTick(tag: "done:99", ..) -> #(
+    event.Timer(event.TimerEvent(tag: "done:99", ..)) -> #(
       DoneModel(result: 99),
       command.none(),
     )
@@ -332,8 +343,13 @@ pub fn async_completes_and_dispatches_result_test() -> Nil {
   let rt = support.start(async_app(), [])
   support.dispatch_event(
     rt,
-    event.WidgetClick(
-      target: EventTarget(window_id: "main", id: "go", scope: []),
+    event.Widget(
+      event.Click(target: EventTarget(
+        window_id: "main",
+        id: "go",
+        scope: [],
+        full: "go",
+      )),
     ),
   )
   let result = support.await(rt, fn(m) { m.result == 42 }, 500)
@@ -357,8 +373,13 @@ pub fn stream_emits_intermediate_values_test() -> Nil {
   let rt = support.start(stream_app(), [])
   support.dispatch_event(
     rt,
-    event.WidgetClick(
-      target: EventTarget(window_id: "main", id: "go", scope: []),
+    event.Widget(
+      event.Click(target: EventTarget(
+        window_id: "main",
+        id: "go",
+        scope: [],
+        full: "go",
+      )),
     ),
   )
   let result =
@@ -376,15 +397,25 @@ pub fn update_exception_does_not_crash_runtime_test() -> Nil {
     let rt = support.start(error_app(), [])
     support.dispatch_event(
       rt,
-      event.WidgetClick(
-        target: EventTarget(window_id: "main", id: "crash", scope: []),
+      event.Widget(
+        event.Click(target: EventTarget(
+          window_id: "main",
+          id: "crash",
+          scope: [],
+          full: "crash",
+        )),
       ),
     )
     process.sleep(50)
     support.dispatch_event(
       rt,
-      event.WidgetClick(
-        target: EventTarget(window_id: "main", id: "inc", scope: []),
+      event.Widget(
+        event.Click(target: EventTarget(
+          window_id: "main",
+          id: "inc",
+          scope: [],
+          full: "inc",
+        )),
       ),
     )
     let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
@@ -412,15 +443,25 @@ pub fn view_exception_does_not_crash_runtime_test() -> Nil {
     let rt = support.start(view_crash_app(), [])
     support.dispatch_event(
       rt,
-      event.WidgetClick(
-        target: EventTarget(window_id: "main", id: "crash_view", scope: []),
+      event.Widget(
+        event.Click(target: EventTarget(
+          window_id: "main",
+          id: "crash_view",
+          scope: [],
+          full: "crash_view",
+        )),
       ),
     )
     process.sleep(50)
     support.dispatch_event(
       rt,
-      event.WidgetClick(
-        target: EventTarget(window_id: "main", id: "fix_view", scope: []),
+      event.Widget(
+        event.Click(target: EventTarget(
+          window_id: "main",
+          id: "fix_view",
+          scope: [],
+          full: "fix_view",
+        )),
       ),
     )
     let result = support.await(rt, fn(m) { m.count >= 1 }, 500)

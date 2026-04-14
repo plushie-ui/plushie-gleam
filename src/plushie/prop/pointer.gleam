@@ -1,9 +1,8 @@
 //// Pointer type parsing for unified pointer events.
 ////
 //// Provides wire-format parsing for pointer types and buttons.
-//// The PointerType and MouseButton types live in `plushie/event/types`.
 
-import plushie/event/types.{
+import plushie/event.{
   type MouseButton, type PointerType, BackButton, ForwardButton, LeftButton,
   MiddleButton, Mouse, OtherButton, Pen, RightButton, Touch,
 }

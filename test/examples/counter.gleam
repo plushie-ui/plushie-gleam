@@ -5,8 +5,7 @@ import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, WidgetClick}
-import plushie/event/types.{EventTarget}
+import plushie/event.{type Event, Click, EventTarget, Widget}
 import plushie/node.{type Node}
 import plushie/prop/padding
 import plushie/ui
@@ -24,11 +23,11 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(target: EventTarget(id: "inc", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "inc", ..))) -> #(
       Model(count: model.count + 1),
       command.none(),
     )
-    WidgetClick(target: EventTarget(id: "dec", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "dec", ..))) -> #(
       Model(count: model.count - 1),
       command.none(),
     )

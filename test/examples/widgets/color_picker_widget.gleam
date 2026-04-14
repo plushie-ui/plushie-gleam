@@ -7,7 +7,7 @@
 ////     color_picker_widget.widget("picker")
 ////
 //// Events:
-//// - `WidgetEvent(kind: "change")` with data containing hue, saturation, value
+//// - `Widget(CustomWidget(kind: "change"))` with data containing hue, saturation, value
 
 import gleam/dict
 import gleam/dynamic
@@ -16,9 +16,9 @@ import gleam/int
 import gleam/list
 import plushie/canvas/shape
 import plushie/event.{
-  type Event, WidgetElementKeyPress, WidgetMove, WidgetPress, WidgetRelease,
+  type Event, type Modifiers, CustomWidget, EventTarget, LeftButton, Move, Press,
+  Release, Widget,
 }
-import plushie/event/types.{type Modifiers, EventTarget, LeftButton}
 import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
 import plushie/prop/a11y
 import plushie/prop/length
@@ -95,7 +95,7 @@ fn cy() -> Float {
 
 fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState) {
   case event {
-    WidgetPress(x: x, y: y, button: LeftButton, ..) -> {
+    Widget(Press(x: x, y: y, button: LeftButton, ..)) -> {
       let dx = x -. cx()
       let dy = y -. cy()
       let dist = sqrt(dx *. dx +. dy *. dy)
@@ -117,7 +117,7 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
       }
     }
 
-    WidgetMove(x: x, y: y, ..) ->
+    Widget(Move(x: x, y: y, ..)) ->
       case state.drag {
         DragRing -> {
           let new_state =
@@ -131,21 +131,19 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
         DragNone -> #(Consumed, state)
       }
 
-    WidgetRelease(..) -> #(UpdateState, PickerState(..state, drag: DragNone))
+    Widget(Release(..)) -> #(UpdateState, PickerState(..state, drag: DragNone))
 
-    WidgetElementKeyPress(
+    Widget(CustomWidget(
+      kind: "element_key_press",
       target: EventTarget(id: "hue-cursor", ..),
-      key: key,
-      modifiers: mods,
       ..,
-    ) -> handle_hue_key(key, mods, state)
+    )) -> #(Consumed, state)
 
-    WidgetElementKeyPress(
+    Widget(CustomWidget(
+      kind: "element_key_press",
       target: EventTarget(id: "sv-cursor", ..),
-      key: key,
-      modifiers: mods,
       ..,
-    ) -> handle_sv_key(key, mods, state)
+    )) -> #(Consumed, state)
 
     _ -> #(Consumed, state)
   }

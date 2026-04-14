@@ -21,9 +21,8 @@ import plushie
 import plushie/app
 import plushie/command
 import plushie/event.{
-  type Event, WidgetClick, WidgetEvent, WidgetInput, WidgetSubmit,
+  type Event, Click, CustomWidget, EventTarget, Input, Submit, Widget,
 }
-import plushie/event/types.{EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/prop/a11y
 import plushie/prop/alignment
@@ -184,12 +183,12 @@ fn init() {
 fn update(model: Model, event: Event) {
   case event {
     // StarRating emits "select" with data = star count (1-5).
-    WidgetEvent(
+    Widget(CustomWidget(
       kind: "select",
       target: EventTarget(id: "stars", ..),
       data: data,
       ..,
-    ) -> {
+    )) -> {
       let stars = coerce_int(data)
       #(
         Model(
@@ -203,23 +202,23 @@ fn update(model: Model, event: Event) {
 
     // ThemeToggle emits "toggle" with data = Bool.
     // Animation is managed internally by the widget.
-    WidgetEvent(
+    Widget(CustomWidget(
       kind: "toggle",
       target: EventTarget(id: "theme-toggle", ..),
       data: data,
       ..,
-    ) -> {
+    )) -> {
       let dark = coerce_bool(data)
       #(Model(..model, dark_mode: dark), command.none())
     }
 
     // Review form inputs: clear errors on change
-    WidgetInput(target: EventTarget(id: "review-name", ..), value: v) -> #(
+    Widget(Input(target: EventTarget(id: "review-name", ..), value: v)) -> #(
       Model(..model, review_name: v, errors: dict.delete(model.errors, "name")),
       command.none(),
     )
 
-    WidgetInput(target: EventTarget(id: "review-comment", ..), value: v) -> #(
+    Widget(Input(target: EventTarget(id: "review-comment", ..), value: v)) -> #(
       Model(
         ..model,
         review_comment: v,
@@ -228,12 +227,12 @@ fn update(model: Model, event: Event) {
       command.none(),
     )
 
-    WidgetClick(target: EventTarget(id: "submit-review", ..)) -> #(
+    Widget(Click(target: EventTarget(id: "submit-review", ..))) -> #(
       submit_review(model),
       command.none(),
     )
 
-    WidgetSubmit(target: EventTarget(id: "review-name", ..), ..) -> #(
+    Widget(Submit(target: EventTarget(id: "review-name", ..), ..)) -> #(
       submit_review(model),
       command.none(),
     )
