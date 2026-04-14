@@ -12,7 +12,7 @@ import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
 import plushie/node.{
-  type Node, type PropValue, DictVal, IntVal, Node, NullVal, OpaqueVal,
+  type Node, type PropValue, DictVal, IntVal, ListVal, Node, NullVal, OpaqueVal,
   StringVal,
 }
 import plushie/patch.{
@@ -617,11 +617,18 @@ fn diff_props(
   case old_props == new_props {
     True -> []
     False -> {
-      // Changed or added keys.
+      // Changed or added keys. For list props where every element has
+      // an "id" key, use ID-keyed comparison to avoid false positives
+      // from reconstructed lists with identical content.
       let changed =
         dict.fold(new_props, dict.new(), fn(acc, k, v) {
           case dict.get(old_props, k) {
             Ok(old_v) if old_v == v -> acc
+            Ok(old_v) ->
+              case lists_equal_by_id(old_v, v) {
+                True -> acc
+                False -> dict.insert(acc, k, v)
+              }
             _ -> dict.insert(acc, k, v)
           }
         })
@@ -642,6 +649,63 @@ fn diff_props(
         False -> [UpdateProps(path:, props: merged)]
       }
     }
+  }
+}
+
+/// Second-chance comparison for list props where every element is a
+/// DictVal with an "id" key. Compares elements by ID to detect that
+/// a reconstructed list hasn't actually changed. This avoids resending
+/// large shape lists when the canvas re-renders without shape changes.
+fn lists_equal_by_id(old: PropValue, new: PropValue) -> Bool {
+  case old, new {
+    ListVal(old_items), ListVal(new_items) ->
+      case list.length(old_items) == list.length(new_items) {
+        False -> False
+        True -> {
+          // Check every element is a DictVal with an "id" key
+          let all_have_ids =
+            list.all(old_items, has_id_key) && list.all(new_items, has_id_key)
+          case all_have_ids {
+            False -> False
+            True -> {
+              // Build ID -> value map for old, then check each new element
+              let old_by_id =
+                list.fold(old_items, dict.new(), fn(acc, item) {
+                  case item {
+                    DictVal(d) ->
+                      case dict.get(d, "id") {
+                        Ok(StringVal(id)) -> dict.insert(acc, id, item)
+                        _ -> acc
+                      }
+                    _ -> acc
+                  }
+                })
+              list.all(new_items, fn(item) {
+                case item {
+                  DictVal(d) ->
+                    case dict.get(d, "id") {
+                      Ok(StringVal(id)) ->
+                        case dict.get(old_by_id, id) {
+                          Ok(old_item) -> old_item == item
+                          Error(_) -> False
+                        }
+                      _ -> False
+                    }
+                  _ -> False
+                }
+              })
+            }
+          }
+        }
+      }
+    _, _ -> False
+  }
+}
+
+fn has_id_key(item: PropValue) -> Bool {
+  case item {
+    DictVal(d) -> dict.has_key(d, "id")
+    _ -> False
   }
 }
 
