@@ -293,7 +293,7 @@ pub fn diff_different_root_kind_produces_replace_node_test() {
   should.equal(ops, [ReplaceNode(path: [], node: new)])
 }
 
-pub fn diff_reordered_children_produces_replace_node_test() {
+pub fn diff_reordered_children_produces_remove_insert_test() {
   let a = node.new("a", "text")
   let b = node.new("b", "text")
   let old =
@@ -304,7 +304,14 @@ pub fn diff_reordered_children_produces_replace_node_test() {
     |> node.with_children([b, a])
 
   let ops = tree.diff(old, new)
-  should.equal(ops, [ReplaceNode(path: [], node: new)])
+  // Reorder produces remove + insert ops instead of ReplaceNode.
+  // This preserves the parent node's props.
+  should.equal(ops, [
+    RemoveChild(path: [], index: 1),
+    RemoveChild(path: [], index: 0),
+    InsertChild(path: [], index: 0, node: b),
+    InsertChild(path: [], index: 1, node: a),
+  ])
 }
 
 pub fn diff_multiple_changes_test() {

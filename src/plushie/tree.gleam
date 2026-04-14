@@ -600,16 +600,11 @@ fn diff_node(old: Node, new: Node, path: List(Int)) -> List(PatchOp) {
       case old.kind != new.kind {
         // Different type -> full replacement
         True -> [ReplaceNode(path:, node: new)]
-        False ->
-          case children_reordered(old.children, new.children) {
-            // Reordered children -> full replacement
-            True -> [ReplaceNode(path:, node: new)]
-            False -> {
-              let prop_ops = diff_props(old.props, new.props, path)
-              let child_ops = diff_children(old.children, new.children, path)
-              list.append(prop_ops, child_ops)
-            }
-          }
+        False -> {
+          let prop_ops = diff_props(old.props, new.props, path)
+          let child_ops = diff_children(old.children, new.children, path)
+          list.append(prop_ops, child_ops)
+        }
       }
   }
 }
@@ -748,8 +743,38 @@ fn diff_children(
   // Fast path: same ID sequence -> pairwise diff only
   case old_ids == new_ids {
     True -> diff_children_pairwise(old_children, new_children, parent_path, 0)
-    False -> diff_children_general(old_children, new_children, parent_path)
+    False ->
+      case children_reordered(old_children, new_children) {
+        // Reorder: remove all old children and insert all new ones.
+        // This preserves the parent's props (unlike ReplaceNode) and
+        // produces correct results for any reorder pattern.
+        True -> diff_children_reorder(old_children, new_children, parent_path)
+        // No reorder: same relative order with adds/removes
+        False -> diff_children_general(old_children, new_children, parent_path)
+      }
   }
+}
+
+/// Reorder path: children have common elements in different order.
+/// Remove all old children (descending) then insert all new ones
+/// (ascending). This preserves the parent node's props while
+/// correctly handling any permutation.
+fn diff_children_reorder(
+  old_children: List(Node),
+  new_children: List(Node),
+  parent_path: List(Int),
+) -> List(PatchOp) {
+  let old_count = list.length(old_children)
+  // Remove all old children in descending order
+  let remove_ops =
+    list.index_map(old_children, fn(_, idx) { old_count - 1 - idx })
+    |> list.map(fn(idx) { RemoveChild(path: parent_path, index: idx) })
+  // Insert all new children in ascending order
+  let insert_ops =
+    list.index_map(new_children, fn(child, idx) {
+      InsertChild(path: parent_path, index: idx, node: child)
+    })
+  list.append(remove_ops, insert_ops)
 }
 
 /// Fast path: children have the same ID sequence. Walk both lists
