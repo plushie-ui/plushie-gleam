@@ -36,6 +36,7 @@ pub type ShapeOpt {
   Font(String)
   AlignX(String)
   AlignY(String)
+  /// Rotation angle in degrees.
   Rotation(Float)
   /// Horizontal position offset (used by group shapes, desugared to translate).
   X(Float)
@@ -259,24 +260,24 @@ pub fn translate(x: Float, y: Float) -> PropValue {
   )
 }
 
-/// Create a rotation transform. Accepts degrees; converted to radians
-/// for the wire format. Use `rotate_radians` for explicit radian input.
+/// Create a rotation transform. Angle in degrees (wire protocol convention).
 pub fn rotate(degrees: Float) -> PropValue {
-  let radians = degrees *. 3.14159265358979 /. 180.0
   DictVal(
     dict.from_list([
       #("type", StringVal("rotate")),
-      #("angle", FloatVal(radians)),
+      #("angle", FloatVal(degrees)),
     ]),
   )
 }
 
 /// Create a rotation transform from a radian angle.
+/// Converts to degrees for the wire format.
 pub fn rotate_radians(radians: Float) -> PropValue {
+  let degrees = radians *. 180.0 /. 3.14159265358979
   DictVal(
     dict.from_list([
       #("type", StringVal("rotate")),
-      #("angle", FloatVal(radians)),
+      #("angle", FloatVal(degrees)),
     ]),
   )
 }

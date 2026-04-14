@@ -75,6 +75,10 @@ export function mathSin(x) {
   return Math.sin(x);
 }
 
+export function mathCos(x) {
+  return Math.cos(x);
+}
+
 export function mathPow(base, exponent) {
   return Math.pow(base, exponent);
 }

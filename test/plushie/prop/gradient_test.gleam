@@ -6,11 +6,12 @@ import plushie/prop/gradient
 
 pub fn linear_constructs_test() {
   let g =
-    gradient.linear(45.0, [
+    gradient.linear(#(0.0, 0.0), #(100.0, 100.0), [
       gradient.stop(0.0, color.black),
       gradient.stop(1.0, color.white),
     ])
-  should.equal(g.angle, 45.0)
+  should.equal(g.from, #(0.0, 0.0))
+  should.equal(g.to, #(100.0, 100.0))
   should.equal(g.stops, [
     gradient.GradientStop(0.0, color.black),
     gradient.GradientStop(1.0, color.white),
@@ -19,7 +20,7 @@ pub fn linear_constructs_test() {
 
 pub fn to_prop_value_encodes_correctly_test() {
   let g =
-    gradient.linear(90.0, [
+    gradient.linear(#(0.0, 0.0), #(100.0, 0.0), [
       gradient.stop(0.0, color.red),
       gradient.stop(1.0, color.blue),
     ])
@@ -28,22 +29,13 @@ pub fn to_prop_value_encodes_correctly_test() {
     DictVal(
       dict.from_list([
         #("type", StringVal("linear")),
-        #("angle", FloatVal(90.0)),
+        #("start", ListVal([FloatVal(0.0), FloatVal(0.0)])),
+        #("end", ListVal([FloatVal(100.0), FloatVal(0.0)])),
         #(
           "stops",
           ListVal([
-            DictVal(
-              dict.from_list([
-                #("offset", FloatVal(0.0)),
-                #("color", StringVal("#ff0000")),
-              ]),
-            ),
-            DictVal(
-              dict.from_list([
-                #("offset", FloatVal(1.0)),
-                #("color", StringVal("#0000ff")),
-              ]),
-            ),
+            ListVal([FloatVal(0.0), StringVal("#ff0000")]),
+            ListVal([FloatVal(1.0), StringVal("#0000ff")]),
           ]),
         ),
       ]),
@@ -52,13 +44,14 @@ pub fn to_prop_value_encodes_correctly_test() {
 }
 
 pub fn empty_stops_test() {
-  let g = gradient.linear(0.0, [])
+  let g = gradient.linear(#(0.0, 0.0), #(1.0, 0.0), [])
   let result = gradient.to_prop_value(g)
   let expected =
     DictVal(
       dict.from_list([
         #("type", StringVal("linear")),
-        #("angle", FloatVal(0.0)),
+        #("start", ListVal([FloatVal(0.0), FloatVal(0.0)])),
+        #("end", ListVal([FloatVal(1.0), FloatVal(0.0)])),
         #("stops", ListVal([])),
       ]),
     )
@@ -70,4 +63,15 @@ pub fn stop_uses_color_type_test() {
   let s = gradient.stop(0.5, c)
   should.equal(s.offset, 0.5)
   should.equal(s.color, c)
+}
+
+pub fn linear_from_angle_horizontal_test() {
+  let g =
+    gradient.linear_from_angle(0.0, [
+      gradient.stop(0.0, color.black),
+      gradient.stop(1.0, color.white),
+    ])
+  // 0 degrees: left to right (cos=1, sin=0)
+  should.equal(g.from.1, 0.5)
+  should.equal(g.to.1, 0.5)
 }

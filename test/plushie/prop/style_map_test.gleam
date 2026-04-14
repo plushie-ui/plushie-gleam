@@ -17,7 +17,7 @@ pub fn background_sets_prop_test() {
 
 pub fn gradient_background_sets_prop_test() {
   let g =
-    gradient.linear(90.0, [
+    gradient.linear(#(0.0, 0.0), #(0.0, 100.0), [
       gradient.stop(0.0, color.red),
       gradient.stop(1.0, color.blue),
     ])

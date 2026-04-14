@@ -92,6 +92,11 @@ pub fn stable_hash_key(value: a) -> String
 @external(javascript, "../plushie_platform_ffi.mjs", "mathSin")
 pub fn math_sin(x: Float) -> Float
 
+/// Cosine function.
+@external(erlang, "math", "cos")
+@external(javascript, "../plushie_platform_ffi.mjs", "mathCos")
+pub fn math_cos(x: Float) -> Float
+
 /// Power function.
 @external(erlang, "math", "pow")
 @external(javascript, "../plushie_platform_ffi.mjs", "mathPow")

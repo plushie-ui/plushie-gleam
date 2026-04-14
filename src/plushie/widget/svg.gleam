@@ -60,7 +60,7 @@ pub fn content_fit(s: Svg, cf: ContentFit) -> Svg {
   Svg(..s, content_fit: option.Some(cf))
 }
 
-/// Set the rotation angle in radians.
+/// Set the rotation angle in degrees.
 pub fn rotation(s: Svg, r: Float) -> Svg {
   Svg(..s, rotation: option.Some(r))
 }

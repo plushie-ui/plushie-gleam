@@ -60,42 +60,42 @@ pub fn to_prop_value(font: Font) -> PropValue {
   }
 }
 
-/// Convert a FontWeight to its wire-format string representation.
+/// Convert a FontWeight to its wire-format string (snake_case).
 pub fn weight_to_string(w: FontWeight) -> String {
   case w {
-    Thin -> "Thin"
-    ExtraLight -> "ExtraLight"
-    Light -> "Light"
-    Normal -> "Normal"
-    Medium -> "Medium"
-    SemiBold -> "SemiBold"
-    Bold -> "Bold"
-    ExtraBold -> "ExtraBold"
-    Black -> "Black"
+    Thin -> "thin"
+    ExtraLight -> "extra_light"
+    Light -> "light"
+    Normal -> "normal"
+    Medium -> "medium"
+    SemiBold -> "semi_bold"
+    Bold -> "bold"
+    ExtraBold -> "extra_bold"
+    Black -> "black"
   }
 }
 
-/// Convert a FontStyle to its wire-format string representation.
+/// Convert a FontStyle to its wire-format string (snake_case).
 pub fn style_to_string(s: FontStyle) -> String {
   case s {
-    NormalStyle -> "Normal"
-    Italic -> "Italic"
-    Oblique -> "Oblique"
+    NormalStyle -> "normal"
+    Italic -> "italic"
+    Oblique -> "oblique"
   }
 }
 
-/// Convert a FontStretch to its wire-format string representation.
+/// Convert a FontStretch to its wire-format string (snake_case).
 pub fn stretch_to_string(s: FontStretch) -> String {
   case s {
-    UltraCondensed -> "UltraCondensed"
-    ExtraCondensed -> "ExtraCondensed"
-    Condensed -> "Condensed"
-    SemiCondensed -> "SemiCondensed"
-    NormalStretch -> "Normal"
-    SemiExpanded -> "SemiExpanded"
-    Expanded -> "Expanded"
-    ExtraExpanded -> "ExtraExpanded"
-    UltraExpanded -> "UltraExpanded"
+    UltraCondensed -> "ultra_condensed"
+    ExtraCondensed -> "extra_condensed"
+    Condensed -> "condensed"
+    SemiCondensed -> "semi_condensed"
+    NormalStretch -> "normal"
+    SemiExpanded -> "semi_expanded"
+    Expanded -> "expanded"
+    ExtraExpanded -> "extra_expanded"
+    UltraExpanded -> "ultra_expanded"
   }
 }
 

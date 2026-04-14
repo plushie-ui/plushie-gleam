@@ -73,7 +73,7 @@ pub fn content_fit(img: Image, cf: ContentFit) -> Image {
   Image(..img, content_fit: option.Some(cf))
 }
 
-/// Set the rotation angle in radians.
+/// Set the rotation angle in degrees.
 pub fn rotation(img: Image, r: Float) -> Image {
   Image(..img, rotation: option.Some(r))
 }
