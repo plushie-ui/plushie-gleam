@@ -726,14 +726,14 @@ pub fn decode_duplicate_node_ids_json_test() {
 
 pub fn decode_command_error_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"widget_command\",\"value\":{\"reason\":\"unknown_node\",\"node_id\":\"g1\",\"family\":\"set_value\",\"message\":\"no widget handles node `g1`\"}}"
+    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"widget_command\",\"value\":{\"reason\":\"unknown_node\",\"id\":\"g1\",\"family\":\"set_value\",\"message\":\"no widget handles node `g1`\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.CommandError(reason:, node_id:, family:, message:, ..) -> {
+    event.CommandError(reason:, id:, family:, message:, ..) -> {
       should.equal(reason, "unknown_node")
-      should.equal(node_id, Some("g1"))
+      should.equal(id, Some("g1"))
       should.equal(family, Some("set_value"))
       should.equal(message, Some("no widget handles node `g1`"))
     }

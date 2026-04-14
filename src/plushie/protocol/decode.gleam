@@ -1524,7 +1524,7 @@ fn decode_error_event(
       Ok(
         EventMessage(event.CommandError(
           reason: get_string_or(value, "reason", ""),
-          node_id: get_optional_string(value, "node_id"),
+          id: get_optional_string(value, "id"),
           family: get_optional_string(value, "family"),
           widget_type: get_optional_string(value, "widget_type"),
           message: get_optional_string(value, "message"),

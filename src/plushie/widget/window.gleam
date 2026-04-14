@@ -20,6 +20,7 @@ pub opaque type Window {
     id: String,
     children: List(Node),
     title: Option(String),
+    size: Option(#(Float, Float)),
     width: Option(Length),
     height: Option(Length),
     position: Option(#(Float, Float)),
@@ -48,6 +49,7 @@ pub fn new(id: String) -> Window {
     id:,
     children: [],
     title: None,
+    size: None,
     width: None,
     height: None,
     position: None,
@@ -75,9 +77,9 @@ pub fn title(w: Window, t: String) -> Window {
   Window(..w, title: option.Some(t))
 }
 
-/// Set both width and height at once.
-pub fn size(w: Window, width: Length, height: Length) -> Window {
-  Window(..w, width: option.Some(width), height: option.Some(height))
+/// Set the initial window size in pixels.
+pub fn size(w: Window, width: Float, height: Float) -> Window {
+  Window(..w, size: option.Some(#(width, height)))
 }
 
 /// Set the width.
@@ -191,7 +193,7 @@ pub fn a11y(w: Window, a: A11y) -> Window {
 /// Option type for window properties.
 pub type Opt {
   Title(String)
-  Size(Length, Length)
+  Size(Float, Float)
   Width(Length)
   Height(Length)
   Position(Float, Float)
@@ -260,6 +262,7 @@ pub fn build(w: Window) -> Node {
   let props =
     dict.new()
     |> build.put_optional_string("title", w.title)
+    |> build.put_optional("size", w.size, pair_to_prop_value)
     |> build.put_optional("width", w.width, length.to_prop_value)
     |> build.put_optional("height", w.height, length.to_prop_value)
     |> build.put_optional("position", w.position, pair_to_prop_value)

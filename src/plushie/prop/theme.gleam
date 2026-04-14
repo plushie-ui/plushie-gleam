@@ -56,7 +56,7 @@ pub fn custom(name: String, palette: Dict(String, PropValue)) -> Theme {
 fn validate_custom_keys(palette: Dict(String, PropValue)) -> Nil {
   let valid = valid_custom_key_set()
   dict.each(palette, fn(key, _) {
-    case key == "base" || set.contains(valid, key) {
+    case key == "base" || key == "name" || set.contains(valid, key) {
       True -> Nil
       False ->
         panic as {

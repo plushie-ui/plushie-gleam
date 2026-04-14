@@ -335,7 +335,7 @@ pub type Event {
   /// Renderer error for a widget command.
   CommandError(
     reason: String,
-    node_id: Option(String),
+    id: Option(String),
     family: Option(String),
     widget_type: Option(String),
     message: Option(String),

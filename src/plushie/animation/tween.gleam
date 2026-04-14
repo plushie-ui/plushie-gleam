@@ -113,7 +113,7 @@ pub fn advance(anim: Animation, now: Int) -> Animation {
   case anim.started_at {
     None -> anim
     Some(started) -> {
-      let elapsed = now - started
+      let elapsed = int.max(0, now - started)
       let cycle_duration = anim.duration_ms
       case cycle_duration <= 0 {
         True -> Animation(..anim, value: anim.to, finished: True)

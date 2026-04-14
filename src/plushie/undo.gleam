@@ -15,6 +15,7 @@
 //// entry. The merged entry keeps the original undo function (so one undo
 //// reverses all coalesced changes) and composes the apply functions.
 
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import plushie/platform
@@ -67,7 +68,16 @@ pub fn new(model: model) -> UndoStack(model) {
 }
 
 /// Create a new undo stack with a custom maximum size.
+/// The max_size must be a positive integer.
 pub fn new_with_max_size(model: model, max_size: Int) -> UndoStack(model) {
+  case max_size > 0 {
+    True -> Nil
+    False ->
+      panic as {
+        "undo max_size must be a positive integer, got "
+        <> int.to_string(max_size)
+      }
+  }
   UndoStack(
     current: model,
     undo_stack: [],

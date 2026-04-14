@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{BoolVal, FloatVal, Node, StringVal}
+import plushie/node.{BoolVal, FloatVal, ListVal, Node, StringVal}
 import plushie/prop/length
 import plushie/widget/window
 
@@ -21,14 +21,26 @@ pub fn title_sets_string_prop_test() {
   assert dict.get(node.props, "title") == Ok(StringVal("My App"))
 }
 
-pub fn size_sets_width_and_height_test() {
-  let node =
+pub fn size_sets_pixel_dimensions_test() {
+  let n =
     window.new("main")
-    |> window.size(length.Fixed(800.0), length.Fixed(600.0))
+    |> window.size(800.0, 600.0)
     |> window.build()
 
-  assert dict.get(node.props, "width") == Ok(FloatVal(800.0))
-  assert dict.get(node.props, "height") == Ok(FloatVal(600.0))
+  let assert Ok(ListVal([FloatVal(w), FloatVal(h)])) = dict.get(n.props, "size")
+  assert w == 800.0
+  assert h == 600.0
+}
+
+pub fn width_height_set_layout_dimensions_test() {
+  let n =
+    window.new("main")
+    |> window.width(length.Fill)
+    |> window.height(length.Fixed(400.0))
+    |> window.build()
+
+  assert dict.get(n.props, "width") == Ok(StringVal("fill"))
+  assert dict.get(n.props, "height") == Ok(FloatVal(400.0))
 }
 
 pub fn exit_on_close_request_test() {
