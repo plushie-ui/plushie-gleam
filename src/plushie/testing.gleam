@@ -28,12 +28,14 @@
 ////     should.equal(element.text(el), option.Some("Count: 1"))
 ////     testing.stop(ctx)
 
+import gleam/dict
+import gleam/list
 import gleam/option.{type Option}
 import plushie/app.{type App}
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/platform
-import plushie/testing/backend.{type TestBackend}
+import plushie/testing/backend.{type Selector, type TestBackend}
 import plushie/testing/element.{type Element}
 import plushie/testing/session.{type TestSession}
 
@@ -162,9 +164,89 @@ pub fn select(
 
 // -- Element queries ---------------------------------------------------------
 
-/// Find an element by ID in the context's current tree.
-pub fn find(ctx: TestContext(model), id: String) -> Option(Element) {
-  ctx.backend.find(ctx.session, id)
+/// Find an element by ID or selector string in the context's current tree.
+///
+/// Accepts plain IDs ("save"), scoped IDs ("form/save"),
+/// window-qualified IDs ("main#save"), pseudo-selectors (":focused"),
+/// and attribute selectors ("[role=button]", "[text=Save]").
+pub fn find(ctx: TestContext(model), selector: String) -> Option(Element) {
+  find_by(ctx, backend.parse_selector(selector))
+}
+
+/// Find an element by a typed Selector.
+///
+/// ```gleam
+/// testing.find_by(ctx, backend.ByRole("button"))
+/// testing.find_by(ctx, backend.ByText("Save"))
+/// testing.find_by(ctx, backend.Focused)
+/// ```
+pub fn find_by(ctx: TestContext(model), selector: Selector) -> Option(Element) {
+  let tree = ctx.backend.tree(ctx.session)
+  find_in_tree(tree, selector)
+}
+
+/// Search a tree for an element matching a Selector.
+fn find_in_tree(tree: Node, selector: Selector) -> Option(Element) {
+  case selector {
+    backend.ById(id) -> element.find(in: tree, id:)
+    backend.ByText(text) -> find_by_prop_value(tree, text)
+    backend.ByRole(role) -> find_by_a11y_field(tree, "role", role)
+    backend.ByLabel(label) -> find_by_a11y_field(tree, "label", label)
+    backend.Focused -> find_by_a11y_field(tree, "focused", "true")
+  }
+}
+
+/// Find the first element whose content/label/value/placeholder matches.
+fn find_by_prop_value(tree: Node, text: String) -> Option(Element) {
+  let keys = ["content", "label", "value", "placeholder"]
+  let matches = fn(node: Node) {
+    list.any(keys, fn(key) {
+      case dict.get(node.props, key) {
+        Ok(node.StringVal(v)) -> v == text
+        _ -> False
+      }
+    })
+  }
+  case matches(tree) {
+    True -> option.Some(element.from_node(tree))
+    False ->
+      list.find_map(tree.children, fn(child) {
+        case find_by_prop_value(child, text) {
+          option.Some(el) -> Ok(el)
+          option.None -> Error(Nil)
+        }
+      })
+      |> option.from_result
+  }
+}
+
+/// Find the first element with a matching a11y field value.
+fn find_by_a11y_field(
+  tree: Node,
+  field: String,
+  value: String,
+) -> Option(Element) {
+  let matches = fn(node: Node) {
+    case dict.get(node.props, "a11y") {
+      Ok(node.DictVal(a11y)) ->
+        case dict.get(a11y, field) {
+          Ok(node.StringVal(v)) -> v == value
+          _ -> False
+        }
+      _ -> False
+    }
+  }
+  case matches(tree) {
+    True -> option.Some(element.from_node(tree))
+    False ->
+      list.find_map(tree.children, fn(child) {
+        case find_by_a11y_field(child, field, value) {
+          option.Some(el) -> Ok(el)
+          option.None -> Error(Nil)
+        }
+      })
+      |> option.from_result
+  }
 }
 
 /// Extract text content from an element.
