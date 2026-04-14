@@ -725,7 +725,7 @@ fn decode_widget_sort(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let column = get_string_or(data, "column", "")
   Ok(EventMessage(event.WidgetSort(target:, value: column)))
 }
@@ -734,11 +734,11 @@ fn decode_widget_key_binding(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let binding = case dict.get(data, "binding") {
     Ok(PString(s)) -> s
     _ ->
-      case dict.get(map, "data") {
+      case dict.get(map, "value") {
         Ok(PString(s)) -> s
         _ -> ""
       }
@@ -750,7 +750,7 @@ fn decode_widget_scrolled(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let scroll_data =
     types.ScrollData(
       absolute_x: get_float_or(data, "absolute_x", 0.0),
@@ -768,7 +768,7 @@ fn decode_widget_scrolled(
 fn decode_prop_validation(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = case dict.get(map, "data") {
+  let data = case dict.get(map, "value") {
     Ok(PMap(d)) -> d
     _ -> dict.new()
   }
@@ -796,7 +796,7 @@ fn decode_generic_widget_event(
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
   }
-  let data = case dict.get(map, "data") {
+  let data = case dict.get(map, "value") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
   }
@@ -811,7 +811,7 @@ fn decode_key_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let window_id = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let key = get_string_or(data, "key", "")
   let modified_key = get_string_or(data, "modified_key", key)
   let modifiers = parse_modifiers(map)
@@ -839,7 +839,7 @@ fn decode_key_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let window_id = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let key = get_string_or(data, "key", "")
   let modified_key = get_string_or(data, "modified_key", key)
   let modifiers = parse_modifiers(map)
@@ -877,7 +877,7 @@ fn decode_modifiers_changed(
 fn decode_window_opened(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   use width <- result.try(get_float(data, "width"))
   use height <- result.try(get_float(data, "height"))
@@ -907,7 +907,7 @@ fn decode_window_id_event(
   map: Dict(String, PropValue),
   constructor: fn(String) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   Ok(EventMessage(constructor(window_id)))
 }
@@ -915,7 +915,7 @@ fn decode_window_id_event(
 fn decode_window_resized(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   use width <- result.try(get_float(data, "width"))
   use height <- result.try(get_float(data, "height"))
@@ -925,7 +925,7 @@ fn decode_window_resized(
 fn decode_window_moved(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   use x <- result.try(get_float(data, "x"))
   use y <- result.try(get_float(data, "y"))
@@ -935,7 +935,7 @@ fn decode_window_moved(
 fn decode_window_rescaled(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   use scale_factor <- result.try(get_float(data, "scale_factor"))
   Ok(EventMessage(event.WindowRescaled(window_id:, scale_factor:)))
@@ -945,7 +945,7 @@ fn decode_window_file(
   map: Dict(String, PropValue),
   constructor: fn(String, String) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use window_id <- result.try(get_string(data, "window_id"))
   use path <- result.try(get_string(data, "path"))
   Ok(EventMessage(constructor(window_id, path)))
@@ -985,7 +985,7 @@ fn decode_pointer_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let button = case dict.get(data, "button") {
     Ok(PString(s)) -> pointer.parse_button(s)
     _ -> LeftButton
@@ -1008,7 +1008,7 @@ fn decode_pointer_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let button = case dict.get(data, "button") {
     Ok(PString(s)) -> pointer.parse_button(s)
     _ -> LeftButton
@@ -1031,7 +1031,7 @@ fn decode_pointer_move(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetMove(
       target:,
@@ -1049,7 +1049,7 @@ fn decode_pointer_scroll(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetScroll(
       target:,
@@ -1069,7 +1069,7 @@ fn decode_pointer_double_click(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetDoubleClick(
       target:,
@@ -1085,7 +1085,7 @@ fn decode_widget_resize(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetResize(
       target:,
@@ -1099,7 +1099,7 @@ fn decode_widget_drag(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetDrag(
       target:,
@@ -1115,7 +1115,7 @@ fn decode_widget_drag_end(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   Ok(
     EventMessage(event.WidgetDragEnd(
       target:,
@@ -1129,7 +1129,7 @@ fn decode_transition_complete(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let tag = get_string_or(data, "tag", "")
   let prop = get_string_or(data, "prop", "")
   Ok(EventMessage(event.WidgetTransitionComplete(target:, tag:, prop:)))
@@ -1143,7 +1143,7 @@ fn decode_sub_cursor_moved(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let captured = get_bool_or(map, "captured", False)
   let target = EventTarget(window_id: wid, id: wid, scope: [])
   Ok(
@@ -1223,7 +1223,7 @@ fn decode_sub_wheel_scrolled(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let delta_x = get_float_or(data, "delta_x", 0.0)
   let delta_y = get_float_or(data, "delta_y", 0.0)
   let unit_str = get_string_or(data, "unit", "line")
@@ -1252,7 +1252,7 @@ fn decode_sub_touch_press(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let finger_id = decode_touch_finger(data)
   let captured = get_bool_or(map, "captured", False)
   let target = EventTarget(window_id: wid, id: wid, scope: [])
@@ -1274,7 +1274,7 @@ fn decode_sub_touch_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let finger_id = decode_touch_finger(data)
   let captured = get_bool_or(map, "captured", False)
   let target = EventTarget(window_id: wid, id: wid, scope: [])
@@ -1304,7 +1304,7 @@ fn decode_sub_touch_move(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let finger_id = case dict.get(data, "id") {
     Ok(PInt(n)) -> n
     Ok(PFloat(f)) -> float.round(f)
@@ -1341,7 +1341,7 @@ fn decode_ime_preedit(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let window_id = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let text = get_string_or(data, "text", "")
   let cursor = case dict.get(data, "cursor") {
     Ok(PMap(c)) -> {
@@ -1359,7 +1359,7 @@ fn decode_ime_commit(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let window_id = get_string_or(map, "window_id", "")
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let text = get_string_or(data, "text", "")
   let captured = get_bool_or(map, "captured", False)
   Ok(EventMessage(event.ImeCommit(window_id:, text:, captured:)))
@@ -1380,7 +1380,7 @@ fn decode_ime_closed(
 fn decode_diagnostic(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let level = get_string_or(data, "level", "")
   let element_id = get_string_or(data, "element_id", "")
   let code = get_string_or(data, "code", "")
@@ -1396,7 +1396,7 @@ fn decode_pane_resized(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let split = case dict.get(data, "split") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
@@ -1409,7 +1409,7 @@ fn decode_pane_dragged(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let pane = case dict.get(data, "pane") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
@@ -1438,7 +1438,7 @@ fn decode_pane_simple(
   constructor: fn(EventTarget, Dynamic) -> Event,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let pane = case dict.get(data, "pane") {
     Ok(v) -> prop_to_dynamic(v)
     Error(_) -> dynamic.nil()
@@ -1463,7 +1463,7 @@ fn decode_windowed_target(
 fn decode_animation_frame(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   use timestamp <- result.try(get_int(data, "timestamp"))
   Ok(EventMessage(event.AnimationFrame(timestamp:)))
 }
@@ -1482,7 +1482,7 @@ fn decode_theme_changed(
 fn decode_announce(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "data")
+  let data = get_map(map, "value")
   let text = get_string_or(data, "text", "")
   Ok(EventMessage(event.Announce(text:)))
 }
@@ -1497,33 +1497,41 @@ fn decode_error_event(
   let error_id = get_string_or(map, "id", "")
   case error_id {
     "duplicate_node_ids" -> {
-      let details = case dict.get(map, "data") {
+      let details = case get_value_or_data(map) {
         Ok(v) -> prop_to_dynamic(v)
         Error(_) -> dynamic.nil()
       }
       Ok(EventMessage(event.DuplicateNodeIds(details:)))
     }
     "widget_command" | "extension_command" -> {
-      let data = case dict.get(map, "data") {
-        Ok(PMap(data)) -> data
+      let value = case get_value_or_data(map) {
+        Ok(PMap(m)) -> m
         _ -> dict.new()
       }
       Ok(
         EventMessage(event.CommandError(
-          reason: get_string_or(data, "reason", ""),
-          node_id: get_optional_string(data, "node_id"),
-          family: get_optional_string(data, "family"),
-          widget_type: get_optional_string(data, "widget_type"),
-          message: get_optional_string(data, "message"),
+          reason: get_string_or(value, "reason", ""),
+          node_id: get_optional_string(value, "node_id"),
+          family: get_optional_string(value, "family"),
+          widget_type: get_optional_string(value, "widget_type"),
+          message: get_optional_string(value, "message"),
         )),
       )
     }
     _ -> {
-      let data = case dict.get(map, "data") {
+      let data = case get_value_or_data(map) {
         Ok(v) -> prop_to_dynamic(v)
         Error(_) -> dynamic.nil()
       }
       Ok(EventMessage(event.RendererError(id: error_id, data:)))
     }
+  }
+}
+
+/// Read event payload from "value" (preferred) or "data" (fallback).
+fn get_value_or_data(map: Dict(String, PropValue)) -> Result(PropValue, Nil) {
+  case dict.get(map, "value") {
+    Ok(v) -> Ok(v)
+    Error(_) -> dict.get(map, "data")
   }
 }

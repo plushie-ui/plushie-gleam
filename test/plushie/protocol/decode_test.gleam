@@ -211,7 +211,7 @@ pub fn decode_slide_json_test() {
 
 pub fn decode_key_press_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{\"ctrl\":true,\"shift\":false,\"alt\":false,\"logo\":false,\"command\":false},\"data\":{\"key\":\"s\",\"physical_key\":\"KeyS\",\"location\":\"standard\",\"text\":\"s\",\"repeat\":false}}"
+    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{\"ctrl\":true,\"shift\":false,\"alt\":false,\"logo\":false,\"command\":false},\"value\":{\"key\":\"s\",\"physical_key\":\"KeyS\",\"location\":\"standard\",\"text\":\"s\",\"repeat\":false}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -243,7 +243,7 @@ pub fn decode_key_press_json_test() {
 
 pub fn decode_key_press_numpad_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{},\"data\":{\"key\":\"5\",\"location\":\"numpad\",\"repeat\":true}}"
+    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{},\"value\":{\"key\":\"5\",\"location\":\"numpad\",\"repeat\":true}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -263,7 +263,7 @@ pub fn decode_key_press_numpad_json_test() {
 
 pub fn decode_window_opened_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"window_opened\",\"data\":{\"window_id\":\"main\",\"width\":800.0,\"height\":600.0,\"x\":100.0,\"y\":50.0,\"scale_factor\":2.0}}"
+    "{\"type\":\"event\",\"family\":\"window_opened\",\"value\":{\"window_id\":\"main\",\"width\":800.0,\"height\":600.0,\"x\":100.0,\"y\":50.0,\"scale_factor\":2.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -289,7 +289,7 @@ pub fn decode_window_opened_json_test() {
 
 pub fn decode_window_closed_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"window_closed\",\"data\":{\"window_id\":\"settings\"}}"
+    "{\"type\":\"event\",\"family\":\"window_closed\",\"value\":{\"window_id\":\"settings\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -301,7 +301,7 @@ pub fn decode_window_closed_json_test() {
 
 pub fn decode_window_resized_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"window_resized\",\"data\":{\"window_id\":\"main\",\"width\":1024.0,\"height\":768.0}}"
+    "{\"type\":\"event\",\"family\":\"window_resized\",\"value\":{\"window_id\":\"main\",\"width\":1024.0,\"height\":768.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -408,7 +408,7 @@ pub fn decode_non_map_json_test() {
 
 pub fn decode_cursor_moved_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"cursor_moved\",\"data\":{\"x\":150.5,\"y\":200.0}}"
+    "{\"type\":\"event\",\"family\":\"cursor_moved\",\"value\":{\"x\":150.5,\"y\":200.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -442,7 +442,7 @@ pub fn decode_cursor_left_json_test() {
 
 pub fn decode_wheel_scrolled_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"wheel_scrolled\",\"data\":{\"delta_x\":0.0,\"delta_y\":-3.0,\"unit\":\"line\"}}"
+    "{\"type\":\"event\",\"family\":\"wheel_scrolled\",\"value\":{\"delta_x\":0.0,\"delta_y\":-3.0,\"unit\":\"line\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -470,7 +470,7 @@ pub fn decode_wheel_scrolled_json_test() {
 
 pub fn decode_finger_pressed_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"finger_pressed\",\"data\":{\"id\":1,\"x\":100.0,\"y\":200.0}}"
+    "{\"type\":\"event\",\"family\":\"finger_pressed\",\"value\":{\"id\":1,\"x\":100.0,\"y\":200.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -510,7 +510,7 @@ pub fn decode_all_windows_closed_json_test() {
 
 pub fn decode_animation_frame_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"animation_frame\",\"data\":{\"timestamp\":1234567890}}"
+    "{\"type\":\"event\",\"family\":\"animation_frame\",\"value\":{\"timestamp\":1234567890}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -574,7 +574,7 @@ pub fn decode_json_with_trailing_newline_test() {
 
 pub fn decode_key_press_captured_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"key_press\",\"captured\":true,\"modifiers\":{},\"data\":{\"key\":\"a\",\"modified_key\":\"A\"}}"
+    "{\"type\":\"event\",\"family\":\"key_press\",\"captured\":true,\"modifiers\":{},\"value\":{\"key\":\"a\",\"modified_key\":\"A\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -590,7 +590,7 @@ pub fn decode_key_press_captured_json_test() {
 
 pub fn decode_key_press_modified_key_fallback_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{},\"data\":{\"key\":\"Enter\"}}"
+    "{\"type\":\"event\",\"family\":\"key_press\",\"modifiers\":{},\"value\":{\"key\":\"Enter\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -605,7 +605,7 @@ pub fn decode_key_press_modified_key_fallback_json_test() {
 
 pub fn decode_cursor_moved_captured_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"cursor_moved\",\"captured\":true,\"data\":{\"x\":10.0,\"y\":20.0}}"
+    "{\"type\":\"event\",\"family\":\"cursor_moved\",\"captured\":true,\"value\":{\"x\":10.0,\"y\":20.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -627,7 +627,7 @@ pub fn decode_cursor_entered_captured_json_test() {
 
 pub fn decode_finger_pressed_captured_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"finger_pressed\",\"captured\":true,\"data\":{\"id\":0,\"x\":5.0,\"y\":5.0}}"
+    "{\"type\":\"event\",\"family\":\"finger_pressed\",\"captured\":true,\"value\":{\"id\":0,\"x\":5.0,\"y\":5.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -652,7 +652,7 @@ pub fn decode_ime_opened_captured_json_test() {
 
 pub fn decode_wheel_scrolled_captured_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"wheel_scrolled\",\"captured\":true,\"data\":{\"delta_x\":1.0,\"delta_y\":2.0,\"unit\":\"pixel\"}}"
+    "{\"type\":\"event\",\"family\":\"wheel_scrolled\",\"captured\":true,\"value\":{\"delta_x\":1.0,\"delta_y\":2.0,\"unit\":\"pixel\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -694,7 +694,7 @@ pub fn decode_hello_transport_explicit_json_test() {
 
 pub fn decode_announce_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"announce\",\"data\":{\"text\":\"Item added\"}}"
+    "{\"type\":\"event\",\"family\":\"announce\",\"value\":{\"text\":\"Item added\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -710,7 +710,7 @@ pub fn decode_announce_json_test() {
 
 pub fn decode_duplicate_node_ids_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"duplicate_node_ids\",\"data\":{\"ids\":[\"btn1\"]}}"
+    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"duplicate_node_ids\",\"value\":{\"ids\":[\"btn1\"]}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -722,7 +722,7 @@ pub fn decode_duplicate_node_ids_json_test() {
 
 pub fn decode_command_error_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"widget_command\",\"data\":{\"reason\":\"unknown_node\",\"node_id\":\"g1\",\"family\":\"set_value\",\"message\":\"no widget handles node `g1`\"}}"
+    "{\"type\":\"event\",\"family\":\"error\",\"id\":\"widget_command\",\"value\":{\"reason\":\"unknown_node\",\"node_id\":\"g1\",\"family\":\"set_value\",\"message\":\"no widget handles node `g1`\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -743,7 +743,7 @@ pub fn decode_command_error_json_test() {
 
 pub fn decode_window_opened_no_position_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"window_opened\",\"data\":{\"window_id\":\"main\",\"width\":800.0,\"height\":600.0,\"scale_factor\":1.0}}"
+    "{\"type\":\"event\",\"family\":\"window_opened\",\"value\":{\"window_id\":\"main\",\"width\":800.0,\"height\":600.0,\"scale_factor\":1.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -758,7 +758,7 @@ pub fn decode_window_opened_no_position_json_test() {
 
 pub fn decode_window_opened_nested_position_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"window_opened\",\"data\":{\"window_id\":\"w\",\"width\":400.0,\"height\":300.0,\"position\":{\"x\":10.0,\"y\":20.0}}}"
+    "{\"type\":\"event\",\"family\":\"window_opened\",\"value\":{\"window_id\":\"w\",\"width\":400.0,\"height\":300.0,\"position\":{\"x\":10.0,\"y\":20.0}}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -777,7 +777,7 @@ pub fn decode_window_opened_nested_position_json_test() {
 
 pub fn decode_widget_right_press_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"press\",\"id\":\"main#area1\",\"data\":{\"button\":\"right\"}}"
+    "{\"type\":\"event\",\"family\":\"press\",\"id\":\"main#area1\",\"value\":{\"button\":\"right\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -797,7 +797,7 @@ pub fn decode_widget_right_press_json_test() {
 
 pub fn decode_widget_double_click_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"double_click\",\"id\":\"main#area2\",\"data\":{}}"
+    "{\"type\":\"event\",\"family\":\"double_click\",\"id\":\"main#area2\",\"value\":{}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -945,7 +945,7 @@ pub fn decode_canvas_blurred_json_test() {
 
 pub fn decode_diagnostic_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"diagnostic\",\"data\":{\"level\":\"warning\",\"element_id\":\"btn-1\",\"code\":\"W001\",\"message\":\"overlapping hit regions\"}}"
+    "{\"type\":\"event\",\"family\":\"diagnostic\",\"value\":{\"level\":\"warning\",\"element_id\":\"btn-1\",\"code\":\"W001\",\"message\":\"overlapping hit regions\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
@@ -966,7 +966,7 @@ pub fn decode_diagnostic_json_test() {
 
 pub fn decode_canvas_scroll_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"canvas_scroll\",\"id\":\"main#canvas1\",\"data\":{\"x\":100.0,\"y\":200.0,\"delta_x\":0.0,\"delta_y\":-3.0}}"
+    "{\"type\":\"event\",\"family\":\"canvas_scroll\",\"id\":\"main#canvas1\",\"value\":{\"x\":100.0,\"y\":200.0,\"delta_x\":0.0,\"delta_y\":-3.0}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
