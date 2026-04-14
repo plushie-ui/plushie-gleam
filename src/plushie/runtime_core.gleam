@@ -76,6 +76,14 @@ fn collect_window_ids(node: Node, acc: List(String)) -> List(String) {
   list.fold(node.children, acc, fn(a, child) { collect_window_ids(child, a) })
 }
 
+/// Derive both the widget registry and window set in a single tree walk.
+/// Avoids walking the tree twice when both are needed.
+pub fn derive_all(tree_node: Node) -> #(widget.Registry, Set(String)) {
+  let registry = widget.derive_registry(tree_node)
+  let windows = detect_windows(tree_node)
+  #(registry, windows)
+}
+
 /// Window prop keys tracked for lifecycle sync. When a window node
 /// has any of these props and they change, an update op is sent.
 pub const window_prop_keys = [

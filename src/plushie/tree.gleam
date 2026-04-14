@@ -591,21 +591,26 @@ pub fn diff(old: Node, new: Node) -> List(PatchOp) {
 }
 
 fn diff_node(old: Node, new: Node, path: List(Int)) -> List(PatchOp) {
-  // Different type -> full replacement at this path.
-  case old.kind != new.kind {
-    True -> [ReplaceNode(path:, node: new)]
-    False -> {
-      // Check if common elements maintain relative order. If not,
-      // the reorder requires a full replacement at this node.
-      case children_reordered(old.children, new.children) {
+  // Structural equality: when old and new are the same term (e.g. from
+  // memo cache hit), the subtree is unchanged. On BEAM, == on identical
+  // references is O(1).
+  case old == new {
+    True -> []
+    False ->
+      case old.kind != new.kind {
+        // Different type -> full replacement
         True -> [ReplaceNode(path:, node: new)]
-        False -> {
-          let prop_ops = diff_props(old.props, new.props, path)
-          let child_ops = diff_children(old.children, new.children, path)
-          list.append(prop_ops, child_ops)
-        }
+        False ->
+          case children_reordered(old.children, new.children) {
+            // Reordered children -> full replacement
+            True -> [ReplaceNode(path:, node: new)]
+            False -> {
+              let prop_ops = diff_props(old.props, new.props, path)
+              let child_ops = diff_children(old.children, new.children, path)
+              list.append(prop_ops, child_ops)
+            }
+          }
       }
-    }
   }
 }
 
