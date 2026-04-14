@@ -392,9 +392,7 @@ pub fn assert_not_exists(
     option.None -> ctx
     option.Some(_) ->
       panic as {
-        "Expected element '"
-        <> selector
-        <> "' to not exist, but it was found"
+        "Expected element '" <> selector <> "' to not exist, but it was found"
       }
   }
 }

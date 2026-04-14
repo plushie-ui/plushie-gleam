@@ -83,6 +83,22 @@ export function mathPow(base, exponent) {
   return Math.pow(base, exponent);
 }
 
+export function mathSqrt(x) {
+  return Math.sqrt(x);
+}
+
+export function mathAtan2(y, x) {
+  return Math.atan2(y, x);
+}
+
+export function mathPi() {
+  return Math.PI;
+}
+
+export function mathFloor(x) {
+  return Math.floor(x);
+}
+
 // -- Environment and filesystem -----------------------------------------------
 // These functions degrade gracefully in browser contexts where
 // process.env and fs are not available.

@@ -24,17 +24,20 @@
 import gleam/list
 
 /// Read a string value from the [plushie] section of gleam.toml.
+@target(erlang)
 pub fn get_string(key: String) -> Result(String, Nil) {
   read_config_string(key)
 }
 
 /// Read the artifacts list from gleam.toml.
 /// Returns the list of artifact names (e.g. ["bin", "wasm"]).
+@target(erlang)
 pub fn get_artifacts() -> Result(List(String), Nil) {
   read_config_list("artifacts")
 }
 
 /// Check if a specific artifact is configured.
+@target(erlang)
 pub fn wants_artifact(name: String) -> Result(Bool, Nil) {
   case get_artifacts() {
     Ok(artifacts) -> Ok(list.contains(artifacts, name))

@@ -1,13 +1,21 @@
 //// Async fetch example: demonstrates loading state pattern with
 //// command.async for background work.
 
+@target(erlang)
 import gleam/dynamic
+@target(erlang)
 import gleam/dynamic/decode
+@target(erlang)
 import gleam/erlang/process
+@target(erlang)
 import gleam/io
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/app
+@target(erlang)
 import plushie/command
+@target(erlang)
 import plushie/event.{type Event, Async, AsyncEvent, Click, EventTarget, Widget}
 import plushie/node.{type Node}
 import plushie/prop/color
@@ -29,10 +37,12 @@ pub type Status {
   Failed(String)
 }
 
+@target(erlang)
 fn init() {
   #(Model(status: Idle, data: ""), command.none())
 }
 
+@target(erlang)
 fn update(model: Model, event: Event) {
   case event {
     Widget(Click(target: EventTarget(id: "fetch", ..))) -> #(
@@ -54,12 +64,14 @@ fn update(model: Model, event: Event) {
   }
 }
 
+@target(erlang)
 fn fetch_data() -> dynamic.Dynamic {
   // Simulate async work; in a real app this would be an HTTP request
   process.sleep(500)
   dynamic.string("Hello from the async world")
 }
 
+@target(erlang)
 fn view(model: Model) -> Node {
   ui.window("main", [window.Title("Async Fetch")], [
     ui.column(
@@ -78,6 +90,7 @@ fn view(model: Model) -> Node {
   ])
 }
 
+@target(erlang)
 fn status_message(model: Model) -> Node {
   case model.status {
     Idle ->
@@ -95,15 +108,18 @@ fn status_message(model: Model) -> Node {
   }
 }
 
+@target(erlang)
 fn hex(s: String) -> color.Color {
   let assert Ok(c) = color.from_hex(s)
   c
 }
 
+@target(erlang)
 pub fn app() {
   app.simple(init, update, view)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

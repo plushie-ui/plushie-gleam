@@ -4,40 +4,64 @@
 //// keyboard adjustment, focus tracking). The app receives semantic "change"
 //// events with the current HSV values.
 
+@target(erlang)
 import examples/widgets/color_picker_widget
+@target(erlang)
 import gleam/dynamic/decode
+@target(erlang)
 import gleam/float
+@target(erlang)
 import gleam/int
+@target(erlang)
 import gleam/io
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/app
+@target(erlang)
 import plushie/command
+@target(erlang)
 import plushie/event.{type Event, CustomWidget, EventTarget, Widget}
+@target(erlang)
 import plushie/node.{type Node}
+@target(erlang)
 import plushie/prop/a11y
+@target(erlang)
 import plushie/prop/border
+@target(erlang)
 import plushie/prop/color
+@target(erlang)
 import plushie/prop/length
+@target(erlang)
 import plushie/prop/padding
+@target(erlang)
 import plushie/ui
+@target(erlang)
 import plushie/widget/column
+@target(erlang)
 import plushie/widget/container
+@target(erlang)
 import plushie/widget/row
+@target(erlang)
 import plushie/widget/text
+@target(erlang)
 import plushie/widget/window
 
 // -- Model --------------------------------------------------------------------
 
+@target(erlang)
 pub type Model {
   Model(hue: Float, saturation: Float, value: Float)
 }
 
+@target(erlang)
 fn init() {
   #(Model(hue: 0.0, saturation: 1.0, value: 1.0), command.none())
 }
 
 // -- Update -------------------------------------------------------------------
 
+@target(erlang)
 fn update(model: Model, event: Event) {
   case event {
     // ColorPickerWidget emits "change" with { hue, saturation, value }.
@@ -59,6 +83,7 @@ fn update(model: Model, event: Event) {
   }
 }
 
+@target(erlang)
 fn hsv_decoder() -> decode.Decoder(#(Float, Float, Float)) {
   use h <- decode.field("hue", decode.float)
   use s <- decode.field("saturation", decode.float)
@@ -68,6 +93,7 @@ fn hsv_decoder() -> decode.Decoder(#(Float, Float, Float)) {
 
 // -- Color conversion (for display only) --------------------------------------
 
+@target(erlang)
 fn hsv_to_hex(h: Float, s: Float, v: Float) -> String {
   let h = fmod(h, 360.0)
   let h = case h <. 0.0 {
@@ -95,6 +121,7 @@ fn hsv_to_hex(h: Float, s: Float, v: Float) -> String {
   "#" <> hex_byte(r) <> hex_byte(g) <> hex_byte(b)
 }
 
+@target(erlang)
 fn hex_byte(n: Int) -> String {
   let n = int.max(0, int.min(255, n))
   let high = n / 16
@@ -102,6 +129,7 @@ fn hex_byte(n: Int) -> String {
   hex_digit(high) <> hex_digit(low)
 }
 
+@target(erlang)
 fn hex_digit(n: Int) -> String {
   case n {
     0 -> "0"
@@ -123,10 +151,12 @@ fn hex_digit(n: Int) -> String {
   }
 }
 
+@target(erlang)
 fn fmod(a: Float, b: Float) -> Float {
   a -. b *. float_floor(a /. b)
 }
 
+@target(erlang)
 fn float_abs(x: Float) -> Float {
   case x <. 0.0 {
     True -> 0.0 -. x
@@ -136,6 +166,7 @@ fn float_abs(x: Float) -> Float {
 
 // -- View ---------------------------------------------------------------------
 
+@target(erlang)
 fn view(model: Model) -> Node {
   let hex = hsv_to_hex(model.hue, model.saturation, model.value)
   let h_int = float.round(model.hue)
@@ -204,6 +235,7 @@ fn view(model: Model) -> Node {
 
 // -- Helpers ------------------------------------------------------------------
 
+@target(erlang)
 fn unsafe_color(hex: String) -> color.Color {
   let assert Ok(c) = color.from_hex(hex)
   c
@@ -212,14 +244,17 @@ fn unsafe_color(hex: String) -> color.Color {
 // -- FFI (Erlang math) --------------------------------------------------------
 
 @external(erlang, "math", "floor")
+@external(javascript, "../../plushie_platform_ffi.mjs", "mathFloor")
 fn float_floor(x: Float) -> Float
 
 // -- Entry point --------------------------------------------------------------
 
+@target(erlang)
 pub fn app() {
   app.simple(init, update, view)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

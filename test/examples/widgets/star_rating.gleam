@@ -326,10 +326,13 @@ fn range(from: Int, to: Int) -> List(Int) {
 // -- FFI (Erlang math) --------------------------------------------------------
 
 @external(erlang, "math", "cos")
+@external(javascript, "../../../plushie_platform_ffi.mjs", "mathCos")
 fn cos(x: Float) -> Float
 
 @external(erlang, "math", "sin")
+@external(javascript, "../../../plushie_platform_ffi.mjs", "mathSin")
 fn sin(x: Float) -> Float
 
 @external(erlang, "math", "pi")
+@external(javascript, "../../../plushie_platform_ffi.mjs", "mathPi")
 fn pi() -> Float

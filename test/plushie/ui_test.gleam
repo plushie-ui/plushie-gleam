@@ -4,6 +4,7 @@ import plushie/node.{BoolVal, FloatVal, IntVal, StringVal}
 import plushie/prop/alignment
 import plushie/prop/length
 import plushie/prop/padding
+import plushie/tree
 import plushie/ui
 import plushie/widget/button
 import plushie/widget/column
@@ -172,23 +173,23 @@ pub fn nested_tree_test() {
 }
 
 pub fn find_delegates_to_tree_test() {
-  let tree =
+  let root =
     ui.window("main", [], [
       ui.text_("lbl", "Hi"),
     ])
 
-  assert option.is_some(ui.find(tree, "lbl"))
-  assert ui.find(tree, "nope") == option.None
+  assert option.is_some(tree.find(root, "lbl"))
+  assert tree.find(root, "nope") == option.None
 }
 
 pub fn exists_delegates_to_tree_test() {
-  let tree =
+  let root =
     ui.window("main", [], [
       ui.button_("btn", "Go"),
     ])
 
-  assert ui.exists(tree, "btn") == True
-  assert ui.exists(tree, "nope") == False
+  assert tree.exists(root, "btn") == True
+  assert tree.exists(root, "nope") == False
 }
 
 pub fn container_creates_container_node_test() {

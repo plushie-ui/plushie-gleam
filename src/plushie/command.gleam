@@ -19,6 +19,11 @@ pub type Command(msg) {
   /// Execute multiple commands in list order.
   Batch(commands: List(Command(msg)))
   /// Deliver an already-resolved value through update via the mapper.
+  ///
+  /// Note: the mapper function runs when the event is processed, which
+  /// may be after further state changes. Do not capture the current
+  /// model in the closure; use the model available in your update
+  /// function instead.
   Done(value: Dynamic, mapper: fn(Dynamic) -> msg)
   /// Run a function on a background process. The result is delivered
   /// as an `AsyncResult` event identified by `tag`. Starting a new
@@ -236,6 +241,11 @@ pub fn batch(commands: List(Command(msg))) -> Command(msg) {
 /// Wrap an already-resolved value and deliver it through update via
 /// the mapper function. Useful for lifting pure values into the
 /// command pipeline.
+///
+/// Note: the mapper function runs when the event is processed, which
+/// may be after further state changes. Do not capture the current
+/// model in the closure; use the model available in your update
+/// function instead.
 pub fn done(value: Dynamic, mapper: fn(Dynamic) -> msg) -> Command(msg) {
   Done(value:, mapper:)
 }

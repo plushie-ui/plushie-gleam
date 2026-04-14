@@ -3,7 +3,7 @@
 //// Plushie supports two kinds of custom widgets:
 ////
 //// - **Native widgets**: backed by a Rust crate implementing the
-////   `WidgetExtension` trait. The crate is compiled into the plushie
+////   `PlushieWidget` trait. The crate is compiled into the plushie
 ////   binary, and the widget communicates via the standard wire protocol.
 ////
 //// - **Composite widgets**: pure Gleam widgets that compose built-in

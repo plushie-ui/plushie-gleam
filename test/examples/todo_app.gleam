@@ -7,9 +7,11 @@
 //// - Filter buttons with conditional list rendering
 
 import gleam/int
+@target(erlang)
 import gleam/io
 import gleam/list
 import gleam/string
+@target(erlang)
 import plushie
 import plushie/app
 import plushie/command
@@ -172,6 +174,7 @@ pub fn app() {
   app.simple(init, update, view)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

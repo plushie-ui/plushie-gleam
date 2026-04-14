@@ -81,8 +81,11 @@ fn run_script(path: String, app: App(model, Event)) -> Result(Nil, Nil) {
 }
 
 fn discover_scripts(_dir: String) -> List(String) {
-  // TODO: use file system to find .plushie files recursively.
-  // For now, callers should pass explicit paths.
+  // Known limitation: automatic discovery of .plushie files is not
+  // implemented. Gleam has no built-in recursive directory traversal,
+  // and adding FFI for this is not worthwhile given the narrow use
+  // case. Callers should pass explicit paths to script.run/2 instead
+  // of relying on empty-path auto-discovery.
   []
 }
 

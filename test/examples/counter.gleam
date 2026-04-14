@@ -1,7 +1,9 @@
 //// Counter example: demonstrates the basic plushie app pattern.
 
 import gleam/int
+@target(erlang)
 import gleam/io
+@target(erlang)
 import plushie
 import plushie/app
 import plushie/command
@@ -55,6 +57,7 @@ pub fn app() {
   app.simple(init, update, view)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

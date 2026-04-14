@@ -173,15 +173,17 @@ pub fn emit_none(kind: String) -> EventAction {
 
 // -- Placeholder node --------------------------------------------------------
 
-/// Metadata key marking a node as a widget placeholder.
-/// Stripped during normalization; never reaches the wire.
-const meta_key = "__widget__"
+/// Single metadata key for all widget data. Holds a WidgetMeta packed
+/// as a PropValue. Stripped during normalization; never reaches the wire.
+const widget_meta_key = "__widget__"
 
-/// Metadata key carrying the widget's encoded props.
-const props_key = "__widget_props__"
-
-/// Metadata key carrying the widget's state (post-normalization).
-const state_key = "__widget_state__"
+/// Packed widget metadata stored under a single meta key.
+/// The fields are type-erased PropValues wrapping the original typed
+/// values via identity coercion. State is None on initial placeholders
+/// (before normalization) and Some after render_placeholder attaches it.
+pub opaque type WidgetMeta {
+  WidgetMeta(def: PropValue, props: PropValue, state: Option(PropValue))
+}
 
 /// Build a placeholder node for a widget.
 ///
@@ -191,11 +193,13 @@ const state_key = "__widget_state__"
 pub fn build(def: WidgetDef(state, props), id: String, props: props) -> Node {
   // Store the def and props in the meta field (not props).
   // Meta is never sent to the renderer or included in tree diffs.
-  let meta =
-    dict.from_list([
-      #(meta_key, to_dynamic_prop(def)),
-      #(props_key, to_dynamic_prop(props)),
-    ])
+  let wm =
+    WidgetMeta(
+      def: to_dynamic_prop(def),
+      props: to_dynamic_prop(props),
+      state: None,
+    )
+  let meta = dict.from_list([#(widget_meta_key, to_dynamic_prop(wm))])
   Node(id:, kind: "canvas", props: dict.new(), children: [], meta:)
 }
 
@@ -216,6 +220,9 @@ pub fn set_a11y(node: Node, accessibility: A11y) -> Node {
 
 /// Attach an event rate limit to a widget placeholder.
 /// Forwarded to the rendered output automatically.
+///
+/// A rate of zero means "track only, never emit": the renderer
+/// tracks the event source but suppresses delivery entirely.
 pub fn set_event_rate(node: Node, rate: Int) -> Node {
   Node(..node, props: dict.insert(node.props, "event_rate", node.IntVal(rate)))
 }
@@ -287,9 +294,9 @@ pub fn make_entry(
 
 // -- Normalization support ---------------------------------------------------
 
-/// Check if a node is a widget placeholder (has metadata props).
+/// Check if a node is a widget placeholder (has widget metadata).
 pub fn is_placeholder(node: Node) -> Bool {
-  dict.has_key(node.meta, meta_key)
+  dict.has_key(node.meta, widget_meta_key)
 }
 
 /// Render a widget placeholder using the registry.
@@ -304,8 +311,9 @@ pub fn render_placeholder(
   local_id: String,
   registry: Registry,
 ) -> Option(#(Node, RegistryEntry)) {
-  case dict.get(node.meta, meta_key), dict.get(node.meta, props_key) {
-    Ok(def_prop), Ok(props_prop) -> {
+  case dict.get(node.meta, widget_meta_key) {
+    Ok(meta_prop) -> {
+      let wm: WidgetMeta = from_dynamic_prop(meta_prop)
       let key = widget_key(window_id, scoped_id)
       // Look up existing state or create initial
       let entry = case dict.get(registry, key) {
@@ -313,16 +321,14 @@ pub fn render_placeholder(
           // Update the entry with fresh def and props from the
           // placeholder while keeping existing state
           rebuild_entry(
-            from_dynamic_prop(def_prop),
-            from_dynamic_prop(props_prop),
+            from_dynamic_prop(wm.def),
+            from_dynamic_prop(wm.props),
             coerce_from_dynamic(existing.state),
           )
         }
         Error(_) -> {
           // New widget: create entry with initial state
-          let def = from_dynamic_prop(def_prop)
-          let props = from_dynamic_prop(props_prop)
-          init_entry(def, props)
+          init_entry(from_dynamic_prop(wm.def), from_dynamic_prop(wm.props))
         }
       }
 
@@ -333,16 +339,18 @@ pub fn render_placeholder(
       // Attach metadata to the rendered node for registry derivation.
       // Use the scoped_id as the node ID (it was already computed by
       // normalize). Keep the rendered node's kind and children.
-      let widget_meta =
-        dict.from_list([
-          #(meta_key, def_prop),
-          #(props_key, props_prop),
-          #(state_key, to_dynamic_prop(entry.state)),
-        ])
-      let final_node = Node(..rendered, id: scoped_id, meta: widget_meta)
+      let updated_wm =
+        WidgetMeta(
+          def: wm.def,
+          props: wm.props,
+          state: Some(to_dynamic_prop(entry.state)),
+        )
+      let final_meta =
+        dict.from_list([#(widget_meta_key, to_dynamic_prop(updated_wm))])
+      let final_node = Node(..rendered, id: scoped_id, meta: final_meta)
       Some(#(final_node, entry))
     }
-    _, _ -> None
+    Error(_) -> None
   }
 }
 
@@ -361,21 +369,23 @@ fn derive_from_node(node: Node, window_id: String, acc: Registry) -> Registry {
     _ -> window_id
   }
 
-  let acc = case
-    dict.get(node.meta, meta_key),
-    dict.get(node.meta, props_key),
-    dict.get(node.meta, state_key)
-  {
-    Ok(def_prop), Ok(props_prop), Ok(state_prop) -> {
-      let entry =
-        rebuild_entry(
-          from_dynamic_prop(def_prop),
-          from_dynamic_prop(props_prop),
-          from_dynamic_prop(state_prop),
-        )
-      dict.insert(acc, widget_key(current_window_id, node.id), entry)
+  let acc = case dict.get(node.meta, widget_meta_key) {
+    Ok(meta_prop) -> {
+      let wm: WidgetMeta = from_dynamic_prop(meta_prop)
+      case wm.state {
+        Some(state_prop) -> {
+          let entry =
+            rebuild_entry(
+              from_dynamic_prop(wm.def),
+              from_dynamic_prop(wm.props),
+              from_dynamic_prop(state_prop),
+            )
+          dict.insert(acc, widget_key(current_window_id, node.id), entry)
+        }
+        None -> acc
+      }
     }
-    _, _, _ -> acc
+    Error(_) -> acc
   }
 
   list.fold(node.children, acc, fn(acc, child) {
@@ -874,8 +884,10 @@ fn rebuild_entry(def: a, props: b, state: c) -> RegistryEntry {
 /// in a single registry. Safety relies on two invariants:
 ///
 /// 1. coerce_to_prop/coerce_from_prop round-trip: a value stored via
-///    coerce_to_prop in render_placeholder is recovered via
-///    coerce_from_prop in derive_registry within the same tree.
+///    to_dynamic_prop in build/render_placeholder is recovered via
+///    from_dynamic_prop in derive_registry within the same tree.
+///    The WidgetMeta record travels through the tree as a single
+///    coerced PropValue under one meta key.
 ///
 /// 2. coerce/coerce_from_dynamic recover values stored by make_entry:
 ///    the WidgetDef, props, and state are coerced to Dynamic on

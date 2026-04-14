@@ -182,6 +182,9 @@ pub opaque type BridgeState {
     heartbeat_interval_ms: Option(Int),
     /// Whether the iostream adapter process is alive (iostream transport only).
     iostream_alive: Bool,
+    /// When True, the next eol fragment is the tail of a dropped
+    /// oversized message. Skip its decode and clear the flag.
+    discard_next_eol: Bool,
   )
 }
 
@@ -425,6 +428,7 @@ fn make_state(
       TransportIoStream(..) -> True
       _ -> False
     },
+    discard_next_eol: False,
   )
 }
 
@@ -730,6 +734,7 @@ fn handle_message(
                       port: None,
                       awaiting_resync: True,
                       json_buffer: <<>>,
+                      discard_next_eol: False,
                     ),
                   )
                 }
@@ -875,6 +880,7 @@ fn do_flush_queued(state: BridgeState, queue: List(BitArray)) -> BridgeState {
   }
 }
 
+@target(erlang)
 /// Reset the heartbeat watchdog timer. Called on every incoming
 /// renderer message. Cancels the existing timer and starts a new one.
 fn reset_heartbeat(state: BridgeState) -> BridgeState {
@@ -896,6 +902,7 @@ fn reset_heartbeat(state: BridgeState) -> BridgeState {
   }
 }
 
+@target(erlang)
 fn calculate_backoff(base: Int, attempt: Int) -> Int {
   let delay = float.truncate(int.to_float(base) *. pow2_float(attempt))
   case delay > max_backoff_ms {
@@ -941,17 +948,24 @@ fn handle_line_data(
   line_data: renderer_port.LineData,
 ) -> BridgeState {
   case line_data {
-    renderer_port.Eol(data:) -> {
-      let line = bit_array.append(state.json_buffer, data)
-      let byte_size = bit_array.byte_size(line)
-      telemetry.execute(
-        ["plushie", "bridge", "receive"],
-        dict.from_list([#("byte_size", dynamic.int(byte_size))]),
-        dict.new(),
-      )
-      let new_state = BridgeState(..state, json_buffer: <<>>)
-      dispatch_decoded(new_state, line)
-    }
+    renderer_port.Eol(data:) ->
+      case state.discard_next_eol {
+        True ->
+          // This eol fragment is the tail of a dropped oversized message.
+          // Discard it and reset the flag for the next message.
+          BridgeState(..state, json_buffer: <<>>, discard_next_eol: False)
+        False -> {
+          let line = bit_array.append(state.json_buffer, data)
+          let byte_size = bit_array.byte_size(line)
+          telemetry.execute(
+            ["plushie", "bridge", "receive"],
+            dict.from_list([#("byte_size", dynamic.int(byte_size))]),
+            dict.new(),
+          )
+          let new_state = BridgeState(..state, json_buffer: <<>>)
+          dispatch_decoded(new_state, line)
+        }
+      }
     renderer_port.Noeol(data:) -> {
       let new_buffer = bit_array.append(state.json_buffer, data)
       case bit_array.byte_size(new_buffer) > max_json_buffer_size {
@@ -959,7 +973,7 @@ fn handle_line_data(
           platform.log_warning(
             "plushie bridge: JSON buffer exceeded 64 MiB, dropping message",
           )
-          BridgeState(..state, json_buffer: <<>>)
+          BridgeState(..state, json_buffer: <<>>, discard_next_eol: True)
         }
         False -> BridgeState(..state, json_buffer: new_buffer)
       }

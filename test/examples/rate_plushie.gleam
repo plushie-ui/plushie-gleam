@@ -17,6 +17,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/string
+@target(erlang)
 import plushie
 import plushie/app
 import plushie/command
@@ -560,9 +561,11 @@ fn hex(s: String) -> color.Color {
 // canvas_widget definitions and know the exact runtime type.
 
 @external(erlang, "plushie_ffi", "identity")
+@external(javascript, "../../plushie_platform_ffi.mjs", "identity")
 fn coerce_int(a: Dynamic) -> Int
 
 @external(erlang, "plushie_ffi", "identity")
+@external(javascript, "../../plushie_platform_ffi.mjs", "identity")
 fn coerce_bool(a: Dynamic) -> Bool
 
 // -- Entry point --------------------------------------------------------------
@@ -572,6 +575,7 @@ pub fn app() {
   |> app.with_subscriptions(subscribe)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

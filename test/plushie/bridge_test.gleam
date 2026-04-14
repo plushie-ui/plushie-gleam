@@ -5,18 +5,23 @@
 //// create a bridge with a controllable data path, then verify
 //// message delivery and queueing semantics.
 
+@target(erlang)
 import gleam/erlang/process
+@target(erlang)
 import gleeunit/should
+@target(erlang)
 import plushie/bridge.{
   type BridgeMessage, type IoStreamMessage, IoStreamBridge, IoStreamSend,
   ResyncComplete, Send, SendTransient, Shutdown,
 }
+@target(erlang)
 import plushie/protocol
 
 // -- Helpers ------------------------------------------------------------------
 
 /// Start a bridge with iostream transport and return the bridge subject
 /// plus a way to receive what the bridge sends.
+@target(erlang)
 fn start_iostream_bridge() -> #(
   process.Subject(BridgeMessage),
   process.Subject(IoStreamMessage),
@@ -42,6 +47,7 @@ fn start_iostream_bridge() -> #(
 }
 
 /// Collect all IoStreamSend messages from the adapter subject.
+@target(erlang)
 fn collect_sent(
   adapter: process.Subject(IoStreamMessage),
   acc: List(BitArray),
@@ -55,6 +61,7 @@ fn collect_sent(
 
 // -- Tests --------------------------------------------------------------------
 
+@target(erlang)
 pub fn send_delivers_when_port_ready_test() {
   let #(bridge, adapter, _runtime) = start_iostream_bridge()
   let data = <<"hello":utf8>>
@@ -68,6 +75,7 @@ pub fn send_delivers_when_port_ready_test() {
   process.send(bridge, Shutdown)
 }
 
+@target(erlang)
 pub fn send_transient_delivers_when_port_ready_test() {
   let #(bridge, adapter, _runtime) = start_iostream_bridge()
   let data = <<"transient":utf8>>
@@ -80,6 +88,7 @@ pub fn send_transient_delivers_when_port_ready_test() {
   process.send(bridge, Shutdown)
 }
 
+@target(erlang)
 pub fn send_transient_queued_during_resync_test() {
   // We can't easily simulate a PortExit with iostream transport,
   // but we can test the ResyncComplete flush path by verifying
@@ -100,6 +109,7 @@ pub fn send_transient_queued_during_resync_test() {
   process.send(bridge, Shutdown)
 }
 
+@target(erlang)
 pub fn resync_complete_is_accepted_test() {
   // Verify ResyncComplete doesn't crash the bridge
   let #(bridge, _adapter, _runtime) = start_iostream_bridge()

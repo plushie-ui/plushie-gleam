@@ -239,4 +239,5 @@ fn set_radius(shape_val: PropValue, r: Float) -> PropValue {
 }
 
 @external(erlang, "math", "pi")
+@external(javascript, "../../../plushie_platform_ffi.mjs", "mathPi")
 fn pi() -> Float

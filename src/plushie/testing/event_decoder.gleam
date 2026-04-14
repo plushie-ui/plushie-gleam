@@ -142,35 +142,21 @@ pub fn decode_test_event(
     "cursor_entered" -> {
       let wid = result.unwrap(window_id, "")
       Ok(
-        event.Widget(
-          event.Enter(
-            target: EventTarget(
-              window_id: wid,
-              id: wid,
-              scope: [],
-              full: wid,
-            ),
-            x: None,
-            y: None,
-          ),
-        ),
+        event.Widget(event.Enter(
+          target: EventTarget(window_id: wid, id: wid, scope: [], full: wid),
+          x: None,
+          y: None,
+        )),
       )
     }
     "cursor_left" -> {
       let wid = result.unwrap(window_id, "")
       Ok(
-        event.Widget(
-          event.Exit(
-            target: EventTarget(
-              window_id: wid,
-              id: wid,
-              scope: [],
-              full: wid,
-            ),
-            x: None,
-            y: None,
-          ),
-        ),
+        event.Widget(event.Exit(
+          target: EventTarget(window_id: wid, id: wid, scope: [], full: wid),
+          x: None,
+          y: None,
+        )),
       )
     }
     "button_pressed" -> {

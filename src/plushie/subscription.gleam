@@ -179,6 +179,9 @@ pub fn on_event() -> Subscription {
 /// Set the max_rate on a renderer subscription. The renderer coalesces
 /// events beyond this rate (events per second). Has no effect on timer
 /// subscriptions.
+///
+/// A rate of zero means "track only, never emit": the renderer
+/// tracks the event source but suppresses delivery entirely.
 pub fn set_max_rate(sub: Subscription, rate: Int) -> Subscription {
   case sub {
     Every(..) -> sub

@@ -9,7 +9,8 @@
 #   1. gleam format --check
 #   2. gleam build (BEAM target)
 #   3. gleam build --target=javascript (JS/WASM target)
-#   4. gleam test (BEAM)
+#   4. gleam test (BEAM, mock backend)
+#   5. gleam test (BEAM, headless backend)
 
 set -euo pipefail
 
@@ -47,5 +48,7 @@ else
 fi
 
 run_step "gleam test"
+
+run_step "PLUSHIE_TEST_BACKEND=headless gleam test"
 
 echo -e "\n${green}All checks passed.${reset}"

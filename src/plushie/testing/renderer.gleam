@@ -395,12 +395,7 @@ pub fn paste(
   selector: String,
   text: String,
 ) -> Nil {
-  interact(
-    subject,
-    "paste",
-    Some(selector),
-    dict.from_list([#("text", text)]),
-  )
+  interact(subject, "paste", Some(selector), dict.from_list([#("text", text)]))
 }
 
 @target(erlang)

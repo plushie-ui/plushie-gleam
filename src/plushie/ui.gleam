@@ -7,11 +7,9 @@
 
 import gleam/dict
 import gleam/dynamic.{type Dynamic}
-import gleam/option.{type Option}
 import plushie/node.{type Node}
 import plushie/prop/length.{type Length}
 import plushie/prop/theme.{type Theme}
-import plushie/tree
 import plushie/widget/button
 import plushie/widget/canvas
 import plushie/widget/checkbox
@@ -377,15 +375,3 @@ pub fn memo(key: String, dependency: a, content: fn() -> Node) -> Node {
 @external(erlang, "plushie_ffi", "identity")
 @external(javascript, "../plushie_platform_ffi.mjs", "identity")
 fn coerce(value: a) -> Dynamic
-
-// --- Tree query delegates ----------------------------------------------------
-
-/// Search the tree for a node with the given ID. Returns None if not found.
-pub fn find(tree_node: Node, id: String) -> Option(Node) {
-  tree.find(tree_node, id)
-}
-
-/// Check whether a node with the given ID exists in the tree.
-pub fn exists(tree_node: Node, id: String) -> Bool {
-  tree.exists(tree_node, id)
-}

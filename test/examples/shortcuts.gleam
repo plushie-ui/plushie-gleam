@@ -4,10 +4,12 @@
 //// and key module constants for pattern matching.
 
 import gleam/int
+@target(erlang)
 import gleam/io
 import gleam/list
 import gleam/option
 import gleam/string
+@target(erlang)
 import plushie
 import plushie/app
 import plushie/command
@@ -146,6 +148,7 @@ pub fn app() {
   |> app.with_subscriptions(subscribe)
 }
 
+@target(erlang)
 pub fn main() {
   case plushie.start(app(), plushie.default_start_opts()) {
     Ok(rt) -> plushie.wait(rt)

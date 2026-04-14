@@ -1,6 +1,10 @@
 //// Data query pipeline for filtering, searching, sorting, and
 //// paginating in-memory record collections.
 ////
+//// Each pipeline step (filter, search, sort, page) creates an
+//// intermediate copy of the data list. For very large datasets,
+//// consider combining operations or using a different data structure.
+////
 //// Apply a chain of query options to transform a list:
 ////
 //// ```gleam

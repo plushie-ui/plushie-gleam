@@ -52,6 +52,8 @@ import plushie/protocol/encode
 @target(erlang)
 import plushie/subscription.{type Subscription}
 @target(erlang)
+import plushie/telemetry
+@target(erlang)
 import plushie/tree
 
 // -- Public types ------------------------------------------------------------
@@ -1435,7 +1437,17 @@ fn sync_after_render(
     True ->
       case old_tree {
         Some(old) -> {
-          let ops = tree.diff(old, new_tree)
+          let ops =
+            telemetry.span(["plushie", "diff"], dict.new(), fn() {
+              tree.diff(old, new_tree)
+            })
+          telemetry.execute(
+            ["plushie", "diff", "complete"],
+            dict.from_list([
+              #("op_count", to_dynamic(list.length(ops))),
+            ]),
+            dict.new(),
+          )
           case ops {
             [] -> Nil
             _ ->
@@ -1499,10 +1511,17 @@ fn sync_after_render(
 /// timer handled by widget) but the app model hasn't changed.
 fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let view_fn = app.get_view(state.app)
-  case platform.try_call(fn() { view_fn(state.model) }) {
+  let meta = dict.new()
+  case
+    telemetry.span(["plushie", "view"], meta, fn() {
+      platform.try_call(fn() { view_fn(state.model) })
+    })
+  {
     Ok(new_tree_raw) -> {
       case
-        try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
+        telemetry.span(["plushie", "normalize"], meta, fn() {
+          try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
+        })
       {
         Error(msg) -> {
           platform.log_error(
@@ -1620,8 +1639,13 @@ fn dispatch_update(
   msg: msg,
 ) -> LoopState(model, msg) {
   let update_fn = app.get_update(state.app)
+  let meta = dict.new()
 
-  case platform.try_call(fn() { update_fn(state.model, msg) }) {
+  case
+    telemetry.span(["plushie", "update"], meta, fn() {
+      platform.try_call(fn() { update_fn(state.model, msg) })
+    })
+  {
     Ok(#(new_model, commands)) -> {
       // Execute commands (before view, matching Elixir SDK)
       let state_after_cmds =
@@ -1630,14 +1654,20 @@ fn dispatch_update(
 
       // Render view
       let view_fn = app.get_view(state.app)
-      case platform.try_call(fn() { view_fn(new_model) }) {
+      case
+        telemetry.span(["plushie", "view"], meta, fn() {
+          platform.try_call(fn() { view_fn(new_model) })
+        })
+      {
         Ok(new_tree_raw) -> {
           case
-            try_normalize_view(
-              new_tree_raw,
-              state_after_cmds.cw_registry,
-              state_after_cmds.memo_cache,
-            )
+            telemetry.span(["plushie", "normalize"], meta, fn() {
+              try_normalize_view(
+                new_tree_raw,
+                state_after_cmds.cw_registry,
+                state_after_cmds.memo_cache,
+              )
+            })
           {
             Error(msg) -> {
               platform.log_error(
