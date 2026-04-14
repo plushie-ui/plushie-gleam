@@ -88,6 +88,8 @@ pub type RuntimeMessage {
   GetTree(reply: Subject(Option(Node)))
   /// Query the currently focused widget ID.
   GetFocused(reply: Subject(Option(String)))
+  /// Check if the tree is stale due to consecutive view errors.
+  IsViewDesynced(reply: Subject(Bool))
   /// Register an effect stub with the renderer. The renderer sends
   /// an ack after storing the stub; the reply Subject is notified.
   RegisterEffectStub(
@@ -1037,6 +1039,11 @@ fn handle_message(
 
     GetFocused(reply:) -> {
       process.send(reply, state.focused_widget_id)
+      actor.continue(state)
+    }
+
+    IsViewDesynced(reply:) -> {
+      process.send(reply, state.consecutive_view_errors > 0)
       actor.continue(state)
     }
 

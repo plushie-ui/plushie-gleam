@@ -340,6 +340,18 @@ pub fn get_focused(instance: Instance(_)) -> Result(Option(String), Nil) {
 }
 
 @target(erlang)
+/// Check if the view is desynced (tree stale due to view errors).
+///
+/// Returns True when the view function has failed consecutively and
+/// the tree no longer reflects the current model. Useful in tests
+/// to detect that the UI is frozen.
+pub fn is_view_desynced(instance: Instance(_)) -> Result(Bool, Nil) {
+  let reply = process.new_subject()
+  process.send(instance.runtime, runtime.IsViewDesynced(reply:))
+  process.receive(reply, 5000)
+}
+
+@target(erlang)
 /// Dispatch an event directly to the runtime's message loop.
 ///
 /// Bypasses the bridge/renderer. The event is processed through
