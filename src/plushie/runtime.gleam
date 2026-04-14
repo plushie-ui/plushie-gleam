@@ -86,6 +86,8 @@ pub type RuntimeMessage {
   GetModel(reply: Subject(Dynamic))
   /// Query the current tree (replies with the latest normalized tree).
   GetTree(reply: Subject(Option(Node)))
+  /// Query the currently focused widget ID.
+  GetFocused(reply: Subject(Option(String)))
   /// Register an effect stub with the renderer. The renderer sends
   /// an ack after storing the stub; the reply Subject is notified.
   RegisterEffectStub(
@@ -224,6 +226,10 @@ type LoopState(model, msg) {
     pending_coalesce: Dict(String, Event),
     // Timer for flushing deferred events (zero-delay)
     coalesce_timer: Option(process.Timer),
+    // Widget status tracking for focus state
+    widget_statuses: Dict(String, String),
+    // Currently focused widget ID (tracked from status events)
+    focused_widget_id: Option(String),
   )
 }
 
@@ -330,6 +336,8 @@ fn init_runtime(
       pending_timers: dict.new(),
       pending_coalesce: dict.new(),
       coalesce_timer: None,
+      widget_statuses: dict.new(),
+      focused_widget_id: None,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -394,6 +402,17 @@ fn handle_message(
       ]
       LoopState(..state, prop_warnings: new_warnings)
       |> actor.continue()
+    }
+
+    // Intercept status events for focus tracking before normal dispatch
+    FromBridge(InboundEvent(EventMessage(event.WidgetEvent(
+      kind: "status",
+      target:,
+      value: status_value,
+      ..,
+    )))) -> {
+      let state = track_focus_from_status(state, target, status_value)
+      actor.continue(state)
     }
 
     FromBridge(InboundEvent(EventMessage(ev))) -> {
@@ -1000,6 +1019,11 @@ fn handle_message(
       actor.continue(state)
     }
 
+    GetFocused(reply:) -> {
+      process.send(reply, state.focused_widget_id)
+      actor.continue(state)
+    }
+
     GetPropWarnings(reply:) -> {
       process.send(reply, state.prop_warnings)
       LoopState(..state, prop_warnings: [])
@@ -1132,9 +1156,40 @@ fn erlang_monotonic_time() -> Int
 @external(erlang, "plushie_ffi", "identity")
 fn to_dynamic(value: a) -> Dynamic
 
+@external(erlang, "plushie_ffi", "identity")
+fn coerce_to_string(value: Dynamic) -> String
+
 // -- Event coalescing --------------------------------------------------------
 
 @target(erlang)
+/// Track widget focus state from renderer status events.
+/// Updates widget_statuses and focused_widget_id.
+fn track_focus_from_status(
+  state: LoopState(model, msg),
+  target: event_types.EventTarget,
+  status_value: Dynamic,
+) -> LoopState(model, msg) {
+  let id = target.id
+  // Coerce status value from Dynamic. Status events carry a string.
+  let status = coerce_to_string(status_value)
+  let prev_status = case dict.get(state.widget_statuses, id) {
+    Ok(s) -> s
+    Error(_) -> ""
+  }
+  let widget_statuses = dict.insert(state.widget_statuses, id, status)
+
+  let focused_widget_id = case status {
+    "focused" -> Some(id)
+    _ ->
+      case prev_status == "focused" && state.focused_widget_id == Some(id) {
+        True -> None
+        False -> state.focused_widget_id
+      }
+  }
+
+  LoopState(..state, widget_statuses:, focused_widget_id:)
+}
+
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
 fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {

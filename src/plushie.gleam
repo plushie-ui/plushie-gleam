@@ -329,6 +329,17 @@ pub fn get_tree(instance: Instance(_)) -> Result(Option(node.Node), Nil) {
 }
 
 @target(erlang)
+/// Get the ID of the currently focused widget, or None.
+///
+/// Focus is tracked automatically from renderer status events.
+/// This is a synchronous query to the runtime.
+pub fn get_focused(instance: Instance(_)) -> Result(Option(String), Nil) {
+  let reply = process.new_subject()
+  process.send(instance.runtime, runtime.GetFocused(reply:))
+  process.receive(reply, 5000)
+}
+
+@target(erlang)
 /// Dispatch an event directly to the runtime's message loop.
 ///
 /// Bypasses the bridge/renderer. The event is processed through
