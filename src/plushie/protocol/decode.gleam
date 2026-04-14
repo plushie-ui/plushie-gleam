@@ -1645,9 +1645,7 @@ fn decode_windowed_target(
 ) -> Result(EventTarget, protocol.DecodeError) {
   use id <- result.try(get_string(map, "id"))
   // Window is encoded in the ID via # prefix (e.g. "main#form/email").
-  // Fall back to separate window_id field for backwards compatibility.
-  let window_id = get_string_or(map, "window_id", "")
-  Ok(event.make_target(id, window_id))
+  Ok(event.make_target(id, ""))
 }
 
 // ---------------------------------------------------------------------------
@@ -1697,7 +1695,7 @@ fn decode_error_event(
       }
       Ok(EventMessage(event.Error(event.DuplicateNodeIds(details:))))
     }
-    "widget_command" | "extension_command" -> {
+    "command" | "widget_command" | "extension_command" -> {
       let value = case get_value_or_data(map) {
         Ok(PMap(m)) -> m
         _ -> dict.new()

@@ -540,7 +540,18 @@ const cw_tag_prefix = "__cw:"
 /// so the runtime can route timer events back to the correct widget.
 pub fn collect_subscriptions(registry: Registry) -> List(Subscription) {
   dict.fold(registry, [], fn(acc, widget_key, entry) {
-    let subs = entry.subscriptions()
+    let subs = case platform.try_call(entry.subscriptions) {
+      Ok(s) -> s
+      Error(reason) -> {
+        platform.log_error(
+          "plushie: widget subscriptions() crashed for '"
+          <> widget_key
+          <> "': "
+          <> string.inspect(reason),
+        )
+        []
+      }
+    }
     let namespaced = list.map(subs, fn(sub) { namespace_tag(sub, widget_key) })
     list.append(acc, namespaced)
   })

@@ -74,6 +74,8 @@ pub type RuntimeMessage {
   StreamEmit(tag: String, nonce: Int, value: Dynamic)
   /// Effect request timed out.
   EffectTimeout(request_id: String)
+  /// Interact request timed out.
+  InteractTimeout(request_id: String)
   /// Flush deferred coalescable events (zero-delay timer).
   CoalesceFlush
   /// Monitored async task process exited.
@@ -220,9 +222,9 @@ type LoopState(model, msg) {
     cw_registry: widget.Registry,
     // Callers waiting for async task completion, keyed by tag
     pending_await_async: Dict(String, Subject(Nil)),
-    // Pending interact: (caller_reply, request_id, caller_monitor)
+    // Pending interact: (caller_reply, request_id, caller_monitor, timeout_timer)
     pending_interact: Option(
-      #(Subject(Result(Nil, String)), String, process.Monitor),
+      #(Subject(Result(Nil, String)), String, process.Monitor, process.Timer),
     ),
     // Consecutive view/1 failures for stale-UI warning
     consecutive_view_errors: Int,
@@ -278,16 +280,25 @@ fn init_runtime(
   // Initialize
   let #(model, init_cmds) = app.get_init(app)(opts.app_opts)
 
-  // Send settings to bridge
-  let settings = app.get_settings(app)()
+  // Send settings to bridge (protected: a crashing settings callback
+  // should not prevent startup; fall back to default settings)
+  let settings = case platform.try_call(fn() { app.get_settings(app)() }) {
+    Ok(s) -> s
+    Error(reason) -> {
+      platform.log_error(
+        "plushie: settings() callback crashed: " <> string.inspect(reason),
+      )
+      app.default_settings()
+    }
+  }
   send_encoded(
     bridge,
     encode.encode_settings(settings, opts.session, opts.format, opts.token),
   )
 
-  // Render initial view
-  let #(initial_tree, initial_memo_cache) =
-    normalize_view_or_panic(
+  // Render initial view (panic on failure: no old tree to fall back to)
+  let assert Ok(#(initial_tree, initial_memo_cache)) =
+    try_normalize_view(
       app.get_view(app)(model),
       widget.empty_registry(),
       tree.empty_memo_cache(),
@@ -524,8 +535,9 @@ fn handle_message(
       // response ID against the pending request ID to guard against
       // stale responses from a previous interaction.
       let state = case state.pending_interact {
-        Some(#(reply, req_id, monitor)) if req_id == resp_id -> {
+        Some(#(reply, req_id, monitor, timer)) if req_id == resp_id -> {
           process.demonitor_process(monitor)
+          process.cancel_timer(timer)
           process.send(reply, Ok(Nil))
           LoopState(..state, pending_interact: None)
         }
@@ -664,14 +676,16 @@ fn handle_message(
       case dict.get(state.async_tasks, tag) {
         Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
           process.demonitor_process(monitor)
-          let new_state =
-            handle_event(state, event.Async(event.AsyncEvent(tag:, result:)))
-          let new_state =
+          // Remove the old entry BEFORE dispatching. If update starts a
+          // new task with the same tag, the new entry must not be wiped.
+          let state =
             LoopState(
-              ..new_state,
-              async_tasks: dict.delete(new_state.async_tasks, tag),
+              ..state,
+              async_tasks: dict.delete(state.async_tasks, tag),
             )
-          notify_await_async(new_state, tag)
+          let state =
+            handle_event(state, event.Async(event.AsyncEvent(tag:, result:)))
+          notify_await_async(state, tag)
           |> actor.continue()
         }
         _ -> actor.continue(state)
@@ -708,6 +722,20 @@ fn handle_message(
       }
     }
 
+    InteractTimeout(request_id:) -> {
+      case state.pending_interact {
+        Some(#(reply, req_id, monitor, _timer)) if req_id == request_id -> {
+          process.demonitor_process(monitor)
+          platform.log_error(
+            "plushie: interact '" <> req_id <> "' timed out after 10s",
+          )
+          process.send(reply, Error("timeout"))
+          LoopState(..state, pending_interact: None) |> actor.continue()
+        }
+        _ -> actor.continue(state)
+      }
+    }
+
     CoalesceFlush -> {
       flush_coalesced(state) |> actor.continue()
     }
@@ -735,7 +763,8 @@ fn handle_message(
           // Check if this is the interact caller dying (timeout/crash).
           // Clear pending_interact so future interactions aren't blocked.
           let state = case state.pending_interact {
-            Some(#(_, _, mon)) if mon == down_mon -> {
+            Some(#(_, _, mon, timer)) if mon == down_mon -> {
+              process.cancel_timer(timer)
               platform.log_info(
                 "plushie: interact caller exited, clearing pending interaction",
               )
@@ -842,8 +871,18 @@ fn handle_message(
         }
       })
 
-      // Re-send settings
-      let settings = app.get_settings(state.app)()
+      // Re-send settings (protected: a crash here should not block restart)
+      let settings =
+        case platform.try_call(fn() { app.get_settings(state.app)() }) {
+          Ok(s) -> s
+          Error(reason) -> {
+            platform.log_error(
+              "plushie: settings() callback crashed on restart: "
+              <> string.inspect(reason),
+            )
+            app.default_settings()
+          }
+        }
       send_encoded(
         state.bridge,
         encode.encode_settings(
@@ -860,9 +899,20 @@ fn handle_message(
         platform.try_call(fn() { view_fn(state.model) })
       {
         Ok(t) -> {
-          let #(normalized, new_cache) =
-            normalize_view_or_panic(t, state.cw_registry, state.memo_cache)
-          #(Some(normalized), widget.derive_registry(normalized), new_cache)
+          case try_normalize_view(t, state.cw_registry, state.memo_cache) {
+            Ok(#(normalized, new_cache)) ->
+              #(
+                Some(normalized),
+                widget.derive_registry(normalized),
+                new_cache,
+              )
+            Error(msg) -> {
+              platform.log_error(
+                "plushie: normalization failed on restart: " <> msg,
+              )
+              #(state.tree, state.cw_registry, state.memo_cache)
+            }
+          }
         }
         Error(_) -> #(state.tree, state.cw_registry, state.memo_cache)
       }
@@ -929,73 +979,83 @@ fn handle_message(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(state.model) }) {
         Ok(new_tree_raw) -> {
-          let #(new_tree, new_memo_cache) =
-            normalize_view_or_panic(
+          case
+            try_normalize_view(
               new_tree_raw,
               state.cw_registry,
               state.memo_cache,
             )
-          let new_cw_registry = widget.derive_registry(new_tree)
-          // Diff and send patch (or snapshot if no previous tree)
-          case state.tree {
-            Some(old_tree) -> {
-              let ops = tree.diff(old_tree, new_tree)
-              case ops {
-                [] -> Nil
-                _ ->
+          {
+            Ok(#(new_tree, new_memo_cache)) -> {
+              let new_cw_registry = widget.derive_registry(new_tree)
+              // Diff and send patch (or snapshot if no previous tree)
+              case state.tree {
+                Some(old_tree) -> {
+                  let ops = tree.diff(old_tree, new_tree)
+                  case ops {
+                    [] -> Nil
+                    _ ->
+                      send_encoded(
+                        state.bridge,
+                        encode.encode_patch(
+                          ops,
+                          state.opts.session,
+                          state.opts.format,
+                        ),
+                      )
+                  }
+                }
+                None ->
                   send_encoded(
                     state.bridge,
-                    encode.encode_patch(
-                      ops,
+                    encode.encode_snapshot(
+                      new_tree,
                       state.opts.session,
                       state.opts.format,
                     ),
                   )
               }
-            }
-            None ->
-              send_encoded(
+              // Re-sync subscriptions (including widget subscriptions)
+              let app_subs = safe_subscribe(state.app, state.model)
+              let cw_subs = widget.collect_subscriptions(new_cw_registry)
+              let new_subs =
+                sync_subscriptions(
+                  list.append(app_subs, cw_subs),
+                  state.active_subs,
+                  state.bridge,
+                  state.self,
+                  state.opts,
+                )
+              // Re-sync windows
+              let new_windows = runtime_core.detect_windows(new_tree)
+              sync_windows(
+                new_tree,
+                state.windows,
+                new_windows,
+                state.tree,
                 state.bridge,
-                encode.encode_snapshot(
-                  new_tree,
-                  state.opts.session,
-                  state.opts.format,
-                ),
+                state.app,
+                state.model,
+                state.opts,
               )
+              LoopState(
+                ..state,
+                tree: Some(new_tree),
+                active_subs: new_subs,
+                windows: new_windows,
+                cw_registry: new_cw_registry,
+                consecutive_view_errors: 0,
+                memo_cache: new_memo_cache,
+              )
+              |> actor.continue()
+            }
+            Error(msg) -> {
+              platform.log_error(
+                "plushie: normalization failed on force re-render: " <> msg,
+              )
+              actor.continue(state)
+            }
           }
-          // Re-sync subscriptions (including widget subscriptions)
-          let app_subs = safe_subscribe(state.app, state.model)
-          let cw_subs = widget.collect_subscriptions(new_cw_registry)
-          let new_subs =
-            sync_subscriptions(
-              list.append(app_subs, cw_subs),
-              state.active_subs,
-              state.bridge,
-              state.self,
-              state.opts,
-            )
-          // Re-sync windows
-          let new_windows = runtime_core.detect_windows(new_tree)
-          sync_windows(
-            new_tree,
-            state.windows,
-            new_windows,
-            state.tree,
-            state.bridge,
-            state.app,
-            state.model,
-            state.opts,
-          )
-          LoopState(
-            ..state,
-            tree: Some(new_tree),
-            active_subs: new_subs,
-            windows: new_windows,
-            cw_registry: new_cw_registry,
-            consecutive_view_errors: 0,
-            memo_cache: new_memo_cache,
-          )
-          |> actor.continue()
         }
         Error(reason) -> {
           platform.log_error(
@@ -1107,15 +1167,20 @@ fn handle_message(
     }
 
     Interact(action:, selector:, payload:, reply:) -> {
+      // Fail any existing pending interact (prevents caller leak)
+      let state = fail_pending_interact(state, "superseded")
       let req_id = "interact_" <> int.to_string(state.nonce_counter)
       // Monitor the caller so we can clean up if it dies (timeout/crash)
       let assert Ok(caller_pid) = process.subject_owner(reply)
       let caller_monitor = process.monitor(caller_pid)
+      // Timeout after 10 seconds (interact should be near-instant)
+      let timer =
+        process.send_after(state.self, 10_000, InteractTimeout(req_id))
       let state =
         LoopState(
           ..state,
           nonce_counter: state.nonce_counter + 1,
-          pending_interact: Some(#(reply, req_id, caller_monitor)),
+          pending_interact: Some(#(reply, req_id, caller_monitor, timer)),
         )
       send_transient(
         state.bridge,
@@ -1290,8 +1355,9 @@ fn fail_pending_interact(
   reason: String,
 ) -> LoopState(model, msg) {
   case state.pending_interact {
-    Some(#(reply, _, monitor)) -> {
+    Some(#(reply, _, monitor, timer)) -> {
       process.demonitor_process(monitor)
+      process.cancel_timer(timer)
       process.send(reply, Error(reason))
       LoopState(..state, pending_interact: None)
     }
@@ -1302,24 +1368,22 @@ fn fail_pending_interact(
 fn flush_pending_effects_on_restart(
   state: LoopState(model, msg),
 ) -> LoopState(model, msg) {
-  // Cancel all effect timeout timers
-  dict.each(state.pending_effects, fn(_id, entry) {
-    let #(_tag, timer) = entry
+  // Snapshot the current pending effects, then remove and dispatch each
+  // individually. This ensures effects started by handle_event during
+  // the flush are not wiped by an unconditional dict.new().
+  let snapshot = dict.to_list(state.pending_effects)
+  list.fold(snapshot, state, fn(st, entry) {
+    let #(wire_id, #(tag, timer)) = entry
     process.cancel_timer(timer)
-    Nil
+    let st =
+      LoopState(..st, pending_effects: dict.delete(st.pending_effects, wire_id))
+    let timeout_event =
+      event.Effect(event.EffectEvent(
+        tag:,
+        result: event.EffectError(dynamic.string("renderer_restarted")),
+      ))
+    handle_event(st, timeout_event)
   })
-  // Dispatch error events for each pending effect
-  let state =
-    dict.fold(state.pending_effects, state, fn(st, _id, entry) {
-      let #(tag, _timer) = entry
-      let timeout_event =
-        event.Effect(event.EffectEvent(
-          tag:,
-          result: event.EffectError(dynamic.string("renderer_restarted")),
-        ))
-      handle_event(st, timeout_event)
-    })
-  LoopState(..state, pending_effects: dict.new())
 }
 
 @target(erlang)
@@ -1387,12 +1451,19 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let view_fn = app.get_view(state.app)
   case platform.try_call(fn() { view_fn(state.model) }) {
     Ok(new_tree_raw) -> {
-      let #(new_tree, new_memo_cache) =
-        normalize_view_or_panic(
-          new_tree_raw,
-          state.cw_registry,
-          state.memo_cache,
-        )
+      case
+        try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
+      {
+        Error(msg) -> {
+          platform.log_error(
+            "plushie: normalization failed during rerender: " <> msg,
+          )
+          LoopState(
+            ..state,
+            consecutive_view_errors: state.consecutive_view_errors + 1,
+          )
+        }
+        Ok(#(new_tree, new_memo_cache)) -> {
       let new_cw_registry = widget.derive_registry(new_tree)
 
       // Diff and send patch
@@ -1452,6 +1523,8 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
         consecutive_view_errors: 0,
         memo_cache: new_memo_cache,
       )
+    }
+      }
     }
     Error(reason) -> {
       let view_err_count = state.consecutive_view_errors + 1
@@ -1560,12 +1633,24 @@ fn dispatch_update(
       let view_fn = app.get_view(state.app)
       case platform.try_call(fn() { view_fn(new_model) }) {
         Ok(new_tree_raw) -> {
-          let #(new_tree, new_memo_cache) =
-            normalize_view_or_panic(
+          case
+            try_normalize_view(
               new_tree_raw,
               state_after_cmds.cw_registry,
               state_after_cmds.memo_cache,
             )
+          {
+            Error(msg) -> {
+              platform.log_error(
+                "plushie: normalization failed during update: " <> msg,
+              )
+              LoopState(
+                ..state_after_cmds,
+                consecutive_view_errors: state_after_cmds.consecutive_view_errors
+                  + 1,
+              )
+            }
+            Ok(#(new_tree, new_memo_cache)) -> {
           let new_cw_registry = widget.derive_registry(new_tree)
 
           // Diff and send patch
@@ -1637,6 +1722,8 @@ fn dispatch_update(
             pending_effects: state_after_cmds.pending_effects,
             memo_cache: new_memo_cache,
           )
+        }
+          }
         }
         Error(reason) -> {
           // View crashed. Preserve model and command-side state
@@ -1732,9 +1819,21 @@ fn execute_commands(
     }
 
     command_encode.DoneImmediate(value, mapper) -> {
-      let mapped_msg = mapper(value)
-      // Nonce -1 signals "always deliver" (Done, not a timer)
-      process.send(state.self, InternalMsg(coerce_to_dynamic(mapped_msg), -1))
+      case platform.try_call(fn() { mapper(value) }) {
+        Ok(mapped_msg) -> {
+          // Nonce -1 signals "always deliver" (Done, not a timer)
+          process.send(
+            state.self,
+            InternalMsg(coerce_to_dynamic(mapped_msg), -1),
+          )
+        }
+        Error(reason) -> {
+          platform.log_error(
+            "plushie: Command.done mapper crashed: "
+            <> string.inspect(reason),
+          )
+        }
+      }
       state
     }
 
@@ -2264,7 +2363,19 @@ fn sync_windows(
   // Open new windows
   let opened = set.difference(new_windows, old_windows)
   set.each(opened, fn(window_id) {
-    let base_config = app.get_window_config(app)(model)
+    let base_config =
+      case platform.try_call(fn() { app.get_window_config(app)(model) }) {
+        Ok(c) -> c
+        Error(reason) -> {
+          platform.log_error(
+            "plushie: window_config() crashed for window '"
+            <> window_id
+            <> "': "
+            <> string.inspect(reason),
+          )
+          dict.new()
+        }
+      }
     let per_window = runtime_core.extract_window_props(new_tree, window_id)
     let merged = dict.merge(base_config, per_window)
     send_window_op(bridge, "open", window_id, dict.to_list(merged), opts)
@@ -2302,13 +2413,10 @@ fn sync_windows(
   Nil
 }
 
-fn normalize_view_or_panic(
+fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
   memo_cache: tree.MemoCache,
-) -> #(Node, tree.MemoCache) {
-  case tree.normalize_view(view_tree, registry, memo_cache) {
-    Ok(#(normalized, new_cache)) -> #(normalized, new_cache)
-    Error(message) -> panic as message
-  }
+) -> Result(#(Node, tree.MemoCache), String) {
+  tree.normalize_view(view_tree, registry, memo_cache)
 }

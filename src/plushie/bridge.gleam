@@ -552,7 +552,7 @@ fn handle_message(
           actor.continue(state)
         }
         _, _ -> {
-          let queued = list.append(state.queued_messages, [data])
+          let queued = [data, ..state.queued_messages]
           actor.continue(BridgeState(..state, queued_messages: queued))
         }
       }
@@ -795,7 +795,7 @@ fn send_data(state: BridgeState, data: BitArray) -> Nil {
 fn flush_queued_messages(state: BridgeState) -> BridgeState {
   case state.queued_messages {
     [] -> state
-    _ -> do_flush_queued(state, state.queued_messages)
+    _ -> do_flush_queued(state, list.reverse(state.queued_messages))
   }
 }
 
