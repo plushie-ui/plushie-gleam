@@ -1193,6 +1193,30 @@ fn track_focus_from_status(
   LoopState(..state, widget_statuses:, focused_widget_id:)
 }
 
+/// Inject a frozen UI error indicator into the stale tree (dev mode only).
+/// Sends a snapshot with an error text node prepended to the tree.
+fn inject_frozen_indicator(state: LoopState(model, msg)) -> Nil {
+  let error_node = node.new("__plushie_frozen_ui__", "text")
+  let error_node =
+    node.Node(
+      ..error_node,
+      props: dict.from_list([
+        #("content", StringVal("[plushie] UI frozen: view() is failing")),
+        #("size", node.FloatVal(14.0)),
+      ]),
+    )
+  case state.tree {
+    Some(tree) -> {
+      let patched = node.Node(..tree, children: [error_node, ..tree.children])
+      send_encoded(
+        state.bridge,
+        encode.encode_snapshot(patched, state.opts.session, state.opts.format),
+      )
+    }
+    None -> Nil
+  }
+}
+
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
 fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
@@ -1383,12 +1407,15 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
         "plushie: view error during rerender: " <> dynamic.classify(reason),
       )
       case view_err_count == 5 {
-        True ->
+        True -> {
           platform.log_warning(
             "plushie: view has failed "
             <> int.to_string(view_err_count)
-            <> " consecutive times, the UI is stale",
+            <> " consecutive times, the UI is frozen",
           )
+          // Inject a frozen UI indicator into the stale tree
+          inject_frozen_indicator(state)
+        }
         False -> Nil
       }
       LoopState(..state, consecutive_view_errors: view_err_count)
