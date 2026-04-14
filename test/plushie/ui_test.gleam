@@ -44,7 +44,7 @@ pub fn text_underscore_creates_text_node_test() {
   assert node.id == "lbl"
   assert node.kind == "text"
   assert dict.get(node.props, "content") == Ok(StringVal("Hello"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn text_with_attrs_test() {
@@ -60,7 +60,7 @@ pub fn button_underscore_creates_button_node_test() {
   assert node.id == "ok"
   assert node.kind == "button"
   assert dict.get(node.props, "label") == Ok(StringVal("OK"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn button_with_attrs_test() {

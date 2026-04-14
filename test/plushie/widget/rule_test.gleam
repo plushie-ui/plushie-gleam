@@ -7,5 +7,5 @@ pub fn new_builds_rule_test() {
   assert node.id == "divider"
   assert node.kind == "rule"
   assert node.children == []
-  assert dict.is_empty(node.props)
+  assert dict.size(node.props) == 1
 }

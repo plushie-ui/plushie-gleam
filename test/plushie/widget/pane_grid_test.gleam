@@ -10,7 +10,7 @@ pub fn new_builds_minimal_pane_grid_test() {
   assert node.id == "pg"
   assert node.kind == "pane_grid"
   assert node.children == []
-  assert dict.size(node.props) == 0
+  assert dict.size(node.props) == 1
 }
 
 pub fn spacing_sets_prop_test() {

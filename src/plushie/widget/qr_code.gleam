@@ -147,6 +147,6 @@ pub fn build(qr: QrCode) -> Node {
     |> build.put_optional_string("description", qr.description)
     |> build.put_optional_float("total_size", qr.total_size)
     |> build.put_optional_string("style", qr.style)
-    |> build.put_optional("a11y", qr.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(qr.a11y, "image", option.None)
   Node(id: qr.id, kind: "qr_code", props:, children: [], meta: dict.new())
 }

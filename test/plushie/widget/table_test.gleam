@@ -12,7 +12,7 @@ pub fn new_builds_minimal_table_test() {
   assert node.id == "tbl1"
   assert node.kind == "table"
   assert node.children == []
-  assert dict.size(node.props) == 0
+  assert dict.size(node.props) == 1
 }
 
 pub fn columns_encoded_as_list_of_dicts_test() {

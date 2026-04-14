@@ -145,6 +145,6 @@ pub fn build(s: Svg) -> Node {
     |> build.put_optional_string("alt", s.alt)
     |> build.put_optional_string("description", s.description)
     |> build.put_optional_bool("decorative", s.decorative)
-    |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(s.a11y, "image", option.None)
   Node(id: s.id, kind: "svg", props:, children: [], meta: dict.new())
 }

@@ -150,6 +150,6 @@ pub fn build(md: Markdown) -> Node {
     |> build.put_optional("link_color", md.link_color, color.to_prop_value)
     |> build.put_optional_string("code_theme", md.code_theme)
     |> build.put_optional_string("style", md.style)
-    |> build.put_optional("a11y", md.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(md.a11y, "document", option.None)
   Node(id: md.id, kind: "markdown", props:, children: [], meta: dict.new())
 }

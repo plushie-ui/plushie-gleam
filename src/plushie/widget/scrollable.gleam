@@ -190,7 +190,7 @@ pub fn build(s: Scrollable) -> Node {
       s.scroller_color,
       color.to_prop_value,
     )
-    |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(s.a11y, "scroll_view", option.None)
   Node(
     id: s.id,
     kind: "scrollable",

@@ -16,7 +16,7 @@ pub fn new_builds_minimal_rich_text_test() {
   assert node.id == "rt1"
   assert node.kind == "rich_text"
   assert node.children == []
-  assert dict.size(node.props) == 0
+  assert dict.size(node.props) == 1
 }
 
 pub fn spans_encoded_as_list_of_dicts_test() {

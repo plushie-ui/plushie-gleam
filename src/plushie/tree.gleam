@@ -352,13 +352,13 @@ fn diff_node(old: Node, new: Node, path: List(Int)) -> List(PatchOp) {
   case old.kind != new.kind {
     True -> [ReplaceNode(path:, node: new)]
     False -> {
-      // Check for reordered children. If so, replace the whole node.
+      // Check if common elements maintain relative order. If not,
+      // the reorder requires a full replacement at this node.
       case children_reordered(old.children, new.children) {
         True -> [ReplaceNode(path:, node: new)]
         False -> {
           let prop_ops = diff_props(old.props, new.props, path)
-          let child_ops =
-            diff_children_ordered(old.children, new.children, path)
+          let child_ops = diff_children(old.children, new.children, path)
           list.append(prop_ops, child_ops)
         }
       }
@@ -402,6 +402,8 @@ fn diff_props(
   }
 }
 
+/// Check if common elements between old and new children maintain
+/// their relative order. Returns True if reordered.
 fn children_reordered(old: List(Node), new: List(Node)) -> Bool {
   let old_ids = list.map(old, fn(c) { c.id })
   let new_ids = list.map(new, fn(c) { c.id })
@@ -412,14 +414,56 @@ fn children_reordered(old: List(Node), new: List(Node)) -> Bool {
   common_old != common_new
 }
 
-/// Diff children when no reorder has occurred. Produces removal, update,
-/// and insertion ops in the correct order.
+/// Diff children using three strategies:
+///
+/// - **Fast**: ID sequences match -> pairwise prop diff, O(n)
+/// - **General**: different sequences -> remove/insert/update using
+///   ID-keyed lookup. Elements in both old and new are diffed in place;
+///   elements only in old are removed; elements only in new are inserted.
 ///
 /// Operation ordering is load-bearing:
 /// 1. Removals in descending index order (avoids index shift)
 /// 2. Updates with adjusted indices (accounting for removals)
 /// 3. Insertions in ascending index order
-fn diff_children_ordered(
+fn diff_children(
+  old_children: List(Node),
+  new_children: List(Node),
+  parent_path: List(Int),
+) -> List(PatchOp) {
+  let old_ids = list.map(old_children, fn(c) { c.id })
+  let new_ids = list.map(new_children, fn(c) { c.id })
+
+  // Fast path: same ID sequence -> pairwise diff only
+  case old_ids == new_ids {
+    True -> diff_children_pairwise(old_children, new_children, parent_path, 0)
+    False -> diff_children_general(old_children, new_children, parent_path)
+  }
+}
+
+/// Fast path: children have the same ID sequence. Walk both lists
+/// in lockstep and diff each pair at their index.
+fn diff_children_pairwise(
+  old: List(Node),
+  new: List(Node),
+  parent_path: List(Int),
+  idx: Int,
+) -> List(PatchOp) {
+  case old, new {
+    [], [] -> []
+    [old_child, ..old_rest], [new_child, ..new_rest] -> {
+      let child_path = list.append(parent_path, [idx])
+      let ops = diff_node(old_child, new_child, child_path)
+      list.append(
+        ops,
+        diff_children_pairwise(old_rest, new_rest, parent_path, idx + 1),
+      )
+    }
+    _, _ -> []
+  }
+}
+
+/// General path: ID sequences differ. Handle removals, updates, and inserts.
+fn diff_children_general(
   old_children: List(Node),
   new_children: List(Node),
   parent_path: List(Int),
@@ -467,7 +511,6 @@ fn diff_children_ordered(
       let #(child, new_idx) = pair
       case dict.get(old_by_id, child.id) {
         Ok(#(old_child, old_idx)) -> {
-          // Adjust index: subtract removals that were before this position
           let adjusted_idx = index_after_removals(old_idx, removed_indices)
           let child_path = list.append(parent_path, [adjusted_idx])
           let ops = diff_node(old_child, child, child_path)

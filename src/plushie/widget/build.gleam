@@ -5,8 +5,9 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option}
 import plushie/node.{
-  type Node, type PropValue, BoolVal, FloatVal, IntVal, StringVal,
+  type Node, type PropValue, BoolVal, DictVal, FloatVal, IntVal, StringVal,
 }
+import plushie/prop/a11y.{type A11y}
 
 /// Insert a string prop.
 pub fn put_string(
@@ -104,5 +105,32 @@ pub fn validate_pair_children(
         <> "\" requires exactly 2 children, got "
         <> int.to_string(count)
       }
+  }
+}
+
+/// Apply default a11y props to a node's prop dict when no explicit a11y is set.
+/// `role` is the default role string, `label_from_key` is an optional prop key
+/// to derive the label from (e.g. "label", "placeholder", "content").
+pub fn apply_default_a11y(
+  props: Dict(String, PropValue),
+  a11y_opt: Option(A11y),
+  role: String,
+  label_from_key: Option(String),
+) -> Dict(String, PropValue) {
+  case a11y_opt {
+    option.Some(explicit) ->
+      dict.insert(props, "a11y", a11y.to_prop_value(explicit))
+    option.None -> {
+      let a11y_props = [#("role", StringVal(role))]
+      let a11y_props = case label_from_key {
+        option.Some(key) ->
+          case dict.get(props, key) {
+            Ok(StringVal(label)) -> [#("label", StringVal(label)), ..a11y_props]
+            _ -> a11y_props
+          }
+        option.None -> a11y_props
+      }
+      dict.insert(props, "a11y", DictVal(dict.from_list(a11y_props)))
+    }
   }
 }

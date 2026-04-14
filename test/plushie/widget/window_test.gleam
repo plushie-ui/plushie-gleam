@@ -9,7 +9,7 @@ pub fn new_builds_empty_window_test() {
   assert node.id == "main"
   assert node.kind == "window"
   assert node.children == []
-  assert dict.is_empty(node.props)
+  assert dict.size(node.props) == 1
 }
 
 pub fn title_sets_string_prop_test() {

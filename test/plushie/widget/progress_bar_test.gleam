@@ -13,7 +13,7 @@ pub fn new_builds_minimal_progress_bar_test() {
   assert dict.get(node.props, "value") == Ok(FloatVal(42.0))
   let range_val = ListVal([FloatVal(0.0), FloatVal(100.0)])
   assert dict.get(node.props, "range") == Ok(range_val)
-  assert dict.size(node.props) == 2
+  assert dict.size(node.props) == 3
 }
 
 pub fn width_sets_length_prop_test() {

@@ -123,7 +123,7 @@ pub fn build(tt: Tooltip) -> Node {
     |> build.put_optional_bool("snap_within_viewport", tt.snap_within_viewport)
     |> build.put_optional_int("delay", tt.delay)
     |> build.put_optional_string("style", tt.style)
-    |> build.put_optional("a11y", tt.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(tt.a11y, "tooltip", option.None)
   Node(
     id: tt.id,
     kind: "tooltip",

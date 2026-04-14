@@ -11,7 +11,7 @@ pub fn new_builds_minimal_checkbox_test() {
   assert node.children == []
   assert dict.get(node.props, "label") == Ok(StringVal("I agree"))
   assert dict.get(node.props, "checked") == Ok(BoolVal(False))
-  assert dict.size(node.props) == 2
+  assert dict.size(node.props) == 3
 }
 
 pub fn toggled_true_sets_bool_prop_test() {

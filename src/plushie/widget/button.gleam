@@ -123,7 +123,7 @@ pub fn build(button: Button) -> Node {
     |> build.put_optional("padding", button.padding, padding.to_prop_value)
     |> build.put_optional_bool("clip", button.clip)
     |> build.put_optional_bool("disabled", button.disabled)
-    |> build.put_optional("a11y", button.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(button.a11y, "button", option.Some("label"))
   Node(id: button.id, kind: "button", props:, children: [], meta: dict.new())
 }
 

@@ -10,7 +10,7 @@ pub fn new_builds_empty_scrollable_test() {
   assert node.id == "scroll"
   assert node.kind == "scrollable"
   assert node.children == []
-  assert dict.is_empty(node.props)
+  assert dict.size(node.props) == 1
 }
 
 pub fn width_and_height_set_length_props_test() {

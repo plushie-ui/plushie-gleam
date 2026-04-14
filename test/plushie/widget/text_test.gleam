@@ -13,7 +13,7 @@ pub fn new_builds_minimal_text_test() {
   assert node.kind == "text"
   assert node.children == []
   assert dict.get(node.props, "content") == Ok(StringVal("Hello"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn size_sets_float_prop_test() {

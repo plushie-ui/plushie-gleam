@@ -289,6 +289,6 @@ pub fn build(t: Table) -> Node {
       t.separator_color,
       color.to_prop_value,
     )
-    |> build.put_optional("a11y", t.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(t.a11y, "table", option.None)
   Node(id: t.id, kind: "table", props:, children: [], meta: dict.new())
 }

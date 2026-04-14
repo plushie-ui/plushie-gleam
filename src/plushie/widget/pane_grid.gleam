@@ -164,7 +164,7 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional_float("leeway", pg.leeway)
     |> build.put_optional_string("split_axis", pg.split_axis)
     |> build.put_optional_int("event_rate", pg.event_rate)
-    |> build.put_optional("a11y", pg.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(pg.a11y, "group", option.None)
   Node(
     id: pg.id,
     kind: "pane_grid",

@@ -177,6 +177,6 @@ pub fn build(slider: Slider) -> Node {
     |> build.put_optional_string("style", slider.style)
     |> build.put_optional_string("label", slider.label)
     |> build.put_optional_int("event_rate", slider.event_rate)
-    |> build.put_optional("a11y", slider.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(slider.a11y, "slider", option.None)
   Node(id: slider.id, kind: "slider", props:, children: [], meta: dict.new())
 }

@@ -13,7 +13,7 @@ pub fn new_builds_minimal_text_input_test() {
   assert node.kind == "text_input"
   assert node.children == []
   assert dict.get(node.props, "value") == Ok(StringVal("hello@example.com"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn placeholder_sets_string_prop_test() {

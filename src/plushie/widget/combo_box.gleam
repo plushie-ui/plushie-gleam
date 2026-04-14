@@ -221,6 +221,10 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional("menu_style", cb.menu_style, fn(ms) { ms })
     |> build.put_optional_bool("on_submit", cb.on_submit)
     |> build.put_optional_string("style", cb.style)
-    |> build.put_optional("a11y", cb.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(
+      cb.a11y,
+      "combo_box",
+      option.Some("placeholder"),
+    )
   Node(id: cb.id, kind: "combo_box", props:, children: [], meta: dict.new())
 }

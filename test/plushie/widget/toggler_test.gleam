@@ -11,7 +11,7 @@ pub fn new_builds_minimal_toggler_test() {
   assert node.children == []
   assert dict.get(node.props, "label") == Ok(StringVal("Dark mode"))
   assert dict.get(node.props, "is_toggled") == Ok(BoolVal(False))
-  assert dict.size(node.props) == 2
+  assert dict.size(node.props) == 3
 }
 
 pub fn toggled_true_sets_bool_prop_test() {

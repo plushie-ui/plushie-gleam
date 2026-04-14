@@ -11,7 +11,7 @@ pub fn new_builds_minimal_button_test() {
   assert node.kind == "button"
   assert node.children == []
   assert dict.get(node.props, "label") == Ok(StringVal("OK"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn style_sets_style_prop_test() {

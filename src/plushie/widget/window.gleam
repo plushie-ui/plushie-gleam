@@ -283,6 +283,6 @@ pub fn build(w: Window) -> Node {
     |> build.put_optional_bool("exit_on_close_request", w.exit_on_close_request)
     |> build.put_optional_float("scale_factor", w.scale_factor)
     |> build.put_optional("theme", w.theme, theme.to_prop_value)
-    |> build.put_optional("a11y", w.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(w.a11y, "window", option.None)
   Node(id: w.id, kind: "window", props:, children: w.children, meta: dict.new())
 }

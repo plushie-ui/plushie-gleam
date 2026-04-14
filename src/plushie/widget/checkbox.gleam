@@ -196,6 +196,6 @@ pub fn build(cb: Checkbox) -> Node {
     |> build.put_optional_string("style", cb.style)
     |> build.put_optional("icon", cb.icon, icon_to_prop_value)
     |> build.put_optional_bool("disabled", cb.disabled)
-    |> build.put_optional("a11y", cb.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(cb.a11y, "check_box", option.Some("label"))
   Node(id: cb.id, kind: "checkbox", props:, children: [], meta: dict.new())
 }

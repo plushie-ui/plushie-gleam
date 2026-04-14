@@ -167,6 +167,10 @@ pub fn build(input: TextInput) -> Node {
     |> build.put_optional_bool("on_paste", input.on_paste)
     |> build.put_optional_bool("secure", input.secure)
     |> build.put_optional_string("style", input.style)
-    |> build.put_optional("a11y", input.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(
+      input.a11y,
+      "text_input",
+      option.Some("placeholder"),
+    )
   Node(id: input.id, kind: "text_input", props:, children: [], meta: dict.new())
 }

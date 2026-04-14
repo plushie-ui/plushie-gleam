@@ -81,6 +81,6 @@ pub fn build(r: Rule) -> Node {
       StringVal(direction.to_string(d))
     })
     |> build.put_optional_string("style", r.style)
-    |> build.put_optional("a11y", r.a11y, a11y.to_prop_value)
+    |> build.apply_default_a11y(r.a11y, "splitter", option.None)
   Node(id: r.id, kind: "rule", props:, children: [], meta: dict.new())
 }

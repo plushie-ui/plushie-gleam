@@ -11,7 +11,7 @@ pub fn new_builds_minimal_image_test() {
   assert node.kind == "image"
   assert node.children == []
   assert dict.get(node.props, "source") == Ok(StringVal("/images/logo.png"))
-  assert dict.size(node.props) == 1
+  assert dict.size(node.props) == 2
 }
 
 pub fn width_and_height_set_length_props_test() {
