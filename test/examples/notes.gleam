@@ -150,7 +150,7 @@ fn update(model: Model, event: Event) {
           coalesce_window_ms: Some(500),
         )
       #(
-        Model(..model, undo_stack: undo.apply(model.undo_stack, cmd)),
+        Model(..model, undo_stack: undo.push(model.undo_stack, cmd)),
         command.none(),
       )
     }
@@ -166,7 +166,7 @@ fn update(model: Model, event: Event) {
           coalesce_window_ms: Some(500),
         )
       #(
-        Model(..model, undo_stack: undo.apply(model.undo_stack, cmd)),
+        Model(..model, undo_stack: undo.push(model.undo_stack, cmd)),
         command.none(),
       )
     }

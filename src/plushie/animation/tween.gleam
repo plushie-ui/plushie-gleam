@@ -5,12 +5,22 @@
 //// which animate with zero wire traffic. Use this module when you
 //// need frame-by-frame control over interpolation in the app model.
 ////
-//// Drive with `subscription.on_animation_frame`, create with `new`,
+//// Drive with `subscription.on_animation_frame()`, create with `new`,
 //// start with `start`, then `advance` each frame.
 
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import plushie/animation/easing.{type Easing}
+
+/// Repeat mode for animations.
+pub type Repeat {
+  /// Play once and stop.
+  Once
+  /// Repeat a fixed number of times.
+  Times(Int)
+  /// Repeat indefinitely.
+  Forever
+}
 
 /// An animation interpolating between two values over time.
 pub type Animation {
@@ -22,6 +32,12 @@ pub type Animation {
     easing: Easing,
     value: Float,
     finished: Bool,
+    repeat: Repeat,
+    auto_reverse: Bool,
+    /// Track how many complete cycles have been played.
+    cycles_completed: Int,
+    /// Track whether the current cycle is playing forward or reversed.
+    reversed: Bool,
   )
 }
 
@@ -44,12 +60,51 @@ pub fn new(
     easing:,
     value: from,
     finished: False,
+    repeat: Once,
+    auto_reverse: False,
+    cycles_completed: 0,
+    reversed: False,
   )
+}
+
+/// Create a looping animation that repeats forever with auto-reverse.
+///
+/// Shorthand for `new` with `repeat: Forever` and `auto_reverse: True`.
+/// The animation bounces between `from` and `to` indefinitely.
+pub fn looping(
+  from: Float,
+  to: Float,
+  duration_ms: Int,
+  easing: Easing,
+) -> Animation {
+  Animation(
+    ..new(from, to, duration_ms, easing),
+    repeat: Forever,
+    auto_reverse: True,
+  )
+}
+
+/// Set the repeat mode on an animation.
+pub fn set_repeat(anim: Animation, repeat: Repeat) -> Animation {
+  Animation(..anim, repeat:)
+}
+
+/// Enable or disable auto-reverse. When enabled, the animation plays
+/// in reverse on alternate cycles.
+pub fn set_auto_reverse(anim: Animation, enabled: Bool) -> Animation {
+  Animation(..anim, auto_reverse: enabled)
 }
 
 /// Start the animation at the given timestamp (monotonic ms).
 pub fn start(anim: Animation, now: Int) -> Animation {
-  Animation(..anim, started_at: Some(now), value: anim.from, finished: False)
+  Animation(
+    ..anim,
+    started_at: Some(now),
+    value: anim.from,
+    finished: False,
+    cycles_completed: 0,
+    reversed: False,
+  )
 }
 
 /// Advance the animation to the given timestamp. Returns updated animation.
@@ -59,13 +114,47 @@ pub fn advance(anim: Animation, now: Int) -> Animation {
     None -> anim
     Some(started) -> {
       let elapsed = now - started
-      case elapsed >= anim.duration_ms {
+      let cycle_duration = anim.duration_ms
+      case cycle_duration <= 0 {
         True -> Animation(..anim, value: anim.to, finished: True)
         False -> {
-          let t = int.to_float(elapsed) /. int.to_float(anim.duration_ms)
-          let eased = easing.apply(anim.easing, t)
-          let value = lerp(anim.from, anim.to, eased)
-          Animation(..anim, value:)
+          let cycle = elapsed / cycle_duration
+          let cycle_elapsed = elapsed % cycle_duration
+          let cycle_t =
+            int.to_float(cycle_elapsed) /. int.to_float(cycle_duration)
+
+          // Check if we've exhausted our repeat count
+          let max_cycles = case anim.repeat {
+            Once -> 1
+            Times(n) -> n + 1
+            Forever -> -1
+          }
+
+          case max_cycles >= 0 && cycle >= max_cycles {
+            True -> {
+              // Animation complete
+              let final_value = case anim.auto_reverse && max_cycles % 2 == 0 {
+                True -> anim.from
+                False -> anim.to
+              }
+              Animation(..anim, value: final_value, finished: True)
+            }
+            False -> {
+              // Determine if this cycle is reversed
+              let is_reversed = anim.auto_reverse && cycle % 2 == 1
+              let eased = easing.apply(anim.easing, cycle_t)
+              let value = case is_reversed {
+                True -> lerp(anim.to, anim.from, eased)
+                False -> lerp(anim.from, anim.to, eased)
+              }
+              Animation(
+                ..anim,
+                value:,
+                cycles_completed: cycle,
+                reversed: is_reversed,
+              )
+            }
+          }
         }
       }
     }

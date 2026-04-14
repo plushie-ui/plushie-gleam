@@ -32,7 +32,7 @@ pub fn new_creates_stack_with_initial_model_test() {
 pub fn apply_executes_command_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
   should.equal(undo.current(stack), 1)
   should.equal(undo.can_undo(stack), True)
 }
@@ -40,7 +40,7 @@ pub fn apply_executes_command_test() {
 pub fn undo_reverses_last_command_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
     |> undo.undo()
   should.equal(undo.current(stack), 0)
   should.equal(undo.can_undo(stack), False)
@@ -50,7 +50,7 @@ pub fn undo_reverses_last_command_test() {
 pub fn redo_reapplies_undone_command_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
     |> undo.undo()
     |> undo.redo()
   should.equal(undo.current(stack), 1)
@@ -61,9 +61,9 @@ pub fn redo_reapplies_undone_command_test() {
 pub fn apply_clears_redo_stack_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
     |> undo.undo()
-    |> undo.apply(add_cmd(10))
+    |> undo.push(add_cmd(10))
   should.equal(undo.current(stack), 10)
   should.equal(undo.can_redo(stack), False)
 }
@@ -83,9 +83,9 @@ pub fn redo_empty_is_noop_test() {
 pub fn multiple_undo_redo_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
-    |> undo.apply(increment_cmd())
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
+    |> undo.push(increment_cmd())
+    |> undo.push(increment_cmd())
   should.equal(undo.current(stack), 3)
   let stack = undo.undo(stack)
   should.equal(undo.current(stack), 2)
@@ -98,16 +98,16 @@ pub fn multiple_undo_redo_test() {
 pub fn undo_history_labels_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
-    |> undo.apply(add_cmd(5))
+    |> undo.push(increment_cmd())
+    |> undo.push(add_cmd(5))
   should.equal(undo.undo_history(stack), ["add", "increment"])
 }
 
 pub fn redo_history_labels_test() {
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
-    |> undo.apply(add_cmd(5))
+    |> undo.push(increment_cmd())
+    |> undo.push(add_cmd(5))
     |> undo.undo()
     |> undo.undo()
   should.equal(undo.redo_history(stack), ["increment", "add"])
@@ -135,8 +135,8 @@ pub fn coalesce_merges_within_window_test() {
     )
   let stack =
     undo.new(0)
-    |> undo.apply(cmd1)
-    |> undo.apply(cmd2)
+    |> undo.push(cmd1)
+    |> undo.push(cmd2)
   // Should have been merged: 0 + 1 + 10 = 11
   should.equal(undo.current(stack), 11)
   // Only one entry on the undo stack (merged)
@@ -165,8 +165,8 @@ pub fn coalesce_different_keys_no_merge_test() {
     )
   let stack =
     undo.new(0)
-    |> undo.apply(cmd1)
-    |> undo.apply(cmd2)
+    |> undo.push(cmd1)
+    |> undo.push(cmd2)
   // Different keys: no merge, two entries
   should.equal(undo.undo_history(stack), ["b", "a"])
 }
@@ -175,8 +175,8 @@ pub fn coalesce_none_key_no_merge_test() {
   // Commands without coalesce_key should never merge
   let stack =
     undo.new(0)
-    |> undo.apply(increment_cmd())
-    |> undo.apply(increment_cmd())
+    |> undo.push(increment_cmd())
+    |> undo.push(increment_cmd())
   should.equal(undo.current(stack), 2)
   // Two separate entries
   should.equal(undo.undo_history(stack), ["increment", "increment"])

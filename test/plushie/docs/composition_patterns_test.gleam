@@ -557,7 +557,7 @@ import plushie/undo
 pub fn state_helper_undo_apply_and_revert_test() {
   let stack = undo.new(0)
   let stack =
-    undo.apply(
+    undo.push(
       stack,
       undo.UndoCommand(
         apply: fn(n) { n + 10 },

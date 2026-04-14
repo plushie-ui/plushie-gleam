@@ -12,7 +12,7 @@ Tracks reversible actions with an undo/redo stack:
 import plushie/undo
 
 let history = undo.new("")
-let history = undo.apply(history, undo.Action(
+let history = undo.push(history, undo.Action(
   apply: fn(_old) { "hello" },
   undo: fn(_new) { "" },
   label: "Type hello",

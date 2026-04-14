@@ -99,16 +99,11 @@ fn harness_view(widget_node: Node) -> Node {
 /// semantic widget output. These are filtered from the harness.
 fn is_framework_event(ev: Event) -> Bool {
   case ev {
+    // Standard focus/enter/exit events (used by both widgets and canvas elements)
     event.WidgetFocused(..) -> True
     event.WidgetBlurred(..) -> True
     event.WidgetEnter(..) -> True
     event.WidgetExit(..) -> True
-    event.WidgetEvent(kind: "canvas_element_focused", ..) -> True
-    event.WidgetEvent(kind: "canvas_element_blurred", ..) -> True
-    event.WidgetEvent(kind: "canvas_group_focused", ..) -> True
-    event.WidgetEvent(kind: "canvas_group_blurred", ..) -> True
-    event.WidgetEvent(kind: "canvas_element_enter", ..) -> True
-    event.WidgetEvent(kind: "canvas_element_leave", ..) -> True
     _ -> False
   }
 }

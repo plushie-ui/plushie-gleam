@@ -588,56 +588,9 @@ pub fn decode_test_event(
         )
       })
 
-    // -- Canvas element events (catch-all WidgetEvent) -----------------------
-    "canvas_element_enter"
-    | "canvas_element_leave"
-    | "canvas_element_click"
-    | "canvas_element_drag"
-    | "canvas_element_drag_end"
-    | "canvas_element_focused"
-    | "canvas_element_blurred" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetEvent(
-          kind: family,
-          target:,
-          value: get_dynamic(data, "element_id"),
-          data: get_dynamic(data, "data"),
-        )
-      })
-    "canvas_element_key_press" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetElementKeyPress(
-          target:,
-          key: get_string(data, "key", ""),
-          modifiers: decode_modifiers(data),
-          text: get_optional_string(data, "text"),
-        )
-      })
-    "canvas_element_key_release" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetElementKeyRelease(
-          target:,
-          key: get_string(data, "key", ""),
-          modifiers: decode_modifiers(data),
-        )
-      })
-    "canvas_focused" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetFocused(target:)
-      })
-    "canvas_blurred" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetBlurred(target:)
-      })
-    "canvas_group_focused" | "canvas_group_blurred" ->
-      require_window_event(window_id, fn(_window_id) {
-        event.WidgetEvent(
-          kind: family,
-          target:,
-          value: get_dynamic(data, "group_id"),
-          data: dynamic.nil(),
-        )
-      })
+    // Canvas element events use standard families (enter, exit, click,
+    // drag, focused, blurred) with scoped IDs. They are handled by the
+    // normal widget event branches above.
     "diagnostic" ->
       Ok(event.Diagnostic(
         level: get_string(data, "level", ""),

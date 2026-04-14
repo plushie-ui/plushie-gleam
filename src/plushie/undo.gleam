@@ -1,8 +1,14 @@
 //// Undo/redo support for reversible operations.
 ////
 //// Each command has an `apply` function (model -> model) and an `undo`
-//// function (model -> model). Apply a command to push it onto the undo
-//// stack; undo/redo move commands between stacks while updating the model.
+//// function (model -> model). Push a command to execute it and add it to
+//// the undo stack; undo/redo move commands between stacks while updating
+//// the model.
+////
+//// The undo stack is bounded by `max_size` (default 100). When a push
+//// exceeds the limit, the oldest entries are dropped. The redo stack
+//// is unbounded (it can only shrink or be cleared, never grow past
+//// the undo stack size).
 ////
 //// Commands with the same `coalesce_key` that arrive within
 //// `coalesce_window_ms` of each other are merged into a single undo
@@ -24,12 +30,16 @@ pub type UndoCommand(model) {
   )
 }
 
+const default_max_size = 100
+
 /// Undo/redo state wrapping a model.
 pub opaque type UndoStack(model) {
   UndoStack(
     current: model,
     undo_stack: List(UndoEntry(model)),
     redo_stack: List(UndoEntry(model)),
+    max_size: Int,
+    undo_size: Int,
   )
 }
 
@@ -43,17 +53,38 @@ type UndoEntry(model) {
   )
 }
 
-/// Create a new undo stack with initial model.
+/// Create a new undo stack with initial model. The undo stack is
+/// bounded by `max_size` (default 100). When exceeded, the oldest
+/// entries are dropped silently.
 pub fn new(model: model) -> UndoStack(model) {
-  UndoStack(current: model, undo_stack: [], redo_stack: [])
+  UndoStack(
+    current: model,
+    undo_stack: [],
+    redo_stack: [],
+    max_size: default_max_size,
+    undo_size: 0,
+  )
 }
 
-/// Apply a command: execute it, push to undo stack, clear redo stack.
+/// Create a new undo stack with a custom maximum size.
+pub fn new_with_max_size(model: model, max_size: Int) -> UndoStack(model) {
+  UndoStack(
+    current: model,
+    undo_stack: [],
+    redo_stack: [],
+    max_size:,
+    undo_size: 0,
+  )
+}
+
+/// Push a command: execute it, push to undo stack, clear redo stack.
 ///
 /// If the command carries a `coalesce_key` that matches the top of the
 /// undo stack and the time delta is within `coalesce_window_ms`, the
 /// entry is merged rather than pushed.
-pub fn apply(
+///
+/// When the undo stack exceeds `max_size`, the oldest entries are dropped.
+pub fn push(
   stack: UndoStack(model),
   cmd: UndoCommand(model),
 ) -> UndoStack(model) {
@@ -62,7 +93,9 @@ pub fn apply(
 
   case maybe_coalesce(stack, cmd, now) {
     Some(merged_entry) ->
+      // Coalesced: replace top entry, size unchanged
       UndoStack(
+        ..stack,
         current: new_model,
         undo_stack: [merged_entry, ..list.drop(stack.undo_stack, 1)],
         redo_stack: [],
@@ -76,10 +109,19 @@ pub fn apply(
           coalesce_key: cmd.coalesce_key,
           timestamp: now,
         )
+      let new_stack = [entry, ..stack.undo_stack]
+      let new_size = stack.undo_size + 1
+      // Enforce max_size by dropping oldest entries
+      let #(trimmed_stack, trimmed_size) = case new_size > stack.max_size {
+        True -> #(list.take(new_stack, stack.max_size), stack.max_size)
+        False -> #(new_stack, new_size)
+      }
       UndoStack(
+        ..stack,
         current: new_model,
-        undo_stack: [entry, ..stack.undo_stack],
+        undo_stack: trimmed_stack,
         redo_stack: [],
+        undo_size: trimmed_size,
       )
     }
   }
@@ -91,10 +133,13 @@ pub fn undo(stack: UndoStack(model)) -> UndoStack(model) {
     [] -> stack
     [entry, ..rest] -> {
       let old_model = entry.undo_fn(stack.current)
-      UndoStack(current: old_model, undo_stack: rest, redo_stack: [
-        entry,
-        ..stack.redo_stack
-      ])
+      UndoStack(
+        ..stack,
+        current: old_model,
+        undo_stack: rest,
+        redo_stack: [entry, ..stack.redo_stack],
+        undo_size: stack.undo_size - 1,
+      )
     }
   }
 }
@@ -106,9 +151,11 @@ pub fn redo(stack: UndoStack(model)) -> UndoStack(model) {
     [entry, ..rest] -> {
       let new_model = entry.apply_fn(stack.current)
       UndoStack(
+        ..stack,
         current: new_model,
         undo_stack: [entry, ..stack.undo_stack],
         redo_stack: rest,
+        undo_size: stack.undo_size + 1,
       )
     }
   }
