@@ -131,7 +131,9 @@ fn start_actor(
 /// Send a shutdown message to the dev server actor.
 ///
 /// Stops the file watcher process and exits the actor cleanly.
-/// Called by the supervisor during graceful shutdown.
+/// Call this explicitly during runtime shutdown to clean up the
+/// file watcher; OTP supervisor shutdown signals do not trigger
+/// custom message handlers.
 pub fn stop(subject: Subject(DevMessage)) -> Nil {
   process.send(subject, Shutdown)
 }

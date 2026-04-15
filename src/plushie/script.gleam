@@ -84,7 +84,7 @@ fn discover_scripts(_dir: String) -> List(String) {
   // Known limitation: automatic discovery of .plushie files is not
   // implemented. Gleam has no built-in recursive directory traversal,
   // and adding FFI for this is not worthwhile given the narrow use
-  // case. Callers should pass explicit paths to script.run/2 instead
+  // case. Callers should pass explicit paths to the run function instead
   // of relying on empty-path auto-discovery.
   []
 }

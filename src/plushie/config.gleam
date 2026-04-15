@@ -47,8 +47,10 @@ pub fn wants_artifact(name: String) -> Result(Bool, Nil) {
 
 // -- FFI ---------------------------------------------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_config_ffi", "read_config")
 fn read_config_string(key: String) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_config_ffi", "read_config")
 fn read_config_list(key: String) -> Result(List(String), Nil)

@@ -448,7 +448,19 @@ fn handle_message(
       actor.continue(state)
     }
 
-    // Intercept status events for focus tracking before normal dispatch
+    // Intercept duplicate node ID warnings: these are SDK-level issues,
+    // not app events. Log and consume without dispatching to update.
+    FromBridge(InboundEvent(EventMessage(event.Error(event.DuplicateNodeIds(
+      _details,
+    ))))) -> {
+      platform.log_warning(
+        "plushie: renderer reported duplicate node IDs in the tree",
+      )
+      actor.continue(state)
+    }
+
+    // Intercept and consume status events for internal focus tracking.
+    // These are SDK-internal; they do not reach the app's update function.
     FromBridge(InboundEvent(EventMessage(event.Widget(event.Status(
       target:,
       value: status_value,
@@ -545,7 +557,7 @@ fn handle_message(
       // each one. Matches Elixir's apply_event which defers view/render.
       let state =
         list.fold(events, state, fn(state, ev) { apply_event(state, ev) })
-      // Render once and send a single snapshot (headless step protocol).
+      // Render once and diff/patch after processing all step events.
       let state = rerender(state)
       actor.continue(state)
     }
@@ -602,7 +614,19 @@ fn handle_message(
     FromBridge(RendererExited(status:)) -> {
       // Call app handler if defined, otherwise keep current model
       let model = case app.get_on_renderer_exit(state.app) {
-        Some(handler) -> handler(state.model, dynamic.int(status))
+        Some(handler) ->
+          case
+            platform.try_call(fn() { handler(state.model, dynamic.int(status)) })
+          {
+            Ok(new_model) -> new_model
+            Error(reason) -> {
+              platform.log_error(
+                "plushie: on_renderer_exit callback crashed: "
+                <> string.inspect(reason),
+              )
+              state.model
+            }
+          }
         None -> state.model
       }
       let state = LoopState(..state, model: model)
@@ -627,13 +651,8 @@ fn handle_message(
     }
 
     InternalEvent(event) -> {
-      // Remove delivered timer entry (SendAfter deduplication)
-      let timer_key = platform.stable_hash_key(event)
-      let state =
-        LoopState(
-          ..state,
-          pending_timers: dict.delete(state.pending_timers, timer_key),
-        )
+      // Externally injected event (plushie.dispatch_event). Dispatch
+      // through the normal widget handler chain and update cycle.
       let new_state = handle_event(state, event)
       // D-033: stop runtime on AllWindowsClosed in non-daemon mode
       case event, state.opts.daemon {
@@ -864,8 +883,15 @@ fn handle_message(
       })
       let state = LoopState(..state, pending_timers: dict.new())
 
-      // Reset error counters (old renderer's failures don't carry over)
-      let state = LoopState(..state, errors: 0, consecutive_view_errors: 0)
+      // Reset error counters and stale focus/status state
+      let state =
+        LoopState(
+          ..state,
+          errors: 0,
+          consecutive_view_errors: 0,
+          widget_statuses: dict.new(),
+          focused_widget_id: None,
+        )
 
       // Flush pending effects with error (old renderer is gone).
       let state = flush_pending_effects_on_restart(state)
@@ -1066,7 +1092,7 @@ fn handle_message(
       }
       // Flush pending stub acks with error
       dict.each(state.pending_stub_acks, fn(_kind, reply) {
-        process.send(reply, Error("renderer_restarted"))
+        process.send(reply, Error("runtime_shutdown"))
       })
       // Fail pending interact
       let _state = fail_pending_interact(state, "runtime_shutdown")
@@ -1136,30 +1162,38 @@ fn handle_message(
       // Fail any existing pending interact (prevents caller leak)
       let state = fail_pending_interact(state, "superseded")
       let req_id = "interact_" <> int.to_string(state.nonce_counter)
-      // Monitor the caller so we can clean up if it dies (timeout/crash)
-      let assert Ok(caller_pid) = process.subject_owner(reply)
-      let caller_monitor = process.monitor(caller_pid)
-      // Timeout after 10 seconds (interact should be near-instant)
-      let timer =
-        process.send_after(state.self, 10_000, InteractTimeout(req_id))
-      let state =
-        LoopState(
-          ..state,
-          nonce_counter: state.nonce_counter + 1,
-          pending_interact: Some(#(reply, req_id, caller_monitor, timer)),
-        )
-      send_transient(
-        state.bridge,
-        encode.encode_interact(
-          req_id,
-          action,
-          selector,
-          payload,
-          state.opts.session,
-          state.opts.format,
-        ),
-      )
-      actor.continue(state)
+      // Monitor the caller so we can clean up if it dies (timeout/crash).
+      // If the caller is already dead, reply with error and skip.
+      case process.subject_owner(reply) {
+        Error(_) -> {
+          process.send(reply, Error("caller_exited"))
+          actor.continue(state)
+        }
+        Ok(caller_pid) -> {
+          let caller_monitor = process.monitor(caller_pid)
+          // Timeout after 10 seconds (interact should be near-instant)
+          let timer =
+            process.send_after(state.self, 10_000, InteractTimeout(req_id))
+          let state =
+            LoopState(
+              ..state,
+              nonce_counter: state.nonce_counter + 1,
+              pending_interact: Some(#(reply, req_id, caller_monitor, timer)),
+            )
+          send_transient(
+            state.bridge,
+            encode.encode_interact(
+              req_id,
+              action,
+              selector,
+              payload,
+              state.opts.session,
+              state.opts.format,
+            ),
+          )
+          actor.continue(state)
+        }
+      }
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
@@ -1314,8 +1348,8 @@ fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
 // -- Bridge restart helpers --------------------------------------------------
 
 @target(erlang)
-/// Fail all pending effects with a "renderer_restarted" error and cancel
-/// their timeout timers. The old renderer can no longer respond.
+/// Fail the pending interact request with the given reason. Cancels its
+/// timeout timer and demonitors the caller.
 fn fail_pending_interact(
   state: LoopState(model, msg),
   reason: String,
@@ -1592,14 +1626,31 @@ fn apply_event(state: LoopState(model, msg), ev: Event) -> LoopState(model, msg)
   let state = LoopState(..state, cw_registry: new_registry)
   case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
-      let mapped_msg = runtime_core.map_event(state.app, resolved)
-      let update_fn = app.get_update(state.app)
-      case platform.try_call(fn() { update_fn(state.model, mapped_msg) }) {
-        Ok(#(new_model, commands)) -> {
-          let state = LoopState(..state, model: new_model)
-          execute_commands(commands, state)
+      case
+        platform.try_call(fn() { runtime_core.map_event(state.app, resolved) })
+      {
+        Error(reason) -> {
+          platform.log_warning(
+            "plushie: on_event mapper crashed: " <> dynamic.classify(reason),
+          )
+          state
         }
-        Error(_) -> state
+        Ok(mapped_msg) -> {
+          let update_fn = app.get_update(state.app)
+          case platform.try_call(fn() { update_fn(state.model, mapped_msg) }) {
+            Ok(#(new_model, commands)) -> {
+              let state = LoopState(..state, model: new_model)
+              execute_commands(commands, state)
+            }
+            Error(reason) -> {
+              platform.log_warning(
+                "plushie: update error during interact step: "
+                <> dynamic.classify(reason),
+              )
+              state
+            }
+          }
+        }
       }
     }
     None -> state
@@ -1619,8 +1670,17 @@ fn handle_event(
   let state = LoopState(..state, cw_registry: new_registry)
   case runtime_core.resolve_dispatch(result) {
     Some(resolved) -> {
-      let mapped_msg = runtime_core.map_event(state.app, resolved)
-      dispatch_update(state, mapped_msg)
+      case
+        platform.try_call(fn() { runtime_core.map_event(state.app, resolved) })
+      {
+        Ok(mapped_msg) -> dispatch_update(state, mapped_msg)
+        Error(reason) -> {
+          platform.log_warning(
+            "plushie: on_event mapper crashed: " <> dynamic.classify(reason),
+          )
+          state
+        }
+      }
     }
     None -> {
       // Event was consumed by a widget handler. Re-render since widget

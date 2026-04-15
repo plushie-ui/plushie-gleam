@@ -696,7 +696,7 @@ fn handle_message(
         Ok(code) -> code
         Error(_) -> 1
       }
-      notify_runtime(state, RendererExited(status: exit_code))
+      let state = buffer_or_send(state, RendererExited(status: exit_code))
 
       case exit_code {
         // Clean exit (status 0): stop the bridge.
@@ -790,7 +790,7 @@ fn handle_message(
 
     IoStreamClosed -> {
       // Treat transport close as clean exit (status 0)
-      notify_runtime(state, RendererExited(status: 0))
+      let _state = buffer_or_send(state, RendererExited(status: 0))
       actor.stop()
     }
 
@@ -827,15 +827,17 @@ fn handle_message(
                 <> int.to_string(new_count)
                 <> ")",
               )
-              notify_runtime(state, RendererRestarted)
-              actor.continue(
-                BridgeState(
-                  ..state,
-                  port: Some(new_port),
-                  restart_count: new_count,
-                  // awaiting_resync stays True until ResyncComplete
-                ),
-              )
+              let state =
+                buffer_or_send(
+                  BridgeState(
+                    ..state,
+                    port: Some(new_port),
+                    restart_count: new_count,
+                    // awaiting_resync stays True until ResyncComplete
+                  ),
+                  RendererRestarted,
+                )
+              actor.continue(state)
             }
             Error(_) -> {
               platform.log_error(
@@ -982,16 +984,8 @@ fn handle_line_data(
 }
 
 @target(erlang)
-/// Send a notification to the runtime if registered, otherwise buffer it.
-fn notify_runtime(state: BridgeState, notification: RuntimeNotification) -> Nil {
-  case state.runtime {
-    Some(runtime) -> process.send(runtime, notification)
-    None -> Nil
-  }
-}
-
-@target(erlang)
-/// Buffer a notification when the runtime is not yet registered.
+/// Send a notification to the runtime, or buffer it if the runtime
+/// hasn't registered yet. Buffered events are flushed on RegisterRuntime.
 fn buffer_or_send(
   state: BridgeState,
   notification: RuntimeNotification,

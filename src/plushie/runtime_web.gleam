@@ -13,8 +13,8 @@
 ////
 //// The JS runtime reuses the same pure functions as the BEAM runtime:
 //// - `app.get_update(app)(model, msg)` for the update step
-//// - `tree.normalize_view(raw_tree, registry)` for scoped IDs and
-////   explicit-window validation
+//// - `tree.normalize_view(raw_tree, registry, memo_cache)` for scoped
+////   IDs, widget registry accumulation, and explicit-window validation
 //// - `tree.diff(old, new)` for incremental patching
 //// - `protocol/encode` (JSON path) for wire serialization
 ////

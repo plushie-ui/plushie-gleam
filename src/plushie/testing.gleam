@@ -439,6 +439,10 @@ pub fn assert_text(
 }
 
 /// Dispatch an AnimationFrame event to advance frame-based animations.
+///
+/// This works with the mock and session backends. On headless/windowed
+/// backends, the renderer generates its own animation frames and this
+/// function has no effect.
 pub fn advance_frame(
   ctx: TestContext(model),
   timestamp: Int,
