@@ -410,14 +410,39 @@ fn dispatch_events(
 /// (e.g. "content/count") by searching the local tree. If the ID
 /// already contains "/" (already scoped) or isn't found, return as-is.
 fn resolve_scoped_id(current_tree: Node, id: String) -> String {
-  // If already scoped (contains "/" or "#"), use as-is
-  case string.contains(id, "/") || string.contains(id, "#") {
+  // If already window-qualified (contains "#"), use as-is.
+  // Otherwise, search the normalized tree for a matching node.
+  // The normalized tree has fully-qualified IDs (e.g. "main#panel/form/save")
+  // which is what the renderer expects.
+  case string.contains(id, "#") {
     True -> id
     False ->
       case tree.find(current_tree, id) {
         Some(nd) -> nd.id
-        None -> id
+        None ->
+          // tree.find doesn't match partial scoped paths (e.g. "panel/form/save"
+          // won't match "main#panel/form/save"). Search for a node whose ID
+          // ends with "#" <> id.
+          case find_by_scoped_suffix(current_tree, "#" <> id) {
+            Some(nd) -> nd.id
+            None -> id
+          }
       }
+  }
+}
+
+@target(erlang)
+fn find_by_scoped_suffix(node: Node, suffix: String) -> Option(Node) {
+  case string.ends_with(node.id, suffix) {
+    True -> Some(node)
+    False ->
+      list.find_map(node.children, fn(child) {
+        case find_by_scoped_suffix(child, suffix) {
+          Some(n) -> Ok(n)
+          None -> Error(Nil)
+        }
+      })
+      |> option.from_result
   }
 }
 
