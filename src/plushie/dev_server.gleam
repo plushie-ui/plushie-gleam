@@ -13,6 +13,8 @@ import gleam/dynamic.{type Dynamic}
 @target(erlang)
 import gleam/erlang/process.{type Subject}
 @target(erlang)
+import gleam/option.{None, Some}
+@target(erlang)
 import gleam/otp/actor
 @target(erlang)
 import gleam/string
@@ -172,11 +174,19 @@ fn handle_message(
       let state = DevState(..state, debounce_pending: False)
 
       platform.log_info("plushie dev: recompiling...")
+      process.send(
+        state.runtime,
+        runtime.SetDevOverlay(message: Some("Rebuilding...")),
+      )
       let output = gleam_build()
 
       case string.contains(output, "error") {
         True -> {
           platform.log_error("plushie dev: build failed:\n" <> output)
+          process.send(
+            state.runtime,
+            runtime.SetDevOverlay(message: Some("Build failed")),
+          )
           actor.continue(state)
         }
         False -> {
@@ -187,10 +197,12 @@ fn handle_message(
           case changed {
             [] -> {
               platform.log_info("plushie dev: no modules changed")
+              process.send(state.runtime, runtime.SetDevOverlay(message: None))
               actor.continue(DevState(..state, last_mtimes: new_mtimes))
             }
             modules -> {
               reload_modules(modules)
+              // ForceRerender clears the dev overlay on success
               process.send(state.runtime, runtime.ForceRerender)
               platform.log_info("plushie dev: reload complete")
               actor.continue(DevState(..state, last_mtimes: new_mtimes))

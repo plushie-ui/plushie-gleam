@@ -352,6 +352,17 @@ pub fn is_view_desynced(instance: Instance(_)) -> Result(Bool, Nil) {
 }
 
 @target(erlang)
+/// Query the health status of a running application.
+///
+/// Returns a snapshot of error counters and view desync state.
+/// Useful for monitoring, testing, and dev tooling.
+pub fn get_health(instance: Instance(_)) -> Result(runtime.HealthStatus, Nil) {
+  let reply = process.new_subject()
+  process.send(instance.runtime, runtime.GetHealth(reply:))
+  process.receive(reply, 5000)
+}
+
+@target(erlang)
 /// Dispatch an event directly to the runtime's message loop.
 ///
 /// Bypasses the bridge/renderer. The event is processed through

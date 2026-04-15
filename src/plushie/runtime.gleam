@@ -117,6 +117,11 @@ pub type RuntimeMessage {
     payload: Dict(String, node.PropValue),
     reply: Subject(Result(Nil, String)),
   )
+  /// Query runtime health status.
+  GetHealth(reply: Subject(HealthStatus))
+  /// Set or clear the dev overlay message. Sent by the dev server
+  /// to show rebuild status, or by view error tracking for frozen UI.
+  SetDevOverlay(message: Option(String))
 }
 
 @target(erlang)
@@ -224,6 +229,16 @@ pub type PropWarning {
   PropWarning(node_id: String, node_type: String, warnings: List(String))
 }
 
+/// Health status snapshot from a running runtime.
+pub type HealthStatus {
+  HealthStatus(
+    errors: Int,
+    consecutive_view_errors: Int,
+    prop_warning_count: Int,
+    view_desynced: Bool,
+  )
+}
+
 // Sub-manager types group related fields from LoopState.
 
 @target(erlang)
@@ -280,6 +295,7 @@ type LoopState(model, msg) {
     notifications: Subject(RuntimeNotification),
     tree: Option(Node),
     active_subs: Dict(String, SubEntry),
+    sub_keys_cache: List(String),
     windows: Set(String),
     opts: RuntimeOpts,
     cw_registry: widget.Registry,
@@ -291,6 +307,7 @@ type LoopState(model, msg) {
     interact: Option(PendingInteract),
     focus: FocusState,
     error_state: ErrorState,
+    dev_overlay: Option(String),
   )
 }
 
@@ -395,6 +412,7 @@ fn init_runtime(
       notifications:,
       tree: Some(initial_tree),
       active_subs: dict.new(),
+      sub_keys_cache: [],
       windows: initial_windows,
       opts:,
       cw_registry: initial_cw_registry,
@@ -414,6 +432,7 @@ fn init_runtime(
         consecutive_view_errors: 0,
         prop_warnings: [],
       ),
+      dev_overlay: None,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -422,16 +441,20 @@ fn init_runtime(
   // Sync subscriptions (timers, renderer event sources, widget subs)
   let app_subs = safe_subscribe(state.app, state.model)
   let cw_subs = widget.collect_subscriptions(state.cw_registry)
+  let #(new_subs, new_sub_keys_cache) =
+    sync_subscriptions(
+      list.append(app_subs, cw_subs),
+      state.active_subs,
+      state.sub_keys_cache,
+      state.bridge,
+      state.self,
+      state.opts,
+    )
   let state =
     LoopState(
       ..state,
-      active_subs: sync_subscriptions(
-        list.append(app_subs, cw_subs),
-        state.active_subs,
-        state.bridge,
-        state.self,
-        state.opts,
-      ),
+      active_subs: new_subs,
+      sub_keys_cache: new_sub_keys_cache,
     )
 
   // Sync initial windows (open all detected windows)
@@ -974,7 +997,7 @@ fn handle_message(
         process.cancel_timer(entry.timer)
         Nil
       })
-      let state = LoopState(..state, timers: dict.new())
+      let state = LoopState(..state, timers: dict.new(), sub_keys_cache: [])
 
       // Reset error counters and stale focus/status state
       let state =
@@ -1132,7 +1155,9 @@ fn handle_message(
               state.memo_cache,
             )
           {
-            Ok(result) ->
+            Ok(result) -> {
+              // Clear the dev overlay on successful re-render (rebuild succeeded)
+              let state = LoopState(..state, dev_overlay: None)
               sync_after_render(
                 state,
                 result,
@@ -1143,6 +1168,7 @@ fn handle_message(
                 True,
               )
               |> actor.continue()
+            }
             Error(msg) -> {
               platform.log_error(
                 "plushie: normalization failed on force re-render: " <> msg,
@@ -1372,6 +1398,24 @@ fn handle_message(
         }
       }
     }
+
+    GetHealth(reply:) -> {
+      let health =
+        HealthStatus(
+          errors: state.error_state.errors,
+          consecutive_view_errors: state.error_state.consecutive_view_errors,
+          prop_warning_count: list.length(state.error_state.prop_warnings),
+          view_desynced: state.error_state.consecutive_view_errors > 0,
+        )
+      process.send(reply, health)
+      actor.continue(state)
+    }
+
+    SetDevOverlay(message:) -> {
+      let state = LoopState(..state, dev_overlay: message)
+      // Re-render to inject or clear the overlay in the tree
+      rerender(state) |> actor.continue()
+    }
   }
 }
 
@@ -1426,27 +1470,50 @@ fn track_focus_from_status(
 }
 
 /// Inject a frozen UI error indicator into the stale tree.
-/// Sends a snapshot with an error text node prepended to the tree.
-/// Called after 5 consecutive view failures to make the frozen state visible.
-fn inject_frozen_indicator(state: LoopState(model, msg)) -> Nil {
-  let error_node = node.new("__plushie_frozen_ui__", "text")
-  let error_node =
-    node.Node(
-      ..error_node,
-      props: dict.from_list([
-        #("content", StringVal("[plushie] UI frozen: view() is failing")),
-        #("size", node.FloatVal(14.0)),
-      ]),
-    )
+/// Sets the dev overlay and sends a snapshot with the overlay node
+/// prepended to the tree. Called after consecutive view failures
+/// reach the threshold to make the frozen state visible.
+fn inject_frozen_indicator(
+  state: LoopState(model, msg),
+) -> LoopState(model, msg) {
+  let message = "UI frozen: view() is failing"
+  let state = LoopState(..state, dev_overlay: Some(message))
   case state.tree {
     Some(tree) -> {
-      let patched = node.Node(..tree, children: [error_node, ..tree.children])
+      let patched = inject_dev_overlay_node(tree, message)
       send_encoded(
         state.bridge,
         encode.encode_snapshot(patched, state.opts.session, state.opts.format),
       )
+      state
     }
-    None -> Nil
+    None -> state
+  }
+}
+
+/// Build a dev overlay node with the given message text.
+fn build_dev_overlay_node(message: String) -> Node {
+  let overlay_node = node.new("__plushie_dev_overlay__", "text")
+  node.Node(
+    ..overlay_node,
+    props: dict.from_list([
+      #("content", StringVal("[plushie] " <> message)),
+      #("size", node.FloatVal(14.0)),
+    ]),
+  )
+}
+
+/// Inject a dev overlay node at the root of the tree.
+fn inject_dev_overlay_node(tree: Node, message: String) -> Node {
+  let overlay_node = build_dev_overlay_node(message)
+  node.Node(..tree, children: [overlay_node, ..tree.children])
+}
+
+/// If a dev overlay is active, inject it into the tree before diffing.
+fn maybe_inject_dev_overlay(tree: Node, dev_overlay: Option(String)) -> Node {
+  case dev_overlay {
+    Some(message) -> inject_dev_overlay_node(tree, message)
+    None -> tree
   }
 }
 
@@ -1604,6 +1671,9 @@ fn sync_after_render(
   let new_cw_registry = result.registry
   let new_windows = result.windows
 
+  // Inject dev overlay into the tree sent to the renderer (if active)
+  let wire_tree = maybe_inject_dev_overlay(new_tree, state.dev_overlay)
+
   // Send tree diff/patch (or snapshot) to the bridge
   case send_tree {
     True ->
@@ -1611,7 +1681,7 @@ fn sync_after_render(
         Some(old) -> {
           let ops =
             telemetry.span(["plushie", "diff"], dict.new(), fn() {
-              tree.diff(old, new_tree)
+              tree.diff(old, wire_tree)
             })
           telemetry.execute(
             ["plushie", "diff", "complete"],
@@ -1633,7 +1703,7 @@ fn sync_after_render(
           send_encoded(
             state.bridge,
             encode.encode_snapshot(
-              new_tree,
+              wire_tree,
               state.opts.session,
               state.opts.format,
             ),
@@ -1645,10 +1715,11 @@ fn sync_after_render(
   // Sync subscriptions (app + widget)
   let app_subs = safe_subscribe(state.app, model)
   let cw_subs = widget.collect_subscriptions(new_cw_registry)
-  let new_subs =
+  let #(new_subs, new_sub_keys_cache) =
     sync_subscriptions(
       list.append(app_subs, cw_subs),
       current_subs,
+      state.sub_keys_cache,
       state.bridge,
       state.self,
       state.opts,
@@ -1666,14 +1737,22 @@ fn sync_after_render(
     state.opts,
   )
 
+  // Clear frozen-UI overlay on successful view render (view errors reset to 0)
+  let dev_overlay = case state.dev_overlay {
+    Some("UI frozen: view() is failing") -> None
+    other -> other
+  }
+
   LoopState(
     ..state,
-    tree: Some(new_tree),
+    tree: Some(wire_tree),
     active_subs: new_subs,
+    sub_keys_cache: new_sub_keys_cache,
     windows: new_windows,
     cw_registry: new_cw_registry,
     memo_cache: result.memo_cache,
     error_state: ErrorState(..state.error_state, consecutive_view_errors: 0),
+    dev_overlay:,
   )
 }
 
@@ -1725,17 +1804,16 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
       platform.log_warning(
         "plushie: view error during rerender: " <> dynamic.classify(reason),
       )
-      case view_err_count == 5 {
+      let state = case view_err_count == 5 {
         True -> {
           platform.log_warning(
             "plushie: view has failed "
             <> int.to_string(view_err_count)
             <> " consecutive times, the UI is frozen",
           )
-          // Inject a frozen UI indicator into the stale tree
           inject_frozen_indicator(state)
         }
-        False -> Nil
+        False -> state
       }
       LoopState(
         ..state,
@@ -1926,14 +2004,16 @@ fn dispatch_update(
               )
             False -> Nil
           }
-          case view_err_count == 5 {
-            True ->
+          let state_after_cmds = case view_err_count == 5 {
+            True -> {
               platform.log_warning(
                 "plushie: view has failed "
                 <> int.to_string(view_err_count)
                 <> " consecutive times, the UI is stale",
               )
-            False -> Nil
+              inject_frozen_indicator(state_after_cmds)
+            }
+            False -> state_after_cmds
           }
           LoopState(
             ..state_after_cmds,
@@ -2421,16 +2501,91 @@ fn safe_subscribe(
 fn sync_subscriptions(
   desired: List(Subscription),
   current: Dict(String, SubEntry),
+  cached_keys: List(String),
   bridge: Subject(BridgeMessage),
   self: Subject(RuntimeMessage),
   opts: RuntimeOpts,
-) -> Dict(String, SubEntry) {
+) -> #(Dict(String, SubEntry), List(String)) {
   let desired_by_key =
     list.fold(desired, dict.new(), fn(acc, sub) {
       let k = runtime_core.subscription_key_string(sub)
       dict.insert(acc, k, sub)
     })
 
+  let new_sorted_keys = dict.keys(desired_by_key) |> list.sort(string.compare)
+
+  // Short-circuit: if the sorted key list matches the cache, the set of
+  // subscriptions is unchanged. Still check for max_rate/window_id updates
+  // on existing renderer subs, but skip the full add/remove diff.
+  case new_sorted_keys == cached_keys {
+    True -> {
+      let updated = update_max_rates(current, desired_by_key, bridge, opts)
+      #(updated, cached_keys)
+    }
+    False -> {
+      let result =
+        diff_subscriptions(current, desired_by_key, bridge, self, opts)
+      #(result, new_sorted_keys)
+    }
+  }
+}
+
+@target(erlang)
+/// When subscription keys haven't changed, check for max_rate or
+/// window_id updates on existing renderer subscriptions.
+fn update_max_rates(
+  current: Dict(String, SubEntry),
+  desired_by_key: Dict(String, Subscription),
+  bridge: Subject(BridgeMessage),
+  opts: RuntimeOpts,
+) -> Dict(String, SubEntry) {
+  dict.fold(desired_by_key, current, fn(acc, key, sub) {
+    case dict.get(acc, key) {
+      Ok(RendererSub(kind:, max_rate: old_rate, window_id: old_window_id, ..)) -> {
+        let new_rate = subscription.get_max_rate(sub)
+        let new_window_id = subscription.get_window_id(sub)
+        case old_rate == new_rate && old_window_id == new_window_id {
+          True -> acc
+          False -> {
+            let tag = subscription.wire_tag(sub)
+            send_encoded(
+              bridge,
+              encode.encode_subscribe(
+                kind,
+                tag,
+                new_rate,
+                new_window_id,
+                opts.session,
+                opts.format,
+              ),
+            )
+            dict.insert(
+              acc,
+              key,
+              RendererSub(
+                kind:,
+                wire_tag: tag,
+                max_rate: new_rate,
+                window_id: new_window_id,
+              ),
+            )
+          }
+        }
+      }
+      _ -> acc
+    }
+  })
+}
+
+@target(erlang)
+/// Full subscription diff: stop removed, start new, update kept.
+fn diff_subscriptions(
+  current: Dict(String, SubEntry),
+  desired_by_key: Dict(String, Subscription),
+  bridge: Subject(BridgeMessage),
+  self: Subject(RuntimeMessage),
+  opts: RuntimeOpts,
+) -> Dict(String, SubEntry) {
   // Stop removed subscriptions
   let current =
     dict.fold(current, current, fn(acc, key, entry) {
