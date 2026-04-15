@@ -9,7 +9,7 @@ import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string
-import plushie/event.{type Event, type EventTarget, EventTarget}
+import plushie/event.{type EventTarget, EventTarget}
 import plushie/node.{type Node, StringVal}
 import plushie/testing/element
 import plushie/testing/script.{
@@ -28,7 +28,7 @@ pub type Failure {
 /// Returns Ok(Nil) on success or Error(failures).
 pub fn run(
   script_val: Script,
-  session: TestSession(model, Event),
+  session: TestSession(model),
 ) -> Result(Nil, List(Failure)) {
   let result =
     list.index_fold(
@@ -57,9 +57,9 @@ pub fn run(
 }
 
 fn execute(
-  session: TestSession(model, Event),
+  session: TestSession(model),
   instruction: Instruction,
-) -> Result(TestSession(model, Event), String) {
+) -> Result(TestSession(model), String) {
   case instruction {
     Click(selector) -> {
       let target = resolve_event_target(session.current_tree(session), selector)

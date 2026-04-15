@@ -56,7 +56,7 @@ import plushie/testing/session_pool
 /// Created by `start`, threaded through all test operations.
 /// The backend is resolved once at startup, not on every call.
 pub opaque type TestContext(model) {
-  TestContext(session: TestSession(model, Event), backend: TestBackend(model))
+  TestContext(session: TestSession(model), backend: TestBackend(model))
 }
 
 // -- Session lifecycle -------------------------------------------------------

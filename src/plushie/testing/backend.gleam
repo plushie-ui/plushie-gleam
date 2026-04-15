@@ -111,45 +111,31 @@ fn parse_attribute_selector(input: String) -> Selector {
 /// Each function implements a specific testing operation.
 pub type TestBackend(model) {
   TestBackend(
-    start: fn(App(model, Event)) -> TestSession(model, Event),
-    stop: fn(TestSession(model, Event)) -> Nil,
-    find: fn(TestSession(model, Event), String) -> Option(Element),
-    click: fn(TestSession(model, Event), String) -> TestSession(model, Event),
-    type_text: fn(TestSession(model, Event), String, String) ->
-      TestSession(model, Event),
-    submit: fn(TestSession(model, Event), String) -> TestSession(model, Event),
-    toggle: fn(TestSession(model, Event), String) -> TestSession(model, Event),
-    select: fn(TestSession(model, Event), String, String) ->
-      TestSession(model, Event),
-    slide: fn(TestSession(model, Event), String, Float) ->
-      TestSession(model, Event),
-    press_key: fn(TestSession(model, Event), String) ->
-      TestSession(model, Event),
-    release_key: fn(TestSession(model, Event), String) ->
-      TestSession(model, Event),
-    type_key: fn(TestSession(model, Event), String) -> TestSession(model, Event),
-    canvas_press: fn(TestSession(model, Event), String, Float, Float) ->
-      TestSession(model, Event),
-    paste: fn(TestSession(model, Event), String, String) ->
-      TestSession(model, Event),
-    sort: fn(TestSession(model, Event), String, String) ->
-      TestSession(model, Event),
-    canvas_touch_press: fn(TestSession(model, Event), String, Float, Float, Int) ->
-      TestSession(model, Event),
-    canvas_touch_release: fn(
-      TestSession(model, Event),
-      String,
-      Float,
-      Float,
-      Int,
-    ) ->
-      TestSession(model, Event),
-    canvas_touch_move: fn(TestSession(model, Event), String, Float, Float, Int) ->
-      TestSession(model, Event),
-    model: fn(TestSession(model, Event)) -> model,
-    tree: fn(TestSession(model, Event)) -> Node,
-    reset: fn(TestSession(model, Event)) -> TestSession(model, Event),
-    send_event: fn(TestSession(model, Event), Event) ->
-      TestSession(model, Event),
+    start: fn(App(model, Event)) -> TestSession(model),
+    stop: fn(TestSession(model)) -> Nil,
+    find: fn(TestSession(model), String) -> Option(Element),
+    click: fn(TestSession(model), String) -> TestSession(model),
+    type_text: fn(TestSession(model), String, String) -> TestSession(model),
+    submit: fn(TestSession(model), String) -> TestSession(model),
+    toggle: fn(TestSession(model), String) -> TestSession(model),
+    select: fn(TestSession(model), String, String) -> TestSession(model),
+    slide: fn(TestSession(model), String, Float) -> TestSession(model),
+    press_key: fn(TestSession(model), String) -> TestSession(model),
+    release_key: fn(TestSession(model), String) -> TestSession(model),
+    type_key: fn(TestSession(model), String) -> TestSession(model),
+    canvas_press: fn(TestSession(model), String, Float, Float) ->
+      TestSession(model),
+    paste: fn(TestSession(model), String, String) -> TestSession(model),
+    sort: fn(TestSession(model), String, String) -> TestSession(model),
+    canvas_touch_press: fn(TestSession(model), String, Float, Float, Int) ->
+      TestSession(model),
+    canvas_touch_release: fn(TestSession(model), String, Float, Float, Int) ->
+      TestSession(model),
+    canvas_touch_move: fn(TestSession(model), String, Float, Float, Int) ->
+      TestSession(model),
+    model: fn(TestSession(model)) -> model,
+    tree: fn(TestSession(model)) -> Node,
+    reset: fn(TestSession(model)) -> TestSession(model),
+    send_event: fn(TestSession(model), Event) -> TestSession(model),
   )
 }

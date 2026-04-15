@@ -15,13 +15,16 @@ import plushie/tree
 import plushie/widget
 
 /// Immutable test session. Each operation returns a new session.
-pub opaque type TestSession(model, msg) {
-  TestSession(app: App(model, msg), model: model, tree: Node)
+///
+/// The `msg` type is always `Event` because the testing infrastructure
+/// only works with simple apps (or apps whose on_event maps to Event).
+pub opaque type TestSession(model) {
+  TestSession(app: App(model, Event), model: model, tree: Node)
 }
 
 /// Create a new test session from an app. Calls init, processes
 /// commands, renders and normalizes the initial view.
-pub fn start(app: App(model, msg)) -> TestSession(model, msg) {
+pub fn start(app: App(model, Event)) -> TestSession(model) {
   let init_fn = app.get_init(app)
   let #(model, commands) = init_fn(dynamic.nil())
   let model = process_commands(app, model, commands)
@@ -32,9 +35,9 @@ pub fn start(app: App(model, msg)) -> TestSession(model, msg) {
 /// Dispatch an event through the app's update function.
 /// Processes resulting commands and re-renders the view.
 pub fn send_event(
-  session: TestSession(model, msg),
-  event: msg,
-) -> TestSession(model, msg) {
+  session: TestSession(model),
+  event: Event,
+) -> TestSession(model) {
   let update_fn = app.get_update(session.app)
   let #(model, commands) = update_fn(session.model, event)
   let model = process_commands(session.app, model, commands)
@@ -43,23 +46,23 @@ pub fn send_event(
 }
 
 /// Return the current model.
-pub fn model(session: TestSession(model, msg)) -> model {
+pub fn model(session: TestSession(model)) -> model {
   session.model
 }
 
 /// Return the current normalized tree.
-pub fn current_tree(session: TestSession(model, msg)) -> Node {
+pub fn current_tree(session: TestSession(model)) -> Node {
   session.tree
 }
 
 /// Return the underlying app (for helpers that need access).
-pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
+pub fn get_app(session: TestSession(model)) -> App(model, Event) {
   session.app
 }
 
 // -- Internal -----------------------------------------------------------------
 
-fn render(app: App(model, msg), model: model) -> Node {
+fn render(app: App(model, Event), model: model) -> Node {
   let view_fn = app.get_view(app)
   case
     tree.normalize_view(
@@ -77,17 +80,17 @@ fn render(app: App(model, msg), model: model) -> Node {
 const max_command_depth = 100
 
 fn process_commands(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
-  commands: Command(msg),
+  commands: Command(Event),
 ) -> model {
   do_process(app, model, commands, 0)
 }
 
 fn do_process(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
-  cmd: Command(msg),
+  cmd: Command(Event),
   depth: Int,
 ) -> model {
   case depth > max_command_depth {
@@ -119,9 +122,9 @@ fn do_process(
 }
 
 fn batch_process(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
-  commands: List(Command(msg)),
+  commands: List(Command(Event)),
   depth: Int,
 ) -> model {
   case commands {
@@ -134,59 +137,44 @@ fn batch_process(
 }
 
 /// Dispatch an async result through the app's update function.
-/// For apps with on_event (custom msg), maps the Event through on_event.
-/// For simple apps (msg = Event), coerces the Event to msg at runtime.
+/// For apps with on_event, maps the Event through on_event.
+/// For simple apps (msg = Event), passes the Event directly.
 fn dispatch_async_result(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
   tag: String,
   result: Result(Dynamic, Dynamic),
   depth: Int,
 ) -> model {
   let raw_event = event.Async(event.AsyncEvent(tag:, result:))
-  case app.get_on_event(app) {
-    option.Some(on_event) -> {
-      let msg = on_event(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1)
-    }
-    option.None -> {
-      // Simple app: msg = Event. Coerce at the Erlang level.
-      let msg = event_to_msg(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1)
-    }
+  let msg = case app.get_on_event(app) {
+    option.Some(on_event) -> on_event(raw_event)
+    option.None -> raw_event
   }
+  let update_fn = app.get_update(app)
+  let #(new_model, new_commands) = update_fn(model, msg)
+  do_process(app, new_model, new_commands, depth + 1)
 }
 
 fn dispatch_stream_value(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
   tag: String,
   value: Dynamic,
   depth: Int,
 ) -> model {
   let raw_event = event.Stream(event.StreamEvent(tag:, value:))
-  case app.get_on_event(app) {
-    option.Some(on_event) -> {
-      let msg = on_event(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1)
-    }
-    option.None -> {
-      let msg = event_to_msg(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1)
-    }
+  let msg = case app.get_on_event(app) {
+    option.Some(on_event) -> on_event(raw_event)
+    option.None -> raw_event
   }
+  let update_fn = app.get_update(app)
+  let #(new_model, new_commands) = update_fn(model, msg)
+  do_process(app, new_model, new_commands, depth + 1)
 }
 
 fn drain_stream_values(
-  app: App(model, msg),
+  app: App(model, Event),
   model: model,
   tag: String,
   values: List(Dynamic),
@@ -207,9 +195,3 @@ fn drain_stream_values(
 fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)
-
-/// Cast Event to msg for simple apps where msg = Event.
-/// The type system can't prove msg = Event when on_event is None,
-/// but this is guaranteed by the App constructor invariant.
-@external(erlang, "plushie_test_ffi", "identity")
-fn event_to_msg(value: Event) -> msg

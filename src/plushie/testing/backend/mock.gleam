@@ -274,10 +274,7 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
 // -- Internal -----------------------------------------------------------------
 
 @target(erlang)
-fn start_pooled(
-  app: App(model, Event),
-  pool: PoolSubject,
-) -> TestSession(model, Event) {
+fn start_pooled(app: App(model, Event), pool: PoolSubject) -> TestSession(model) {
   // If there's already a session from an earlier test in the same
   // process (eunit runs tests within a module in one process),
   // send a reset to the renderer to clear its state. Then reuse
@@ -339,12 +336,12 @@ fn require_pool_session() -> #(PoolSubject, String) {
 
 @target(erlang)
 fn do_interact(
-  sess: TestSession(model, Event),
+  sess: TestSession(model),
   _pool: PoolSubject,
   action: String,
   selector: Option(String),
   payload: Dict(String, node.PropValue),
-) -> TestSession(model, Event) {
+) -> TestSession(model) {
   let #(pool_ref, session_id) = require_pool_session()
   let current_tree = session.current_tree(sess)
   let sel = case selector {
@@ -374,9 +371,9 @@ fn do_interact(
 
 @target(erlang)
 fn dispatch_events(
-  sess: TestSession(model, Event),
+  sess: TestSession(model),
   events: List(Dynamic),
-) -> TestSession(model, Event) {
+) -> TestSession(model) {
   list.fold(events, sess, fn(acc, event_data) {
     let family = dyn_string_field(event_data, "family", "")
     let id = dyn_string_field(event_data, "id", "")
@@ -386,7 +383,7 @@ fn dispatch_events(
         let event_dict = dyn_to_string_dict(event_data)
         case event_decoder.decode_test_event(family, id, event_dict) {
           Ok(event) -> {
-            let new_sess = session.send_event(acc, event_to_msg(event))
+            let new_sess = session.send_event(acc, event)
 
             // Send snapshot after each event (matches production behaviour)
             let #(pool_ref, session_id) = require_pool_session()
@@ -443,7 +440,7 @@ fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
 // -- Tree helpers -------------------------------------------------------------
 
 @target(erlang)
-fn read_toggle_state(sess: TestSession(model, Event), id: String) -> Bool {
+fn read_toggle_state(sess: TestSession(model), id: String) -> Bool {
   let current_tree = session.current_tree(sess)
   case tree.find(current_tree, id) {
     Some(nd) ->
@@ -462,7 +459,7 @@ fn read_toggle_state(sess: TestSession(model, Event), id: String) -> Bool {
 
 @target(erlang)
 fn read_string_prop_from_tree(
-  sess: TestSession(model, Event),
+  sess: TestSession(model),
   id: String,
   key: String,
 ) -> String {
@@ -626,11 +623,6 @@ fn erase_pool_session() -> Nil
 @target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "wait_for_interact_response")
 fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
-
-@target(erlang)
-/// Cast Event to msg for simple apps where msg = Event.
-@external(erlang, "plushie_test_ffi", "identity")
-fn event_to_msg(value: Event) -> msg
 
 @target(erlang)
 import plushie/testing/element

@@ -181,7 +181,7 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
 fn start_headless(
   app: App(model, Event),
   config: renderer.RendererConfig,
-) -> TestSession(model, Event) {
+) -> TestSession(model) {
   let assert Ok(subj) = renderer.start(app, config)
   put_renderer(subj)
   session.start(app)

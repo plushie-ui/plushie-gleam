@@ -120,8 +120,15 @@ pub fn start(
   //   flushed coalesced events that must not be re-coalesced)
   let dispatch = fn(event) { handle_event(handle, app, event) }
   let dispatch_direct = fn(event) {
-    let msg = runtime_core.map_event(app, event)
-    dispatch_update(handle, app, msg)
+    case platform.try_call(fn() { runtime_core.map_event(app, event) }) {
+      Ok(msg) -> dispatch_update(handle, app, msg)
+      Error(reason) -> {
+        platform.log_warning(
+          "plushie: map_event error: " <> dynamic.classify(reason),
+        )
+        Nil
+      }
+    }
   }
   register_dispatch(handle, dispatch, dispatch_direct)
   register_timer_callback(handle, fn(tag) {
@@ -251,35 +258,51 @@ fn render_and_sync(
   case platform.try_call(fn() { view_fn(model) }) {
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
-      let norm_result = normalize_view_or_panic(raw_tree, registry)
-      let new_tree = norm_result.tree
-      let new_registry = norm_result.registry
-      do_set_cw_registry(handle, new_registry)
       let old_tree = do_get_tree(handle)
 
-      case force_snapshot || option.is_none(old_tree) {
-        True -> {
-          let assert Ok(bytes) = encode.encode_snapshot(new_tree, session, Json)
-          do_send(handle, bytes)
-        }
-        False -> {
-          let assert Some(old) = old_tree
-          let ops = tree.diff(old, new_tree)
-          case list.is_empty(ops) {
-            True -> Nil
-            False -> {
-              let assert Ok(bytes) = encode.encode_patch(ops, session, Json)
+      case try_normalize_view(raw_tree, registry) {
+        Ok(norm_result) -> {
+          let new_tree = norm_result.tree
+          do_set_cw_registry(handle, norm_result.registry)
+
+          case force_snapshot || option.is_none(old_tree) {
+            True -> {
+              let assert Ok(bytes) =
+                encode.encode_snapshot(new_tree, session, Json)
               do_send(handle, bytes)
+            }
+            False -> {
+              let assert Some(old) = old_tree
+              let ops = tree.diff(old, new_tree)
+              case list.is_empty(ops) {
+                True -> Nil
+                False -> {
+                  let assert Ok(bytes) = encode.encode_patch(ops, session, Json)
+                  do_send(handle, bytes)
+                }
+              }
+            }
+          }
+
+          // Sync subscriptions and windows BEFORE updating the stored
+          // tree, so sync_windows can compare old vs new props.
+          sync_subscriptions(handle, app)
+          sync_windows(handle, app, new_tree, norm_result.windows, session)
+          do_set_tree(handle, Some(new_tree))
+        }
+        Error(msg) -> {
+          // Initial render (no old tree): no fallback, must panic
+          case old_tree {
+            None -> panic as msg
+            Some(_) -> {
+              platform.log_error(
+                "plushie: normalization failed during rerender: " <> msg,
+              )
+              Nil
             }
           }
         }
       }
-
-      // Sync subscriptions and windows BEFORE updating the stored
-      // tree, so sync_windows can compare old vs new props.
-      sync_subscriptions(handle, app)
-      sync_windows(handle, app, new_tree, norm_result.windows, session)
-      do_set_tree(handle, Some(new_tree))
     }
     Error(reason) -> {
       platform.log_warning("plushie: view error: " <> dynamic.classify(reason))
@@ -289,14 +312,11 @@ fn render_and_sync(
 }
 
 @target(javascript)
-fn normalize_view_or_panic(
+fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
-) -> tree.NormalizeResult {
-  case tree.normalize_view(view_tree, registry, tree.empty_memo_cache()) {
-    Ok(result) -> result
-    Error(message) -> panic as message
-  }
+) -> Result(tree.NormalizeResult, String) {
+  tree.normalize_view(view_tree, registry, tree.empty_memo_cache())
 }
 
 // -- Event handling ----------------------------------------------------------
@@ -328,8 +348,15 @@ fn handle_event(
       do_set_cw_registry(handle, new_registry)
       case runtime_core.resolve_dispatch(result) {
         Some(ev) -> {
-          let msg = runtime_core.map_event(app, ev)
-          dispatch_update(handle, app, msg)
+          case platform.try_call(fn() { runtime_core.map_event(app, ev) }) {
+            Ok(msg) -> dispatch_update(handle, app, msg)
+            Error(reason) -> {
+              platform.log_warning(
+                "plushie: map_event error: " <> dynamic.classify(reason),
+              )
+              Nil
+            }
+          }
         }
         None -> {
           // Consumed by widget handler or auto-consumed as canvas-internal.

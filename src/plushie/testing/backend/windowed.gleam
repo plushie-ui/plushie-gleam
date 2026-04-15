@@ -195,7 +195,7 @@ pub fn backend_with_opts(opts: WindowedOpts) -> TestBackend(model) {
 fn start_windowed(
   app: App(model, Event),
   config: renderer.RendererConfig,
-) -> TestSession(model, Event) {
+) -> TestSession(model) {
   // Require a display server
   case platform.get_env("DISPLAY"), platform.get_env("WAYLAND_DISPLAY") {
     Error(_), Error(_) ->
