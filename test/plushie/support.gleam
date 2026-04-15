@@ -135,8 +135,11 @@ pub fn stop(rt: TestApp(_)) -> Nil {
     Ok(warnings) -> {
       let messages =
         list.map(warnings, fn(w) {
-          let #(node_id, node_type, warns) = w
-          node_type <> " \"" <> node_id <> "\": " <> string.join(warns, "; ")
+          w.node_type
+          <> " \""
+          <> w.node_id
+          <> "\": "
+          <> string.join(w.warnings, "; ")
         })
       panic as {
         "Prop validation warnings found:\n" <> string.join(messages, "\n")

@@ -415,12 +415,12 @@ pub fn unregister_effect_stub(
 @target(erlang)
 /// Query and clear accumulated prop validation warnings.
 ///
-/// Returns a list of (node_id, node_type, warnings) tuples for
-/// each node that had validation issues since the last query.
-/// Warnings are cleared after retrieval.
+/// Returns a list of PropWarning records for each node that had
+/// validation issues since the last query. Warnings are cleared
+/// after retrieval.
 pub fn get_prop_warnings(
   instance: Instance(_),
-) -> Result(List(#(String, String, List(String))), Nil) {
+) -> Result(List(runtime.PropWarning), Nil) {
   let reply = process.new_subject()
   process.send(instance.runtime, runtime.GetPropWarnings(reply:))
   process.receive(reply, 5000)

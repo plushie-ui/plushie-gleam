@@ -105,7 +105,7 @@ pub type RuntimeMessage {
   /// an ack after removing the stub; the reply Subject is notified.
   UnregisterEffectStub(kind: String, reply: Subject(Result(Nil, String)))
   /// Query accumulated prop validation warnings and clear them.
-  GetPropWarnings(reply: Subject(List(#(String, String, List(String)))))
+  GetPropWarnings(reply: Subject(List(PropWarning)))
   /// Wait for an async task to complete. Replies when the task with
   /// the given tag finishes, or immediately if already done.
   AwaitAsync(tag: String, reply: Subject(Nil))
@@ -192,6 +192,83 @@ pub fn start_supervised(
 
 // -- Internal state ----------------------------------------------------------
 
+// Named record types replace anonymous tuples for clarity.
+
+@target(erlang)
+type AsyncTask {
+  AsyncTask(pid: Pid, nonce: Int, monitor: process.Monitor)
+}
+
+@target(erlang)
+type PendingEffect {
+  PendingEffect(tag: String, timer: process.Timer)
+}
+
+@target(erlang)
+type PendingTimer {
+  PendingTimer(timer: process.Timer, nonce: Int)
+}
+
+@target(erlang)
+type PendingInteract {
+  PendingInteract(
+    reply: Subject(Result(Nil, String)),
+    request_id: String,
+    monitor: process.Monitor,
+    timer: process.Timer,
+  )
+}
+
+/// Prop validation warning from the renderer for a specific node.
+pub type PropWarning {
+  PropWarning(node_id: String, node_type: String, warnings: List(String))
+}
+
+// Sub-manager types group related fields from LoopState.
+
+@target(erlang)
+type AsyncTracker {
+  AsyncTracker(
+    tasks: Dict(String, AsyncTask),
+    nonce_counter: Int,
+    await_callers: Dict(String, Subject(Nil)),
+  )
+}
+
+@target(erlang)
+type EffectTracker {
+  EffectTracker(
+    pending: Dict(String, PendingEffect),
+    stub_acks: Dict(String, Subject(Result(Nil, String))),
+  )
+}
+
+@target(erlang)
+type CoalesceState {
+  CoalesceState(
+    events: Dict(String, Event),
+    order: List(String),
+    timer: Option(process.Timer),
+  )
+}
+
+@target(erlang)
+type FocusState {
+  FocusState(
+    widget_statuses: Dict(String, String),
+    focused_widget_id: Option(String),
+  )
+}
+
+@target(erlang)
+type ErrorState {
+  ErrorState(
+    errors: Int,
+    consecutive_view_errors: Int,
+    prop_warnings: List(PropWarning),
+  )
+}
+
 @target(erlang)
 type LoopState(model, msg) {
   LoopState(
@@ -205,41 +282,15 @@ type LoopState(model, msg) {
     active_subs: Dict(String, SubEntry),
     windows: Set(String),
     opts: RuntimeOpts,
-    errors: Int,
-    // tag -> (pid, nonce, monitor) for stale-result protection
-    async_tasks: Dict(String, #(Pid, Int, process.Monitor)),
-    // Monotonically increasing counter for async nonces
-    nonce_counter: Int,
-    // wire_id -> (tag, timeout_timer) for pending platform effects
-    pending_effects: Dict(String, #(String, process.Timer)),
-    // event key -> (timer, nonce) for SendAfter deduplication
-    pending_timers: Dict(String, #(process.Timer, Int)),
-    // Pending effect stub ack replies, keyed by kind
-    // Pending effect stub ack replies. Ok(Nil) on success,
-    // Error("renderer_restarted") if the renderer dies before acking.
-    pending_stub_acks: Dict(String, Subject(Result(Nil, String))),
-    // Accumulated prop validation warnings from the renderer
-    prop_warnings: List(#(String, String, List(String))),
-    // Canvas widget state registry (window-aware widget key -> entry)
     cw_registry: widget.Registry,
-    // Callers waiting for async task completion, keyed by tag
-    pending_await_async: Dict(String, Subject(Nil)),
-    // Pending interact: (caller_reply, request_id, caller_monitor, timeout_timer)
-    pending_interact: Option(
-      #(Subject(Result(Nil, String)), String, process.Monitor, process.Timer),
-    ),
-    // Consecutive view/1 failures for stale-UI warning
-    consecutive_view_errors: Int,
-    // Deferred coalescable events, keyed by coalesce identity
-    pending_coalesce: Dict(String, Event),
-    // Timer for flushing deferred events (zero-delay)
-    coalesce_timer: Option(process.Timer),
-    // Widget status tracking for focus state
-    widget_statuses: Dict(String, String),
-    // Currently focused widget ID (tracked from status events)
-    focused_widget_id: Option(String),
-    // Memo cache for subtree caching across render cycles
     memo_cache: tree.MemoCache,
+    async: AsyncTracker,
+    effects: EffectTracker,
+    timers: Dict(String, PendingTimer),
+    coalesce: CoalesceState,
+    interact: Option(PendingInteract),
+    focus: FocusState,
+    error_state: ErrorState,
   )
 }
 
@@ -346,22 +397,23 @@ fn init_runtime(
       active_subs: dict.new(),
       windows: initial_windows,
       opts:,
-      errors: 0,
-      async_tasks: dict.new(),
-      nonce_counter: 0,
-      pending_effects: dict.new(),
-      pending_stub_acks: dict.new(),
-      prop_warnings: [],
       cw_registry: initial_cw_registry,
-      pending_await_async: dict.new(),
-      pending_interact: None,
-      consecutive_view_errors: 0,
-      pending_timers: dict.new(),
-      pending_coalesce: dict.new(),
-      coalesce_timer: None,
-      widget_statuses: dict.new(),
-      focused_widget_id: None,
       memo_cache: initial_memo_cache,
+      async: AsyncTracker(
+        tasks: dict.new(),
+        nonce_counter: 0,
+        await_callers: dict.new(),
+      ),
+      effects: EffectTracker(pending: dict.new(), stub_acks: dict.new()),
+      timers: dict.new(),
+      coalesce: CoalesceState(events: dict.new(), order: [], timer: None),
+      interact: None,
+      focus: FocusState(widget_statuses: dict.new(), focused_widget_id: None),
+      error_state: ErrorState(
+        errors: 0,
+        consecutive_view_errors: 0,
+        prop_warnings: [],
+      ),
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -421,10 +473,16 @@ fn handle_message(
         <> string.join(warnings, "; ")
       platform.log_warning(warning_text)
       let new_warnings = [
-        #(node_id, node_type, warnings),
-        ..state.prop_warnings
+        PropWarning(node_id:, node_type:, warnings:),
+        ..state.error_state.prop_warnings
       ]
-      LoopState(..state, prop_warnings: new_warnings)
+      LoopState(
+        ..state,
+        error_state: ErrorState(
+          ..state.error_state,
+          prop_warnings: new_warnings,
+        ),
+      )
       |> actor.continue()
     }
 
@@ -473,16 +531,24 @@ fn handle_message(
       case runtime_core.coalesce_key(ev) {
         Some(key) -> {
           // Defer this event; latest value wins
-          let new_coalesce = dict.insert(state.pending_coalesce, key, ev)
-          // Start flush timer if not already running
-          let timer = case state.coalesce_timer {
-            Some(_) -> state.coalesce_timer
+          // Track insertion order so flush processes events in arrival order.
+          let coal = state.coalesce
+          let new_order = case dict.has_key(coal.events, key) {
+            True -> coal.order
+            False -> [key, ..coal.order]
+          }
+          let new_events = dict.insert(coal.events, key, ev)
+          let new_timer = case coal.timer {
+            Some(_) -> coal.timer
             None -> Some(process.send_after(state.self, 0, CoalesceFlush))
           }
           LoopState(
             ..state,
-            pending_coalesce: new_coalesce,
-            coalesce_timer: timer,
+            coalesce: CoalesceState(
+              events: new_events,
+              order: new_order,
+              timer: new_timer,
+            ),
           )
           |> actor.continue()
         }
@@ -569,12 +635,14 @@ fn handle_message(
       // Reply to the waiting caller and demonitor. Pin-match the
       // response ID against the pending request ID to guard against
       // stale responses from a previous interaction.
-      let state = case state.pending_interact {
-        Some(#(reply, req_id, monitor, timer)) if req_id == resp_id -> {
+      let state = case state.interact {
+        Some(PendingInteract(reply:, request_id:, monitor:, timer:))
+          if request_id == resp_id
+        -> {
           process.demonitor_process(monitor)
           process.cancel_timer(timer)
           process.send(reply, Ok(Nil))
-          LoopState(..state, pending_interact: None)
+          LoopState(..state, interact: None)
         }
         _ -> state
       }
@@ -582,14 +650,17 @@ fn handle_message(
     }
 
     FromBridge(InboundEvent(EffectResponseRaw(wire_id:, result:))) -> {
-      case dict.get(state.pending_effects, wire_id) {
-        Ok(#(tag, timer)) -> {
+      case dict.get(state.effects.pending, wire_id) {
+        Ok(PendingEffect(tag:, timer:)) -> {
           process.cancel_timer(timer)
           let ev = event.Effect(event.EffectEvent(tag:, result:))
           let new_state = handle_event(state, ev)
           LoopState(
             ..new_state,
-            pending_effects: dict.delete(new_state.pending_effects, wire_id),
+            effects: EffectTracker(
+              ..new_state.effects,
+              pending: dict.delete(new_state.effects.pending, wire_id),
+            ),
           )
           |> actor.continue()
         }
@@ -598,12 +669,15 @@ fn handle_message(
     }
 
     FromBridge(InboundEvent(EffectStubAck(kind:))) -> {
-      case dict.get(state.pending_stub_acks, kind) {
+      case dict.get(state.effects.stub_acks, kind) {
         Ok(reply) -> {
           process.send(reply, Ok(Nil))
           LoopState(
             ..state,
-            pending_stub_acks: dict.delete(state.pending_stub_acks, kind),
+            effects: EffectTracker(
+              ..state.effects,
+              stub_acks: dict.delete(state.effects.stub_acks, kind),
+            ),
           )
           |> actor.continue()
         }
@@ -670,18 +744,16 @@ fn handle_message(
       let is_current = case nonce {
         -1 -> True
         _ ->
-          case dict.get(state.pending_timers, timer_key) {
-            Ok(#(_, expected_nonce)) -> expected_nonce == nonce
+          case dict.get(state.timers, timer_key) {
+            Ok(PendingTimer(nonce: expected_nonce, ..)) ->
+              expected_nonce == nonce
             Error(_) -> True
           }
       }
       case is_current {
         True -> {
           let state =
-            LoopState(
-              ..state,
-              pending_timers: dict.delete(state.pending_timers, timer_key),
-            )
+            LoopState(..state, timers: dict.delete(state.timers, timer_key))
           let msg = unsafe_coerce_dynamic(dyn_msg)
           let new_state = handle_msg(state, msg)
           actor.continue(new_state)
@@ -715,13 +787,21 @@ fn handle_message(
 
     AsyncComplete(tag:, nonce:, result:) -> {
       // Validate nonce matches current task; discard stale results
-      case dict.get(state.async_tasks, tag) {
-        Ok(#(_, current_nonce, monitor)) if current_nonce == nonce -> {
+      case dict.get(state.async.tasks, tag) {
+        Ok(AsyncTask(nonce: current_nonce, monitor:, ..))
+          if current_nonce == nonce
+        -> {
           process.demonitor_process(monitor)
           // Remove the old entry BEFORE dispatching. If update starts a
           // new task with the same tag, the new entry must not be wiped.
           let state =
-            LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+            LoopState(
+              ..state,
+              async: AsyncTracker(
+                ..state.async,
+                tasks: dict.delete(state.async.tasks, tag),
+              ),
+            )
           let state =
             handle_event(state, event.Async(event.AsyncEvent(tag:, result:)))
           notify_await_async(state, tag)
@@ -733,8 +813,8 @@ fn handle_message(
 
     StreamEmit(tag:, nonce:, value:) -> {
       // Validate nonce matches current stream; discard stale emissions
-      case dict.get(state.async_tasks, tag) {
-        Ok(#(_, current_nonce, _)) if current_nonce == nonce -> {
+      case dict.get(state.async.tasks, tag) {
+        Ok(AsyncTask(nonce: current_nonce, ..)) if current_nonce == nonce -> {
           handle_event(state, event.Stream(event.StreamEvent(tag:, value:)))
           |> actor.continue()
         }
@@ -743,8 +823,8 @@ fn handle_message(
     }
 
     EffectTimeout(request_id:) -> {
-      case dict.get(state.pending_effects, request_id) {
-        Ok(#(tag, _timer)) -> {
+      case dict.get(state.effects.pending, request_id) {
+        Ok(PendingEffect(tag:, ..)) -> {
           let timeout_event =
             event.Effect(event.EffectEvent(
               tag:,
@@ -753,7 +833,10 @@ fn handle_message(
           let new_state = handle_event(state, timeout_event)
           LoopState(
             ..new_state,
-            pending_effects: dict.delete(new_state.pending_effects, request_id),
+            effects: EffectTracker(
+              ..new_state.effects,
+              pending: dict.delete(new_state.effects.pending, request_id),
+            ),
           )
           |> actor.continue()
         }
@@ -762,14 +845,16 @@ fn handle_message(
     }
 
     InteractTimeout(request_id:) -> {
-      case state.pending_interact {
-        Some(#(reply, req_id, monitor, _timer)) if req_id == request_id -> {
+      case state.interact {
+        Some(PendingInteract(reply:, request_id: req_id, monitor:, ..))
+          if req_id == request_id
+        -> {
           process.demonitor_process(monitor)
           platform.log_error(
             "plushie: interact '" <> req_id <> "' timed out after 10s",
           )
           process.send(reply, Error("timeout"))
-          LoopState(..state, pending_interact: None) |> actor.continue()
+          LoopState(..state, interact: None) |> actor.continue()
         }
         _ -> actor.continue(state)
       }
@@ -801,25 +886,24 @@ fn handle_message(
         False -> {
           // Check if this is the interact caller dying (timeout/crash).
           // Clear pending_interact so future interactions aren't blocked.
-          let state = case state.pending_interact {
-            Some(#(_, _, mon, timer)) if mon == down_mon -> {
+          let state = case state.interact {
+            Some(PendingInteract(monitor: mon, timer:, ..)) if mon == down_mon -> {
               process.cancel_timer(timer)
               platform.log_info(
                 "plushie: interact caller exited, clearing pending interaction",
               )
-              LoopState(..state, pending_interact: None)
+              LoopState(..state, interact: None)
             }
             _ -> state
           }
 
           // Find which async task this pid belongs to
           let found =
-            dict.fold(state.async_tasks, None, fn(acc, tag, entry) {
+            dict.fold(state.async.tasks, None, fn(acc, tag, entry) {
               case acc {
                 Some(_) -> acc
                 None -> {
-                  let #(task_pid, _nonce, _monitor) = entry
-                  case task_pid == down_pid {
+                  case entry.pid == down_pid {
                     True -> Some(tag)
                     False -> None
                   }
@@ -831,7 +915,10 @@ fn handle_message(
               let state =
                 LoopState(
                   ..state,
-                  async_tasks: dict.delete(state.async_tasks, tag),
+                  async: AsyncTracker(
+                    ..state.async,
+                    tasks: dict.delete(state.async.tasks, tag),
+                  ),
                 )
               let state = notify_await_async(state, tag)
               case reason {
@@ -867,40 +954,55 @@ fn handle_message(
       // to flush queued transient messages.
 
       // Cancel coalesce timer and discard stale coalescable events
-      let state = case state.coalesce_timer {
+      let state = case state.coalesce.timer {
         Some(timer) -> {
           process.cancel_timer(timer)
-          LoopState(..state, coalesce_timer: None, pending_coalesce: dict.new())
+          LoopState(
+            ..state,
+            coalesce: CoalesceState(events: dict.new(), order: [], timer: None),
+          )
         }
-        None -> LoopState(..state, pending_coalesce: dict.new())
+        None ->
+          LoopState(
+            ..state,
+            coalesce: CoalesceState(events: dict.new(), order: [], timer: None),
+          )
       }
 
       // Cancel all pending send_after timers
-      dict.each(state.pending_timers, fn(_key, entry) {
-        let #(timer, _nonce) = entry
-        process.cancel_timer(timer)
+      dict.each(state.timers, fn(_key, entry) {
+        process.cancel_timer(entry.timer)
         Nil
       })
-      let state = LoopState(..state, pending_timers: dict.new())
+      let state = LoopState(..state, timers: dict.new())
 
       // Reset error counters and stale focus/status state
       let state =
         LoopState(
           ..state,
-          errors: 0,
-          consecutive_view_errors: 0,
-          widget_statuses: dict.new(),
-          focused_widget_id: None,
+          focus: FocusState(
+            widget_statuses: dict.new(),
+            focused_widget_id: None,
+          ),
+          error_state: ErrorState(
+            errors: 0,
+            consecutive_view_errors: 0,
+            prop_warnings: state.error_state.prop_warnings,
+          ),
         )
 
       // Flush pending effects with error (old renderer is gone).
       let state = flush_pending_effects_on_restart(state)
 
       // Flush pending stub acks with error (old renderer's stubs are lost).
-      dict.each(state.pending_stub_acks, fn(_kind, reply) {
+      dict.each(state.effects.stub_acks, fn(_kind, reply) {
         process.send(reply, Error("renderer_restarted"))
       })
-      let state = LoopState(..state, pending_stub_acks: dict.new())
+      let state =
+        LoopState(
+          ..state,
+          effects: EffectTracker(..state.effects, stub_acks: dict.new()),
+        )
 
       // Fail pending interact (old renderer is gone).
       let state = fail_pending_interact(state, "renderer_restarted")
@@ -1071,19 +1173,17 @@ fn handle_message(
         }
       })
       // Cancel all pending effect timeout timers
-      dict.each(state.pending_effects, fn(_id, entry) {
-        let #(_tag, timer) = entry
-        process.cancel_timer(timer)
+      dict.each(state.effects.pending, fn(_id, entry) {
+        process.cancel_timer(entry.timer)
         Nil
       })
       // Cancel all pending send_after timers
-      dict.each(state.pending_timers, fn(_key, entry) {
-        let #(timer, _nonce) = entry
-        process.cancel_timer(timer)
+      dict.each(state.timers, fn(_key, entry) {
+        process.cancel_timer(entry.timer)
         Nil
       })
       // Cancel coalesce timer if running
-      case state.coalesce_timer {
+      case state.coalesce.timer {
         Some(timer) -> {
           process.cancel_timer(timer)
           Nil
@@ -1091,7 +1191,7 @@ fn handle_message(
         None -> Nil
       }
       // Flush pending stub acks with error
-      dict.each(state.pending_stub_acks, fn(_kind, reply) {
+      dict.each(state.effects.stub_acks, fn(_kind, reply) {
         process.send(reply, Error("runtime_shutdown"))
       })
       // Fail pending interact
@@ -1112,23 +1212,26 @@ fn handle_message(
     }
 
     GetFocused(reply:) -> {
-      process.send(reply, state.focused_widget_id)
+      process.send(reply, state.focus.focused_widget_id)
       actor.continue(state)
     }
 
     IsViewDesynced(reply:) -> {
-      process.send(reply, state.consecutive_view_errors > 0)
+      process.send(reply, state.error_state.consecutive_view_errors > 0)
       actor.continue(state)
     }
 
     GetPropWarnings(reply:) -> {
-      process.send(reply, state.prop_warnings)
-      LoopState(..state, prop_warnings: [])
+      process.send(reply, state.error_state.prop_warnings)
+      LoopState(
+        ..state,
+        error_state: ErrorState(..state.error_state, prop_warnings: []),
+      )
       |> actor.continue()
     }
 
     AwaitAsync(tag:, reply:) -> {
-      case dict.has_key(state.pending_await_async, tag) {
+      case dict.has_key(state.async.await_callers, tag) {
         True -> {
           // Another caller is already waiting on this tag.
           // Reply immediately so the caller doesn't hang.
@@ -1142,11 +1245,14 @@ fn handle_message(
           actor.continue(state)
         }
         False ->
-          case dict.has_key(state.async_tasks, tag) {
+          case dict.has_key(state.async.tasks, tag) {
             True -> {
               // Task still running; store caller and reply when done
-              let pending = dict.insert(state.pending_await_async, tag, reply)
-              LoopState(..state, pending_await_async: pending)
+              let callers = dict.insert(state.async.await_callers, tag, reply)
+              LoopState(
+                ..state,
+                async: AsyncTracker(..state.async, await_callers: callers),
+              )
               |> actor.continue()
             }
             False -> {
@@ -1161,7 +1267,7 @@ fn handle_message(
     Interact(action:, selector:, payload:, reply:) -> {
       // Fail any existing pending interact (prevents caller leak)
       let state = fail_pending_interact(state, "superseded")
-      let req_id = "interact_" <> int.to_string(state.nonce_counter)
+      let req_id = "interact_" <> int.to_string(state.async.nonce_counter)
       // Monitor the caller so we can clean up if it dies (timeout/crash).
       // If the caller is already dead, reply with error and skip.
       case process.subject_owner(reply) {
@@ -1177,8 +1283,16 @@ fn handle_message(
           let state =
             LoopState(
               ..state,
-              nonce_counter: state.nonce_counter + 1,
-              pending_interact: Some(#(reply, req_id, caller_monitor, timer)),
+              async: AsyncTracker(
+                ..state.async,
+                nonce_counter: state.async.nonce_counter + 1,
+              ),
+              interact: Some(PendingInteract(
+                reply:,
+                request_id: req_id,
+                monitor: caller_monitor,
+                timer:,
+              )),
             )
           send_transient(
             state.bridge,
@@ -1197,7 +1311,7 @@ fn handle_message(
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
-      case dict.has_key(state.pending_stub_acks, kind) {
+      case dict.has_key(state.effects.stub_acks, kind) {
         True -> {
           // Another register/unregister for this kind is already pending.
           // Reply immediately so the caller doesn't hang.
@@ -1219,15 +1333,18 @@ fn handle_message(
               state.opts.format,
             ),
           )
-          let pending = dict.insert(state.pending_stub_acks, kind, reply)
-          LoopState(..state, pending_stub_acks: pending)
+          let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
+          LoopState(
+            ..state,
+            effects: EffectTracker(..state.effects, stub_acks: new_acks),
+          )
           |> actor.continue()
         }
       }
     }
 
     UnregisterEffectStub(kind:, reply:) -> {
-      case dict.has_key(state.pending_stub_acks, kind) {
+      case dict.has_key(state.effects.stub_acks, kind) {
         True -> {
           platform.log_warning(
             "plushie: unregister_effect_stub rejected: "
@@ -1246,8 +1363,11 @@ fn handle_message(
               state.opts.format,
             ),
           )
-          let pending = dict.insert(state.pending_stub_acks, kind, reply)
-          LoopState(..state, pending_stub_acks: pending)
+          let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
+          LoopState(
+            ..state,
+            effects: EffectTracker(..state.effects, stub_acks: new_acks),
+          )
           |> actor.continue()
         }
       }
@@ -1285,22 +1405,24 @@ fn track_focus_from_status(
     "String" -> coerce_to_string(status_value)
     _ -> ""
   }
-  let prev_status = case dict.get(state.widget_statuses, id) {
+  let prev_status = case dict.get(state.focus.widget_statuses, id) {
     Ok(s) -> s
     Error(_) -> ""
   }
-  let widget_statuses = dict.insert(state.widget_statuses, id, status)
+  let widget_statuses = dict.insert(state.focus.widget_statuses, id, status)
 
   let focused_widget_id = case status {
     "focused" -> Some(id)
     _ ->
-      case prev_status == "focused" && state.focused_widget_id == Some(id) {
+      case
+        prev_status == "focused" && state.focus.focused_widget_id == Some(id)
+      {
         True -> None
-        False -> state.focused_widget_id
+        False -> state.focus.focused_widget_id
       }
   }
 
-  LoopState(..state, widget_statuses:, focused_widget_id:)
+  LoopState(..state, focus: FocusState(widget_statuses:, focused_widget_id:))
 }
 
 /// Inject a frozen UI error indicator into the stale tree.
@@ -1331,18 +1453,25 @@ fn inject_frozen_indicator(state: LoopState(model, msg)) -> Nil {
 /// Flush all pending coalescable events, processing each through handle_event.
 /// Cancels the coalesce timer and clears the pending map.
 fn flush_coalesced(state: LoopState(model, msg)) -> LoopState(model, msg) {
-  let state = case state.coalesce_timer {
+  let state = case state.coalesce.timer {
     Some(timer) -> {
       process.cancel_timer(timer)
-      LoopState(..state, coalesce_timer: None)
+      LoopState(..state, coalesce: CoalesceState(..state.coalesce, timer: None))
     }
     None -> state
   }
+  let events = state.coalesce.events
   let state =
-    dict.fold(state.pending_coalesce, state, fn(st, _key, ev) {
-      handle_event(st, ev)
+    list.fold(list.reverse(state.coalesce.order), state, fn(st, key) {
+      case dict.get(events, key) {
+        Ok(ev) -> handle_event(st, ev)
+        Error(_) -> st
+      }
     })
-  LoopState(..state, pending_coalesce: dict.new())
+  LoopState(
+    ..state,
+    coalesce: CoalesceState(events: dict.new(), order: [], timer: None),
+  )
 }
 
 // -- Bridge restart helpers --------------------------------------------------
@@ -1354,12 +1483,12 @@ fn fail_pending_interact(
   state: LoopState(model, msg),
   reason: String,
 ) -> LoopState(model, msg) {
-  case state.pending_interact {
-    Some(#(reply, _, monitor, timer)) -> {
+  case state.interact {
+    Some(PendingInteract(reply:, monitor:, timer:, ..)) -> {
       process.demonitor_process(monitor)
       process.cancel_timer(timer)
       process.send(reply, Error(reason))
-      LoopState(..state, pending_interact: None)
+      LoopState(..state, interact: None)
     }
     None -> state
   }
@@ -1371,12 +1500,18 @@ fn flush_pending_effects_on_restart(
   // Snapshot the current pending effects, then remove and dispatch each
   // individually. This ensures effects started by handle_event during
   // the flush are not wiped by an unconditional dict.new().
-  let snapshot = dict.to_list(state.pending_effects)
+  let snapshot = dict.to_list(state.effects.pending)
   list.fold(snapshot, state, fn(st, entry) {
-    let #(wire_id, #(tag, timer)) = entry
+    let #(wire_id, PendingEffect(tag:, timer:)) = entry
     process.cancel_timer(timer)
     let st =
-      LoopState(..st, pending_effects: dict.delete(st.pending_effects, wire_id))
+      LoopState(
+        ..st,
+        effects: EffectTracker(
+          ..st.effects,
+          pending: dict.delete(st.effects.pending, wire_id),
+        ),
+      )
     let timeout_event =
       event.Effect(event.EffectEvent(
         tag:,
@@ -1395,20 +1530,23 @@ fn cancel_pending_effect_by_tag(
   tag: String,
 ) -> LoopState(model, msg) {
   let found =
-    dict.fold(state.pending_effects, None, fn(acc, wire_id, entry) {
-      let #(entry_tag, _timer) = entry
-      case entry_tag == tag {
+    dict.fold(state.effects.pending, None, fn(acc, wire_id, entry) {
+      case entry.tag == tag {
         True -> Some(wire_id)
         False -> acc
       }
     })
   case found {
     Some(wire_id) -> {
-      let assert Ok(#(_tag, timer)) = dict.get(state.pending_effects, wire_id)
+      let assert Ok(PendingEffect(timer:, ..)) =
+        dict.get(state.effects.pending, wire_id)
       process.cancel_timer(timer)
       LoopState(
         ..state,
-        pending_effects: dict.delete(state.pending_effects, wire_id),
+        effects: EffectTracker(
+          ..state.effects,
+          pending: dict.delete(state.effects.pending, wire_id),
+        ),
       )
     }
     None -> state
@@ -1534,8 +1672,8 @@ fn sync_after_render(
     active_subs: new_subs,
     windows: new_windows,
     cw_registry: new_cw_registry,
-    consecutive_view_errors: 0,
     memo_cache: result.memo_cache,
+    error_state: ErrorState(..state.error_state, consecutive_view_errors: 0),
   )
 }
 
@@ -1563,7 +1701,11 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
           )
           LoopState(
             ..state,
-            consecutive_view_errors: state.consecutive_view_errors + 1,
+            error_state: ErrorState(
+              ..state.error_state,
+              consecutive_view_errors: state.error_state.consecutive_view_errors
+                + 1,
+            ),
           )
         }
         Ok(result) ->
@@ -1579,7 +1721,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
       }
     }
     Error(reason) -> {
-      let view_err_count = state.consecutive_view_errors + 1
+      let view_err_count = state.error_state.consecutive_view_errors + 1
       platform.log_warning(
         "plushie: view error during rerender: " <> dynamic.classify(reason),
       )
@@ -1595,7 +1737,13 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
         }
         False -> Nil
       }
-      LoopState(..state, consecutive_view_errors: view_err_count)
+      LoopState(
+        ..state,
+        error_state: ErrorState(
+          ..state.error_state,
+          consecutive_view_errors: view_err_count,
+        ),
+      )
     }
   }
 }
@@ -1610,7 +1758,10 @@ fn rerender_with_rollback(
   registry_before: widget.Registry,
 ) -> LoopState(model, msg) {
   let new_state = rerender(state)
-  case new_state.consecutive_view_errors > state.consecutive_view_errors {
+  case
+    new_state.error_state.consecutive_view_errors
+    > state.error_state.consecutive_view_errors
+  {
     // View failed: revert widget registry to prevent state-tree desync
     True -> LoopState(..new_state, cw_registry: registry_before)
     False -> new_state
@@ -1735,8 +1886,11 @@ fn dispatch_update(
               )
               LoopState(
                 ..state_after_cmds,
-                consecutive_view_errors: state_after_cmds.consecutive_view_errors
-                  + 1,
+                error_state: ErrorState(
+                  ..state_after_cmds.error_state,
+                  consecutive_view_errors: state_after_cmds.error_state.consecutive_view_errors
+                    + 1,
+                ),
               )
             }
             Ok(result) -> {
@@ -1750,17 +1904,21 @@ fn dispatch_update(
                   state.tree,
                   True,
                 )
-              LoopState(..synced, errors: 0)
+              LoopState(
+                ..synced,
+                error_state: ErrorState(..synced.error_state, errors: 0),
+              )
             }
           }
         }
         Error(reason) -> {
           // View crashed. Preserve model and command-side state
-          // (async_tasks, nonce_counter, pending_effects) but keep old tree.
+          // (async, effects) but keep old tree.
           // This matches the Elixir SDK: model and commands persist through
           // view crashes, only the tree stays at its previous value.
-          let err_count = state_after_cmds.errors + 1
-          let view_err_count = state_after_cmds.consecutive_view_errors + 1
+          let err_count = state_after_cmds.error_state.errors + 1
+          let view_err_count =
+            state_after_cmds.error_state.consecutive_view_errors + 1
           case err_count <= 10 {
             True ->
               platform.log_warning(
@@ -1780,14 +1938,17 @@ fn dispatch_update(
           LoopState(
             ..state_after_cmds,
             tree: state.tree,
-            errors: err_count,
-            consecutive_view_errors: view_err_count,
+            error_state: ErrorState(
+              ..state_after_cmds.error_state,
+              errors: err_count,
+              consecutive_view_errors: view_err_count,
+            ),
           )
         }
       }
     }
     Error(reason) -> {
-      let err_count = state.errors + 1
+      let err_count = state.error_state.errors + 1
       case err_count <= 10 {
         True ->
           platform.log_warning(
@@ -1795,7 +1956,10 @@ fn dispatch_update(
           )
         False -> Nil
       }
-      LoopState(..state, errors: err_count)
+      LoopState(
+        ..state,
+        error_state: ErrorState(..state.error_state, errors: err_count),
+      )
     }
   }
 }
@@ -1821,16 +1985,20 @@ fn execute_commands(
     command_encode.ScheduleTimer(delay_ms, msg) -> {
       let timer_key = platform.stable_hash_key(msg)
       // Cancel any existing timer for the same event key
-      let state = case dict.get(state.pending_timers, timer_key) {
-        Ok(#(old_timer, _)) -> {
+      let state = case dict.get(state.timers, timer_key) {
+        Ok(PendingTimer(timer: old_timer, ..)) -> {
           process.cancel_timer(old_timer)
           state
         }
         Error(_) -> state
       }
       // Assign a nonce to detect stale deliveries from cancelled timers
-      let nonce = state.nonce_counter + 1
-      let state = LoopState(..state, nonce_counter: nonce)
+      let nonce = state.async.nonce_counter + 1
+      let state =
+        LoopState(
+          ..state,
+          async: AsyncTracker(..state.async, nonce_counter: nonce),
+        )
       // Wrap msg as Dynamic since RuntimeMessage is not parameterized
       let timer =
         process.send_after(
@@ -1840,10 +2008,11 @@ fn execute_commands(
         )
       LoopState(
         ..state,
-        pending_timers: dict.insert(state.pending_timers, timer_key, #(
-          timer,
-          nonce,
-        )),
+        timers: dict.insert(
+          state.timers,
+          timer_key,
+          PendingTimer(timer:, nonce:),
+        ),
       )
     }
 
@@ -1868,7 +2037,7 @@ fn execute_commands(
     command_encode.SpawnAsync(tag, work) -> {
       // Kill existing task for same tag before starting a new one
       let state = cancel_existing_task(state, tag)
-      let nonce = state.nonce_counter + 1
+      let nonce = state.async.nonce_counter + 1
       let runtime_self = state.self
       let pid =
         process.spawn(fn() {
@@ -1881,15 +2050,22 @@ fn execute_commands(
       let monitor = process.monitor(pid)
       LoopState(
         ..state,
-        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce, monitor)),
-        nonce_counter: nonce,
+        async: AsyncTracker(
+          ..state.async,
+          tasks: dict.insert(
+            state.async.tasks,
+            tag,
+            AsyncTask(pid:, nonce:, monitor:),
+          ),
+          nonce_counter: nonce,
+        ),
       )
     }
 
     command_encode.SpawnStream(tag, work) -> {
       // Kill existing task for same tag before starting a new one
       let state = cancel_existing_task(state, tag)
-      let nonce = state.nonce_counter + 1
+      let nonce = state.async.nonce_counter + 1
       let runtime_self = state.self
       let emit = fn(value) {
         process.send(runtime_self, StreamEmit(tag:, nonce:, value:))
@@ -1905,8 +2081,15 @@ fn execute_commands(
       let monitor = process.monitor(pid)
       LoopState(
         ..state,
-        async_tasks: dict.insert(state.async_tasks, tag, #(pid, nonce, monitor)),
-        nonce_counter: nonce,
+        async: AsyncTracker(
+          ..state.async,
+          tasks: dict.insert(
+            state.async.tasks,
+            tag,
+            AsyncTask(pid:, nonce:, monitor:),
+          ),
+          nonce_counter: nonce,
+        ),
       )
     }
 
@@ -1964,10 +2147,14 @@ fn execute_commands(
         )
       LoopState(
         ..state,
-        pending_effects: dict.insert(state.pending_effects, id, #(
-          tag,
-          timeout_timer,
-        )),
+        effects: EffectTracker(
+          ..state.effects,
+          pending: dict.insert(
+            state.effects.pending,
+            id,
+            PendingEffect(tag:, timer: timeout_timer),
+          ),
+        ),
       )
     }
 
@@ -2013,12 +2200,18 @@ fn cancel_existing_task(
   state: LoopState(model, msg),
   tag: String,
 ) -> LoopState(model, msg) {
-  case dict.get(state.async_tasks, tag) {
-    Ok(#(pid, _nonce, monitor)) -> {
+  case dict.get(state.async.tasks, tag) {
+    Ok(AsyncTask(pid:, monitor:, ..)) -> {
       process.demonitor_process(monitor)
       process.kill(pid)
       let state =
-        LoopState(..state, async_tasks: dict.delete(state.async_tasks, tag))
+        LoopState(
+          ..state,
+          async: AsyncTracker(
+            ..state.async,
+            tasks: dict.delete(state.async.tasks, tag),
+          ),
+        )
       notify_await_async(state, tag)
     }
     Error(_) -> state
@@ -2033,12 +2226,15 @@ fn notify_await_async(
   state: LoopState(model, msg),
   tag: String,
 ) -> LoopState(model, msg) {
-  case dict.get(state.pending_await_async, tag) {
+  case dict.get(state.async.await_callers, tag) {
     Ok(reply) -> {
       process.send(reply, Nil)
       LoopState(
         ..state,
-        pending_await_async: dict.delete(state.pending_await_async, tag),
+        async: AsyncTracker(
+          ..state.async,
+          await_callers: dict.delete(state.async.await_callers, tag),
+        ),
       )
     }
     Error(_) -> state
