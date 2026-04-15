@@ -7,7 +7,7 @@ import plushie/node.{IntVal, ListVal, StringVal}
 pub fn file_open_creates_effect_command_test() {
   let cmd = effect.file_open("test", [])
   case cmd {
-    command.Effect(id:, kind:, ..) -> {
+    command.Renderer(command.Effect(id:, kind:, ..)) -> {
       assert kind == "file_open"
       assert id != ""
     }
@@ -18,7 +18,7 @@ pub fn file_open_creates_effect_command_test() {
 pub fn file_open_multiple_test() {
   let cmd = effect.file_open_multiple("test", [])
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "file_open_multiple"
     }
     _ -> panic as "expected Effect command"
@@ -28,7 +28,7 @@ pub fn file_open_multiple_test() {
 pub fn file_save_creates_effect_command_test() {
   let cmd = effect.file_save("test", [effect.DialogTitle("Save As")])
   case cmd {
-    command.Effect(kind:, payload:, ..) -> {
+    command.Renderer(command.Effect(kind:, payload:, ..)) -> {
       assert kind == "file_save"
       assert dict.get(payload, "title") == Ok(StringVal("Save As"))
     }
@@ -39,7 +39,7 @@ pub fn file_save_creates_effect_command_test() {
 pub fn file_dialog_default_path_test() {
   let cmd = effect.file_open("test", [effect.DefaultPath("/home")])
   case cmd {
-    command.Effect(payload:, ..) -> {
+    command.Renderer(command.Effect(payload:, ..)) -> {
       assert dict.get(payload, "default_path") == Ok(StringVal("/home"))
     }
     _ -> panic as "expected Effect command"
@@ -50,7 +50,7 @@ pub fn file_dialog_filters_test() {
   let cmd =
     effect.file_open("test", [effect.Filters([#("Images", "*.png;*.jpg")])])
   case cmd {
-    command.Effect(payload:, ..) -> {
+    command.Renderer(command.Effect(payload:, ..)) -> {
       let expected =
         ListVal([ListVal([StringVal("Images"), StringVal("*.png;*.jpg")])])
       assert dict.get(payload, "filters") == Ok(expected)
@@ -62,7 +62,7 @@ pub fn file_dialog_filters_test() {
 pub fn directory_select_test() {
   let cmd = effect.directory_select("test", [])
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "directory_select"
     }
     _ -> panic as "expected Effect command"
@@ -72,7 +72,7 @@ pub fn directory_select_test() {
 pub fn directory_select_multiple_test() {
   let cmd = effect.directory_select_multiple("test", [])
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "directory_select_multiple"
     }
     _ -> panic as "expected Effect command"
@@ -82,7 +82,7 @@ pub fn directory_select_multiple_test() {
 pub fn clipboard_read_test() {
   let cmd = effect.clipboard_read("test")
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "clipboard_read"
     }
     _ -> panic as "expected Effect command"
@@ -92,7 +92,7 @@ pub fn clipboard_read_test() {
 pub fn clipboard_write_test() {
   let cmd = effect.clipboard_write("test", "hello")
   case cmd {
-    command.Effect(kind:, payload:, ..) -> {
+    command.Renderer(command.Effect(kind:, payload:, ..)) -> {
       assert kind == "clipboard_write"
       assert dict.get(payload, "text") == Ok(StringVal("hello"))
     }
@@ -103,7 +103,7 @@ pub fn clipboard_write_test() {
 pub fn clipboard_read_html_test() {
   let cmd = effect.clipboard_read_html("test")
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "clipboard_read_html"
     }
     _ -> panic as "expected Effect command"
@@ -113,7 +113,7 @@ pub fn clipboard_read_html_test() {
 pub fn clipboard_write_html_with_alt_test() {
   let cmd = effect.clipboard_write_html("test", "<b>hi</b>", option.Some("hi"))
   case cmd {
-    command.Effect(kind:, payload:, ..) -> {
+    command.Renderer(command.Effect(kind:, payload:, ..)) -> {
       assert kind == "clipboard_write_html"
       assert dict.get(payload, "html") == Ok(StringVal("<b>hi</b>"))
       assert dict.get(payload, "alt_text") == Ok(StringVal("hi"))
@@ -125,7 +125,7 @@ pub fn clipboard_write_html_with_alt_test() {
 pub fn clipboard_write_html_without_alt_test() {
   let cmd = effect.clipboard_write_html("test", "<b>hi</b>", option.None)
   case cmd {
-    command.Effect(payload:, ..) -> {
+    command.Renderer(command.Effect(payload:, ..)) -> {
       assert dict.has_key(payload, "alt_text") == False
     }
     _ -> panic as "expected Effect command"
@@ -135,7 +135,7 @@ pub fn clipboard_write_html_without_alt_test() {
 pub fn clipboard_clear_test() {
   let cmd = effect.clipboard_clear("test")
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "clipboard_clear"
     }
     _ -> panic as "expected Effect command"
@@ -145,7 +145,7 @@ pub fn clipboard_clear_test() {
 pub fn clipboard_read_primary_test() {
   let cmd = effect.clipboard_read_primary("test")
   case cmd {
-    command.Effect(kind:, ..) -> {
+    command.Renderer(command.Effect(kind:, ..)) -> {
       assert kind == "clipboard_read_primary"
     }
     _ -> panic as "expected Effect command"
@@ -155,7 +155,7 @@ pub fn clipboard_read_primary_test() {
 pub fn clipboard_write_primary_test() {
   let cmd = effect.clipboard_write_primary("test", "text")
   case cmd {
-    command.Effect(kind:, payload:, ..) -> {
+    command.Renderer(command.Effect(kind:, payload:, ..)) -> {
       assert kind == "clipboard_write_primary"
       assert dict.get(payload, "text") == Ok(StringVal("text"))
     }
@@ -169,7 +169,7 @@ pub fn notification_creates_effect_command_test() {
       effect.Urgency(effect.Critical),
     ])
   case cmd {
-    command.Effect(kind:, payload:, ..) -> {
+    command.Renderer(command.Effect(kind:, payload:, ..)) -> {
       assert kind == "notification"
       assert dict.get(payload, "title") == Ok(StringVal("Alert"))
       assert dict.get(payload, "body") == Ok(StringVal("Something happened"))
@@ -188,7 +188,7 @@ pub fn notification_with_all_opts_test() {
       effect.Sound("message-new-instant"),
     ])
   case cmd {
-    command.Effect(payload:, ..) -> {
+    command.Renderer(command.Effect(payload:, ..)) -> {
       assert dict.get(payload, "icon") == Ok(StringVal("/icon.png"))
       assert dict.get(payload, "timeout") == Ok(IntVal(3000))
       assert dict.get(payload, "urgency") == Ok(StringVal("low"))
@@ -202,7 +202,7 @@ pub fn notification_normal_urgency_test() {
   let cmd =
     effect.notification("test", "T", "B", [effect.Urgency(effect.Normal)])
   case cmd {
-    command.Effect(payload:, ..) -> {
+    command.Renderer(command.Effect(payload:, ..)) -> {
       assert dict.get(payload, "urgency") == Ok(StringVal("normal"))
     }
     _ -> panic as "expected Effect command"
@@ -213,11 +213,11 @@ pub fn unique_ids_per_effect_test() {
   let cmd1 = effect.file_open("test", [])
   let cmd2 = effect.file_open("test", [])
   let id1 = case cmd1 {
-    command.Effect(id:, ..) -> id
+    command.Renderer(command.Effect(id:, ..)) -> id
     _ -> ""
   }
   let id2 = case cmd2 {
-    command.Effect(id:, ..) -> id
+    command.Renderer(command.Effect(id:, ..)) -> id
     _ -> ""
   }
   assert id1 != id2

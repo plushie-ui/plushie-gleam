@@ -42,7 +42,14 @@ pub type Command(msg) {
   SendAfter(delay_ms: Int, msg: msg)
   /// Shut down the runtime and close all windows.
   Exit
+  /// A command that targets the renderer (widget ops, window ops,
+  /// system queries, image management, effects, etc.).
+  Renderer(RendererCommand)
+}
 
+/// Commands sent to the renderer process. Organized into sub-types
+/// for window operations, system operations, and image management.
+pub type RendererCommand {
   /// Move keyboard focus to the given widget. For canvas elements,
   /// use the scoped path (e.g. "canvas/element").
   Focus(widget_id: String)
@@ -72,6 +79,66 @@ pub type Command(msg) {
   /// Scroll a scrollable widget by a relative x/y delta.
   ScrollBy(widget_id: String, x: Float, y: Float)
 
+  /// Split a pane in a pane_grid widget along the given axis
+  /// ("horizontal" or "vertical"), creating a new pane.
+  PaneSplit(
+    pane_grid_id: String,
+    pane_id: String,
+    axis: String,
+    new_pane_id: String,
+  )
+  /// Close a pane in a pane_grid widget.
+  PaneClose(pane_grid_id: String, pane_id: String)
+  /// Swap two panes in a pane_grid widget.
+  PaneSwap(pane_grid_id: String, pane_a: String, pane_b: String)
+  /// Maximize a single pane to fill the entire pane_grid.
+  PaneMaximize(pane_grid_id: String, pane_id: String)
+  /// Restore all panes from maximized state in a pane_grid.
+  PaneRestore(pane_grid_id: String)
+
+  /// Window operation.
+  Window(WindowCommand)
+  /// System operation.
+  System(SystemCommand)
+  /// Image operation.
+  Image(ImageCommand)
+
+  /// Send a command directly to a native widget, bypassing the
+  /// normal tree diff/patch cycle.
+  NativeCommand(node_id: String, op: String, payload: Dict(String, PropValue))
+  /// Send a batch of widget commands processed in one cycle.
+  NativeCommands(commands: List(#(String, String, Dict(String, PropValue))))
+
+  /// Request a platform effect (file dialog, clipboard, notification).
+  /// The `tag` identifies this effect in the `EffectResponse` event.
+  /// The `id` is an opaque wire correlation ID, never exposed to app code.
+  Effect(
+    id: String,
+    tag: String,
+    kind: String,
+    payload: Dict(String, PropValue),
+  )
+
+  /// Announce text to screen readers via the accessibility system.
+  Announce(text: String)
+  /// Load a font at runtime from raw TrueType or OpenType binary data.
+  /// Once loaded, the font can be referenced by name in widget props.
+  LoadFont(data: BitArray)
+
+  /// Compute a SHA-256 hash of the renderer's current tree state.
+  /// Result arrives as a TreeHash event.
+  TreeHashQuery(tag: String)
+  /// Query which widget currently has keyboard focus. Result arrives
+  /// as a FocusedWidget event.
+  FindFocused(tag: String)
+  /// Advance the renderer by one frame in test/headless mode. The
+  /// timestamp is monotonic milliseconds. In normal mode the renderer
+  /// drives frames from display vsync.
+  AdvanceFrame(timestamp: Int)
+}
+
+/// Window lifecycle and query commands.
+pub type WindowCommand {
   /// Close the window with the given ID.
   CloseWindow(window_id: String)
   /// Resize a window to the given dimensions in logical pixels.
@@ -122,9 +189,6 @@ pub type Command(msg) {
     width: Option(Float),
     height: Option(Float),
   )
-  /// Set whether the system can automatically organize windows into
-  /// tabs. macOS-specific; no-op on other platforms.
-  AllowAutomaticTabbing(enabled: Bool)
   /// Set the window icon from raw RGBA pixel data. The BitArray must
   /// be width * height * 4 bytes (R, G, B, A per pixel, row-major).
   SetIcon(window_id: String, rgba_data: BitArray, width: Int, height: Int)
@@ -149,13 +213,23 @@ pub type Command(msg) {
   /// Result arrives as a SystemInfo event. Data is None if the
   /// monitor cannot be determined.
   MonitorSize(window_id: String, tag: String)
+}
+
+/// System-wide commands not tied to a specific window.
+pub type SystemCommand {
+  /// Set whether the system can automatically organize windows into
+  /// tabs. macOS-specific; no-op on other platforms.
+  AllowAutomaticTabbing(enabled: Bool)
   /// Query the OS light/dark theme preference. Result arrives as a
   /// SystemTheme event with "light", "dark", or "none".
   GetSystemTheme(tag: String)
   /// Query system information (OS, CPU, memory, graphics). Result
   /// arrives as a SystemInfo event with a map of system fields.
   GetSystemInfo(tag: String)
+}
 
+/// Image registration and management commands.
+pub type ImageCommand {
   /// Register an image from encoded data (PNG, JPEG, etc.) under the
   /// given handle for use in image widgets.
   CreateImage(handle: String, data: BitArray)
@@ -173,57 +247,6 @@ pub type Command(msg) {
   ListImages(tag: String)
   /// Delete all registered images.
   ClearImages
-
-  /// Announce text to screen readers via the accessibility system.
-  Announce(text: String)
-
-  /// Split a pane in a pane_grid widget along the given axis
-  /// ("horizontal" or "vertical"), creating a new pane.
-  PaneSplit(
-    pane_grid_id: String,
-    pane_id: String,
-    axis: String,
-    new_pane_id: String,
-  )
-  /// Close a pane in a pane_grid widget.
-  PaneClose(pane_grid_id: String, pane_id: String)
-  /// Swap two panes in a pane_grid widget.
-  PaneSwap(pane_grid_id: String, pane_a: String, pane_b: String)
-  /// Maximize a single pane to fill the entire pane_grid.
-  PaneMaximize(pane_grid_id: String, pane_id: String)
-  /// Restore all panes from maximized state in a pane_grid.
-  PaneRestore(pane_grid_id: String)
-
-  /// Compute a SHA-256 hash of the renderer's current tree state.
-  /// Result arrives as a TreeHash event.
-  TreeHashQuery(tag: String)
-  /// Query which widget currently has keyboard focus. Result arrives
-  /// as a FocusedWidget event.
-  FindFocused(tag: String)
-  /// Load a font at runtime from raw TrueType or OpenType binary data.
-  /// Once loaded, the font can be referenced by name in widget props.
-  LoadFont(data: BitArray)
-
-  /// Request a platform effect (file dialog, clipboard, notification).
-  /// The `tag` identifies this effect in the `EffectResponse` event.
-  /// The `id` is an opaque wire correlation ID, never exposed to app code.
-  Effect(
-    id: String,
-    tag: String,
-    kind: String,
-    payload: Dict(String, PropValue),
-  )
-
-  /// Send a command directly to a native widget, bypassing the
-  /// normal tree diff/patch cycle.
-  NativeCommand(node_id: String, op: String, payload: Dict(String, PropValue))
-  /// Send a batch of widget commands processed in one cycle.
-  NativeCommands(commands: List(#(String, String, Dict(String, PropValue))))
-
-  /// Advance the renderer by one frame in test/headless mode. The
-  /// timestamp is monotonic milliseconds. In normal mode the renderer
-  /// drives frames from display vsync.
-  AdvanceFrame(timestamp: Int)
 }
 
 // --- Constructor functions ---------------------------------------------------
@@ -286,27 +309,27 @@ pub fn exit() -> Command(msg) {
 
 /// Move keyboard focus to the given widget.
 pub fn focus(widget_id: String) -> Command(msg) {
-  Focus(widget_id:)
+  Renderer(Focus(widget_id:))
 }
 
 /// Move focus to the next focusable widget.
 pub fn focus_next() -> Command(msg) {
-  FocusNext
+  Renderer(FocusNext)
 }
 
 /// Move focus to the previous focusable widget.
 pub fn focus_previous() -> Command(msg) {
-  FocusPrevious
+  Renderer(FocusPrevious)
 }
 
 /// Select all text in the given text input widget.
 pub fn select_all(widget_id: String) -> Command(msg) {
-  SelectAll(widget_id:)
+  Renderer(SelectAll(widget_id:))
 }
 
 /// Close the window with the given ID.
 pub fn close_window(window_id: String) -> Command(msg) {
-  CloseWindow(window_id:)
+  Renderer(Window(CloseWindow(window_id:)))
 }
 
 /// Resize a window to the given dimensions in logical pixels.
@@ -315,53 +338,53 @@ pub fn resize_window(
   width: Float,
   height: Float,
 ) -> Command(msg) {
-  ResizeWindow(window_id:, width:, height:)
+  Renderer(Window(ResizeWindow(window_id:, width:, height:)))
 }
 
 /// Move a window to the given screen position.
 pub fn move_window(window_id: String, x: Float, y: Float) -> Command(msg) {
-  MoveWindow(window_id:, x:, y:)
+  Renderer(Window(MoveWindow(window_id:, x:, y:)))
 }
 
 /// Maximize a window.
 pub fn maximize_window(window_id: String) -> Command(msg) {
-  MaximizeWindow(window_id:, maximized: True)
+  Renderer(Window(MaximizeWindow(window_id:, maximized: True)))
 }
 
 /// Minimize a window.
 pub fn minimize_window(window_id: String) -> Command(msg) {
-  MinimizeWindow(window_id:, minimized: True)
+  Renderer(Window(MinimizeWindow(window_id:, minimized: True)))
 }
 
 /// Toggle a window between maximized and restored state.
 pub fn toggle_maximize(window_id: String) -> Command(msg) {
-  ToggleMaximize(window_id:)
+  Renderer(Window(ToggleMaximize(window_id:)))
 }
 
 /// Toggle window decorations (title bar, borders).
 pub fn toggle_decorations(window_id: String) -> Command(msg) {
-  ToggleDecorations(window_id:)
+  Renderer(Window(ToggleDecorations(window_id:)))
 }
 
 /// Give focus to a window, bringing it to the front.
 pub fn focus_window(window_id: String) -> Command(msg) {
-  FocusWindow(window_id:)
+  Renderer(Window(FocusWindow(window_id:)))
 }
 
 /// Take a screenshot of a window. The result arrives as a tagged event.
 pub fn screenshot(window_id: String, tag: String) -> Command(msg) {
-  Screenshot(window_id:, tag:)
+  Renderer(Window(Screenshot(window_id:, tag:)))
 }
 
 /// Announce text to screen readers via the accessibility system.
 pub fn announce(text: String) -> Command(msg) {
-  Announce(text:)
+  Renderer(Announce(text:))
 }
 
 /// Register an image from encoded data (PNG, JPEG, etc.) under the
 /// given handle for use in image widgets.
 pub fn create_image(handle: String, data: BitArray) -> Command(msg) {
-  CreateImage(handle:, data:)
+  Renderer(Image(CreateImage(handle:, data:)))
 }
 
 /// Register an image from raw RGBA pixel data under the given handle.
@@ -374,7 +397,7 @@ pub fn create_image_rgba(
   pixels: BitArray,
 ) -> Command(msg) {
   validate_rgba_buffer(pixels, width, height)
-  CreateImageRgba(handle:, width:, height:, pixels:)
+  Renderer(Image(CreateImageRgba(handle:, width:, height:, pixels:)))
 }
 
 /// Update an existing image handle with new raw RGBA pixel data.
@@ -387,7 +410,7 @@ pub fn update_image_rgba(
   pixels: BitArray,
 ) -> Command(msg) {
   validate_rgba_buffer(pixels, width, height)
-  UpdateImageRgba(handle:, width:, height:, pixels:)
+  Renderer(Image(UpdateImageRgba(handle:, width:, height:, pixels:)))
 }
 
 fn validate_rgba_buffer(pixels: BitArray, width: Int, height: Int) -> Nil {
@@ -411,27 +434,27 @@ fn validate_rgba_buffer(pixels: BitArray, width: Int, height: Int) -> Nil {
 
 /// Delete a previously registered image by its handle.
 pub fn delete_image(handle: String) -> Command(msg) {
-  DeleteImage(handle:)
+  Renderer(Image(DeleteImage(handle:)))
 }
 
 /// Delete all registered images.
 pub fn clear_images() -> Command(msg) {
-  ClearImages
+  Renderer(Image(ClearImages))
 }
 
 /// Query the current tree hash from the renderer. The result arrives
 /// as a tagged event.
 pub fn tree_hash(tag: String) -> Command(msg) {
-  TreeHashQuery(tag:)
+  Renderer(TreeHashQuery(tag:))
 }
 
 /// Query which widget currently has focus. The result arrives as a
 /// tagged event.
 pub fn find_focused(tag: String) -> Command(msg) {
-  FindFocused(tag:)
+  Renderer(FindFocused(tag:))
 }
 
 /// Advance the renderer by one frame in test/headless mode.
 pub fn advance_frame(timestamp: Int) -> Command(msg) {
-  AdvanceFrame(timestamp:)
+  Renderer(AdvanceFrame(timestamp:))
 }

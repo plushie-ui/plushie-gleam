@@ -47,7 +47,7 @@ pub fn extensions_sparkline_push_command_test() {
       #("value", FloatVal(42.0)),
     ])
   case cmd {
-    command.NativeCommand(node_id:, op:, payload:) -> {
+    command.Renderer(command.NativeCommand(node_id:, op:, payload:)) -> {
       should.equal(node_id, "s1")
       should.equal(op, "push")
       should.equal(dict.get(payload, "value"), Ok(FloatVal(42.0)))

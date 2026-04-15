@@ -185,7 +185,11 @@ pub fn command(
   op: String,
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
-  command.NativeCommand(node_id:, op:, payload: dict.from_list(payload))
+  command.Renderer(command.NativeCommand(
+    node_id:,
+    op:,
+    payload: dict.from_list(payload),
+  ))
 }
 
 /// Create a batch of native widget commands.
@@ -193,11 +197,13 @@ pub fn commands(
   _def: NativeDef,
   cmds: List(#(String, String, List(#(String, PropValue)))),
 ) -> Command(msg) {
-  command.NativeCommands(
-    commands: list.map(cmds, fn(cmd) {
-      let #(node_id, op, payload) = cmd
-      #(node_id, op, dict.from_list(payload))
-    }),
+  command.Renderer(
+    command.NativeCommands(
+      commands: list.map(cmds, fn(cmd) {
+        let #(node_id, op, payload) = cmd
+        #(node_id, op, dict.from_list(payload))
+      }),
+    ),
   )
 }
 

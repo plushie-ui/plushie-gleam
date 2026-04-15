@@ -81,7 +81,7 @@ fn todo_update(model: TodoModel, event: Event) {
         todos: list.append(model.todos, [Todo(text: val, done: False)]),
         input: "",
       ),
-      command.Focus(widget_id: "todo_input"),
+      command.Renderer(command.Focus(widget_id: "todo_input")),
     )
     Widget(Click(target: EventTarget(id: "add_todo", ..))) -> #(
       TodoModel(
@@ -152,7 +152,7 @@ pub fn testing_doc_submitting_todo_returns_focus_command_test() {
       )),
     )
   should.equal(list.length(model.todos), 1)
-  let assert command.Focus(widget_id: "todo_input") = cmd
+  let assert command.Renderer(command.Focus(widget_id: "todo_input")) = cmd
 }
 
 // ============================================================================

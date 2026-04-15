@@ -191,7 +191,12 @@ fn make_effect(
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
   let id = platform.unique_id()
-  command.Effect(id:, tag:, kind:, payload: dict.from_list(payload))
+  command.Renderer(command.Effect(
+    id:,
+    tag:,
+    kind:,
+    payload: dict.from_list(payload),
+  ))
 }
 
 fn file_dialog_payload(opts: List(FileDialogOpt)) -> List(#(String, PropValue)) {

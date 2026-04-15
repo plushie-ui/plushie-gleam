@@ -76,7 +76,12 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.Async(work:, tag:) -> SpawnAsync(tag, work)
     command.Stream(work:, tag:) -> SpawnStream(tag, work)
     command.Cancel(tag:) -> CancelTask(tag)
+    command.Renderer(renderer_cmd) -> classify_renderer(renderer_cmd)
+  }
+}
 
+fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
+  case cmd {
     // -- Widget-targeted commands (unified format) --
     command.Focus(widget_id:) -> Command(widget_id, "focus", dict.new())
     command.FocusNext -> WidgetOp("focus_next", [])
@@ -121,8 +126,6 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       )
 
     // -- Global ops (no target ID, stay as widget_op) --
-    command.CloseWindow(window_id:) ->
-      WidgetOp("close_window", [#("window_id", StringVal(window_id))])
     command.Announce(text:) ->
       WidgetOp("announce", [#("text", StringVal(text))])
     command.TreeHashQuery(tag:) ->
@@ -133,9 +136,6 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WidgetOp("load_font", [
         #("data", StringVal(bit_array.base64_encode(data, True))),
       ])
-    command.ListImages(tag:) ->
-      WidgetOp("list_images", [#("tag", StringVal(tag))])
-    command.ClearImages -> WidgetOp("clear_images", [])
 
     // -- Pane grid commands (widget-targeted) --
     command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) ->
@@ -169,7 +169,25 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
     command.PaneRestore(pane_grid_id:) ->
       Command(pane_grid_id, "pane_restore", dict.new())
 
-    // -- Window ops --
+    // -- Window, system, image (delegated) --
+    command.Window(window_cmd) -> classify_window(window_cmd)
+    command.System(system_cmd) -> classify_system(system_cmd)
+    command.Image(image_cmd) -> classify_image(image_cmd)
+
+    // -- Effect, widget command, advance frame --
+    command.Effect(id:, tag:, kind:, payload:) ->
+      EffectRequest(id, tag, kind, payload)
+    command.NativeCommand(node_id:, op:, payload:) ->
+      Command(node_id, op, payload)
+    command.NativeCommands(commands:) -> CommandBatch(commands)
+    command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
+  }
+}
+
+fn classify_window(cmd: command.WindowCommand) -> WireOp(msg) {
+  case cmd {
+    command.CloseWindow(window_id:) ->
+      WidgetOp("close_window", [#("window_id", StringVal(window_id))])
     command.ResizeWindow(window_id:, width:, height:) ->
       WindowOp("resize", window_id, [
         #("width", FloatVal(width)),
@@ -239,10 +257,6 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       }
       WindowOp("set_resize_increments", window_id, payload)
     }
-    command.AllowAutomaticTabbing(enabled:) ->
-      SystemOp("allow_automatic_tabbing", [
-        #("enabled", BoolVal(enabled)),
-      ])
     command.SetIcon(window_id:, rgba_data:, width:, height:) ->
       WindowOp("set_icon", window_id, [
         #("data", StringVal(bit_array.base64_encode(rgba_data, True))),
@@ -266,10 +280,22 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       WindowQuery("raw_id", window_id, tag)
     command.MonitorSize(window_id:, tag:) ->
       WindowQuery("monitor_size", window_id, tag)
+  }
+}
+
+fn classify_system(cmd: command.SystemCommand) -> WireOp(msg) {
+  case cmd {
+    command.AllowAutomaticTabbing(enabled:) ->
+      SystemOp("allow_automatic_tabbing", [
+        #("enabled", BoolVal(enabled)),
+      ])
     command.GetSystemTheme(tag:) -> SystemQuery("get_system_theme", tag)
     command.GetSystemInfo(tag:) -> SystemQuery("get_system_info", tag)
+  }
+}
 
-    // -- Image ops --
+fn classify_image(cmd: command.ImageCommand) -> WireOp(msg) {
+  case cmd {
     command.CreateImage(handle:, data:) ->
       ImageOp("create_image", [
         #("handle", StringVal(handle)),
@@ -296,13 +322,8 @@ pub fn classify(cmd: Command(msg)) -> WireOp(msg) {
       ])
     command.DeleteImage(handle:) ->
       ImageOp("delete_image", [#("handle", StringVal(handle))])
-
-    // -- Effect, widget command, advance frame --
-    command.Effect(id:, tag:, kind:, payload:) ->
-      EffectRequest(id, tag, kind, payload)
-    command.NativeCommand(node_id:, op:, payload:) ->
-      Command(node_id, op, payload)
-    command.NativeCommands(commands:) -> CommandBatch(commands)
-    command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
+    command.ListImages(tag:) ->
+      WidgetOp("list_images", [#("tag", StringVal(tag))])
+    command.ClearImages -> WidgetOp("clear_images", [])
   }
 }

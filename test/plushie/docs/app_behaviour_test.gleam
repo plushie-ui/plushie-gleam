@@ -251,7 +251,8 @@ pub fn app_behaviour_window_command_set_window_mode_test() {
 
 pub fn app_behaviour_window_close_command_test() {
   let cmd = command.close_window("main")
-  assert cmd == command.CloseWindow(window_id: "main")
+  assert cmd
+    == command.Renderer(command.Window(command.CloseWindow(window_id: "main")))
 }
 
 pub fn app_behaviour_simple_constructor_test() {
