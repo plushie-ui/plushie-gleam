@@ -37,8 +37,8 @@ pub fn decode_test_event(
   let window_id = case get_required_string(data, "window_id") {
     Ok(wid) -> Ok(wid)
     Error(_) -> {
-      // Extract window from the scoped ID
-      let #(window, _, _) = event.split_scoped_id(id)
+      // Extract window from the scoped ID (returns local, scope, window)
+      let #(_, _, window) = event.split_scoped_id(id)
       case window {
         "" -> Error(Nil)
         w -> Ok(w)

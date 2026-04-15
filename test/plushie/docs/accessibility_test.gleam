@@ -240,13 +240,18 @@ pub fn a11y_search_landmark_test() {
         ),
       ],
       [
-        ui.text_input("query", "", [text_input_widget.Placeholder("Search...")]),
-        ui.button_("go", "Search"),
+        ui.column("search_content", [], [
+          ui.text_input("query", "", [
+            text_input_widget.Placeholder("Search..."),
+          ]),
+          ui.button_("go", "Search"),
+        ]),
       ],
     )
   let assert Ok(DictVal(a11y_dict)) = dict.get(node.props, "a11y")
   should.equal(dict.get(a11y_dict, "role"), Ok(StringVal("search")))
-  should.equal(list.length(node.children), 2)
+  // Container holds a single column child; the column has 2 children
+  should.equal(list.length(node.children), 1)
 }
 
 // -- Live regions for dynamic content -----------------------------------------

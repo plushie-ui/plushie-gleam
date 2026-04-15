@@ -689,7 +689,7 @@ fn winquery(
   tag: String,
   session: String,
 ) -> Nil {
-  winop(handle, op, window_id, [#("tag", sv(tag))], session)
+  winop(handle, op, window_id, [#("tag", StringVal(tag))], session)
 }
 
 @target(javascript)
