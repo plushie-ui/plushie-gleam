@@ -17,6 +17,8 @@ import plushie/app.{type App}
 import plushie/command.{type Command}
 @target(erlang)
 import plushie/event.{type Event}
+@target(erlang)
+import plushie/runtime_core
 
 @target(erlang)
 /// Default max depth for recursive command processing (guards against
@@ -136,20 +138,10 @@ fn dispatch_async_result(
 ) -> #(model, List(Event)) {
   let raw_event = event.Async(event.AsyncEvent(tag:, result:))
   let events = [raw_event, ..events]
-  case app.get_on_event(app) {
-    option.Some(on_event) -> {
-      let msg = on_event(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1, max_depth, events)
-    }
-    option.None -> {
-      let msg = event_to_msg(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1, max_depth, events)
-    }
-  }
+  let msg = runtime_core.map_event(app, raw_event)
+  let update_fn = app.get_update(app)
+  let #(new_model, new_commands) = update_fn(model, msg)
+  do_process(app, new_model, new_commands, depth + 1, max_depth, events)
 }
 
 @target(erlang)
@@ -164,20 +156,10 @@ fn dispatch_stream_value(
 ) -> #(model, List(Event)) {
   let raw_event = event.Stream(event.StreamEvent(tag:, value:))
   let events = [raw_event, ..events]
-  case app.get_on_event(app) {
-    option.Some(on_event) -> {
-      let msg = on_event(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1, max_depth, events)
-    }
-    option.None -> {
-      let msg = event_to_msg(raw_event)
-      let update_fn = app.get_update(app)
-      let #(new_model, new_commands) = update_fn(model, msg)
-      do_process(app, new_model, new_commands, depth + 1, max_depth, events)
-    }
-  }
+  let msg = runtime_core.map_event(app, raw_event)
+  let update_fn = app.get_update(app)
+  let #(new_model, new_commands) = update_fn(model, msg)
+  do_process(app, new_model, new_commands, depth + 1, max_depth, events)
 }
 
 @target(erlang)
@@ -206,8 +188,3 @@ fn drain_stream_values(
 fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)
-
-@target(erlang)
-/// Cast Event to msg for simple apps where msg = Event.
-@external(erlang, "plushie_test_ffi", "identity")
-fn event_to_msg(value: Event) -> msg

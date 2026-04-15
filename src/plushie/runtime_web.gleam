@@ -15,8 +15,6 @@
 //// - `app.get_update(app)(model, msg)` for the update step
 //// - `tree.normalize_view(raw_tree, registry, memo_cache)` for scoped
 ////   IDs, widget registry accumulation, and explicit-window validation
-////   (memo_cache is not yet threaded on the JS target; each render
-////   starts fresh)
 //// - `tree.diff(old, new)` for incremental patching
 //// - `protocol/encode` (JSON path) for wire serialization
 ////
@@ -108,8 +106,9 @@ pub fn start(
   let handle =
     create_handle(model, app, transport, session, dict.new(), set.new())
 
-  // Initialize widget registry
+  // Initialize widget registry and memo cache
   do_set_cw_registry(handle, widget.empty_registry())
+  do_set_memo_cache(handle, tree.empty_memo_cache())
 
   // Register callbacks so JS timers, async completions, and
   // renderer events can call back into the Gleam update loop.
@@ -260,12 +259,14 @@ fn render_and_sync(
   case platform.try_call(fn() { view_fn(model) }) {
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
+      let memo_cache = do_get_memo_cache(handle)
       let old_tree = do_get_tree(handle)
 
-      case try_normalize_view(raw_tree, registry) {
+      case try_normalize_view(raw_tree, registry, memo_cache) {
         Ok(norm_result) -> {
           let new_tree = norm_result.tree
           do_set_cw_registry(handle, norm_result.registry)
+          do_set_memo_cache(handle, norm_result.memo_cache)
 
           case force_snapshot || option.is_none(old_tree) {
             True -> {
@@ -317,8 +318,9 @@ fn render_and_sync(
 fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
+  memo_cache: tree.MemoCache,
 ) -> Result(tree.NormalizeResult, String) {
-  tree.normalize_view(view_tree, registry, tree.empty_memo_cache())
+  tree.normalize_view(view_tree, registry, memo_cache)
 }
 
 // -- Event handling ----------------------------------------------------------
@@ -830,6 +832,16 @@ fn do_set_cw_registry(
   handle: WebRuntimeHandle,
   registry: widget.Registry,
 ) -> Nil
+
+@target(javascript)
+/// Get the memo cache for tree normalization.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "getMemoCache")
+fn do_get_memo_cache(handle: WebRuntimeHandle) -> tree.MemoCache
+
+@target(javascript)
+/// Set the memo cache after tree normalization.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "setMemoCache")
+fn do_set_memo_cache(handle: WebRuntimeHandle, cache: tree.MemoCache) -> Nil
 
 @target(javascript)
 /// Send serialized wire bytes to the transport.

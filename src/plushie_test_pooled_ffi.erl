@@ -23,6 +23,18 @@ erase_pool_session() ->
 wait_for_interact_response(Timeout) ->
     collect_interact_events(Timeout, []).
 
+debug_mailbox() ->
+    {messages, Msgs} = process_info(self(), messages),
+    io:format("~n[DEBUG] mailbox has ~p messages:~n", [length(Msgs)]),
+    lists:foreach(fun(M) ->
+        case M of
+            {Tag, _Sid, _D} ->
+                io:format("  tag=~p~n", [Tag]);
+            Other ->
+                io:format("  other=~p~n", [Other])
+        end
+    end, Msgs).
+
 collect_interact_events(Timeout, Acc) ->
     receive
         %% Gleam record: {pool_event_interact_step, _SessionId, Data}
@@ -39,6 +51,14 @@ collect_interact_events(Timeout, Acc) ->
         {plushie_pool_event, _SessionId, #{<<"type">> := <<"interact_response">>, <<"events">> := Events}} ->
             Acc ++ Events
     after Timeout ->
+        %% Debug: peek at the next message in the mailbox
+        {messages, Msgs} = process_info(self(), messages),
+        case Msgs of
+            [] -> ok;
+            [First|_] ->
+                io:format("~n[DEBUG] timeout after ~pms, ~p msgs in mailbox, first: ~p~n",
+                          [Timeout, length(Msgs), First])
+        end,
         Acc
     end.
 

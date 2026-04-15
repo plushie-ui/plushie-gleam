@@ -25,6 +25,7 @@ export function createHandle(
     gleamActiveSubs: emptySubs, // Gleam Dict(String, Subscription)
     gleamWindows: emptyWindows, // Gleam Set(String)
     cwRegistry: null, // Gleam Dict, canvas widget registry
+    memoCache: null, // Gleam MemoCache (Dict), set from Gleam side
     asyncTasks: new Map(), // tag -> { nonce, cancel }
     nextNonce: 0,
     timerSubs: new Map(), // key -> JS intervalId
@@ -103,6 +104,16 @@ export function getCwRegistry(handle) {
 
 export function setCwRegistry(handle, registry) {
   handle.cwRegistry = registry;
+}
+
+// -- Memo cache --------------------------------------------------------------
+
+export function getMemoCache(handle) {
+  return handle.memoCache;
+}
+
+export function setMemoCache(handle, cache) {
+  handle.memoCache = cache;
 }
 
 // -- Subscriptions -----------------------------------------------------------

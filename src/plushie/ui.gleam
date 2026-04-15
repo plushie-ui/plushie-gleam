@@ -7,6 +7,7 @@
 
 import gleam/dict
 import gleam/dynamic.{type Dynamic}
+import gleam/option.{type Option}
 import plushie/node.{type Node}
 import plushie/prop/length.{type Length}
 import plushie/prop/theme.{type Theme}
@@ -14,6 +15,7 @@ import plushie/widget/button
 import plushie/widget/canvas
 import plushie/widget/checkbox
 import plushie/widget/column
+import plushie/widget/combo_box
 import plushie/widget/container
 import plushie/widget/floating
 import plushie/widget/grid
@@ -22,10 +24,14 @@ import plushie/widget/keyed_column
 import plushie/widget/markdown
 import plushie/widget/overlay
 import plushie/widget/pane_grid
+import plushie/widget/pick_list
 import plushie/widget/pin
 import plushie/widget/pointer_area
 import plushie/widget/progress_bar
+import plushie/widget/qr_code
+import plushie/widget/radio
 import plushie/widget/responsive
+import plushie/widget/rich_text
 import plushie/widget/row
 import plushie/widget/rule
 import plushie/widget/scrollable
@@ -33,11 +39,14 @@ import plushie/widget/sensor
 import plushie/widget/slider
 import plushie/widget/space
 import plushie/widget/stack
+import plushie/widget/svg
 import plushie/widget/table
 import plushie/widget/text
 import plushie/widget/text_input
 import plushie/widget/themer
+import plushie/widget/toggler
 import plushie/widget/tooltip
+import plushie/widget/vertical_slider
 import plushie/widget/window
 
 // --- Container widgets -------------------------------------------------------
@@ -346,6 +355,90 @@ pub fn markdown(id: String, content: String, opts: List(markdown.Opt)) -> Node {
 }
 
 // --- Memo (subtree caching) --------------------------------------------------
+
+// --- Additional input widgets ------------------------------------------------
+
+/// Create a combo box (searchable dropdown).
+pub fn combo_box(
+  id: String,
+  options: List(String),
+  value: String,
+  opts: List(combo_box.Opt),
+) -> Node {
+  combo_box.new(id, options, value)
+  |> combo_box.with_opts(opts)
+  |> combo_box.build()
+}
+
+/// Create a pick list (simple dropdown select).
+pub fn pick_list(
+  id: String,
+  options: List(String),
+  selected: Option(String),
+  opts: List(pick_list.Opt),
+) -> Node {
+  pick_list.new(id, options, selected)
+  |> pick_list.with_opts(opts)
+  |> pick_list.build()
+}
+
+/// Create a radio button.
+pub fn radio(
+  id: String,
+  value: String,
+  selected: Option(String),
+  label: String,
+  opts: List(radio.Opt),
+) -> Node {
+  radio.new(id, value, selected, label)
+  |> radio.with_opts(opts)
+  |> radio.build()
+}
+
+/// Create a toggler (on/off switch).
+pub fn toggler(
+  id: String,
+  label: String,
+  is_toggled: Bool,
+  opts: List(toggler.Opt),
+) -> Node {
+  toggler.new(id, label, is_toggled)
+  |> toggler.with_opts(opts)
+  |> toggler.build()
+}
+
+/// Create a vertical slider.
+pub fn vertical_slider(
+  id: String,
+  range: #(Float, Float),
+  value: Float,
+  opts: List(vertical_slider.Opt),
+) -> Node {
+  vertical_slider.new(id, range, value)
+  |> vertical_slider.with_opts(opts)
+  |> vertical_slider.build()
+}
+
+// --- Media widgets -----------------------------------------------------------
+
+/// Create an SVG image.
+pub fn svg(id: String, source: String, opts: List(svg.Opt)) -> Node {
+  svg.new(id, source) |> svg.with_opts(opts) |> svg.build()
+}
+
+/// Create a QR code.
+pub fn qr_code(id: String, data: String, opts: List(qr_code.Opt)) -> Node {
+  qr_code.new(id, data) |> qr_code.with_opts(opts) |> qr_code.build()
+}
+
+// --- Rich content widgets ----------------------------------------------------
+
+/// Create a rich text widget for styled text spans.
+pub fn rich_text(id: String, opts: List(rich_text.Opt)) -> Node {
+  rich_text.new(id) |> rich_text.with_opts(opts) |> rich_text.build()
+}
+
+// --- Caching -----------------------------------------------------------------
 
 /// Mark a subtree for caching across render cycles. The content function
 /// is evaluated eagerly. The dependency is stored with the result so the

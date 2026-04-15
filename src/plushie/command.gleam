@@ -458,3 +458,281 @@ pub fn find_focused(tag: String) -> Command(msg) {
 pub fn advance_frame(timestamp: Int) -> Command(msg) {
   Renderer(AdvanceFrame(timestamp:))
 }
+
+// --- Text cursor commands ----------------------------------------------------
+
+/// Move the text cursor to the beginning of the input.
+pub fn move_cursor_to_front(widget_id: String) -> Command(msg) {
+  Renderer(MoveCursorToFront(widget_id:))
+}
+
+/// Move the text cursor to the end of the input.
+pub fn move_cursor_to_end(widget_id: String) -> Command(msg) {
+  Renderer(MoveCursorToEnd(widget_id:))
+}
+
+/// Move the text cursor to a specific character position.
+pub fn move_cursor_to(widget_id: String, position: Int) -> Command(msg) {
+  Renderer(MoveCursorTo(widget_id:, position:))
+}
+
+/// Select a range of text between `start` and `end` character positions.
+pub fn select_range(widget_id: String, start: Int, end: Int) -> Command(msg) {
+  Renderer(SelectRange(widget_id:, start:, end:))
+}
+
+// --- Scroll commands ---------------------------------------------------------
+
+/// Scroll a scrollable widget to an absolute x/y offset.
+pub fn scroll_to(widget_id: String, x: Float, y: Float) -> Command(msg) {
+  Renderer(ScrollTo(widget_id:, x:, y:))
+}
+
+/// Snap a scrollable widget to an absolute x/y offset instantly
+/// (no smooth scrolling).
+pub fn snap_to(widget_id: String, x: Float, y: Float) -> Command(msg) {
+  Renderer(SnapTo(widget_id:, x:, y:))
+}
+
+/// Snap a scrollable widget to the end of its content.
+pub fn snap_to_end(widget_id: String) -> Command(msg) {
+  Renderer(SnapToEnd(widget_id:))
+}
+
+/// Scroll a scrollable widget by a relative x/y delta.
+pub fn scroll_by(widget_id: String, x: Float, y: Float) -> Command(msg) {
+  Renderer(ScrollBy(widget_id:, x:, y:))
+}
+
+// --- Pane grid commands ------------------------------------------------------
+
+/// Split a pane in a pane_grid widget along the given axis
+/// ("horizontal" or "vertical"), creating a new pane.
+pub fn pane_split(
+  pane_grid_id: String,
+  pane_id: String,
+  axis: String,
+  new_pane_id: String,
+) -> Command(msg) {
+  Renderer(PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:))
+}
+
+/// Close a pane in a pane_grid widget.
+pub fn pane_close(pane_grid_id: String, pane_id: String) -> Command(msg) {
+  Renderer(PaneClose(pane_grid_id:, pane_id:))
+}
+
+/// Swap two panes in a pane_grid widget.
+pub fn pane_swap(
+  pane_grid_id: String,
+  pane_a: String,
+  pane_b: String,
+) -> Command(msg) {
+  Renderer(PaneSwap(pane_grid_id:, pane_a:, pane_b:))
+}
+
+/// Maximize a single pane to fill the entire pane_grid.
+pub fn pane_maximize(pane_grid_id: String, pane_id: String) -> Command(msg) {
+  Renderer(PaneMaximize(pane_grid_id:, pane_id:))
+}
+
+/// Restore all panes from maximized state in a pane_grid.
+pub fn pane_restore(pane_grid_id: String) -> Command(msg) {
+  Renderer(PaneRestore(pane_grid_id:))
+}
+
+// --- Window operation commands -----------------------------------------------
+
+/// Set the window mode (e.g. "windowed", "fullscreen").
+pub fn set_window_mode(window_id: String, mode: String) -> Command(msg) {
+  Renderer(Window(SetWindowMode(window_id:, mode:)))
+}
+
+/// Set window stacking level ("normal", "always_on_top",
+/// "always_on_bottom"). May be ignored on Wayland.
+pub fn set_window_level(window_id: String, level: String) -> Command(msg) {
+  Renderer(Window(SetWindowLevel(window_id:, level:)))
+}
+
+/// Initiate a window drag operation (user moves the window).
+pub fn drag_window(window_id: String) -> Command(msg) {
+  Renderer(Window(DragWindow(window_id:)))
+}
+
+/// Initiate a drag-resize from the given edge/corner direction.
+pub fn drag_resize_window(window_id: String, direction: String) -> Command(msg) {
+  Renderer(Window(DragResizeWindow(window_id:, direction:)))
+}
+
+/// Flash the taskbar/dock icon to request user attention. Urgency
+/// is "informational" or "critical"; None clears the request.
+pub fn request_user_attention(
+  window_id: String,
+  urgency: Option(String),
+) -> Command(msg) {
+  Renderer(Window(RequestUserAttention(window_id:, urgency:)))
+}
+
+/// Set whether a window can be resized by the user.
+pub fn set_resizable(window_id: String, resizable: Bool) -> Command(msg) {
+  Renderer(Window(SetResizable(window_id:, resizable:)))
+}
+
+/// Set the minimum allowed size for a window in logical pixels.
+pub fn set_min_size(
+  window_id: String,
+  width: Float,
+  height: Float,
+) -> Command(msg) {
+  Renderer(Window(SetMinSize(window_id:, width:, height:)))
+}
+
+/// Set the maximum allowed size for a window in logical pixels.
+pub fn set_max_size(
+  window_id: String,
+  width: Float,
+  height: Float,
+) -> Command(msg) {
+  Renderer(Window(SetMaxSize(window_id:, width:, height:)))
+}
+
+/// Enable mouse passthrough so clicks pass through to windows below.
+pub fn enable_mouse_passthrough(window_id: String) -> Command(msg) {
+  Renderer(Window(EnableMousePassthrough(window_id:)))
+}
+
+/// Disable mouse passthrough, restoring normal click handling.
+pub fn disable_mouse_passthrough(window_id: String) -> Command(msg) {
+  Renderer(Window(DisableMousePassthrough(window_id:)))
+}
+
+/// Show the native system menu (window controls) for a window.
+pub fn show_system_menu(window_id: String) -> Command(msg) {
+  Renderer(Window(ShowSystemMenu(window_id:)))
+}
+
+/// Set the resize increment size. The window will only resize in
+/// multiples of the given width/height. Pass None to clear.
+pub fn set_resize_increments(
+  window_id: String,
+  width: Option(Float),
+  height: Option(Float),
+) -> Command(msg) {
+  Renderer(Window(SetResizeIncrements(window_id:, width:, height:)))
+}
+
+/// Set the window icon from raw RGBA pixel data. The BitArray must
+/// be width * height * 4 bytes (R, G, B, A per pixel, row-major).
+pub fn set_icon(
+  window_id: String,
+  rgba_data: BitArray,
+  width: Int,
+  height: Int,
+) -> Command(msg) {
+  validate_rgba_buffer(rgba_data, width, height)
+  Renderer(Window(SetIcon(window_id:, rgba_data:, width:, height:)))
+}
+
+// --- Window query commands ---------------------------------------------------
+
+/// Query the size of a window. Result arrives as a SystemInfo event.
+pub fn get_window_size(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(GetWindowSize(window_id:, tag:)))
+}
+
+/// Query the position of a window. Result arrives as a SystemInfo event.
+pub fn get_window_position(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(GetWindowPosition(window_id:, tag:)))
+}
+
+/// Query whether a window is maximized. Result arrives as a SystemInfo event.
+pub fn is_maximized(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(IsMaximized(window_id:, tag:)))
+}
+
+/// Query whether a window is minimized. Result arrives as a SystemInfo event.
+pub fn is_minimized(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(IsMinimized(window_id:, tag:)))
+}
+
+/// Query the current window mode (windowed, fullscreen, hidden).
+/// Result arrives as a SystemInfo event.
+pub fn get_mode(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(GetMode(window_id:, tag:)))
+}
+
+/// Query the window's DPI scale factor. Result arrives as a SystemInfo event.
+pub fn get_scale_factor(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(GetScaleFactor(window_id:, tag:)))
+}
+
+/// Query the raw platform window ID (e.g. X11 window ID, HWND).
+/// Result arrives as a SystemInfo event.
+pub fn raw_window_id(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(RawWindowId(window_id:, tag:)))
+}
+
+/// Query the monitor size for the display containing a window.
+/// Result arrives as a SystemInfo event.
+pub fn monitor_size(window_id: String, tag: String) -> Command(msg) {
+  Renderer(Window(MonitorSize(window_id:, tag:)))
+}
+
+// --- System commands ---------------------------------------------------------
+
+/// Set whether the system can automatically organize windows into
+/// tabs. macOS-specific; no-op on other platforms.
+pub fn allow_automatic_tabbing(enabled: Bool) -> Command(msg) {
+  Renderer(System(AllowAutomaticTabbing(enabled:)))
+}
+
+/// Query the OS light/dark theme preference. Result arrives as a
+/// SystemTheme event with "light", "dark", or "none".
+pub fn get_system_theme(tag: String) -> Command(msg) {
+  Renderer(System(GetSystemTheme(tag:)))
+}
+
+/// Query system information (OS, CPU, memory, graphics). Result
+/// arrives as a SystemInfo event with a map of system fields.
+pub fn get_system_info(tag: String) -> Command(msg) {
+  Renderer(System(GetSystemInfo(tag:)))
+}
+
+// --- Image commands ----------------------------------------------------------
+
+/// Update an existing image handle with new encoded data.
+pub fn update_image(handle: String, data: BitArray) -> Command(msg) {
+  Renderer(Image(UpdateImage(handle:, data:)))
+}
+
+/// List all registered image handles. Result arrives as an
+/// ImageList event.
+pub fn list_images(tag: String) -> Command(msg) {
+  Renderer(Image(ListImages(tag:)))
+}
+
+// --- Font and native commands ------------------------------------------------
+
+/// Load a font at runtime from raw TrueType or OpenType binary data.
+/// Once loaded, the font can be referenced by name in widget props.
+pub fn load_font(data: BitArray) -> Command(msg) {
+  Renderer(LoadFont(data:))
+}
+
+/// Send a command directly to a native widget, bypassing the
+/// normal tree diff/patch cycle.
+pub fn native_command(
+  node_id: String,
+  op: String,
+  payload: Dict(String, PropValue),
+) -> Command(msg) {
+  Renderer(NativeCommand(node_id:, op:, payload:))
+}
+
+/// Send a batch of native widget commands processed in one cycle.
+/// Each tuple is `#(node_id, op, payload)`.
+pub fn native_commands(
+  commands: List(#(String, String, Dict(String, PropValue))),
+) -> Command(msg) {
+  Renderer(NativeCommands(commands:))
+}
