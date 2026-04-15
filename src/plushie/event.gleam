@@ -346,8 +346,6 @@ pub type ErrorEvent {
   )
   /// A generic renderer error.
   RendererError(id: String, data: Dynamic)
-  /// The app's renderer restart callback crashed.
-  RecoveryFailed(reason: Dynamic)
   /// The tree contains duplicate node IDs after normalization.
   DuplicateNodeIds(details: Dynamic)
   /// A renderer diagnostic message (warnings, errors).

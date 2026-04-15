@@ -232,9 +232,16 @@ pub type PropWarning {
 /// Health status snapshot from a running runtime.
 pub type HealthStatus {
   HealthStatus(
+    /// Total update/view errors since the last renderer (re)start.
+    /// Resets to zero on successful renderer restart.
     errors: Int,
+    /// Number of consecutive view failures without a successful render.
+    /// Resets to zero on successful view render.
     consecutive_view_errors: Int,
+    /// Number of accumulated prop validation warnings from the renderer.
     prop_warning_count: Int,
+    /// True when the UI is stale due to repeated view failures
+    /// (consecutive_view_errors > 0).
     view_desynced: Bool,
   )
 }
@@ -1591,7 +1598,7 @@ fn flush_pending_effects_on_restart(
 @target(erlang)
 /// Cancel a pending effect by its app-facing tag. If an effect with the
 /// given tag is already in flight, cancel its timeout timer and remove it
-/// from pending_effects. This enforces one-effect-per-tag.
+/// from the effects tracker. This enforces one-effect-per-tag.
 fn cancel_pending_effect_by_tag(
   state: LoopState(model, msg),
   tag: String,

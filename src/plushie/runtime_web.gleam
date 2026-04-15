@@ -15,6 +15,8 @@
 //// - `app.get_update(app)(model, msg)` for the update step
 //// - `tree.normalize_view(raw_tree, registry, memo_cache)` for scoped
 ////   IDs, widget registry accumulation, and explicit-window validation
+////   (memo_cache is not yet threaded on the JS target; each render
+////   starts fresh)
 //// - `tree.diff(old, new)` for incremental patching
 //// - `protocol/encode` (JSON path) for wire serialization
 ////
@@ -455,7 +457,6 @@ fn start_subscription(
 ) -> Nil {
   case sub {
     subscription.Every(interval_ms:, tag:) -> {
-      let app = do_get_app(handle)
       start_timer_sub(handle, key, interval_ms, tag)
     }
     _ -> {
