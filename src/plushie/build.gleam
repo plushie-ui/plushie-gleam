@@ -679,8 +679,9 @@ fn install_native_binary(
   copy_file(src, dest)
   chmod(dest, 0o755)
 
-  // Create bin/ symlinks. Targets are resolved relative to the link's
-  // directory, so prefix with ../ to escape bin/.
+  // Create a convenience symlink in bin/ using the project-specific name.
+  // Targets are resolved relative to the link's directory, so prefix
+  // with ../ to escape bin/.
   let link_dir = "bin"
   let relative_dest = "../" <> dest
   let link_path = link_dir <> "/" <> bin_name
@@ -692,18 +693,9 @@ fn install_native_binary(
     Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 
-  // Also create the standard plushie-renderer symlink in bin/
-  let std_link = link_dir <> "/plushie-renderer"
-  delete_file(std_link)
-  case make_symlink(relative_dest, std_link) {
-    Ok(_) -> Nil
-    Error(_) -> Nil
-  }
-
-  // Create a standard-named symlink in the download dir so the binary
-  // resolution in binary.gleam can find the custom binary without
-  // needing PLUSHIE_BINARY_PATH. Use just the filename as the target
-  // since the symlink lives in the same directory as the binary.
+  // Create a standard-named symlink in the download dir so binary.gleam's
+  // resolution finds the custom binary via its standard search path.
+  // The symlink is relative (same directory as the binary).
   let std_name = "plushie-renderer-" <> plat <> "-" <> arch
   let std_dest = binary.download_dir() <> "/" <> std_name
   case dest == std_dest {

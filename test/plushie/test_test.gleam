@@ -181,13 +181,18 @@ fn scoped_init() {
 }
 
 fn scoped_update(model: ScopedModel, event: Event) {
+  // The scope chain is nearest-parent-first and includes the window
+  // as the outermost element, matching the Elixir SDK convention.
   case event {
     Widget(Click(target: EventTarget(
       window_id: "main",
       id: "save",
-      scope: ["form", "panel"],
+      scope: ["form", "panel", "main"],
       ..,
-    ))) -> #(ScopedModel(last_scope: ["form", "panel"]), command.none())
+    ))) -> #(
+      ScopedModel(last_scope: ["form", "panel", "main"]),
+      command.none(),
+    )
     _ -> #(model, command.none())
   }
 }
@@ -207,7 +212,8 @@ fn scoped_app() {
 pub fn click_preserves_nearest_parent_first_scope_test() {
   let ctx = testing.start(scoped_app())
   let ctx = testing.click(ctx, "panel/form/save")
-  should.equal(testing.model(ctx).last_scope, ["form", "panel"])
+  // Scope is nearest-parent-first with window as outermost element
+  should.equal(testing.model(ctx).last_scope, ["form", "panel", "main"])
 }
 
 // -- State immutability -------------------------------------------------------
