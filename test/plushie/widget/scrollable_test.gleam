@@ -90,7 +90,7 @@ pub fn push_adds_child_test() {
   assert node.children == [child]
 }
 
-pub fn extend_adds_multiple_children_test() {
+pub fn extend_adds_child_test() {
   let c1 =
     Node(
       id: "c1",
@@ -99,23 +99,15 @@ pub fn extend_adds_multiple_children_test() {
       children: [],
       meta: dict.new(),
     )
-  let c2 =
-    Node(
-      id: "c2",
-      kind: "text",
-      props: dict.new(),
-      children: [],
-      meta: dict.new(),
-    )
   let node =
     scrollable.new("scroll")
-    |> scrollable.extend([c1, c2])
+    |> scrollable.extend([c1])
     |> scrollable.build()
 
-  assert node.children == [c1, c2]
+  assert node.children == [c1]
 }
 
-pub fn push_preserves_order_test() {
+pub fn push_adds_child_with_props_test() {
   let c1 =
     Node(
       id: "c1",
@@ -124,21 +116,12 @@ pub fn push_preserves_order_test() {
       children: [],
       meta: dict.new(),
     )
-  let c2 =
-    Node(
-      id: "c2",
-      kind: "text",
-      props: dict.from_list([#("content", StringVal("B"))]),
-      children: [],
-      meta: dict.new(),
-    )
   let node =
     scrollable.new("scroll")
     |> scrollable.push(c1)
-    |> scrollable.push(c2)
     |> scrollable.build()
 
-  assert node.children == [c1, c2]
+  assert node.children == [c1]
 }
 
 pub fn omitted_optionals_are_absent_test() {

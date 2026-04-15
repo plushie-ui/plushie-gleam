@@ -31,7 +31,20 @@ pub fn decode_test_event(
   id: String,
   data: Dict(String, Dynamic),
 ) -> Result(Event, Nil) {
-  let window_id = get_required_string(data, "window_id")
+  // The renderer may omit `window_id` from interact response events.
+  // Fall back to extracting it from the scoped ID (e.g. "main#root/inc"
+  // has window "main"). make_target handles the extraction.
+  let window_id = case get_required_string(data, "window_id") {
+    Ok(wid) -> Ok(wid)
+    Error(_) -> {
+      // Extract window from the scoped ID
+      let #(window, _, _) = event.split_scoped_id(id)
+      case window {
+        "" -> Error(Nil)
+        w -> Ok(w)
+      }
+    }
+  }
   let target = case window_id {
     Ok(wid) -> event.make_target(id, wid)
     Error(_) -> event.make_target(id, "")

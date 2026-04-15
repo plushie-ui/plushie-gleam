@@ -222,8 +222,10 @@ fn error_update(
 
 fn error_view(_model: ErrorModel) -> Node {
   ui.window("main", [window.Title("Error Test")], [
-    ui.button_("crash", "Crash"),
-    ui.button_("inc", "Inc"),
+    ui.column("root", [], [
+      ui.button_("crash", "Crash"),
+      ui.button_("inc", "Inc"),
+    ]),
   ])
 }
 
@@ -261,8 +263,10 @@ fn view_crash_view(model: ViewCrashModel) -> Node {
     True -> panic as "intentional view crash"
     False ->
       ui.window("main", [window.Title("View Crash Test")], [
-        ui.button_("crash_view", "Crash View"),
-        ui.button_("fix_view", "Fix View"),
+        ui.column("root", [], [
+          ui.button_("crash_view", "Crash View"),
+          ui.button_("fix_view", "Fix View"),
+        ]),
       ])
   }
 }
