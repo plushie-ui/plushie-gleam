@@ -78,6 +78,22 @@ pub fn download_dir() -> String {
   "build/plushie/bin"
 }
 
+/// Returns the binary name for a custom build with native widgets.
+///
+/// When native widgets are configured, the binary is named
+/// "{project}-renderer" (derived from gleam.toml project name).
+/// Otherwise returns "plushie-renderer".
+pub fn build_name(project_name: Result(String, a)) -> String {
+  case project_name {
+    Ok(name) -> {
+      // Replace underscores with hyphens for the binary name
+      let hyphenated = string.replace(name, "_", "-")
+      hyphenated <> "-renderer"
+    }
+    Error(_) -> "plushie-renderer"
+  }
+}
+
 fn candidate_paths() -> List(String) {
   let platform = platform.platform_string()
   let arch = platform.arch_string()

@@ -12,7 +12,14 @@
 //// bin_file = "build/my-binary"      # binary destination
 //// wasm_dir = "static/wasm"          # WASM output directory
 //// source_path = "/path/to/renderer" # Rust source checkout
+//// native_widgets = [                # native widget crate entries
+////   "native/gauge|gauge::GaugeExtension::new()",
+//// ]
 //// ```
+////
+//// Each native_widgets entry is `"crate_path|constructor_expression"`.
+//// The `|` separator is unambiguous (not valid in paths or Rust
+//// identifiers in this context).
 ////
 //// ## Resolution order (highest priority first)
 ////
@@ -22,6 +29,12 @@
 //// 4. Hardcoded default
 
 import gleam/list
+import gleam/string
+
+/// Configuration for a native widget crate.
+pub type NativeWidgetConfig {
+  NativeWidgetConfig(crate_path: String, constructor: String)
+}
 
 @target(erlang)
 /// Read a string value from the [plushie] section of gleam.toml.
@@ -41,6 +54,38 @@ pub fn get_artifacts() -> Result(List(String), Nil) {
 pub fn wants_artifact(name: String) -> Result(Bool, Nil) {
   case get_artifacts() {
     Ok(artifacts) -> Ok(list.contains(artifacts, name))
+    Error(_) -> Error(Nil)
+  }
+}
+
+@target(erlang)
+/// Read native widget entries from gleam.toml.
+///
+/// Each entry is a string in the format "crate_path|constructor".
+/// Returns an empty list if no native_widgets key is present.
+pub fn get_native_widgets() -> List(NativeWidgetConfig) {
+  case read_config_list("native_widgets") {
+    Ok(entries) -> list.filter_map(entries, parse_native_widget_entry)
+    Error(_) -> []
+  }
+}
+
+@target(erlang)
+fn parse_native_widget_entry(entry: String) -> Result(NativeWidgetConfig, Nil) {
+  case string.split_once(entry, "|") {
+    Ok(#(crate_path, constructor)) -> {
+      let trimmed_path = string.trim(crate_path)
+      let trimmed_ctor = string.trim(constructor)
+      case trimmed_path, trimmed_ctor {
+        "", _ -> Error(Nil)
+        _, "" -> Error(Nil)
+        _, _ ->
+          Ok(NativeWidgetConfig(
+            crate_path: trimmed_path,
+            constructor: trimmed_ctor,
+          ))
+      }
+    }
     Error(_) -> Error(Nil)
   }
 }

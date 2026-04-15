@@ -2,6 +2,7 @@
 -export([
     rustc_version/0,
     cargo_build/2,
+    cargo_build_workspace/3,
     executable_exists/1,
     has_flag/1,
     get_flag_value/1,
@@ -13,7 +14,12 @@
     make_symlink/2,
     parse_int/1,
     check_wasm_pack/0,
-    wasm_pack_build/2
+    wasm_pack_build/2,
+    write_file/2,
+    read_file/1,
+    file_exists/1,
+    project_name/0,
+    get_cwd/0
 ]).
 
 %% Check if an executable is on PATH (Gleam-facing, takes binary).
@@ -162,3 +168,86 @@ wasm_pack_build(CrateDir, Release) ->
         stream, binary, exit_status, use_stdio, stderr_to_stdout
     ]),
     collect_port_output(Port, <<>>).
+
+%% Run cargo build with an explicit --manifest-path.
+%% Returns {ok, Output} on success, {error, Output} on failure.
+cargo_build_workspace(ManifestPath, Release, _Verbose) ->
+    ManifestPathStr = binary_to_list(ManifestPath),
+    Cargo = find_executable("cargo"),
+    BaseArgs = ["build", "--manifest-path", ManifestPathStr],
+    Args = case Release of
+        true -> BaseArgs ++ ["--release"];
+        false -> BaseArgs
+    end,
+    Port = erlang:open_port({spawn_executable, Cargo}, [
+        {args, Args},
+        stream, binary, exit_status, use_stdio, stderr_to_stdout
+    ]),
+    collect_port_output(Port, <<>>).
+
+%% Write binary content to a file. Creates parent dirs.
+write_file(Path, Content) ->
+    PathStr = binary_to_list(Path),
+    filelib:ensure_dir(PathStr),
+    ok = file:write_file(PathStr, Content),
+    nil.
+
+%% Read a file. Returns {ok, Content} or {error, Reason}.
+read_file(Path) ->
+    case file:read_file(binary_to_list(Path)) of
+        {ok, Content} -> {ok, Content};
+        {error, Reason} -> {error, list_to_binary(io_lib:format("~p", [Reason]))}
+    end.
+
+%% Check if a regular file exists.
+file_exists(Path) ->
+    filelib:is_regular(binary_to_list(Path)).
+
+%% Read the project name from gleam.toml.
+project_name() ->
+    case file:read_file("gleam.toml") of
+        {ok, Content} ->
+            Lines = binary:split(Content, <<"\n">>, [global]),
+            find_name(Lines);
+        {error, _} ->
+            {error, <<"gleam.toml not found">>}
+    end.
+
+find_name([]) ->
+    {error, <<"name not found in gleam.toml">>};
+find_name([Line | Rest]) ->
+    Trimmed = string:trim(binary_to_list(Line)),
+    case Trimmed of
+        [$[ | _] ->
+            %% Hit a section header, stop looking in root
+            {error, <<"name not found in gleam.toml root">>};
+        _ ->
+            case string:split(Trimmed, "=", leading) of
+                [KeyPart, ValuePart] ->
+                    K = string:trim(KeyPart),
+                    case K of
+                        "name" ->
+                            V = string:trim(ValuePart),
+                            case V of
+                                [$" | R] ->
+                                    case lists:reverse(R) of
+                                        [$" | Inner] ->
+                                            {ok, list_to_binary(lists:reverse(Inner))};
+                                        _ ->
+                                            find_name(Rest)
+                                    end;
+                                _ ->
+                                    find_name(Rest)
+                            end;
+                        _ ->
+                            find_name(Rest)
+                    end;
+                _ ->
+                    find_name(Rest)
+            end
+    end.
+
+%% Get current working directory.
+get_cwd() ->
+    {ok, Cwd} = file:get_cwd(),
+    list_to_binary(Cwd).
