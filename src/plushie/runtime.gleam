@@ -232,8 +232,8 @@ pub type PropWarning {
 /// Health status snapshot from a running runtime.
 pub type HealthStatus {
   HealthStatus(
-    /// Total update/view errors since the last renderer (re)start.
-    /// Resets to zero on successful renderer restart.
+    /// Consecutive update/view errors since the last successful update
+    /// cycle or renderer restart. Resets to zero on either.
     errors: Int,
     /// Number of consecutive view failures without a successful render.
     /// Resets to zero on successful view render.
@@ -1476,6 +1476,10 @@ fn track_focus_from_status(
   LoopState(..state, focus: FocusState(widget_statuses:, focused_widget_id:))
 }
 
+/// Message used for the frozen-UI dev overlay. Compared by value
+/// in sync_after_render to auto-clear on successful view render.
+const frozen_ui_message = "UI frozen: view() is failing"
+
 /// Inject a frozen UI error indicator into the stale tree.
 /// Sets the dev overlay and sends a snapshot with the overlay node
 /// prepended to the tree. Called after consecutive view failures
@@ -1483,7 +1487,7 @@ fn track_focus_from_status(
 fn inject_frozen_indicator(
   state: LoopState(model, msg),
 ) -> LoopState(model, msg) {
-  let message = "UI frozen: view() is failing"
+  let message = frozen_ui_message
   let state = LoopState(..state, dev_overlay: Some(message))
   case state.tree {
     Some(tree) -> {
@@ -1746,7 +1750,7 @@ fn sync_after_render(
 
   // Clear frozen-UI overlay on successful view render (view errors reset to 0)
   let dev_overlay = case state.dev_overlay {
-    Some("UI frozen: view() is failing") -> None
+    Some(msg) if msg == frozen_ui_message -> None
     other -> other
   }
 

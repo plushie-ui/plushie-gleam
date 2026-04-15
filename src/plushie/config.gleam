@@ -12,14 +12,13 @@
 //// bin_file = "build/my-binary"      # binary destination
 //// wasm_dir = "static/wasm"          # WASM output directory
 //// source_path = "/path/to/renderer" # Rust source checkout
-//// native_widgets = [                # native widget crate entries
-////   "native/gauge|gauge::GaugeExtension::new()",
-//// ]
+//// native_widgets = ["native/gauge|gauge::GaugeExtension::new()"]
 //// ```
 ////
 //// Each native_widgets entry is `"crate_path|constructor_expression"`.
 //// The `|` separator is unambiguous (not valid in paths or Rust
-//// identifiers in this context).
+//// identifiers in this context). The array must be on a single line
+//// (the TOML parser does not support multi-line arrays).
 ////
 //// ## Resolution order (highest priority first)
 ////

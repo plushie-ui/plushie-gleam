@@ -31,11 +31,11 @@
 //// ```toml
 //// [plushie]
 //// source_path = "../plushie-rust"
-//// native_widgets = [
-////   "native/gauge|gauge::GaugeExtension::new()",
-////   "native/sparkline|sparkline::SparklineExtension::new()",
-//// ]
+//// native_widgets = ["native/gauge|gauge::GaugeExtension::new()", "native/sparkline|sparkline::SparklineExtension::new()"]
 //// ```
+////
+//// The array must be on a single line (the TOML parser does not
+//// support multi-line arrays).
 
 @target(erlang)
 import gleam/io
@@ -510,8 +510,10 @@ fn forward_patches_with_sdk(abs_source: String) -> String {
   let sdk_patches =
     sdk_crate_patches(abs_source)
     |> list.filter(fn(patch) {
-      // Only add patches not already present from the workspace
-      !string.contains(base_patches, patch.name)
+      // Only add patches not already present from the workspace.
+      // Match "name = " to avoid substring collisions (e.g.
+      // "plushie-renderer" matching "plushie-renderer-lib").
+      !string.contains(base_patches, patch.name <> " = ")
     })
     |> list.filter(fn(patch) { dir_exists(patch.path) })
     |> list.map(fn(patch) {
@@ -677,20 +679,23 @@ fn install_native_binary(
   copy_file(src, dest)
   chmod(dest, 0o755)
 
-  // Create bin/ symlink using the custom binary name
+  // Create bin/ symlinks. Targets are resolved relative to the link's
+  // directory, so prefix with ../ to escape bin/.
   let link_dir = "bin"
+  let relative_dest = "../" <> dest
   let link_path = link_dir <> "/" <> bin_name
   ensure_dir(link_dir)
   delete_file(link_path)
-  case make_symlink(dest, link_path) {
-    Ok(_) -> io.println("Created symlink " <> link_path <> " -> " <> dest)
+  case make_symlink(relative_dest, link_path) {
+    Ok(_) ->
+      io.println("Created symlink " <> link_path <> " -> " <> relative_dest)
     Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 
   // Also create the standard plushie-renderer symlink in bin/
   let std_link = link_dir <> "/plushie-renderer"
   delete_file(std_link)
-  case make_symlink(dest, std_link) {
+  case make_symlink(relative_dest, std_link) {
     Ok(_) -> Nil
     Error(_) -> Nil
   }
@@ -914,12 +919,14 @@ fn copy_cargo_lock(source_dir: String, dest_dir: String) -> Nil {
 fn create_bin_symlink(target_path: String) -> Nil {
   let link_dir = "bin"
   let link_path = link_dir <> "/plushie-renderer"
+  // Symlink targets are resolved relative to the link's directory,
+  // so prefix with ../ to escape bin/ and reach the project root.
+  let relative_target = "../" <> target_path
   ensure_dir(link_dir)
-  // Remove existing symlink/file before creating
   delete_file(link_path)
-  case make_symlink(target_path, link_path) {
+  case make_symlink(relative_target, link_path) {
     Ok(_) ->
-      io.println("Created symlink " <> link_path <> " -> " <> target_path)
+      io.println("Created symlink " <> link_path <> " -> " <> relative_target)
     Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 }
