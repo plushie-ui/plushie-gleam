@@ -30,7 +30,7 @@ import plushie/config
 import plushie/platform
 
 @target(erlang)
-const binary_version = "0.5.1"
+const binary_version = "0.6.1"
 
 @target(erlang)
 const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
