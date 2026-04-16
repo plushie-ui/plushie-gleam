@@ -7,6 +7,7 @@ import plushie/node.{type Node, type PropValue, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
+import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
@@ -27,7 +28,7 @@ pub opaque type TextEditor {
     size: Option(Float),
     line_height: Option(LineHeight),
     wrapping: Option(Wrapping),
-    input_purpose: Option(String),
+    input_purpose: Option(InputPurpose),
     highlight_syntax: Option(String),
     highlight_theme: Option(String),
     style: Option(String),
@@ -115,7 +116,7 @@ pub fn wrapping(te: TextEditor, w: Wrapping) -> TextEditor {
 }
 
 /// Set the input purpose hint.
-pub fn input_purpose(te: TextEditor, p: String) -> TextEditor {
+pub fn input_purpose(te: TextEditor, p: InputPurpose) -> TextEditor {
   TextEditor(..te, input_purpose: option.Some(p))
 }
 
@@ -166,7 +167,7 @@ pub type Opt {
   Size(Float)
   LineHeight(LineHeight)
   Wrapping(Wrapping)
-  InputPurpose(String)
+  InputPurpose(InputPurpose)
   HighlightSyntax(String)
   HighlightTheme(String)
   Style(String)
@@ -221,7 +222,11 @@ pub fn build(te: TextEditor) -> Node {
       line_height.to_prop_value,
     )
     |> build.put_optional("wrapping", te.wrapping, wrapping.to_prop_value)
-    |> build.put_optional_string("input_purpose", te.input_purpose)
+    |> build.put_optional(
+      "input_purpose",
+      te.input_purpose,
+      input_purpose.to_prop_value,
+    )
     |> build.put_optional_string("highlight_syntax", te.highlight_syntax)
     |> build.put_optional_string("highlight_theme", te.highlight_theme)
     |> build.put_optional_string("style", te.style)

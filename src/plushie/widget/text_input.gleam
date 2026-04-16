@@ -7,6 +7,7 @@ import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/alignment.{type Alignment}
 import plushie/prop/font.{type Font}
+import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
@@ -26,6 +27,7 @@ pub opaque type TextInput {
     on_submit: Option(Bool),
     on_paste: Option(Bool),
     secure: Option(Bool),
+    input_purpose: Option(InputPurpose),
     style: Option(String),
     a11y: Option(A11y),
   )
@@ -46,6 +48,7 @@ pub fn new(id: String, value: String) -> TextInput {
     on_submit: None,
     on_paste: None,
     secure: None,
+    input_purpose: None,
     style: None,
     a11y: None,
   )
@@ -101,6 +104,11 @@ pub fn secure(input: TextInput, s: Bool) -> TextInput {
   TextInput(..input, secure: option.Some(s))
 }
 
+/// Set the input purpose hint for IME keyboards.
+pub fn input_purpose(input: TextInput, p: InputPurpose) -> TextInput {
+  TextInput(..input, input_purpose: option.Some(p))
+}
+
 /// Set the style.
 pub fn style(input: TextInput, s: String) -> TextInput {
   TextInput(..input, style: option.Some(s))
@@ -123,6 +131,7 @@ pub type Opt {
   OnSubmit(Bool)
   OnPaste(Bool)
   Secure(Bool)
+  InputPurpose(InputPurpose)
   Style(String)
   A11y(A11y)
 }
@@ -141,6 +150,7 @@ pub fn with_opts(input: TextInput, opts: List(Opt)) -> TextInput {
       OnSubmit(v) -> on_submit(i, v)
       OnPaste(v) -> on_paste(i, v)
       Secure(v) -> secure(i, v)
+      InputPurpose(p) -> input_purpose(i, p)
       Style(s) -> style(i, s)
       A11y(a) -> a11y(i, a)
     }
@@ -166,6 +176,11 @@ pub fn build(input: TextInput) -> Node {
     |> build.put_optional_bool("on_submit", input.on_submit)
     |> build.put_optional_bool("on_paste", input.on_paste)
     |> build.put_optional_bool("secure", input.secure)
+    |> build.put_optional(
+      "input_purpose",
+      input.input_purpose,
+      input_purpose.to_prop_value,
+    )
     |> build.put_optional_string("style", input.style)
     |> build.apply_default_a11y(
       input.a11y,
