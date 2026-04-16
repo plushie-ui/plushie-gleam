@@ -66,8 +66,8 @@ pub type RendererCommand {
   MoveCursorToEnd(widget_id: String)
   /// Move the text cursor to a specific character position.
   MoveCursorTo(widget_id: String, position: Int)
-  /// Select a range of text between `start` and `end` character positions.
-  SelectRange(widget_id: String, start: Int, end: Int)
+  /// Select a range of text between start_pos and end_pos character positions.
+  SelectRange(widget_id: String, start_pos: Int, end_pos: Int)
 
   /// Scroll a scrollable widget to an absolute offset.
   ScrollTo(widget_id: String, x: Float, y: Float)
@@ -476,9 +476,13 @@ pub fn move_cursor_to(widget_id: String, position: Int) -> Command(msg) {
   Renderer(MoveCursorTo(widget_id:, position:))
 }
 
-/// Select a range of text between `start` and `end` character positions.
-pub fn select_range(widget_id: String, start: Int, end: Int) -> Command(msg) {
-  Renderer(SelectRange(widget_id:, start:, end:))
+/// Select a range of text between start_pos and end_pos character positions.
+pub fn select_range(
+  widget_id: String,
+  start_pos: Int,
+  end_pos: Int,
+) -> Command(msg) {
+  Renderer(SelectRange(widget_id:, start_pos:, end_pos:))
 }
 
 // --- Scroll commands ---------------------------------------------------------

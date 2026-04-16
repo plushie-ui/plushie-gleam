@@ -98,11 +98,14 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
         "move_cursor_to",
         dict.from_list([#("position", IntVal(position))]),
       )
-    command.SelectRange(widget_id:, start:, end:) ->
+    command.SelectRange(widget_id:, start_pos:, end_pos:) ->
       Command(
         widget_id,
         "select_range",
-        dict.from_list([#("start", IntVal(start)), #("end", IntVal(end))]),
+        dict.from_list([
+          #("start_pos", IntVal(start_pos)),
+          #("end_pos", IntVal(end_pos)),
+        ]),
       )
     command.ScrollTo(widget_id:, x:, y:) ->
       Command(

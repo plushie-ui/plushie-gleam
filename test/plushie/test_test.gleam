@@ -189,10 +189,7 @@ fn scoped_update(model: ScopedModel, event: Event) {
       id: "save",
       scope: ["form", "panel", "main"],
       ..,
-    ))) -> #(
-      ScopedModel(last_scope: ["form", "panel", "main"]),
-      command.none(),
-    )
+    ))) -> #(ScopedModel(last_scope: ["form", "panel", "main"]), command.none())
     _ -> #(model, command.none())
   }
 }

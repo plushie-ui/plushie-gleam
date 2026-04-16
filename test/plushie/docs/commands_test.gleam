@@ -116,12 +116,16 @@ pub fn commands_move_cursor_to_construct_test() {
 
 pub fn commands_select_range_construct_test() {
   let cmd =
-    command.Renderer(command.SelectRange(widget_id: "editor", start: 5, end: 10))
+    command.Renderer(command.SelectRange(
+      widget_id: "editor",
+      start_pos: 5,
+      end_pos: 10,
+    ))
   case cmd {
-    command.Renderer(command.SelectRange(widget_id:, start:, end:)) -> {
+    command.Renderer(command.SelectRange(widget_id:, start_pos:, end_pos:)) -> {
       widget_id |> should.equal("editor")
-      start |> should.equal(5)
-      end |> should.equal(10)
+      start_pos |> should.equal(5)
+      end_pos |> should.equal(10)
     }
     _ -> should.fail()
   }
