@@ -7,9 +7,9 @@
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
+import gleam/int
 import gleam/list
-import gleam/option.{type Option, Some}
-import gleam/order
+import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import gleam/string
 import plushie/node.{
@@ -777,23 +777,11 @@ fn has_id_key(item: PropValue) -> Bool {
   }
 }
 
-/// Check if common elements between old and new children maintain
-/// their relative order. Returns True if reordered. Accepts
-/// pre-computed ID lists to avoid re-extracting them from nodes.
-fn children_reordered(old_ids: List(String), new_ids: List(String)) -> Bool {
-  let old_set = set.from_list(old_ids)
-  let new_set = set.from_list(new_ids)
-  let common_old = list.filter(old_ids, fn(id) { set.contains(new_set, id) })
-  let common_new = list.filter(new_ids, fn(id) { set.contains(old_set, id) })
-  common_old != common_new
-}
-
 /// Diff children using three strategies:
 ///
 /// - **Fast**: ID sequences match -> pairwise prop diff, O(n)
-/// - **General**: different sequences -> remove/insert/update using
-///   ID-keyed lookup. Elements in both old and new are diffed in place;
-///   elements only in old are removed; elements only in new are inserted.
+/// - **Medium**: no reorder among common IDs -> insert/remove only
+/// - **Slow**: reorder detected -> LIS for minimal moves, O(n log n)
 ///
 /// Operation ordering is load-bearing:
 /// 1. Removals in descending index order (avoids index shift)
@@ -809,104 +797,87 @@ fn diff_children(
 
   // Fast path: same ID sequence -> pairwise diff only
   case old_ids == new_ids {
-    True -> diff_children_pairwise(old_children, new_children, parent_path, 0)
-    False ->
-      case children_reordered(old_ids, new_ids) {
-        // Reorder: remove all old children and insert all new ones.
-        // This preserves the parent's props (unlike ReplaceNode) and
-        // produces correct results for any reorder pattern.
-        True -> diff_children_reorder(old_children, new_children, parent_path)
-        // No reorder: same relative order with adds/removes
-        False -> diff_children_general(old_children, new_children, parent_path)
+    True -> diff_children_same_order(old_children, new_children, parent_path)
+    False -> {
+      let old_set = set.from_list(old_ids)
+      let new_set = set.from_list(new_ids)
+      let common_old =
+        list.filter(old_ids, fn(id) { set.contains(new_set, id) })
+      let common_new =
+        list.filter(new_ids, fn(id) { set.contains(old_set, id) })
+
+      case common_old == common_new {
+        // Medium path: common IDs in same relative order
+        True -> {
+          let old_by_id = build_indexed_lookup(old_children)
+          let old_only = set.difference(old_set, new_set)
+          diff_children_no_reorder(
+            old_by_id,
+            new_children,
+            old_only,
+            parent_path,
+          )
+        }
+        // Slow path: reorder detected, use LIS
+        False -> {
+          let old_by_id = build_indexed_lookup(old_children)
+          let old_only = set.difference(old_set, new_set)
+          diff_children_reorder(
+            old_by_id,
+            new_children,
+            common_new,
+            old_only,
+            parent_path,
+          )
+        }
       }
-  }
-}
-
-/// Reorder path: children have common elements in different order.
-/// Remove all old children (descending) then insert all new ones
-/// (ascending). This preserves the parent node's props while
-/// correctly handling any permutation.
-fn diff_children_reorder(
-  old_children: List(Node),
-  new_children: List(Node),
-  parent_path: List(Int),
-) -> List(PatchOp) {
-  let old_count = list.length(old_children)
-  // Remove all old children in descending order
-  let remove_ops =
-    list.index_map(old_children, fn(_, idx) { old_count - 1 - idx })
-    |> list.map(fn(idx) { RemoveChild(path: parent_path, index: idx) })
-  // Insert all new children in ascending order
-  let insert_ops =
-    list.index_map(new_children, fn(child, idx) {
-      InsertChild(path: parent_path, index: idx, node: child)
-    })
-  list.append(remove_ops, insert_ops)
-}
-
-/// Fast path: children have the same ID sequence. Walk both lists
-/// in lockstep and diff each pair at their index.
-fn diff_children_pairwise(
-  old: List(Node),
-  new: List(Node),
-  parent_path: List(Int),
-  idx: Int,
-) -> List(PatchOp) {
-  case old, new {
-    [], [] -> []
-    [old_child, ..old_rest], [new_child, ..new_rest] -> {
-      let child_path = list.append(parent_path, [idx])
-      let ops = diff_node(old_child, new_child, child_path)
-      list.append(
-        ops,
-        diff_children_pairwise(old_rest, new_rest, parent_path, idx + 1),
-      )
     }
-    _, _ -> []
   }
 }
 
-/// General path: ID sequences differ. Handle removals, updates, and inserts.
-fn diff_children_general(
+fn build_indexed_lookup(children: List(Node)) -> Dict(String, #(Node, Int)) {
+  list.index_fold(children, dict.new(), fn(acc, child, idx) {
+    dict.insert(acc, child.id, #(child, idx))
+  })
+}
+
+/// Fast path: old and new have identical ID lists. Diff props per child.
+fn diff_children_same_order(
   old_children: List(Node),
   new_children: List(Node),
   parent_path: List(Int),
 ) -> List(PatchOp) {
-  let old_indexed =
-    list.index_map(old_children, fn(child, idx) { #(child, idx) })
-  let old_by_id =
-    list.fold(old_indexed, dict.new(), fn(acc, pair) {
-      dict.insert(acc, { pair.0 }.id, pair)
-    })
-  let new_by_id =
-    list.fold(
-      list.index_map(new_children, fn(child, idx) { #(child, idx) }),
-      dict.new(),
-      fn(acc, pair) { dict.insert(acc, { pair.0 }.id, pair) },
-    )
+  list.zip(old_children, new_children)
+  |> list.index_map(fn(pair, idx) {
+    let #(old_child, new_child) = pair
+    diff_node(old_child, new_child, list.append(parent_path, [idx]))
+  })
+  |> list.flatten()
+}
 
-  // Find removed child indices (old children not in new)
+/// Medium path: common IDs maintain relative order. Pure inserts and
+/// removes with no moves needed.
+fn diff_children_no_reorder(
+  old_by_id: Dict(String, #(Node, Int)),
+  new_children: List(Node),
+  old_only: Set(String),
+  parent_path: List(Int),
+) -> List(PatchOp) {
   let removed_indices =
-    old_indexed
-    |> list.filter(fn(pair) { !dict.has_key(new_by_id, { pair.0 }.id) })
-    |> list.map(fn(pair) { pair.1 })
-
-  // Removals: descending index order
-  let remove_ops =
-    removed_indices
-    |> list.sort(fn(a, b) {
-      case a > b {
-        True -> order.Lt
-        False ->
-          case a == b {
-            True -> order.Eq
-            False -> order.Gt
-          }
+    old_by_id
+    |> dict.fold([], fn(acc, id, entry) {
+      let #(_, idx) = entry
+      case set.contains(old_only, id) {
+        True -> list.append(acc, [idx])
+        False -> acc
       }
     })
+    |> list.sort(int.compare)
+
+  let remove_ops =
+    list.reverse(removed_indices)
     |> list.map(fn(idx) { RemoveChild(path: parent_path, index: idx) })
 
-  // Walk new children for updates and inserts
   let #(update_ops, insert_ops) =
     new_children
     |> list.index_map(fn(child, idx) { #(child, idx) })
@@ -931,12 +902,232 @@ fn diff_children_general(
   list.flatten([remove_ops, update_ops, insert_ops])
 }
 
-/// Compute the adjusted index of an old child after removals.
-/// Counts how many removed indices were below the target index.
-fn index_after_removals(old_idx: Int, removed_indices: List(Int)) -> Int {
-  let count_below =
-    list.count(removed_indices, fn(removed_idx) { removed_idx < old_idx })
+/// Slow path: reordering detected. Use LIS to find the largest subset
+/// of common elements that maintain relative order. Elements in the LIS
+/// stay in place; elements not in the LIS are removed and re-inserted
+/// at their new positions.
+fn diff_children_reorder(
+  old_by_id: Dict(String, #(Node, Int)),
+  new_children: List(Node),
+  common_new: List(String),
+  old_only: Set(String),
+  parent_path: List(Int),
+) -> List(PatchOp) {
+  // For common IDs in new order, get their old indices
+  let old_indices_of_common =
+    list.map(common_new, fn(id) {
+      case dict.get(old_by_id, id) {
+        Ok(#(_, idx)) -> idx
+        Error(_) -> 0
+      }
+    })
+
+  // Find LIS positions (indices into common_new that form the LIS)
+  let lis_positions = longest_increasing_subsequence(old_indices_of_common)
+  let lis_set = set.from_list(lis_positions)
+
+  // IDs that stay in place (in the LIS)
+  let lis_ids =
+    common_new
+    |> list.index_map(fn(id, i) { #(id, i) })
+    |> list.filter(fn(entry) {
+      let #(_, i) = entry
+      set.contains(lis_set, i)
+    })
+    |> list.map(fn(entry) {
+      let #(id, _) = entry
+      id
+    })
+    |> set.from_list()
+
+  // IDs that need to move: common but not in LIS
+  let moved_ids = set.difference(set.from_list(common_new), lis_ids)
+
+  // All indices to remove: old-only IDs + moved IDs
+  let all_remove_ids = set.union(old_only, moved_ids)
+
+  let removed_indices =
+    all_remove_ids
+    |> set.fold([], fn(acc, id) {
+      case dict.get(old_by_id, id) {
+        Ok(#(_, idx)) -> list.append(acc, [idx])
+        Error(_) -> acc
+      }
+    })
+    |> list.sort(int.compare)
+
+  let remove_ops =
+    list.reverse(removed_indices)
+    |> list.map(fn(idx) { RemoveChild(path: parent_path, index: idx) })
+
+  // Build new child lookup for O(1) access
+  let new_child_by_id =
+    list.fold(new_children, dict.new(), fn(acc, c) { dict.insert(acc, c.id, c) })
+
+  // Update ops for LIS elements (they survive removals, need adjusted indices)
+  let update_ops =
+    set.fold(lis_ids, [], fn(acc, id) {
+      case dict.get(old_by_id, id), dict.get(new_child_by_id, id) {
+        Ok(#(old_child, old_idx)), Ok(new_child) -> {
+          let child_path =
+            list.append(parent_path, [
+              index_after_removals(old_idx, removed_indices),
+            ])
+          list.append(acc, diff_node(old_child, new_child, child_path))
+        }
+        _, _ -> acc
+      }
+    })
+
+  // Insert ops: new-only IDs and moved IDs, at their new positions
+  let insert_ops =
+    new_children
+    |> list.index_map(fn(child, idx) { #(child, idx) })
+    |> list.filter(fn(entry) {
+      let #(child, _) = entry
+      !dict.has_key(old_by_id, child.id) || set.contains(moved_ids, child.id)
+    })
+    |> list.map(fn(entry) {
+      let #(child, idx) = entry
+      InsertChild(path: parent_path, index: idx, node: child)
+    })
+
+  list.flatten([remove_ops, update_ops, insert_ops])
+}
+
+/// Compute the adjusted index of an old child after removals, using
+/// binary search on a sorted list of removed indices. O(log r) per call.
+fn index_after_removals(old_idx: Int, sorted_removed: List(Int)) -> Int {
+  let count_below = bsearch_count_lt(sorted_removed, old_idx, 0)
   old_idx - count_below
+}
+
+/// Count elements in a sorted list that are strictly less than the
+/// target value, using binary search. O(log n).
+fn bsearch_count_lt(sorted: List(Int), target: Int, count: Int) -> Int {
+  case sorted {
+    [] -> count
+    [head, ..rest] ->
+      case head < target {
+        True -> bsearch_count_lt(rest, target, count + 1)
+        False -> count
+      }
+  }
+}
+
+/// Longest Increasing Subsequence using patience sorting.
+/// Returns the indices (positions) in the input list that form the LIS.
+/// O(n log n) time, O(n) space.
+fn longest_increasing_subsequence(values: List(Int)) -> List(Int) {
+  case values {
+    [] -> []
+    _ -> {
+      let #(_, preds, lis_end, lis_len) =
+        list.index_fold(values, #([], dict.new(), 0, 0), fn(acc, val, pos) {
+          let #(tails, preds, current_lis_end, len) = acc
+          let insert_pos = lis_bsearch(values, tails, val, 0, len)
+
+          let preds = case insert_pos > 0 {
+            True -> {
+              let pred_idx = list_at(tails, insert_pos - 1)
+              case pred_idx {
+                Some(pi) -> dict.insert(preds, pos, pi)
+                None -> preds
+              }
+            }
+            False -> preds
+          }
+
+          let tails = list_set(tails, insert_pos, pos)
+          let new_len = int.max(len, insert_pos + 1)
+          let lis_end = case new_len > len {
+            True -> pos
+            False -> current_lis_end
+          }
+
+          #(tails, preds, lis_end, new_len)
+        })
+
+      reconstruct_lis(preds, lis_end, lis_len, [])
+    }
+  }
+}
+
+/// Binary search for the insertion point of val in tails.
+/// tails[i] holds the index in the input whose value is the
+/// smallest tail of an increasing subsequence of length i+1.
+/// We dereference values[tails[mid]] to compare actual values.
+fn lis_bsearch(
+  values: List(Int),
+  tails: List(Int),
+  val: Int,
+  lo: Int,
+  hi: Int,
+) -> Int {
+  case lo >= hi {
+    True -> lo
+    False -> {
+      let mid = lo + { hi - lo } / 2
+      case list_at(tails, mid) {
+        Some(tail_pos) -> {
+          case list_at(values, tail_pos) {
+            Some(tail_val) ->
+              case tail_val < val {
+                True -> lis_bsearch(values, tails, val, mid + 1, hi)
+                False -> lis_bsearch(values, tails, val, lo, mid)
+              }
+            None -> lo
+          }
+        }
+        None -> lo
+      }
+    }
+  }
+}
+
+/// Get element at index from a list, O(n). For the LIS algorithm
+/// on typical UI trees (under ~100 children), this is fast enough.
+/// For very large lists, an array data structure would be better.
+fn list_at(list: List(a), index: Int) -> Option(a) {
+  case list {
+    [] -> option.None
+    [head, ..rest] ->
+      case index == 0 {
+        True -> option.Some(head)
+        False -> list_at(rest, index - 1)
+      }
+  }
+}
+
+/// Set element at index in a list, returning a new list. O(n).
+fn list_set(list: List(a), index: Int, value: a) -> List(a) {
+  case list {
+    [] -> [value]
+    [head, ..rest] ->
+      case index == 0 {
+        True -> [value, ..rest]
+        False -> [head, ..list_set(rest, index - 1, value)]
+      }
+  }
+}
+
+/// Reconstruct the LIS by following predecessors backward from the
+/// last element.
+fn reconstruct_lis(
+  preds: Dict(Int, Int),
+  idx: Int,
+  remaining: Int,
+  acc: List(Int),
+) -> List(Int) {
+  case remaining == 0 {
+    True -> acc
+    False ->
+      case dict.get(preds, idx) {
+        Ok(prev_idx) ->
+          reconstruct_lis(preds, prev_idx, remaining - 1, [idx, ..acc])
+        Error(_) -> [idx, ..acc]
+      }
+  }
 }
 
 // --- Search ------------------------------------------------------------------

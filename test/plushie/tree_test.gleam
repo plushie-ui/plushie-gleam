@@ -304,12 +304,10 @@ pub fn diff_reordered_children_produces_remove_insert_test() {
     |> node.with_children([b, a])
 
   let ops = tree.diff(old, new)
-  // Reorder produces remove + insert ops instead of ReplaceNode.
-  // This preserves the parent node's props.
+  // Reorder with LIS: "b" stays in place (LIS), "a" is removed
+  // from old position and reinserted at new position.
   should.equal(ops, [
-    RemoveChild(path: [], index: 1),
     RemoveChild(path: [], index: 0),
-    InsertChild(path: [], index: 0, node: b),
     InsertChild(path: [], index: 1, node: a),
   ])
 }
