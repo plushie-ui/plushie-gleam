@@ -514,7 +514,7 @@ fn decode_op_query_response(
     Error(_) -> dynamic.nil()
   }
   let sys_evt = case kind {
-    "system_info" -> event.SystemInfo(tag:, data: data_val)
+    "system_info" -> event.SystemInfo(tag:, value: data_val)
     "system_theme" -> {
       let theme = case dict.get(map, "data") {
         Ok(PString(s)) -> s
@@ -552,7 +552,7 @@ fn decode_op_query_response(
       }
       event.ScreenshotData(tag:, hash:, width:, height:, pixels:)
     }
-    _ -> event.SystemInfo(tag:, data: data_val)
+    _ -> event.SystemInfo(tag:, value: data_val)
   }
   Ok(EventMessage(event.System(sys_evt)))
 }

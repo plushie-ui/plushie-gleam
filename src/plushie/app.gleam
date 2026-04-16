@@ -11,6 +11,7 @@ import plushie/command.{type Command}
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
 import plushie/prop/theme.{type Theme}
+import plushie/renderer_exit.{type RendererExit}
 import plushie/subscription.{type Subscription}
 
 /// App-level settings sent to the Rust binary on startup.
@@ -69,7 +70,7 @@ pub opaque type App(model, msg) {
     subscribe: fn(model) -> List(Subscription),
     settings: fn() -> Settings,
     window_config: fn(model) -> Dict(String, PropValue),
-    on_renderer_exit: Option(fn(model, Dynamic) -> model),
+    on_renderer_exit: Option(fn(model, RendererExit) -> model),
     on_event: Option(fn(Event) -> msg),
   )
 }
@@ -191,7 +192,7 @@ pub fn with_window_config(
 /// Set the renderer exit handler.
 pub fn with_on_renderer_exit(
   app: App(model, msg),
-  handler: fn(model, Dynamic) -> model,
+  handler: fn(model, RendererExit) -> model,
 ) -> App(model, msg) {
   App(..app, on_renderer_exit: option.Some(handler))
 }
@@ -242,7 +243,7 @@ pub fn get_window_config(
 /// before the renderer restarts.
 pub fn get_on_renderer_exit(
   app: App(model, msg),
-) -> Option(fn(model, Dynamic) -> model) {
+) -> Option(fn(model, RendererExit) -> model) {
   app.on_renderer_exit
 }
 

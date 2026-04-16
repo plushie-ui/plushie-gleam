@@ -65,6 +65,8 @@ import plushie/protocol/decode.{type InboundMessage}
 @target(erlang)
 import plushie/renderer_env
 @target(erlang)
+import plushie/renderer_exit.{type RendererExit, Crash, RendererExit}
+@target(erlang)
 import plushie/renderer_port
 @target(erlang)
 import plushie/telemetry
@@ -193,8 +195,8 @@ pub opaque type BridgeState {
 pub type RuntimeNotification {
   /// A decoded inbound message from the Rust binary.
   InboundEvent(InboundMessage)
-  /// The Rust binary process exited with this status code.
-  RendererExited(status: Int)
+  /// The Rust binary process exited.
+  RendererExited(exit: RendererExit)
   /// The bridge successfully reopened the port after a crash.
   /// The runtime should resync state and then send ResyncComplete.
   RendererRestarted
@@ -696,7 +698,8 @@ fn handle_message(
         Ok(code) -> code
         Error(_) -> 1
       }
-      let state = buffer_or_send(state, RendererExited(status: exit_code))
+      let exit_info = build_renderer_exit(exit_code)
+      let state = buffer_or_send(state, RendererExited(exit: exit_info))
 
       case exit_code {
         // Clean exit (status 0): stop the bridge.
@@ -764,7 +767,13 @@ fn handle_message(
         }
         <> "; triggering renderer restart",
       )
-      // Kill the port and trigger restart (same path as a crash)
+      let exit_info =
+        RendererExit(
+          reason: renderer_exit.HeartbeatTimeout,
+          message: "renderer unresponsive (heartbeat timeout)",
+          details: option.None,
+        )
+      let state = buffer_or_send(state, RendererExited(exit: exit_info))
       case state.port {
         Some(port) -> {
           renderer_port.port_close(port)
@@ -772,8 +781,34 @@ fn handle_message(
         }
         None -> Nil
       }
-      // The PortExit handler will handle restart logic
-      actor.continue(state)
+      case state.ops.can_restart {
+        True ->
+          case state.restart_count < state.max_restarts {
+            True -> {
+              let delay =
+                calculate_backoff(state.restart_delay, state.restart_count)
+              case state.self {
+                Some(self) -> {
+                  process.send_after(self, delay, RestartPort)
+                  Nil
+                }
+                None -> Nil
+              }
+              actor.continue(
+                BridgeState(
+                  ..state,
+                  restart_count: state.restart_count + 1,
+                  port: option.None,
+                ),
+              )
+            }
+            False -> {
+              platform.log_error("plushie bridge: max restarts reached")
+              actor.stop()
+            }
+          }
+        False -> actor.stop()
+      }
     }
 
     IoStreamData(data:) -> {
@@ -790,7 +825,13 @@ fn handle_message(
 
     IoStreamClosed -> {
       // Treat transport close as clean exit (status 0)
-      let _state = buffer_or_send(state, RendererExited(status: 0))
+      let exit_info =
+        RendererExit(
+          reason: renderer_exit.Shutdown,
+          message: "transport closed",
+          details: option.None,
+        )
+      let _state = buffer_or_send(state, RendererExited(exit: exit_info))
       actor.stop()
     }
 
@@ -980,6 +1021,25 @@ fn handle_line_data(
         False -> BridgeState(..state, json_buffer: new_buffer)
       }
     }
+  }
+}
+
+@target(erlang)
+fn build_renderer_exit(exit_code: Int) -> RendererExit {
+  case exit_code {
+    0 ->
+      RendererExit(
+        reason: renderer_exit.Shutdown,
+        message: "renderer shut down normally",
+        details: option.None,
+      )
+    _ ->
+      RendererExit(
+        reason: Crash,
+        message: "renderer crashed with exit status "
+          <> int.to_string(exit_code),
+        details: option.Some(exit_code),
+      )
   }
 }
 

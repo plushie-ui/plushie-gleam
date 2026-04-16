@@ -21,6 +21,7 @@ import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string
+import plushie/renderer_exit.{type RendererExit}
 
 // ============================================================================
 // Top-level Event
@@ -303,7 +304,7 @@ pub type ModifiersEvent {
 /// System queries, theme changes, and runtime events.
 pub type SystemEvent {
   /// Response to a GetSystemInfo query.
-  SystemInfo(tag: String, data: Dynamic)
+  SystemInfo(tag: String, value: Dynamic)
   /// Response to a GetSystemTheme query.
   SystemTheme(tag: String, theme: String)
   /// The OS theme preference changed at runtime.
@@ -328,6 +329,9 @@ pub type SystemEvent {
   )
   /// Screen reader announcement (headless/mock mode).
   Announce(text: String)
+  /// The renderer recovery callback (on_renderer_exit) crashed.
+  /// The app can use this to reset to a safe state or show an error.
+  RecoveryFailed(kind: String, error: String, renderer_exit: RendererExit)
 }
 
 // ============================================================================

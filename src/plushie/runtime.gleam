@@ -36,6 +36,8 @@ import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue, StringVal}
 @target(erlang)
 import plushie/platform
+@target(erlang)
+import plushie/renderer_exit
 import plushie/runtime_core
 @target(erlang)
 import plushie/widget
@@ -523,16 +525,16 @@ fn handle_message(
       code:,
       message:,
     ))))) -> {
-      platform.log_info(
-        "plushie: diagnostic ["
-        <> level
-        <> "] "
-        <> code
-        <> " on '"
-        <> element_id
-        <> "': "
-        <> message,
-      )
+      let prefix = case element_id {
+        "" -> ""
+        id -> " [" <> id <> "]"
+      }
+      let log_msg = "plushie:" <> prefix <> " " <> code <> ": " <> message
+      case level {
+        "error" -> platform.log_error(log_msg)
+        "info" -> platform.log_info(log_msg)
+        _ -> platform.log_warning(log_msg)
+      }
       actor.continue(state)
     }
 
@@ -715,39 +717,51 @@ fn handle_message(
       }
     }
 
-    FromBridge(RendererExited(status:)) -> {
-      // Call app handler if defined, otherwise keep current model
-      let model = case app.get_on_renderer_exit(state.app) {
+    FromBridge(RendererExited(exit:)) -> {
+      let #(model, recovery_error) = case app.get_on_renderer_exit(state.app) {
         Some(handler) ->
-          case
-            platform.try_call(fn() { handler(state.model, dynamic.int(status)) })
-          {
-            Ok(new_model) -> new_model
+          case platform.try_call(fn() { handler(state.model, exit) }) {
+            Ok(new_model) -> #(new_model, option.None)
             Error(reason) -> {
               platform.log_error(
                 "plushie: on_renderer_exit callback crashed: "
                 <> string.inspect(reason),
               )
-              state.model
+              #(state.model, option.Some(reason))
             }
           }
-        None -> state.model
+        None -> #(state.model, option.None)
       }
       let state = LoopState(..state, model: model)
 
-      case status {
-        0 -> {
-          // Clean exit (user closed window). Fail pending callers
-          // and stop.
+      let state = case recovery_error {
+        option.Some(err) -> {
+          let recovery_event =
+            event.System(event.RecoveryFailed(
+              kind: "error",
+              error: string.inspect(err),
+              renderer_exit: exit,
+            ))
+          case
+            platform.try_call(fn() {
+              runtime_core.map_event(state.app, recovery_event)
+            })
+          {
+            Ok(mapped_msg) -> dispatch_update(state, mapped_msg)
+            Error(_) -> state
+          }
+        }
+        option.None -> state
+      }
+
+      case exit.reason {
+        renderer_exit.Shutdown -> {
           let state = fail_pending_interact(state, "renderer_exit_normal")
           process.send(state.bridge, bridge.Shutdown)
           actor.stop()
         }
         _ -> {
-          // Crash: fail pending interact immediately. The bridge
-          // owns restart (backoff + port reopen) and will send
-          // RendererRestarted when the port is back.
-          let reason = "renderer_exit_" <> int.to_string(status)
+          let reason = "renderer_exit_" <> string.inspect(exit.reason)
           let state = fail_pending_interact(state, reason)
           actor.continue(state)
         }
