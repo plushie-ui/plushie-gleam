@@ -367,45 +367,52 @@ pub fn encode_unsubscribe(
 }
 
 /// Encode a window operation (open, close, configure).
+///
+/// Uses the unified `_op` envelope: op-specific data lives under
+/// `payload`; the `window_id` addressing field stays flat beside `op`.
 pub fn encode_window_op(
   op: String,
   window_id: String,
-  settings: Dict(String, PropValue),
+  payload: Dict(String, PropValue),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
   let fields = [
     #("op", StringVal(op)),
     #("window_id", StringVal(window_id)),
-    #("settings", DictVal(settings)),
+    #("payload", DictVal(payload)),
   ]
   serialize(message("window_op", session, fields), format)
 }
 
 /// Encode a system-wide operation.
+///
+/// Uses the unified `_op` envelope: op-specific data lives under `payload`.
 pub fn encode_system_op(
   op: String,
-  settings: Dict(String, PropValue),
+  payload: Dict(String, PropValue),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
   let fields = [
     #("op", StringVal(op)),
-    #("settings", DictVal(settings)),
+    #("payload", DictVal(payload)),
   ]
   serialize(message("system_op", session, fields), format)
 }
 
 /// Encode a system-wide query.
+///
+/// Uses the unified `_op` envelope: query-specific data lives under `payload`.
 pub fn encode_system_query(
   op: String,
-  settings: Dict(String, PropValue),
+  payload: Dict(String, PropValue),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
   let fields = [
     #("op", StringVal(op)),
-    #("settings", DictVal(settings)),
+    #("payload", DictVal(payload)),
   ]
   serialize(message("system_query", session, fields), format)
 }
@@ -428,17 +435,19 @@ pub fn encode_effect(
 
 /// Encode an image operation (create_image, update_image, delete_image).
 ///
-/// Payload fields are flat-merged into the top-level message dict
-/// (not nested under "payload"), matching the Elixir reference.
+/// Uses the unified `_op` envelope: op-specific data (including `handle`,
+/// `data`, `pixels`, `width`, `height`) lives under `payload`.
 pub fn encode_image_op(
   op: String,
   payload: Dict(String, PropValue),
   session: String,
   format: Format,
 ) -> Result(BitArray, EncodeError) {
-  let base = message("image_op", session, [#("op", StringVal(op))])
-  let merged = dict.merge(base, payload)
-  serialize(merged, format)
+  let fields = [
+    #("op", StringVal(op)),
+    #("payload", DictVal(payload)),
+  ]
+  serialize(message("image_op", session, fields), format)
 }
 
 /// Encode a frame advance (test/headless mode).

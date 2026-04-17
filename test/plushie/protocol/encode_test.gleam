@@ -429,7 +429,7 @@ pub fn encode_effect_test() {
 
 // --- encode_image_op ---------------------------------------------------------
 
-pub fn encode_image_op_flat_merges_payload_test() {
+pub fn encode_image_op_nests_payload_test() {
   let payload =
     dict.from_list([
       #("handle", StringVal("img-1")),
@@ -440,9 +440,9 @@ pub fn encode_image_op_flat_merges_payload_test() {
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"type\":\"image_op\"")
   assert string.contains(s, "\"op\":\"create_image\"")
-  // Payload fields are flat-merged, not nested under "payload"
+  // Unified envelope: op-specific fields are nested under "payload".
+  assert string.contains(s, "\"payload\":{")
   assert string.contains(s, "\"handle\":\"img-1\"")
-  assert !string.contains(s, "\"payload\"")
   // Binary data is base64-encoded in JSON
   assert string.contains(s, "\"data\":\"AQID\"")
 }
@@ -459,10 +459,11 @@ pub fn encode_image_op_msgpack_binary_native_test() {
   let assert data.Map(m) = decoded
   should.equal(dict.get(m, data.String("type")), Ok(data.String("image_op")))
   should.equal(dict.get(m, data.String("op")), Ok(data.String("create_image")))
-  should.equal(dict.get(m, data.String("handle")), Ok(data.String("logo")))
-  // Binary data uses native msgpack binary type
+  let assert Ok(data.Map(p)) = dict.get(m, data.String("payload"))
+  should.equal(dict.get(p, data.String("handle")), Ok(data.String("logo")))
+  // Binary data uses native msgpack binary type, nested under payload.
   should.equal(
-    dict.get(m, data.String("data")),
+    dict.get(p, data.String("data")),
     Ok(data.Binary(<<255, 0, 128>>)),
   )
 }
@@ -473,8 +474,7 @@ pub fn encode_image_op_delete_test() {
     encode.encode_image_op("delete_image", payload, "", protocol.Json)
   let assert Ok(s) = bit_array.to_string(bytes)
   assert string.contains(s, "\"op\":\"delete_image\"")
-  assert string.contains(s, "\"handle\":\"old-img\"")
-  assert !string.contains(s, "\"payload\"")
+  assert string.contains(s, "\"payload\":{\"handle\":\"old-img\"}")
 }
 
 // --- BinaryVal encoding ------------------------------------------------------
