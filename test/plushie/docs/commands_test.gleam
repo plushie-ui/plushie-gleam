@@ -360,7 +360,7 @@ pub fn commands_allow_automatic_tabbing_construct_test() {
   }
 }
 
-pub fn commands_request_user_attention_construct_test() {
+pub fn commands_request_attention_construct_test() {
   let cmd =
     command.Renderer(
       command.Window(command.RequestUserAttention(

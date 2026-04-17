@@ -570,7 +570,7 @@ pub fn drag_resize_window(window_id: String, direction: String) -> Command(msg) 
 
 /// Flash the taskbar/dock icon to request user attention. Urgency
 /// is "informational" or "critical"; None clears the request.
-pub fn request_user_attention(
+pub fn request_attention(
   window_id: String,
   urgency: Option(String),
 ) -> Command(msg) {
