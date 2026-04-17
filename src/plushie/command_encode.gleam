@@ -86,6 +86,10 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
     command.Focus(widget_id:) -> Command(widget_id, "focus", dict.new())
     command.FocusNext -> WidgetOp("focus_next", [])
     command.FocusPrevious -> WidgetOp("focus_previous", [])
+    command.FocusNextWithin(scope:) ->
+      WidgetOp("focus_next_within", [#("scope", StringVal(scope))])
+    command.FocusPreviousWithin(scope:) ->
+      WidgetOp("focus_previous_within", [#("scope", StringVal(scope))])
     command.SelectAll(widget_id:) ->
       Command(widget_id, "select_all", dict.new())
     command.MoveCursorToFront(widget_id:) ->
@@ -129,8 +133,11 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
       )
 
     // -- Global ops (no target ID, stay as widget_op) --
-    command.Announce(text:) ->
-      WidgetOp("announce", [#("text", StringVal(text))])
+    command.Announce(text:, politeness:) ->
+      WidgetOp("announce", [
+        #("text", StringVal(text)),
+        #("politeness", StringVal(politeness_to_wire(politeness))),
+      ])
     command.TreeHashQuery(tag:) ->
       WidgetOp("tree_hash", [#("tag", StringVal(tag))])
     command.FindFocused(tag:) ->
@@ -328,5 +335,12 @@ fn classify_image(cmd: command.ImageCommand) -> WireOp(msg) {
     command.ListImages(tag:) ->
       WidgetOp("list_images", [#("tag", StringVal(tag))])
     command.ClearImages -> WidgetOp("clear_images", [])
+  }
+}
+
+fn politeness_to_wire(politeness: command.Politeness) -> String {
+  case politeness {
+    command.Polite -> "polite"
+    command.Assertive -> "assertive"
   }
 }

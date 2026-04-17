@@ -47,6 +47,15 @@ pub type Command(msg) {
   Renderer(RendererCommand)
 }
 
+/// Politeness level for screen reader announcements. `Polite` is the
+/// correct choice for most toast-style feedback (saves, confirmations,
+/// counts). `Assertive` is reserved for urgent context that must
+/// interrupt whatever the user is currently hearing.
+pub type Politeness {
+  Polite
+  Assertive
+}
+
 /// Commands sent to the renderer process. Organized into sub-types
 /// for window operations, system operations, and image management.
 pub type RendererCommand {
@@ -57,6 +66,12 @@ pub type RendererCommand {
   FocusNext
   /// Move focus to the previous focusable widget in tab order.
   FocusPrevious
+  /// Move focus to the next focusable widget within the subtree
+  /// rooted at `scope`. Focus wraps at the subtree boundary.
+  FocusNextWithin(scope: String)
+  /// Move focus to the previous focusable widget within the subtree
+  /// rooted at `scope`. Focus wraps at the subtree boundary.
+  FocusPreviousWithin(scope: String)
 
   /// Select all text in a text input or text editor widget.
   SelectAll(widget_id: String)
@@ -120,7 +135,7 @@ pub type RendererCommand {
   )
 
   /// Announce text to screen readers via the accessibility system.
-  Announce(text: String)
+  Announce(text: String, politeness: Politeness)
   /// Load a font at runtime from raw TrueType or OpenType binary data.
   /// Once loaded, the font can be referenced by name in widget props.
   LoadFont(data: BitArray)
@@ -322,6 +337,19 @@ pub fn focus_previous() -> Command(msg) {
   Renderer(FocusPrevious)
 }
 
+/// Move focus to the next focusable widget within the subtree rooted
+/// at `scope`. Useful for menus, pane grids, and other keyboard
+/// containers that want a bounded Tab cycle.
+pub fn focus_next_within(scope: String) -> Command(msg) {
+  Renderer(FocusNextWithin(scope:))
+}
+
+/// Move focus to the previous focusable widget within the subtree
+/// rooted at `scope`. See `focus_next_within` for semantics.
+pub fn focus_previous_within(scope: String) -> Command(msg) {
+  Renderer(FocusPreviousWithin(scope:))
+}
+
 /// Select all text in the given text input widget.
 pub fn select_all(widget_id: String) -> Command(msg) {
   Renderer(SelectAll(widget_id:))
@@ -376,9 +404,24 @@ pub fn screenshot(window_id: String, tag: String) -> Command(msg) {
   Renderer(Window(Screenshot(window_id:, tag:)))
 }
 
-/// Announce text to screen readers via the accessibility system.
+/// Announce text to screen readers at polite politeness.
+///
+/// Polite is the correct choice for most toast-style feedback (saves,
+/// confirmations, counts). Use `announce_assertive` for urgent context
+/// that must interrupt whatever the user is currently hearing.
 pub fn announce(text: String) -> Command(msg) {
-  Renderer(Announce(text:))
+  Renderer(Announce(text:, politeness: Polite))
+}
+
+/// Announce text to screen readers at the given politeness level.
+pub fn announce_with(text: String, politeness: Politeness) -> Command(msg) {
+  Renderer(Announce(text:, politeness:))
+}
+
+/// Announce text to screen readers at assertive politeness, interrupting
+/// the current announcement. Reserve for urgent context.
+pub fn announce_assertive(text: String) -> Command(msg) {
+  Renderer(Announce(text:, politeness: Assertive))
 }
 
 /// Register an image from encoded data (PNG, JPEG, etc.) under the

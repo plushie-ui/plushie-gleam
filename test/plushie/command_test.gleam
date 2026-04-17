@@ -102,7 +102,36 @@ pub fn screenshot_test() {
 
 pub fn announce_test() {
   assert command.announce("hello")
-    == command.Renderer(command.Announce(text: "hello"))
+    == command.Renderer(command.Announce(
+      text: "hello",
+      politeness: command.Polite,
+    ))
+}
+
+pub fn announce_assertive_test() {
+  assert command.announce_assertive("Connection lost")
+    == command.Renderer(command.Announce(
+      text: "Connection lost",
+      politeness: command.Assertive,
+    ))
+}
+
+pub fn announce_with_polite_test() {
+  assert command.announce_with("saved", command.Polite)
+    == command.Renderer(command.Announce(
+      text: "saved",
+      politeness: command.Polite,
+    ))
+}
+
+pub fn focus_next_within_test() {
+  assert command.focus_next_within("main#menu")
+    == command.Renderer(command.FocusNextWithin(scope: "main#menu"))
+}
+
+pub fn focus_previous_within_test() {
+  assert command.focus_previous_within("main#menu")
+    == command.Renderer(command.FocusPreviousWithin(scope: "main#menu"))
 }
 
 pub fn create_image_test() {
