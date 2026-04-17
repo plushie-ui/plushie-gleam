@@ -1,8 +1,13 @@
+@target(erlang)
 import gleam/dynamic
+@target(erlang)
 import gleam/option
+@target(erlang)
 import plushie
+@target(erlang)
 import plushie/protocol
 
+@target(erlang)
 pub fn default_start_opts_test() {
   let opts = plushie.default_start_opts()
   assert opts.binary_path == option.None
@@ -11,6 +16,7 @@ pub fn default_start_opts_test() {
   assert opts.session == ""
 }
 
+@target(erlang)
 pub fn custom_start_opts_test() {
   let opts =
     plushie.StartOpts(

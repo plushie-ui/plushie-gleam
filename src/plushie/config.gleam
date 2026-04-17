@@ -27,7 +27,9 @@
 //// 3. Environment variable (`PLUSHIE_SOURCE_PATH`)
 //// 4. Hardcoded default
 
+@target(erlang)
 import gleam/list
+@target(erlang)
 import gleam/string
 
 /// Configuration for a native widget crate.

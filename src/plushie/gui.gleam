@@ -108,5 +108,6 @@ pub fn run(app: App(model, Event), opts: GuiOpts) -> Nil {
   }
 }
 
+@target(erlang)
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil

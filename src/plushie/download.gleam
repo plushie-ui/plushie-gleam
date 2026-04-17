@@ -276,36 +276,46 @@ fn first_or(items: List(String), default: String) -> String {
 
 // -- FFI bindings -------------------------------------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "download_binary")
 fn download_binary(url: String, max_redirects: Int) -> Result(BitArray, String)
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "has_flag")
 fn has_flag(flag: String) -> Bool
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "get_flag_value")
 fn get_flag_value(flag: String) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "ensure_dir")
 fn ensure_dir(path: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "write_file")
 fn write_file(path: String, data: BitArray) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "delete_file")
 fn delete_file(path: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "chmod")
 fn chmod(path: String, mode: Int) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "bytes_to_string")
 fn bytes_to_string(data: BitArray) -> String
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "extract_tarball")
 fn extract_tarball(
   tarball_path: String,
   dest_dir: String,
 ) -> Result(Nil, String)
 
+@target(erlang)
 @external(erlang, "file", "read_file")
 fn do_read_file(path: String) -> Result(BitArray, anything)
 
@@ -315,9 +325,11 @@ fn read_file(path: String) -> BitArray {
   data
 }
 
+@target(erlang)
 @external(erlang, "plushie_download_ffi", "make_symlink")
 fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
+@target(erlang)
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
 

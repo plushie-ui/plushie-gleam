@@ -34,6 +34,7 @@ import gleam/option.{type Option}
 import plushie/app.{type App}
 import plushie/event.{type Event}
 import plushie/node.{type Node, type PropValue}
+@target(erlang)
 import plushie/platform
 import plushie/testing/backend.{type Selector, type TestBackend}
 import plushie/testing/element.{type Element}

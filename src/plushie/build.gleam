@@ -529,6 +529,7 @@ fn forward_patches_with_sdk(abs_source: String) -> String {
   }
 }
 
+@target(erlang)
 /// Crate name and local path for SDK patch entries.
 type CratePatch {
   CratePatch(name: String, path: String)
@@ -952,15 +953,19 @@ fn compare_versions(actual: String, minimum: String) -> Result(Bool, Nil) {
 
 // -- FFI bindings -------------------------------------------------------------
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "rustc_version")
 fn rustc_version() -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "executable_exists")
 fn executable_exists(name: String) -> Bool
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "cargo_build")
 fn cargo_build(source_dir: String, release: Bool) -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "cargo_build_workspace")
 fn cargo_build_workspace(
   manifest_path: String,
@@ -968,54 +973,71 @@ fn cargo_build_workspace(
   verbose: Bool,
 ) -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "has_flag")
 fn has_flag(flag: String) -> Bool
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "get_flag_value")
 fn get_flag_value(flag: String) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "ensure_dir")
 fn ensure_dir(path: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "copy_file")
 fn copy_file(src: String, dest: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "chmod")
 fn chmod(path: String, mode: Int) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "dir_exists")
 fn dir_exists(path: String) -> Bool
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "delete_file")
 fn delete_file(path: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "make_symlink")
 fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "parse_int")
 fn parse_int(s: String) -> Result(Int, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "check_wasm_pack")
 fn check_wasm_pack() -> Result(Nil, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "wasm_pack_build")
 fn wasm_pack_build(crate_dir: String, release: Bool) -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "write_file")
 fn write_file(path: String, content: String) -> Nil
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "read_file")
 fn read_file(path: String) -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "file_exists")
 fn file_exists(path: String) -> Bool
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "project_name")
 fn project_name() -> Result(String, String)
 
+@target(erlang)
 @external(erlang, "plushie_build_ffi", "get_cwd")
 fn get_cwd() -> String
 
+@target(erlang)
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
 

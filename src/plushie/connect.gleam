@@ -153,14 +153,18 @@ fn parse_negotiation_token(line: String) -> Option(String) {
   }
 }
 
+@target(erlang)
 @external(erlang, "plushie_connect_ffi", "get_flag_value")
 fn get_flag_value(flag: String) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_connect_ffi", "read_stdin_line_timeout")
 fn read_stdin_line_timeout(timeout_ms: Int) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "plushie_connect_ffi", "parse_json_token")
 fn parse_json_token(line: String) -> Result(String, Nil)
 
+@target(erlang)
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil

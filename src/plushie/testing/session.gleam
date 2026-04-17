@@ -192,6 +192,7 @@ fn drain_stream_values(
 /// Run a stream work function, collecting emitted values in order.
 /// Returns #(emitted_values, final_return_value).
 @external(erlang, "plushie_test_ffi", "collect_stream_values")
+@external(javascript, "../../plushie_test_ffi.mjs", "collect_stream_values")
 fn collect_stream_values(
   work: fn(fn(Dynamic) -> Nil) -> Dynamic,
 ) -> #(List(Dynamic), Dynamic)

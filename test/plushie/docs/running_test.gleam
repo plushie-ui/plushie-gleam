@@ -1,8 +1,11 @@
 import gleam/option
 import gleeunit/should
+@target(erlang)
 import plushie
 import plushie/app
+@target(erlang)
 import plushie/gui
+@target(erlang)
 import plushie/protocol
 import plushie/subscription
 
@@ -12,6 +15,7 @@ import plushie/subscription
 // construction. We can't call gui.run (it blocks and needs a renderer),
 // but we can verify the opts types compile and have expected defaults.
 
+@target(erlang)
 pub fn running_gui_default_opts_test() {
   let opts = gui.default_opts()
   should.equal(opts.json, False)
@@ -19,6 +23,7 @@ pub fn running_gui_default_opts_test() {
   should.equal(opts.dev, False)
 }
 
+@target(erlang)
 pub fn running_gui_opts_with_dev_mode_test() {
   let opts = gui.GuiOpts(..gui.default_opts(), dev: True)
   should.equal(opts.dev, True)
@@ -64,6 +69,7 @@ pub fn running_subscription_zero_rate_capture_only_test() {
 
 // The running.md doc shows StartOpts with transport and daemon.
 
+@target(erlang)
 pub fn running_start_opts_stdio_daemon_test() {
   let start_opts =
     plushie.StartOpts(
@@ -78,6 +84,7 @@ pub fn running_start_opts_stdio_daemon_test() {
   }
 }
 
+@target(erlang)
 pub fn running_start_opts_default_format_test() {
   let opts = plushie.default_start_opts()
   should.equal(opts.format, protocol.Msgpack)
