@@ -640,12 +640,12 @@ pub fn set_icon(
 // --- Window query commands ---------------------------------------------------
 
 /// Query the size of a window. Result arrives as a SystemInfo event.
-pub fn get_window_size(window_id: String, tag: String) -> Command(msg) {
+pub fn window_size(window_id: String, tag: String) -> Command(msg) {
   Renderer(Window(GetWindowSize(window_id:, tag:)))
 }
 
 /// Query the position of a window. Result arrives as a SystemInfo event.
-pub fn get_window_position(window_id: String, tag: String) -> Command(msg) {
+pub fn window_position(window_id: String, tag: String) -> Command(msg) {
   Renderer(Window(GetWindowPosition(window_id:, tag:)))
 }
 
@@ -661,12 +661,12 @@ pub fn is_minimized(window_id: String, tag: String) -> Command(msg) {
 
 /// Query the current window mode (windowed, fullscreen, hidden).
 /// Result arrives as a SystemInfo event.
-pub fn get_mode(window_id: String, tag: String) -> Command(msg) {
+pub fn window_mode(window_id: String, tag: String) -> Command(msg) {
   Renderer(Window(GetMode(window_id:, tag:)))
 }
 
 /// Query the window's DPI scale factor. Result arrives as a SystemInfo event.
-pub fn get_scale_factor(window_id: String, tag: String) -> Command(msg) {
+pub fn scale_factor(window_id: String, tag: String) -> Command(msg) {
   Renderer(Window(GetScaleFactor(window_id:, tag:)))
 }
 
@@ -692,13 +692,13 @@ pub fn allow_automatic_tabbing(enabled: Bool) -> Command(msg) {
 
 /// Query the OS light/dark theme preference. Result arrives as a
 /// SystemTheme event with "light", "dark", or "none".
-pub fn get_system_theme(tag: String) -> Command(msg) {
+pub fn system_theme(tag: String) -> Command(msg) {
   Renderer(System(GetSystemTheme(tag:)))
 }
 
 /// Query system information (OS, CPU, memory, graphics). Result
 /// arrives as a SystemInfo event with a map of system fields.
-pub fn get_system_info(tag: String) -> Command(msg) {
+pub fn system_info(tag: String) -> Command(msg) {
   Renderer(System(GetSystemInfo(tag:)))
 }
 

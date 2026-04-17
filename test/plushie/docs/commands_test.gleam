@@ -393,7 +393,7 @@ pub fn commands_set_resize_increments_construct_test() {
 
 // -- Window queries ----------------------------------------------------------
 
-pub fn commands_get_window_size_construct_test() {
+pub fn commands_window_size_construct_test() {
   let cmd =
     command.Renderer(
       command.Window(command.GetWindowSize(window_id: "main", tag: "got_size")),
@@ -407,7 +407,7 @@ pub fn commands_get_window_size_construct_test() {
   }
 }
 
-pub fn commands_get_system_theme_construct_test() {
+pub fn commands_system_theme_construct_test() {
   let cmd =
     command.Renderer(
       command.System(command.GetSystemTheme(tag: "theme_detected")),
