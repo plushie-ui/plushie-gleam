@@ -7,7 +7,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string
-import plushie/node.{type Node, type PropValue, StringVal}
+import plushie/node.{type Node, type PropValue, DictVal, StringVal}
 import plushie/tree
 
 /// A test element wrapping a Node for convenient querying.
@@ -98,6 +98,51 @@ pub fn find_all(
 ) -> List(Element) {
   tree.find_all(element.node, fn(node) { predicate(from_node(node)) })
   |> list.map(from_node)
+}
+
+/// Get the a11y props dict from an element.
+///
+/// Returns an empty dict if no `a11y` key is set.
+pub fn a11y(element: Element) -> dict.Dict(String, PropValue) {
+  case dict.get(element.node.props, "a11y") {
+    Ok(DictVal(m)) -> m
+    _ -> dict.new()
+  }
+}
+
+/// Return the resolved a11y dict for this element.
+///
+/// Layers render-pipeline inference (placeholder -> description for
+/// text-entry widgets, alt -> label for media widgets) on top of the
+/// normalized `a11y` prop. Kept aligned with the Rust SDK's
+/// `resolve_a11y_for_node` so cross-SDK parity holds.
+pub fn resolved_a11y(element: Element) -> dict.Dict(String, PropValue) {
+  let explicit = a11y(element)
+  let inferred = infer_a11y(element.node.kind, element.node.props)
+  // Explicit wins on key conflicts. dict.merge(base, override) folds
+  // override on top of base.
+  dict.merge(inferred, explicit)
+}
+
+fn infer_a11y(
+  kind: String,
+  props: dict.Dict(String, PropValue),
+) -> dict.Dict(String, PropValue) {
+  case kind {
+    "text_input" | "text_editor" | "combo_box" | "pick_list" ->
+      case dict.get(props, "placeholder") {
+        Ok(StringVal(s)) if s != "" ->
+          dict.from_list([#("description", StringVal(s))])
+        _ -> dict.new()
+      }
+    "image" | "svg" | "qr_code" ->
+      case dict.get(props, "alt") {
+        Ok(StringVal(s)) if s != "" ->
+          dict.from_list([#("label", StringVal(s))])
+        _ -> dict.new()
+      }
+    _ -> dict.new()
+  }
 }
 
 /// Get the local ID (last segment after "/" and "#").

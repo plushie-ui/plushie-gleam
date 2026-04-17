@@ -13,8 +13,8 @@ import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import gleam/string
 import plushie/node.{
-  type Node, type PropValue, DictVal, IntVal, ListVal, Node, NullVal, OpaqueVal,
-  StringVal,
+  type Node, type PropValue, BoolVal, DictVal, IntVal, ListVal, Node, NullVal,
+  OpaqueVal, StringVal,
 }
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
@@ -720,10 +720,30 @@ fn rewrite_a11y(
   declared: set.Set(String),
   radio_groups: Dict(String, List(String)),
 ) -> Node {
+  rewrite_a11y_with_parent(node, scope, declared, radio_groups, None)
+}
+
+fn rewrite_a11y_with_parent(
+  node: Node,
+  scope: String,
+  declared: set.Set(String),
+  radio_groups: Dict(String, List(String)),
+  tooltip_parent_id: Option(String),
+) -> Node {
   let child_scope = child_scope_of(node, scope)
+  let tooltip_for_children = case node.kind {
+    "tooltip" -> Some(node.id)
+    _ -> None
+  }
   let children =
     list.map(node.children, fn(child) {
-      rewrite_a11y(child, child_scope, declared, radio_groups)
+      rewrite_a11y_with_parent(
+        child,
+        child_scope,
+        declared,
+        radio_groups,
+        tooltip_for_children,
+      )
     })
 
   let props =
@@ -734,9 +754,84 @@ fn rewrite_a11y(
       scope,
       declared,
       radio_groups,
+      tooltip_parent_id,
     )
 
   Node(..node, props:, children:)
+}
+
+fn placeholder_description(
+  kind: String,
+  props: Dict(String, PropValue),
+) -> Option(String) {
+  case kind {
+    "text_input" | "text_editor" | "combo_box" | "pick_list" ->
+      case dict.get(props, "placeholder") {
+        Ok(StringVal(s)) if s != "" -> Some(s)
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+fn required_from_props(
+  kind: String,
+  props: Dict(String, PropValue),
+) -> Option(Bool) {
+  case kind {
+    "text_input" | "text_editor" | "checkbox" | "pick_list" | "combo_box" ->
+      case dict.get(props, "required") {
+        Ok(BoolVal(b)) -> Some(b)
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+/// Project a :validation prop onto (invalid, error_message).
+///
+/// Accepts author-facing forms plus their wire-encoded equivalents
+/// (atoms encode to strings, tuples to lists):
+///
+///   "valid"                            -> (Some(False), None)
+///   "pending"                          -> (None, None)
+///   ["invalid", message]               -> (Some(True), Some(message))
+///   {state: "invalid", message: m}     -> (Some(True), Some(m))
+fn invalid_from_props(
+  kind: String,
+  props: Dict(String, PropValue),
+) -> #(Option(Bool), Option(String)) {
+  case kind {
+    "text_input" | "text_editor" | "checkbox" | "pick_list" | "combo_box" ->
+      case dict.get(props, "validation") {
+        Ok(StringVal("valid")) -> #(Some(False), None)
+        Ok(StringVal("pending")) -> #(None, None)
+        Ok(ListVal([StringVal("invalid"), StringVal(msg)])) -> #(
+          Some(True),
+          Some(msg),
+        )
+        Ok(DictVal(m)) -> invalid_from_validation_dict(m)
+        _ -> #(None, None)
+      }
+    _ -> #(None, None)
+  }
+}
+
+fn invalid_from_validation_dict(
+  m: Dict(String, PropValue),
+) -> #(Option(Bool), Option(String)) {
+  case dict.get(m, "state") {
+    Ok(StringVal("valid")) -> #(Some(False), None)
+    Ok(StringVal("pending")) -> #(None, None)
+    Ok(StringVal("invalid")) -> {
+      let msg = case dict.get(m, "message") {
+        Ok(StringVal(s)) -> Some(s)
+        _ -> None
+      }
+      #(Some(True), msg)
+    }
+    _ -> #(None, None)
+  }
 }
 
 fn apply_a11y_rewrites(
@@ -746,6 +841,7 @@ fn apply_a11y_rewrites(
   scope: String,
   declared: set.Set(String),
   radio_groups: Dict(String, List(String)),
+  tooltip_parent_id: Option(String),
 ) -> Dict(String, PropValue) {
   let role_default = widget_type_to_role(kind)
 
@@ -760,15 +856,24 @@ fn apply_a11y_rewrites(
     _, _ -> None
   }
 
+  let placeholder_desc = placeholder_description(kind, props)
+  let required_prop = required_from_props(kind, props)
+  let #(invalid_prop, error_text) = invalid_from_props(kind, props)
+
   let a11y_in = case dict.get(props, "a11y") {
     Ok(DictVal(m)) -> Some(m)
     _ -> None
   }
 
-  let needs_update = case a11y_in, role_default, radio_ids {
-    None, None, None -> False
-    _, _, _ -> True
-  }
+  let needs_update =
+    a11y_in != None
+    || role_default != None
+    || radio_ids != None
+    || placeholder_desc != None
+    || required_prop != None
+    || invalid_prop != None
+    || error_text != None
+    || tooltip_parent_id != None
 
   case needs_update {
     False -> props
@@ -784,10 +889,6 @@ fn apply_a11y_rewrites(
         _, _ -> a11y
       }
 
-      // Rewrite every single-ID ref. Re-applies the scope prefix
-      // idempotently (already-scoped refs contain "/" so
-      // resolve_ref leaves them alone), and validates the result
-      // against the declared-IDs set.
       let a11y =
         rewrite_single_ref(a11y, "labelled_by", owner_id, scope, declared)
       let a11y =
@@ -797,15 +898,39 @@ fn apply_a11y_rewrites(
       let a11y =
         rewrite_single_ref(a11y, "active_descendant", owner_id, scope, declared)
 
-      // Rewrite each element of radio_group.
       let a11y = rewrite_radio_group_list(a11y, owner_id, scope, declared)
 
-      // Implicit radio_group list (only when author didn't specify).
       let a11y = case radio_ids, dict.has_key(a11y, "radio_group") {
         Some(ids), False -> {
           let list_vals = list.map(ids, StringVal)
           dict.insert(a11y, "radio_group", ListVal(list_vals))
         }
+        _, _ -> a11y
+      }
+
+      let a11y = case placeholder_desc, dict.has_key(a11y, "description") {
+        Some(desc), False -> dict.insert(a11y, "description", StringVal(desc))
+        _, _ -> a11y
+      }
+
+      let a11y = case required_prop, dict.has_key(a11y, "required") {
+        Some(True), False -> dict.insert(a11y, "required", BoolVal(True))
+        _, _ -> a11y
+      }
+
+      let a11y = case invalid_prop, dict.has_key(a11y, "invalid") {
+        Some(b), False -> dict.insert(a11y, "invalid", BoolVal(b))
+        _, _ -> a11y
+      }
+
+      let a11y = case error_text, dict.has_key(a11y, "error_message") {
+        Some(msg), False -> dict.insert(a11y, "error_message", StringVal(msg))
+        _, _ -> a11y
+      }
+
+      let a11y = case tooltip_parent_id, dict.has_key(a11y, "described_by") {
+        Some(parent_id), False ->
+          dict.insert(a11y, "described_by", StringVal(parent_id))
         _, _ -> a11y
       }
 

@@ -11,6 +11,7 @@ import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
+import plushie/prop/validation_state.{type ValidationState}
 import plushie/widget/build
 
 pub opaque type TextInput {
@@ -29,6 +30,8 @@ pub opaque type TextInput {
     secure: Option(Bool),
     input_purpose: Option(InputPurpose),
     style: Option(String),
+    required: Option(Bool),
+    validation: Option(ValidationState),
     a11y: Option(A11y),
   )
 }
@@ -50,6 +53,8 @@ pub fn new(id: String, value: String) -> TextInput {
     secure: None,
     input_purpose: None,
     style: None,
+    required: None,
+    validation: None,
     a11y: None,
   )
 }
@@ -119,6 +124,17 @@ pub fn a11y(input: TextInput, a: A11y) -> TextInput {
   TextInput(..input, a11y: option.Some(a))
 }
 
+/// Mark this field as required. Flows into `a11y.required`.
+pub fn required(input: TextInput, r: Bool) -> TextInput {
+  TextInput(..input, required: option.Some(r))
+}
+
+/// Set the form-validation state. Flows into `a11y.invalid` and
+/// `a11y.error_message` automatically.
+pub fn validation(input: TextInput, v: ValidationState) -> TextInput {
+  TextInput(..input, validation: option.Some(v))
+}
+
 /// Option type for text input properties.
 pub type Opt {
   Placeholder(String)
@@ -133,6 +149,8 @@ pub type Opt {
   Secure(Bool)
   InputPurpose(InputPurpose)
   Style(String)
+  Required(Bool)
+  Validation(ValidationState)
   A11y(A11y)
 }
 
@@ -152,6 +170,8 @@ pub fn with_opts(input: TextInput, opts: List(Opt)) -> TextInput {
       Secure(v) -> secure(i, v)
       InputPurpose(p) -> input_purpose(i, p)
       Style(s) -> style(i, s)
+      Required(r) -> required(i, r)
+      Validation(v) -> validation(i, v)
       A11y(a) -> a11y(i, a)
     }
   })
@@ -182,6 +202,12 @@ pub fn build(input: TextInput) -> Node {
       input_purpose.to_prop_value,
     )
     |> build.put_optional_string("style", input.style)
+    |> build.put_optional_bool("required", input.required)
+    |> build.put_optional(
+      "validation",
+      input.validation,
+      validation_state.to_prop_value,
+    )
     |> build.apply_default_a11y(
       input.a11y,
       "text_input",

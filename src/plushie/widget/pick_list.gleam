@@ -10,6 +10,7 @@ import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/shaping.{type Shaping}
+import plushie/prop/validation_state.{type ValidationState}
 import plushie/widget/build
 
 pub opaque type PickList {
@@ -31,6 +32,8 @@ pub opaque type PickList {
     on_open: Option(Bool),
     on_close: Option(Bool),
     style: Option(String),
+    required: Option(Bool),
+    validation: Option(ValidationState),
     a11y: Option(A11y),
   )
 }
@@ -59,6 +62,8 @@ pub fn new(
     on_open: None,
     on_close: None,
     style: None,
+    required: None,
+    validation: None,
     a11y: None,
   )
 }
@@ -138,6 +143,16 @@ pub fn a11y(pl: PickList, a: A11y) -> PickList {
   PickList(..pl, a11y: option.Some(a))
 }
 
+/// Mark this field as required. Flows into `a11y.required`.
+pub fn required(pl: PickList, r: Bool) -> PickList {
+  PickList(..pl, required: option.Some(r))
+}
+
+/// Set the form-validation state.
+pub fn validation(pl: PickList, v: ValidationState) -> PickList {
+  PickList(..pl, validation: option.Some(v))
+}
+
 /// Option type for pick list properties.
 pub type Opt {
   Placeholder(String)
@@ -154,6 +169,8 @@ pub type Opt {
   OnOpen(Bool)
   OnClose(Bool)
   Style(String)
+  Required(Bool)
+  Validation(ValidationState)
   A11y(A11y)
 }
 
@@ -175,6 +192,8 @@ pub fn with_opts(pl: PickList, opts: List(Opt)) -> PickList {
       OnOpen(v) -> on_open(p, v)
       OnClose(v) -> on_close(p, v)
       Style(s) -> style(p, s)
+      Required(r) -> required(p, r)
+      Validation(v) -> validation(p, v)
       A11y(a) -> a11y(p, a)
     }
   })
@@ -204,6 +223,12 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional_bool("on_open", pl.on_open)
     |> build.put_optional_bool("on_close", pl.on_close)
     |> build.put_optional_string("style", pl.style)
+    |> build.put_optional_bool("required", pl.required)
+    |> build.put_optional(
+      "validation",
+      pl.validation,
+      validation_state.to_prop_value,
+    )
     |> build.apply_default_a11y(
       pl.a11y,
       "combo_box",

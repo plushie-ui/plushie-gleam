@@ -9,6 +9,7 @@ import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
+import plushie/prop/validation_state.{type ValidationState}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
 
@@ -39,6 +40,8 @@ pub opaque type Checkbox {
     style: Option(String),
     icon: Option(CheckboxIcon),
     disabled: Option(Bool),
+    required: Option(Bool),
+    validation: Option(ValidationState),
     a11y: Option(A11y),
   )
 }
@@ -60,6 +63,8 @@ pub fn new(id: String, label: String, is_toggled: Bool) -> Checkbox {
     style: None,
     icon: None,
     disabled: None,
+    required: None,
+    validation: None,
     a11y: None,
   )
 }
@@ -124,6 +129,16 @@ pub fn a11y(cb: Checkbox, a: A11y) -> Checkbox {
   Checkbox(..cb, a11y: option.Some(a))
 }
 
+/// Mark this field as required. Flows into `a11y.required`.
+pub fn required(cb: Checkbox, r: Bool) -> Checkbox {
+  Checkbox(..cb, required: option.Some(r))
+}
+
+/// Set the form-validation state.
+pub fn validation(cb: Checkbox, v: ValidationState) -> Checkbox {
+  Checkbox(..cb, validation: option.Some(v))
+}
+
 /// Option type for checkbox properties.
 pub type Opt {
   Spacing(Int)
@@ -137,6 +152,8 @@ pub type Opt {
   Style(String)
   Icon(CheckboxIcon)
   Disabled(Bool)
+  Required(Bool)
+  Validation(ValidationState)
   A11y(A11y)
 }
 
@@ -155,6 +172,8 @@ pub fn with_opts(cb: Checkbox, opts: List(Opt)) -> Checkbox {
       Style(s) -> style(c, s)
       Icon(i) -> icon(c, i)
       Disabled(d) -> disabled(c, d)
+      Required(r) -> required(c, r)
+      Validation(v) -> validation(c, v)
       A11y(a) -> a11y(c, a)
     }
   })
@@ -196,6 +215,12 @@ pub fn build(cb: Checkbox) -> Node {
     |> build.put_optional_string("style", cb.style)
     |> build.put_optional("icon", cb.icon, icon_to_prop_value)
     |> build.put_optional_bool("disabled", cb.disabled)
+    |> build.put_optional_bool("required", cb.required)
+    |> build.put_optional(
+      "validation",
+      cb.validation,
+      validation_state.to_prop_value,
+    )
     |> build.apply_default_a11y(cb.a11y, "check_box", option.Some("label"))
   Node(id: cb.id, kind: "checkbox", props:, children: [], meta: dict.new())
 }

@@ -439,6 +439,50 @@ pub fn assert_text(
   }
 }
 
+/// Return the resolved a11y dict for a widget.
+///
+/// Layers render-pipeline inference (placeholder -> description for
+/// text-entry widgets, alt -> label for media widgets) on top of the
+/// normalized `a11y` prop so tests see what assistive technology will
+/// see. Panics if the selector doesn't match any widget.
+pub fn resolved_a11y(
+  ctx: TestContext(model),
+  selector: String,
+) -> dict.Dict(String, PropValue) {
+  case find(ctx, selector) {
+    option.Some(el) -> element.resolved_a11y(el)
+    option.None -> panic as { "Expected element '" <> selector <> "' to exist" }
+  }
+}
+
+/// Assert that a widget's resolved a11y contains all expected keys.
+///
+/// Reads through [`resolved_a11y`](#resolved_a11y) so inferred defaults
+/// (placeholder -> description, alt -> label) compose with the
+/// author's explicit overrides.
+pub fn assert_a11y(
+  ctx: TestContext(model),
+  selector: String,
+  expected: List(#(String, PropValue)),
+) -> TestContext(model) {
+  let actual = resolved_a11y(ctx, selector)
+  list.each(expected, fn(pair) {
+    let #(key, want) = pair
+    case dict.get(actual, key) {
+      Ok(got) if got == want -> Nil
+      Ok(_) ->
+        panic as {
+          "assert_a11y: a11y." <> key <> " mismatch for '" <> selector <> "'"
+        }
+      Error(_) ->
+        panic as {
+          "assert_a11y: a11y." <> key <> " not found on '" <> selector <> "'"
+        }
+    }
+  })
+  ctx
+}
+
 /// Dispatch an AnimationFrame event to advance frame-based animations.
 ///
 /// This works with the mock and session backends. On headless/windowed

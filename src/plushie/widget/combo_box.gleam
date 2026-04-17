@@ -10,6 +10,7 @@ import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/shaping.{type Shaping}
+import plushie/prop/validation_state.{type ValidationState}
 import plushie/widget/build
 
 pub opaque type ComboBox {
@@ -33,6 +34,8 @@ pub opaque type ComboBox {
     menu_style: Option(PropValue),
     on_submit: Option(Bool),
     style: Option(String),
+    required: Option(Bool),
+    validation: Option(ValidationState),
     a11y: Option(A11y),
   )
 }
@@ -59,6 +62,8 @@ pub fn new(id: String, options: List(String), value: String) -> ComboBox {
     menu_style: None,
     on_submit: None,
     style: None,
+    required: None,
+    validation: None,
     a11y: None,
   )
 }
@@ -149,6 +154,16 @@ pub fn a11y(cb: ComboBox, a: A11y) -> ComboBox {
   ComboBox(..cb, a11y: option.Some(a))
 }
 
+/// Mark this field as required. Flows into `a11y.required`.
+pub fn required(cb: ComboBox, r: Bool) -> ComboBox {
+  ComboBox(..cb, required: option.Some(r))
+}
+
+/// Set the form-validation state.
+pub fn validation(cb: ComboBox, v: ValidationState) -> ComboBox {
+  ComboBox(..cb, validation: option.Some(v))
+}
+
 /// Option type for combo box properties.
 pub type Opt {
   Placeholder(String)
@@ -167,6 +182,8 @@ pub type Opt {
   MenuStyle(PropValue)
   OnSubmit(Bool)
   Style(String)
+  Required(Bool)
+  Validation(ValidationState)
   A11y(A11y)
 }
 
@@ -190,6 +207,8 @@ pub fn with_opts(cb: ComboBox, opts: List(Opt)) -> ComboBox {
       MenuStyle(ms) -> menu_style(c, ms)
       OnSubmit(v) -> on_submit(c, v)
       Style(s) -> style(c, s)
+      Required(r) -> required(c, r)
+      Validation(v) -> validation(c, v)
       A11y(a) -> a11y(c, a)
     }
   })
@@ -221,6 +240,12 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional("menu_style", cb.menu_style, fn(ms) { ms })
     |> build.put_optional_bool("on_submit", cb.on_submit)
     |> build.put_optional_string("style", cb.style)
+    |> build.put_optional_bool("required", cb.required)
+    |> build.put_optional(
+      "validation",
+      cb.validation,
+      validation_state.to_prop_value,
+    )
     |> build.apply_default_a11y(
       cb.a11y,
       "combo_box",

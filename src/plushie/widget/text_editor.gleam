@@ -11,6 +11,7 @@ import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
+import plushie/prop/validation_state.{type ValidationState}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
 
@@ -35,6 +36,8 @@ pub opaque type TextEditor {
     key_bindings: Option(List(PropValue)),
     placeholder_color: Option(Color),
     selection_color: Option(Color),
+    required: Option(Bool),
+    validation: Option(ValidationState),
     a11y: Option(A11y),
   )
 }
@@ -61,6 +64,8 @@ pub fn new(id: String, content: String) -> TextEditor {
     key_bindings: None,
     placeholder_color: None,
     selection_color: None,
+    required: None,
+    validation: None,
     a11y: None,
   )
 }
@@ -155,6 +160,17 @@ pub fn a11y(te: TextEditor, a: A11y) -> TextEditor {
   TextEditor(..te, a11y: option.Some(a))
 }
 
+/// Mark this field as required. Flows into `a11y.required`.
+pub fn required(te: TextEditor, r: Bool) -> TextEditor {
+  TextEditor(..te, required: option.Some(r))
+}
+
+/// Set the form-validation state. Flows into `a11y.invalid` and
+/// `a11y.error_message` automatically.
+pub fn validation(te: TextEditor, v: ValidationState) -> TextEditor {
+  TextEditor(..te, validation: option.Some(v))
+}
+
 /// Option type for text editor properties.
 pub type Opt {
   Placeholder(String)
@@ -174,6 +190,8 @@ pub type Opt {
   KeyBindings(List(PropValue))
   PlaceholderColor(Color)
   SelectionColor(Color)
+  Required(Bool)
+  Validation(ValidationState)
   A11y(A11y)
 }
 
@@ -198,6 +216,8 @@ pub fn with_opts(te: TextEditor, opts: List(Opt)) -> TextEditor {
       KeyBindings(kb) -> key_bindings(t, kb)
       PlaceholderColor(c) -> placeholder_color(t, c)
       SelectionColor(c) -> selection_color(t, c)
+      Required(r) -> required(t, r)
+      Validation(v) -> validation(t, v)
       A11y(a) -> a11y(t, a)
     }
   })
@@ -242,6 +262,12 @@ pub fn build(te: TextEditor) -> Node {
       "selection_color",
       te.selection_color,
       color.to_prop_value,
+    )
+    |> build.put_optional_bool("required", te.required)
+    |> build.put_optional(
+      "validation",
+      te.validation,
+      validation_state.to_prop_value,
     )
     |> build.apply_default_a11y(
       te.a11y,

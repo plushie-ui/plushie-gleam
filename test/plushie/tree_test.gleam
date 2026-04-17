@@ -2,7 +2,7 @@ import gleam/dict
 import gleam/list
 import gleam/option
 import gleeunit/should
-import plushie/node.{DictVal, NullVal, StringVal}
+import plushie/node.{BoolVal, DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import plushie/platform
 import plushie/tree
@@ -136,6 +136,88 @@ pub fn normalize_a11y_empty_scope_leaves_ref_alone_test() {
   let result = tree.normalize(n)
   let assert Ok(DictVal(resolved_a11y)) = dict.get(result.props, "a11y")
   should.equal(dict.get(resolved_a11y, "described_by"), Ok(StringVal("help")))
+}
+
+pub fn normalize_placeholder_flows_into_a11y_description_test() {
+  let input =
+    node.new("email", "text_input")
+    |> node.with_prop("placeholder", StringVal("Your email"))
+  let parent =
+    node.new("form", "container")
+    |> node.with_children([input])
+
+  let result = tree.normalize(parent)
+  let assert [child] = result.children
+  let assert Ok(DictVal(a11y)) = dict.get(child.props, "a11y")
+  should.equal(dict.get(a11y, "description"), Ok(StringVal("Your email")))
+}
+
+pub fn normalize_required_prop_flows_into_a11y_test() {
+  let input =
+    node.new("email", "text_input")
+    |> node.with_prop("required", BoolVal(True))
+  let parent =
+    node.new("form", "container")
+    |> node.with_children([input])
+
+  let result = tree.normalize(parent)
+  let assert [child] = result.children
+  let assert Ok(DictVal(a11y)) = dict.get(child.props, "a11y")
+  should.equal(dict.get(a11y, "required"), Ok(BoolVal(True)))
+}
+
+pub fn normalize_validation_invalid_flows_into_a11y_test() {
+  let validation =
+    DictVal(
+      dict.from_list([
+        #("state", StringVal("invalid")),
+        #("message", StringVal("Not valid")),
+      ]),
+    )
+  let input =
+    node.new("email", "text_input")
+    |> node.with_prop("validation", validation)
+  let parent =
+    node.new("form", "container")
+    |> node.with_children([input])
+
+  let result = tree.normalize(parent)
+  let assert [child] = result.children
+  let assert Ok(DictVal(a11y)) = dict.get(child.props, "a11y")
+  should.equal(dict.get(a11y, "invalid"), Ok(BoolVal(True)))
+  should.equal(dict.get(a11y, "error_message"), Ok(StringVal("Not valid")))
+}
+
+pub fn normalize_validation_valid_sets_invalid_false_test() {
+  let validation = DictVal(dict.from_list([#("state", StringVal("valid"))]))
+  let input =
+    node.new("email", "text_input")
+    |> node.with_prop("validation", validation)
+  let parent =
+    node.new("form", "container")
+    |> node.with_children([input])
+
+  let result = tree.normalize(parent)
+  let assert [child] = result.children
+  let assert Ok(DictVal(a11y)) = dict.get(child.props, "a11y")
+  should.equal(dict.get(a11y, "invalid"), Ok(BoolVal(False)))
+}
+
+pub fn normalize_tooltip_sets_described_by_on_trigger_test() {
+  let email = node.new("email", "text_input")
+  let tt =
+    node.new("help", "tooltip")
+    |> node.with_prop("tip", StringVal("Enter your email"))
+    |> node.with_children([email])
+  let parent =
+    node.new("form", "container")
+    |> node.with_children([tt])
+
+  let result = tree.normalize(parent)
+  let assert [scoped_tt] = result.children
+  let assert [scoped_email] = scoped_tt.children
+  let assert Ok(DictVal(a11y)) = dict.get(scoped_email.props, "a11y")
+  should.equal(dict.get(a11y, "described_by"), Ok(StringVal("form/help")))
 }
 
 pub fn normalize_rejects_slash_in_user_id_test() {
