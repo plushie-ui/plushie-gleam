@@ -109,7 +109,7 @@ fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
 pub fn normalize(node: Node) -> Node {
   let ctx = new_ctx(widget.empty_registry(), dict.new())
   let #(normalized, _ctx) = normalize_ctx(node, ctx)
-  normalized
+  post_normalize(normalized)
 }
 
 /// Normalize a top-level app view and enforce explicit windows.
@@ -158,7 +158,7 @@ pub fn normalize_with_memo(
   let ctx = new_ctx(registry, prev_memo_cache)
   let #(normalized, ctx) = normalize_ctx(node, ctx)
   NormalizeResult(
-    tree: normalized,
+    tree: post_normalize(normalized),
     memo_cache: ctx.new_cache,
     registry: ctx.accumulated_registry,
     windows: ctx.accumulated_windows,
@@ -170,7 +170,7 @@ pub fn normalize_with_memo(
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
   let ctx = new_ctx(registry, dict.new())
   let #(normalized, _ctx) = normalize_ctx(node, ctx)
-  normalized
+  post_normalize(normalized)
 }
 
 fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
@@ -636,6 +636,349 @@ fn resolve_ref(
       }
     _, _ -> props
   }
+}
+
+// --- Post-normalize pass -----------------------------------------------------
+//
+// Runs after the first pass produces a fully scoped tree. Mirrors the
+// Rust SDK:
+//
+//   - Auto-populate a11y.role from the widget type when unset.
+//   - Rewrite cross-widget a11y refs on active_descendant and every
+//     element of radio_group through the same scope-prefix logic
+//     already applied to labelled_by, described_by, error_message.
+//   - Populate implicit a11y.radio_group when radios share a `group`
+//     prop in the same enclosing scope.
+//   - Emit a11y_ref_unresolved warnings for refs that don't match any
+//     declared widget ID.
+//   - Emit missing_accessible_name warnings for interactive widgets
+//     that carry no label, text child, a11y.label, or a11y.labelled_by.
+
+fn post_normalize(tree: Node) -> Node {
+  let declared = collect_ids(tree, set.new())
+  let radio_groups = collect_radio_groups(tree, "", dict.new())
+  let rewritten = rewrite_a11y(tree, "", declared, radio_groups)
+  check_missing_accessible_name(rewritten)
+  rewritten
+}
+
+fn collect_ids(node: Node, acc: set.Set(String)) -> set.Set(String) {
+  let acc = case node.id {
+    "" -> acc
+    id ->
+      case string.starts_with(id, "auto:") {
+        True -> acc
+        False -> set.insert(acc, id)
+      }
+  }
+  list.fold(node.children, acc, fn(inner, child) { collect_ids(child, inner) })
+}
+
+fn collect_radio_groups(
+  node: Node,
+  scope: String,
+  acc: Dict(String, List(String)),
+) -> Dict(String, List(String)) {
+  let acc = case node.kind, fetch_group_prop(node.props) {
+    "radio", Some(group) -> {
+      let key = scope <> "\t" <> group
+      case dict.get(acc, key) {
+        Ok(ids) -> dict.insert(acc, key, list.append(ids, [node.id]))
+        Error(_) -> dict.insert(acc, key, [node.id])
+      }
+    }
+    _, _ -> acc
+  }
+  let child_scope = child_scope_of(node, scope)
+  list.fold(node.children, acc, fn(inner, child) {
+    collect_radio_groups(child, child_scope, inner)
+  })
+}
+
+fn child_scope_of(node: Node, scope: String) -> String {
+  case node.kind, node.id {
+    "window", id -> id <> "#"
+    _, "" -> scope
+    _, id ->
+      case string.starts_with(id, "auto:") {
+        True -> scope
+        False -> id
+      }
+  }
+}
+
+fn fetch_group_prop(props: Dict(String, PropValue)) -> Option(String) {
+  case dict.get(props, "group") {
+    Ok(StringVal(group)) if group != "" -> Some(group)
+    _ -> None
+  }
+}
+
+fn rewrite_a11y(
+  node: Node,
+  scope: String,
+  declared: set.Set(String),
+  radio_groups: Dict(String, List(String)),
+) -> Node {
+  let child_scope = child_scope_of(node, scope)
+  let children =
+    list.map(node.children, fn(child) {
+      rewrite_a11y(child, child_scope, declared, radio_groups)
+    })
+
+  let props =
+    apply_a11y_rewrites(
+      node.props,
+      node.kind,
+      node.id,
+      scope,
+      declared,
+      radio_groups,
+    )
+
+  Node(..node, props:, children:)
+}
+
+fn apply_a11y_rewrites(
+  props: Dict(String, PropValue),
+  kind: String,
+  owner_id: String,
+  scope: String,
+  declared: set.Set(String),
+  radio_groups: Dict(String, List(String)),
+) -> Dict(String, PropValue) {
+  let role_default = widget_type_to_role(kind)
+
+  let radio_ids = case kind, fetch_group_prop(props) {
+    "radio", Some(group) -> {
+      let key = scope <> "\t" <> group
+      case dict.get(radio_groups, key) {
+        Ok(ids) -> Some(ids)
+        Error(_) -> None
+      }
+    }
+    _, _ -> None
+  }
+
+  let a11y_in = case dict.get(props, "a11y") {
+    Ok(DictVal(m)) -> Some(m)
+    _ -> None
+  }
+
+  let needs_update = case a11y_in, role_default, radio_ids {
+    None, None, None -> False
+    _, _, _ -> True
+  }
+
+  case needs_update {
+    False -> props
+    True -> {
+      let a11y = case a11y_in {
+        Some(m) -> m
+        None -> dict.new()
+      }
+
+      // Auto-populate role if unset.
+      let a11y = case role_default, dict.has_key(a11y, "role") {
+        Some(role), False -> dict.insert(a11y, "role", StringVal(role))
+        _, _ -> a11y
+      }
+
+      // Rewrite every single-ID ref. Re-applies the scope prefix
+      // idempotently (already-scoped refs contain "/" so
+      // resolve_ref leaves them alone), and validates the result
+      // against the declared-IDs set.
+      let a11y =
+        rewrite_single_ref(a11y, "labelled_by", owner_id, scope, declared)
+      let a11y =
+        rewrite_single_ref(a11y, "described_by", owner_id, scope, declared)
+      let a11y =
+        rewrite_single_ref(a11y, "error_message", owner_id, scope, declared)
+      let a11y =
+        rewrite_single_ref(a11y, "active_descendant", owner_id, scope, declared)
+
+      // Rewrite each element of radio_group.
+      let a11y = rewrite_radio_group_list(a11y, owner_id, scope, declared)
+
+      // Implicit radio_group list (only when author didn't specify).
+      let a11y = case radio_ids, dict.has_key(a11y, "radio_group") {
+        Some(ids), False -> {
+          let list_vals = list.map(ids, StringVal)
+          dict.insert(a11y, "radio_group", ListVal(list_vals))
+        }
+        _, _ -> a11y
+      }
+
+      dict.insert(props, "a11y", DictVal(a11y))
+    }
+  }
+}
+
+fn rewrite_single_ref(
+  a11y: Dict(String, PropValue),
+  key: String,
+  owner_id: String,
+  scope: String,
+  declared: set.Set(String),
+) -> Dict(String, PropValue) {
+  case dict.get(a11y, key) {
+    Ok(StringVal(ref_id)) if ref_id != "" -> {
+      let rewritten = scope_ref_string(ref_id, scope)
+      case set.contains(declared, rewritten) {
+        True -> Nil
+        False ->
+          platform.log_warning(
+            "plushie a11y: a11y."
+            <> key
+            <> " \""
+            <> ref_id
+            <> "\" on \""
+            <> owner_id
+            <> "\" does not match any declared widget ID",
+          )
+      }
+      dict.insert(a11y, key, StringVal(rewritten))
+    }
+    _ -> a11y
+  }
+}
+
+fn rewrite_radio_group_list(
+  a11y: Dict(String, PropValue),
+  owner_id: String,
+  scope: String,
+  declared: set.Set(String),
+) -> Dict(String, PropValue) {
+  case dict.get(a11y, "radio_group") {
+    Ok(ListVal(refs)) -> {
+      let rewritten =
+        list.map(refs, fn(item) {
+          case item {
+            StringVal(ref_id) if ref_id != "" -> {
+              let r = scope_ref_string(ref_id, scope)
+              case set.contains(declared, r) {
+                True -> Nil
+                False ->
+                  platform.log_warning(
+                    "plushie a11y: a11y.radio_group member \""
+                    <> ref_id
+                    <> "\" on \""
+                    <> owner_id
+                    <> "\" does not match any declared widget ID",
+                  )
+              }
+              StringVal(r)
+            }
+            other -> other
+          }
+        })
+      dict.insert(a11y, "radio_group", ListVal(rewritten))
+    }
+    _ -> a11y
+  }
+}
+
+fn scope_ref_string(ref: String, scope: String) -> String {
+  case scope, ref {
+    "", _ -> ref
+    _, "" -> ref
+    _, _ ->
+      case string.contains(ref, "/") || string.contains(ref, "#") {
+        True -> ref
+        False ->
+          case string.ends_with(scope, "#") {
+            True -> scope <> ref
+            False -> scope <> "/" <> ref
+          }
+      }
+  }
+}
+
+fn widget_type_to_role(kind: String) -> Option(String) {
+  case kind {
+    "button" -> Some("button")
+    "checkbox" -> Some("check_box")
+    "toggler" -> Some("switch")
+    "radio" -> Some("radio_button")
+    "text_input" -> Some("text_input")
+    "text_editor" -> Some("multiline_text_input")
+    "text" -> Some("label")
+    "rich_text" -> Some("label")
+    "slider" -> Some("slider")
+    "vertical_slider" -> Some("slider")
+    "pick_list" -> Some("combo_box")
+    "combo_box" -> Some("combo_box")
+    "progress_bar" -> Some("progress_indicator")
+    "image" -> Some("image")
+    "svg" -> Some("image")
+    "qr_code" -> Some("image")
+    "scrollable" -> Some("scroll_view")
+    "container" -> Some("generic_container")
+    "column" -> Some("generic_container")
+    "row" -> Some("generic_container")
+    "stack" -> Some("generic_container")
+    "grid" -> Some("generic_container")
+    "pane_grid" -> Some("generic_container")
+    "table" -> Some("table")
+    "canvas" -> Some("canvas")
+    "rule" -> Some("separator")
+    _ -> None
+  }
+}
+
+fn check_missing_accessible_name(node: Node) -> Nil {
+  case requires_accessible_name(node.kind), has_accessible_name(node) {
+    True, False ->
+      platform.log_warning(
+        "plushie a11y: missing_accessible_name: "
+        <> node.kind
+        <> " \""
+        <> node.id
+        <> "\" has no label, text child, a11y.label, or a11y.labelled_by; "
+        <> "screen readers will announce no name",
+      )
+    _, _ -> Nil
+  }
+  list.each(node.children, check_missing_accessible_name)
+}
+
+fn requires_accessible_name(kind: String) -> Bool {
+  case kind {
+    "button" | "toggler" | "checkbox" | "pointer_area" -> True
+    _ -> False
+  }
+}
+
+fn has_accessible_name(node: Node) -> Bool {
+  case dict.get(node.props, "label") {
+    Ok(StringVal(s)) if s != "" -> True
+    _ ->
+      case dict.get(node.props, "a11y") {
+        Ok(DictVal(a11y)) ->
+          a11y_has_name(a11y) || has_text_child(node.children)
+        _ -> has_text_child(node.children)
+      }
+  }
+}
+
+fn a11y_has_name(a11y: Dict(String, PropValue)) -> Bool {
+  case dict.get(a11y, "label") {
+    Ok(StringVal(s)) if s != "" -> True
+    _ ->
+      case dict.get(a11y, "labelled_by") {
+        Ok(StringVal(s)) if s != "" -> True
+        _ -> False
+      }
+  }
+}
+
+fn has_text_child(children: List(Node)) -> Bool {
+  list.any(children, fn(child) {
+    case child.kind, dict.get(child.props, "content") {
+      "text", Ok(StringVal(s)) if s != "" -> True
+      _, _ -> has_text_child(child.children)
+    }
+  })
 }
 
 // --- Diff --------------------------------------------------------------------
