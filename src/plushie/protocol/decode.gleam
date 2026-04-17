@@ -424,7 +424,7 @@ fn dispatch(
     "event" -> decode_event(map)
     "effect_response" -> decode_effect_response(map)
     "op_query_response" -> decode_op_query_response(map)
-    "effect_stub_registered" | "effect_stub_unregistered" -> {
+    "effect_stub_register_ack" | "effect_stub_unregister_ack" -> {
       use kind <- result.try(get_string(map, "kind"))
       Ok(EffectStubAck(kind:))
     }
