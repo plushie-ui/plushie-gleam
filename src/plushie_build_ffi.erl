@@ -19,7 +19,8 @@
     read_file/1,
     file_exists/1,
     project_name/0,
-    get_cwd/0
+    get_cwd/0,
+    run_command/2
 ]).
 
 %% Check if an executable is on PATH (Gleam-facing, takes binary).
@@ -251,3 +252,23 @@ find_name([Line | Rest]) ->
 get_cwd() ->
     {ok, Cwd} = file:get_cwd(),
     list_to_binary(Cwd).
+
+%% Run an arbitrary command with args. Combined stdout/stderr captured.
+%% Returns {ok, Output} on status 0, {error, Output} otherwise.
+run_command(Cmd, Args) ->
+    CmdStr = binary_to_list(Cmd),
+    Exe = case filename:dirname(CmdStr) of
+        "." ->
+            case os:find_executable(CmdStr) of
+                false -> error({executable_not_found, CmdStr});
+                Found -> Found
+            end;
+        _ ->
+            CmdStr
+    end,
+    ArgStrs = [binary_to_list(A) || A <- Args],
+    Port = erlang:open_port({spawn_executable, Exe}, [
+        {args, ArgStrs},
+        stream, binary, exit_status, use_stdio, stderr_to_stdout
+    ]),
+    collect_port_output(Port, <<>>).
