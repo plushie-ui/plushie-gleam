@@ -1,14 +1,21 @@
 //// Build a safe environment for the renderer Port child process.
 ////
 //// Erlang ports inherit the parent process environment by default,
-//// which can leak sensitive variables. This module builds a whitelist
-//// of display, rendering, and system variables and actively unsets
-//// everything else via `{Name, false}` in the port `:env` option.
+//// which can leak sensitive variables (API keys, tokens, database
+//// URLs). This module builds the canonical plushie whitelist and
+//// actively unsets everything else via `{Name, false}` in the port
+//// `:env` option.
+////
+//// The whitelist matches the canonical list shared across every host
+//// SDK: exact entries for display/rendering/locale/accessibility/font
+//// vars, prefix entries for families (`LC_`, `MESA_`, ...), and the
+//// `PLUSHIE_` prefix for plushie-reserved debug toggles.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/set.{type Set}
 import gleam/string
 
 @target(erlang)
@@ -35,27 +42,30 @@ pub fn default_opts() -> EnvOpts {
   EnvOpts(rust_log: None, extra: dict.new())
 }
 
-/// Whitelisted environment variable prefixes.
-/// Variables matching these prefixes are included in the child env.
-const allowed_prefixes = [
-  // Display
-  "DISPLAY", "WAYLAND_",
-  // GPU/Rendering
-  "WGPU_", "MESA_", "LIBGL_", "VK_", "GALLIUM_", "DRI_",
-  // System
-  "PATH", "LD_LIBRARY_PATH", "HOME", "USER", "SHELL",
-  // Locale
-  "LANG", "LC_", "LANGUAGE",
-  // Accessibility
-  "DBUS_", "AT_SPI_",
-  // Fonts
-  "FONTCONFIG_",
-  // XDG
-  "XDG_",
+/// Exact variable names to forward. Canonical list shared across SDKs.
+const allowed_exact = [
+  "DISPLAY", "WAYLAND_DISPLAY", "WAYLAND_SOCKET", "WINIT_UNIX_BACKEND",
+  "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_DATA_HOME", "PATH", "LD_LIBRARY_PATH",
+  "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LANG", "LANGUAGE",
+  "DBUS_SESSION_BUS_ADDRESS", "GTK_MODULES", "NO_AT_BRIDGE", "WGPU_BACKEND",
+  "RUST_LOG", "RUST_BACKTRACE", "HOME", "USER",
 ]
 
-fn is_allowed(key: String) -> Bool {
-  list.any(allowed_prefixes, fn(prefix) { string.starts_with(key, prefix) })
+/// Prefixes: any variable starting with one of these is forwarded.
+/// `PLUSHIE_` catches plushie-reserved debug toggles without per-var
+/// maintenance (e.g. `PLUSHIE_NO_CATCH_UNWIND`).
+const allowed_prefixes = [
+  "LC_", "MESA_", "LIBGL_", "__GLX_", "VK_", "GALLIUM_", "AT_SPI_",
+  "FONTCONFIG_", "PLUSHIE_",
+]
+
+/// Returns True if `key` is on the canonical whitelist.
+pub fn is_allowed(key: String) -> Bool {
+  case list.contains(allowed_exact, key) {
+    True -> True
+    False ->
+      list.any(allowed_prefixes, fn(prefix) { string.starts_with(key, prefix) })
+  }
 }
 
 @target(erlang)
@@ -89,9 +99,10 @@ pub fn build(opts: EnvOpts) -> List(EnvEntry) {
     dict.to_list(allowed)
     |> list.map(fn(pair) { Set(key: pair.0, value: pair.1) })
 
+  let allowed_keys: Set(String) = set.from_list(dict.keys(allowed))
   let unset_entries =
     dict.to_list(env)
-    |> list.filter(fn(pair) { !dict.has_key(allowed, pair.0) })
+    |> list.filter(fn(pair) { !set.contains(allowed_keys, pair.0) })
     |> list.map(fn(pair) { Unset(key: pair.0) })
 
   list.append(set_entries, unset_entries)
