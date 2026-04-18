@@ -275,32 +275,23 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
 
 @target(erlang)
 fn start_pooled(app: App(model, Event), pool: PoolSubject) -> TestSession(model) {
-  // If there's already a session from an earlier test in the same
-  // process (eunit runs tests within a module in one process),
-  // send a reset to the renderer to clear its state. Then reuse
-  // the existing session ID rather than registering a new one.
-  let session_id = case get_pool_session() {
+  // If this test process already owns a session from an earlier test
+  // (eunit runs tests within a module in one process), unregister the
+  // old session first. The renderer marks sessions as "closing" after
+  // a reset and rejects new traffic on the same session ID until
+  // `session_closed` arrives; the only safe way to re-run is to get a
+  // fresh session ID. Unregister removes the pool's owner mapping so
+  // the subsequent register call creates a new session.
+  case get_pool_session() {
     Ok(#(prev_pool, prev_id)) -> {
-      let reset_msg = dict.from_list([#("type", node.StringVal("reset"))])
-      case
-        session_pool.send_message(
-          prev_pool,
-          prev_id,
-          reset_msg,
-          "reset_response",
-        )
-      {
-        Ok(_) -> Nil
-        Error(_) -> Nil
-      }
-      prev_id
+      session_pool.unregister(prev_pool, prev_id)
+      erase_pool_session()
     }
-    Error(_) -> {
-      let id = session_pool.register(pool)
-      put_pool_session(pool, id)
-      id
-    }
+    Error(_) -> Nil
   }
+
+  let session_id = session_pool.register(pool)
+  put_pool_session(pool, session_id)
 
   let sess = session.start(app)
 
@@ -359,48 +350,75 @@ fn do_interact(
       #("payload", node.DictVal(payload)),
     ])
 
-  // Send interact through pool (blocking for response)
+  // Send interact through pool. Intermediate interact_step messages and
+  // the final interact_response are forwarded back as process messages.
   let _req_id = session_pool.send_interact(pool_ref, session_id, msg)
 
-  // Wait for interact_response (which comes as a process message)
-  let events = wait_for_interact_response(5000)
-
-  // Process the events through the local Elm loop
-  dispatch_events(sess, events)
+  // Drive the interact loop: headless mode emits `interact_step` between
+  // iced event batches and blocks waiting for a fresh snapshot before the
+  // next batch. Apply each batch locally, then post the new snapshot so
+  // the renderer can unblock. Terminates on `interact_response`.
+  //
+  // Mock mode uses synthetic events for most actions, in which case the
+  // renderer emits a single `interact_response` with all events and no
+  // intermediate `interact_step`s; this loop still handles that path
+  // correctly by exiting on the first (response, ...) message.
+  interact_loop(sess, pool_ref, session_id)
 }
 
 @target(erlang)
-fn dispatch_events(
+fn interact_loop(
+  sess: TestSession(model),
+  pool_ref: PoolSubject,
+  session_id: String,
+) -> TestSession(model) {
+  case receive_interact_message(5000) {
+    InteractStep(events) -> {
+      let new_sess =
+        apply_events_and_snapshot(sess, events, pool_ref, session_id)
+      interact_loop(new_sess, pool_ref, session_id)
+    }
+    InteractResponse(events) ->
+      apply_events_and_snapshot(sess, events, pool_ref, session_id)
+    InteractTimeout -> sess
+  }
+}
+
+@target(erlang)
+/// Apply the events from one interact batch to the local session, then
+/// send the resulting tree as a snapshot back to the renderer. The
+/// renderer is blocked waiting for this snapshot between interact_steps
+/// in headless mode. For mock mode it is a no-op update but remains
+/// cheap and keeps behaviour uniform.
+fn apply_events_and_snapshot(
   sess: TestSession(model),
   events: List(Dynamic),
+  pool_ref: PoolSubject,
+  session_id: String,
 ) -> TestSession(model) {
-  list.fold(events, sess, fn(acc, event_data) {
-    let family = dyn_string_field(event_data, "family", "")
-    let id = dyn_string_field(event_data, "id", "")
-    case family {
-      "" -> acc
-      _ -> {
-        let event_dict = dyn_to_string_dict(event_data)
-        case event_decoder.decode_test_event(family, id, event_dict) {
-          Ok(event) -> {
-            let new_sess = session.send_event(acc, event)
-
-            // Send snapshot after each event (matches production behaviour)
-            let #(pool_ref, session_id) = require_pool_session()
-            let snapshot =
-              dict.from_list([
-                #("type", node.StringVal("snapshot")),
-                #("tree", tree_to_prop_value(session.current_tree(new_sess))),
-              ])
-            session_pool.send_async(pool_ref, session_id, snapshot)
-
-            new_sess
+  let new_sess =
+    list.fold(events, sess, fn(acc, event_data) {
+      let family = dyn_string_field(event_data, "family", "")
+      let id = dyn_string_field(event_data, "id", "")
+      case family {
+        "" -> acc
+        _ -> {
+          let event_dict = dyn_to_string_dict(event_data)
+          case event_decoder.decode_test_event(family, id, event_dict) {
+            Ok(event) -> session.send_event(acc, event)
+            Error(_) -> acc
           }
-          Error(_) -> acc
         }
       }
-    }
-  })
+    })
+
+  let snapshot =
+    dict.from_list([
+      #("type", node.StringVal("snapshot")),
+      #("tree", tree_to_prop_value(session.current_tree(new_sess))),
+    ])
+  session_pool.send_async(pool_ref, session_id, snapshot)
+  new_sess
 }
 
 // -- Selector encoding --------------------------------------------------------
@@ -646,8 +664,19 @@ fn get_pool_session() -> Result(#(PoolSubject, String), Nil)
 fn erase_pool_session() -> Nil
 
 @target(erlang)
-@external(erlang, "plushie_test_pooled_ffi", "wait_for_interact_response")
-fn wait_for_interact_response(timeout: Int) -> List(Dynamic)
+/// One interact batch from the renderer. `InteractStep` is an
+/// intermediate batch that must be followed by a snapshot back to
+/// the renderer; `InteractResponse` is the final batch. `InteractTimeout`
+/// indicates the renderer failed to reply in time.
+pub type InteractBatch {
+  InteractStep(events: List(Dynamic))
+  InteractResponse(events: List(Dynamic))
+  InteractTimeout
+}
+
+@target(erlang)
+@external(erlang, "plushie_test_pooled_ffi", "receive_interact_message")
+fn receive_interact_message(timeout: Int) -> InteractBatch
 
 @target(erlang)
 import plushie/testing/element

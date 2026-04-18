@@ -2,7 +2,7 @@
 
 -export([monitor_process/1, demonitor_process/1, send_to_pid/2,
          pid_to_string/1, string_starts_with/2,
-         get_pool/0, put_pool/1]).
+         get_pool/0, put_pool/1, extract_down_pid/1]).
 
 monitor_process(Pid) ->
     erlang:monitor(process, Pid).
@@ -37,3 +37,10 @@ get_pool() ->
 put_pool(Pool) ->
     persistent_term:put(plushie_test_pool, Pool),
     nil.
+
+%% Extract the Pid from a `{'DOWN', MonitorRef, process, Pid, Reason}` message.
+%% Returns {ok, Pid} for matching tuples, {error, nil} otherwise.
+extract_down_pid({'DOWN', _Ref, process, Pid, _Reason}) when is_pid(Pid) ->
+    {ok, Pid};
+extract_down_pid(_) ->
+    {error, nil}.

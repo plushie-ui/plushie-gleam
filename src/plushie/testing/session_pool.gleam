@@ -523,30 +523,61 @@ fn handle_send_interact(
 }
 
 @target(erlang)
+/// Clean up the session (and its owner tracking) owned by a dead pid.
+/// The argument here is the stringified pid from the DOWN message;
+/// look up the real session id via the reverse map. Without this
+/// handler a test process that exits without calling `unregister`
+/// (panic, assertion failure, process crash, gleeunit moving to the
+/// next test) permanently holds a slot until the pool hits
+/// `max_sessions` and new tests start failing.
 fn handle_owner_down(
   state: PoolState,
-  session_id: String,
+  pid_key: String,
 ) -> actor.Next(PoolState, PoolMessage) {
-  // Clean up owner tracking
-  let owners = case dict.get(state.sessions, session_id) {
-    Ok(entry) -> dict.delete(state.owners, pid_to_string(entry.owner))
-    Error(_) -> state.owners
+  case dict.get(state.owners, pid_key) {
+    Error(_) -> actor.continue(state)
+    Ok(session_id) -> {
+      // Free renderer-side resources. Fire-and-forget: the test owner
+      // is already gone, so there is no one to reply to. The renderer
+      // accepts a reset for an unknown session as a no-op, so it is
+      // safe even if our view of state is ahead of the renderer's.
+      let req_id = "down_" <> int.to_string(state.next_id)
+      let reset_msg =
+        dict.from_list([
+          #("type", node.StringVal("reset")),
+          #("session", node.StringVal(session_id)),
+          #("id", node.StringVal(req_id)),
+        ])
+      send_to_port(state.port, state.format, reset_msg)
+
+      let owners = dict.delete(state.owners, pid_key)
+      let sessions = dict.delete(state.sessions, session_id)
+
+      // Fail any pending requests issued by this dead session; the
+      // original caller can't receive the reply anyway, and leaving
+      // the entries would strand the pending map.
+      let pending =
+        dict.fold(state.pending, state.pending, fn(acc, key, pv) {
+          case starts_with_session(key, session_id) {
+            True -> {
+              pv.on_error("session owner died")
+              dict.delete(acc, key)
+            }
+            False -> acc
+          }
+        })
+
+      actor.continue(
+        PoolState(
+          ..state,
+          sessions:,
+          owners:,
+          pending:,
+          next_id: state.next_id + 1,
+        ),
+      )
+    }
   }
-  let sessions = dict.delete(state.sessions, session_id)
-
-  // Fail any pending requests for this dead session
-  let pending =
-    dict.fold(state.pending, state.pending, fn(acc, key, pv) {
-      case starts_with_session(key, session_id) {
-        True -> {
-          pv.on_error("session owner died")
-          dict.delete(acc, key)
-        }
-        False -> acc
-      }
-    })
-
-  actor.continue(PoolState(..state, sessions:, owners:, pending:))
 }
 
 // ---------------------------------------------------------------------------
@@ -700,23 +731,32 @@ fn send_to_port(
 
 @target(erlang)
 fn classify_port_message(format: protocol.Format, msg: Dynamic) -> PoolMessage {
-  case format {
-    protocol.Json ->
-      case renderer_port.extract_line_data(msg) {
-        Ok(line_data) -> PortLineData(line_data:)
-        Error(_) ->
-          case renderer_port.extract_exit_status(msg) {
-            Ok(status) -> PortExit(status:)
-            Error(_) -> PortData(data: msg)
+  // DOWN messages from monitored session owners arrive as plain Erlang
+  // tuples: {'DOWN', MonitorRef, process, Pid, Reason}. Detect those
+  // first so dead sessions get released back to the pool; otherwise
+  // a test process that exits without calling unregister leaks its
+  // session and `max_sessions` is eventually exhausted.
+  case extract_down_pid(msg) {
+    Ok(pid) -> OwnerDown(session_id: pid_to_string(pid))
+    Error(_) ->
+      case format {
+        protocol.Json ->
+          case renderer_port.extract_line_data(msg) {
+            Ok(line_data) -> PortLineData(line_data:)
+            Error(_) ->
+              case renderer_port.extract_exit_status(msg) {
+                Ok(status) -> PortExit(status:)
+                Error(_) -> PortData(data: msg)
+              }
           }
-      }
-    protocol.Msgpack ->
-      case renderer_port.extract_port_data(msg) {
-        Ok(data) -> PortData(data:)
-        Error(_) ->
-          case renderer_port.extract_exit_status(msg) {
-            Ok(status) -> PortExit(status:)
-            Error(_) -> PortData(data: msg)
+        protocol.Msgpack ->
+          case renderer_port.extract_port_data(msg) {
+            Ok(data) -> PortData(data:)
+            Error(_) ->
+              case renderer_port.extract_exit_status(msg) {
+                Ok(status) -> PortExit(status:)
+                Error(_) -> PortData(data: msg)
+              }
           }
       }
   }
@@ -779,6 +819,12 @@ fn pid_to_string(pid: Pid) -> String
 /// Check if a string starts with a prefix.
 @external(erlang, "plushie_test_pool_ffi", "string_starts_with")
 fn string_starts_with(str: String, prefix: String) -> Bool
+
+@target(erlang)
+/// Extract the pid from a `{'DOWN', Ref, process, Pid, Reason}` message.
+/// Returns `Error(Nil)` for any other shape.
+@external(erlang, "plushie_test_pool_ffi", "extract_down_pid")
+fn extract_down_pid(msg: Dynamic) -> Result(Pid, Nil)
 
 @target(erlang)
 /// Find plushie binary (re-export from binary module).

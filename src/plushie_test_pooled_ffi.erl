@@ -1,7 +1,7 @@
 -module(plushie_test_pooled_ffi).
 
 -export([put_pool_session/2, get_pool_session/0, erase_pool_session/0,
-         wait_for_interact_response/1]).
+         receive_interact_message/1]).
 
 put_pool_session(Pool, SessionId) ->
     put(plushie_pool_session, {Pool, SessionId}),
@@ -17,49 +17,40 @@ erase_pool_session() ->
     erase(plushie_pool_session),
     nil.
 
-%% Wait for interact_step and interact_response messages from the pool.
-%% Collects all interact_step event batches, then the final interact_response.
-%% Returns the combined list of event maps.
-wait_for_interact_response(Timeout) ->
-    collect_interact_events(Timeout, []).
-
-debug_mailbox() ->
-    {messages, Msgs} = process_info(self(), messages),
-    io:format("~n[DEBUG] mailbox has ~p messages:~n", [length(Msgs)]),
-    lists:foreach(fun(M) ->
-        case M of
-            {Tag, _Sid, _D} ->
-                io:format("  tag=~p~n", [Tag]);
-            Other ->
-                io:format("  other=~p~n", [Other])
-        end
-    end, Msgs).
-
-collect_interact_events(Timeout, Acc) ->
+%% Receive a single interact_step or interact_response message.
+%%
+%% The headless renderer emits one or more `interact_step` messages during
+%% an interaction (each after an iced event batch) and blocks waiting for a
+%% fresh snapshot between each step. The final message in the sequence is
+%% `interact_response`. The caller processes the events from each step,
+%% sends a snapshot back to the renderer, then calls this again for the
+%% next message until it sees a `response`.
+%%
+%% Returns one of:
+%%   {step, Events}     -- intermediate step; caller must send a snapshot
+%%                         before calling this again
+%%   {response, Events} -- final response; the interaction is complete
+%%   timeout            -- no message arrived before the deadline (the
+%%                         renderer is likely stuck or crashed)
+receive_interact_message(Timeout) ->
     receive
-        %% Gleam record: {pool_event_interact_step, _SessionId, Data}
         {pool_event_interact_step, _SessionId, Data} ->
-            Events = extract_events(Data),
-            collect_interact_events(Timeout, Acc ++ Events);
-        %% Gleam record: {pool_event_interact_response, _SessionId, Data}
+            {interact_step, extract_events(Data)};
         {pool_event_interact_response, _SessionId, Data} ->
-            Events = extract_events(Data),
-            Acc ++ Events;
+            {interact_response, extract_events(Data)};
         %% Also handle the raw tagged tuple from session_pool forwarding
-        {plushie_pool_event, _SessionId, #{<<"type">> := <<"interact_step">>, <<"events">> := Events}} ->
-            collect_interact_events(Timeout, Acc ++ Events);
-        {plushie_pool_event, _SessionId, #{<<"type">> := <<"interact_response">>, <<"events">> := Events}} ->
-            Acc ++ Events
+        %% in case the Gleam record wrapper is bypassed.
+        {plushie_pool_event, _SessionId,
+            #{<<"type">> := <<"interact_step">>, <<"events">> := Events}} ->
+            {interact_step, Events};
+        {plushie_pool_event, _SessionId,
+            #{<<"type">> := <<"interact_response">>, <<"events">> := Events}} ->
+            {interact_response, Events};
+        {plushie_pool_event, _SessionId,
+            #{<<"type">> := <<"interact_response">>}} ->
+            {interact_response, []}
     after Timeout ->
-        %% Debug: peek at the next message in the mailbox
-        {messages, Msgs} = process_info(self(), messages),
-        case Msgs of
-            [] -> ok;
-            [First|_] ->
-                io:format("~n[DEBUG] timeout after ~pms, ~p msgs in mailbox, first: ~p~n",
-                          [Timeout, length(Msgs), First])
-        end,
-        Acc
+        interact_timeout
     end.
 
 extract_events(Data) when is_map(Data) ->
