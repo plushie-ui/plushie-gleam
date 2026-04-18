@@ -492,10 +492,37 @@ fn generate_main_rs(widgets: List(NativeWidgetConfig)) -> String {
 
 @target(erlang)
 fn forward_patches(abs_source: String) -> String {
-  let cargo_toml_path = abs_source <> "/Cargo.toml"
-  case read_file(cargo_toml_path) {
-    Ok(content) -> extract_and_resolve_patches(content, abs_source)
-    Error(_) -> ""
+  // Sources of [patch.crates-io] entries to forward:
+  //   1. Cargo.toml (committed, for published workspace patches)
+  //   2. .cargo/config.toml (gitignored local dev overrides, e.g. plushie-iced)
+  [abs_source <> "/Cargo.toml", abs_source <> "/.cargo/config.toml"]
+  |> list.map(fn(path) {
+    case read_file(path) {
+      Ok(content) -> extract_and_resolve_patches(content, abs_source)
+      Error(_) -> ""
+    }
+  })
+  |> list.filter(fn(section) { section != "" })
+  |> merge_patch_sections
+}
+
+@target(erlang)
+fn merge_patch_sections(sections: List(String)) -> String {
+  case sections {
+    [] -> ""
+    [only] -> only
+    _ -> {
+      let bodies =
+        sections
+        |> list.map(fn(section) {
+          section
+          |> string.replace("[patch.crates-io]\n", "")
+          |> string.trim_end
+        })
+        |> list.filter(fn(body) { body != "" })
+        |> string.join("\n")
+      "[patch.crates-io]\n" <> bodies <> "\n"
+    }
   }
 }
 
@@ -743,7 +770,7 @@ fn build_wasm(
 
   let source_dir = resolve_source_path()
 
-  let wasm_crate = source_dir <> "/plushie-renderer-wasm"
+  let wasm_crate = source_dir <> "/crates/plushie-renderer-wasm"
 
   case dir_exists(wasm_crate) {
     False -> {
