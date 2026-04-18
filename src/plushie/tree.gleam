@@ -105,10 +105,12 @@ fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
 /// - Named (non-empty-ID) non-window nodes create scope boundaries.
 ///   Deeper descendants get `window#parent/child` (the `#` separator
 ///   only appears at the window boundary).
-/// - Empty-ID nodes don't create scope boundaries.
+/// - Nodes with an empty `id` are assigned an auto-ID of the form
+///   `auto:<kind>:<index>` and are transparent to scoping (like other
+///   auto-IDs).
 pub fn normalize(node: Node) -> Node {
   let ctx = new_ctx(widget.empty_registry(), dict.new())
-  let #(normalized, _ctx) = normalize_ctx(node, ctx)
+  let #(normalized, _ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   post_normalize(normalized)
 }
 
@@ -156,7 +158,7 @@ pub fn normalize_with_memo(
   prev_memo_cache: MemoCache,
 ) -> NormalizeResult {
   let ctx = new_ctx(registry, prev_memo_cache)
-  let #(normalized, ctx) = normalize_ctx(node, ctx)
+  let #(normalized, ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   NormalizeResult(
     tree: post_normalize(normalized),
     memo_cache: ctx.new_cache,
@@ -169,7 +171,7 @@ pub fn normalize_with_memo(
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
   let ctx = new_ctx(registry, dict.new())
-  let #(normalized, _ctx) = normalize_ctx(node, ctx)
+  let #(normalized, _ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   post_normalize(normalized)
 }
 
@@ -191,14 +193,13 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
     _ -> ctx
   }
 
-  // Validate user-provided IDs (skip auto-generated IDs starting with "auto:")
-  case node.id {
-    "" -> Nil
-    id ->
-      case string.starts_with(id, "auto:") {
-        True -> Nil
-        False -> validate_user_id(id)
-      }
+  // Validate user-provided IDs. Auto-IDs (assigned by `assign_auto_id`
+  // for nodes the host left with an empty id) are exempt. Empty IDs
+  // never reach here because entry points and `normalize_children`
+  // stamp an `auto:<kind>:<index>` id first.
+  case string.starts_with(node.id, "auto:") {
+    True -> Nil
+    False -> validate_user_id(node.id)
   }
 
   let scoped_id = apply_scope(node.id, ctx.scope)
@@ -295,10 +296,13 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
               // The rendered node already has the scoped_id set and metadata
               // attached. Normalize its children at the same scope position
               // and resolve a11y references in its props.
-              let child_scope = case rendered_node.kind, rendered_node.id {
-                "window", _ -> scoped_id <> "#"
-                _, "" -> ctx.scope
-                _, _ -> scoped_id
+              let child_scope = case rendered_node.kind {
+                "window" -> scoped_id <> "#"
+                _ ->
+                  case string.starts_with(rendered_node.id, "auto:") {
+                    True -> ctx.scope
+                    False -> scoped_id
+                  }
               }
               // Forward standard widget props (a11y, event_rate) from the
               // placeholder to the rendered output so widget authors don't
@@ -338,11 +342,15 @@ fn normalize_regular(
   scoped_id: String,
   ctx: NormalizeCtx,
 ) -> #(Node, NormalizeCtx) {
-  // Windows set child scope to "window_id#"; empty IDs are transparent.
-  let child_scope = case node.kind, node.id {
-    "window", _ -> scoped_id <> "#"
-    _, "" -> ctx.scope
-    _, _ -> scoped_id
+  // Windows set child scope to "window_id#". Auto-ID nodes (transparent)
+  // pass the parent scope through; named nodes create a scope boundary.
+  let child_scope = case node.kind {
+    "window" -> scoped_id <> "#"
+    _ ->
+      case string.starts_with(node.id, "auto:") {
+        True -> ctx.scope
+        False -> scoped_id
+      }
   }
 
   let props = resolve_a11y_refs(node.props, ctx.scope)
@@ -369,17 +377,32 @@ fn normalize_regular(
 /// Fold over children, threading the memo cache through each recursive
 /// normalize_ctx call so earlier siblings' cache entries are visible to
 /// later siblings.
+///
+/// Children with an empty `id` are assigned an auto-ID of the form
+/// `auto:<kind>:<index>` before recursing; the sibling index keeps
+/// them unique without creating a scope boundary.
 fn normalize_children(
   children: List(Node),
   ctx: NormalizeCtx,
 ) -> #(List(Node), NormalizeCtx) {
-  let #(children_rev, ctx) =
-    list.fold(children, #([], ctx), fn(acc, child) {
-      let #(kids, ctx) = acc
+  let #(_idx, children_rev, ctx) =
+    list.fold(children, #(0, [], ctx), fn(acc, child) {
+      let #(idx, kids, ctx) = acc
+      let child = assign_auto_id(child, idx)
       let #(normalized_child, ctx) = normalize_ctx(child, ctx)
-      #([normalized_child, ..kids], ctx)
+      #(idx + 1, [normalized_child, ..kids], ctx)
     })
   #(list.reverse(children_rev), ctx)
+}
+
+/// Replace an empty `id` with `auto:<kind>:<index>` so the node is
+/// recognised as an auto-ID (transparent to scoping, exempt from user-ID
+/// validation). Named nodes pass through unchanged.
+fn assign_auto_id(node: Node, index: Int) -> Node {
+  case node.id {
+    "" -> Node(..node, id: "auto:" <> node.kind <> ":" <> int.to_string(index))
+    _ -> node
+  }
 }
 
 /// Normalize a memo node's first child and cache the result.
@@ -470,7 +493,7 @@ fn normalize_memo_fresh(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) 
     }
     [] -> #(
       Node(
-        id: "",
+        id: "auto:container:0",
         kind: "container",
         props: dict.new(),
         children: [],
@@ -538,10 +561,20 @@ fn infer_radio_a11y(children: List(Node)) -> List(Node) {
   }
 }
 
-/// Validate a user-provided widget ID. Called for non-auto-generated,
-/// non-empty IDs during normalization. Panics on invalid IDs
-/// (programming error).
+/// Validate a user-provided widget ID. Called for non-auto-generated
+/// IDs during normalization. Panics on invalid IDs (programming error).
+///
+/// Rules (canonical, shared across all host SDKs):
+/// - Must not be empty
+/// - Must not contain `/` (reserved for scope separators)
+/// - Must not contain `#` (reserved for window-qualified paths)
+/// - Must not exceed 1024 bytes
+/// - Must contain only printable ASCII (0x21-0x7E)
 fn validate_user_id(id: String) -> Nil {
+  case id {
+    "" -> panic as "widget ID must not be empty"
+    _ -> Nil
+  }
   case string.contains(id, "/") {
     True ->
       panic as {
@@ -593,11 +626,17 @@ fn apply_scope(id: String, scope: String) -> String {
     "", _ -> id
     _, "" -> id
     _, _ ->
-      case string.ends_with(scope, "#") {
-        // Window boundary: scope is "window#", join without "/"
-        True -> scope <> id
-        // Normal scope: join with "/"
-        False -> scope <> "/" <> id
+      // Auto-IDs are transparent: they stay as-is regardless of scope
+      // so they neither create a scope boundary nor get prefixed.
+      case string.starts_with(id, "auto:") {
+        True -> id
+        False ->
+          case string.ends_with(scope, "#") {
+            // Window boundary: scope is "window#", join without "/"
+            True -> scope <> id
+            // Normal scope: join with "/"
+            False -> scope <> "/" <> id
+          }
       }
   }
 }

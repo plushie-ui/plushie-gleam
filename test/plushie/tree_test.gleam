@@ -1,6 +1,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option
+import gleam/string
 import gleeunit/should
 import plushie/node.{BoolVal, DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
@@ -85,7 +86,8 @@ pub fn normalize_empty_id_does_not_create_scope_boundary_test() {
   let result = tree.normalize(root)
   let assert [anon_result] = result.children
   let assert [leaf_result] = anon_result.children
-  should.equal(anon_result.id, "")
+  // Empty IDs are assigned an auto-ID (transparent to scoping).
+  should.equal(anon_result.id, "auto:container:0")
   should.equal(leaf_result.id, "root/leaf")
 }
 
@@ -232,10 +234,39 @@ pub fn normalize_rejects_hash_in_user_id_test() {
   |> should.be_error
 }
 
-pub fn normalize_no_warning_on_empty_id_test() {
+pub fn normalize_rejects_non_printable_ascii_in_user_id_test() {
+  // Space (0x20) is below the printable range.
+  let n = node.new("bad id", "button")
+  platform.try_call(fn() { tree.normalize(n) })
+  |> should.be_error
+}
+
+pub fn normalize_rejects_non_ascii_in_user_id_test() {
+  // Non-ASCII codepoints (here the sharp s) are rejected.
+  let n = node.new("stra\u{00df}e", "button")
+  platform.try_call(fn() { tree.normalize(n) })
+  |> should.be_error
+}
+
+pub fn normalize_rejects_oversized_user_id_test() {
+  // 1025 ASCII 'a' bytes exceeds the 1024-byte cap.
+  let oversized = string.repeat("a", 1025)
+  let n = node.new(oversized, "button")
+  platform.try_call(fn() { tree.normalize(n) })
+  |> should.be_error
+}
+
+pub fn normalize_accepts_exactly_1024_byte_user_id_test() {
+  let at_limit = string.repeat("a", 1024)
+  let n = node.new(at_limit, "button")
+  let result = tree.normalize(n)
+  should.equal(result.id, at_limit)
+}
+
+pub fn normalize_root_empty_id_gets_auto_id_test() {
   let n = node.new("", "container")
   let result = tree.normalize(n)
-  should.equal(result.id, "")
+  should.equal(result.id, "auto:container:0")
 }
 
 pub fn normalize_warns_on_duplicate_sibling_ids_test() {
