@@ -6,6 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **`PLUSHIE_SOURCE_PATH` renamed to `PLUSHIE_RUST_SOURCE_PATH`.**
+  Aligns with plushie-rust's naming. Set the new variable; the old
+  name is no longer read.
+- **`binary_version` in `gleam.toml` renamed to
+  `plushie_rust_version`.** Same value, new key. See the new
+  [versioning reference](docs/reference/versioning.md).
+
+### Changed
+
+- **`plushie/build` delegates to `cargo-plushie`.** Workspace
+  generation and widget wiring moved out of the SDK and into
+  plushie-rust's `cargo-plushie` tool. The SDK now emits a tiny
+  virtual app crate under `_build/plushie-renderer-spec/` and shells
+  out to `cargo plushie build`.
+  - `PLUSHIE_RUST_SOURCE_PATH` set: the build uses
+    `cargo run -p cargo-plushie` from the checkout.
+  - `PLUSHIE_RUST_SOURCE_PATH` unset: `cargo-plushie` is expected on
+    PATH at a version matching `plushie_rust_version`.
+  - Missing or mismatched: `plushie/build` prints the required
+    `cargo install cargo-plushie --version X.Y.Z --locked` command.
+- **Native widget crates must declare
+  `[package.metadata.plushie.widget]`.** Widget discovery now runs
+  through `cargo metadata`. The `crate_path|constructor` string in
+  `gleam.toml` is still parsed for migration compatibility but the
+  widget crate's own `Cargo.toml` is the source of truth.
+  `cargo plushie new-widget <name>` scaffolds this correctly.
+
+### Removed
+
+- Internal FFI functions `cargo_build` and `cargo_build_workspace`.
+- Patch-forwarding helpers (`forward_patches`,
+  `forward_patches_with_sdk`, `extract_and_resolve_patches`,
+  `collect_patch_section`, `resolve_patch_path`,
+  `merge_patch_sections`, `sdk_crate_patches`, `CratePatch`).
+  `cargo-plushie` owns patch forwarding.
+- Hand-rolled constructor / identifier validators; `cargo-plushie`
+  validates.
+
 ## [0.5.0] - 2026-03-23
 
 ### Added

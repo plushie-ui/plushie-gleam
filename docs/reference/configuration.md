@@ -8,11 +8,21 @@ options on `plushie.start`, and the app's `settings` callback.
 | Variable | Purpose |
 |---|---|
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary |
-| `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout for source builds |
+| `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout; makes `plushie/build` invoke `cargo-plushie` from source |
 | `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default), `headless`, or `windowed` |
 | `PLUSHIE_UPDATE_SCREENSHOTS` | Update screenshot golden files |
 | `PLUSHIE_UPDATE_SNAPSHOTS` | Update tree-hash snapshot files |
 | `RUST_LOG` | Renderer log verbosity (e.g. `plushie=debug`) |
+
+The plushie-rust release the SDK targets is declared at the root of
+`gleam.toml`:
+
+```toml
+plushie_rust_version = "0.6.1"
+```
+
+`plushie/build` and `plushie/download` use this value as the pinned
+version. See [versioning](versioning.md).
 
 ## Runtime options (plushie.start)
 

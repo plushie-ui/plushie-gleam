@@ -70,10 +70,13 @@ data visualizations.
 
 When you need rendering capabilities beyond what built-in widgets offer,
 build a native widget backed by Rust using `plushie/native_widget`.
-On the Rust side, implement the `WidgetExtension` trait.
+On the Rust side, implement the `PlushieWidget` trait from
+`plushie-widget-sdk`. Use `cargo plushie new-widget <name>` to
+scaffold a widget crate with the correct layout.
 
-`gleam run -m plushie/build` auto-detects native widgets and builds the
-renderer binary with your widgets registered.
+`gleam run -m plushie/build` hands the project's widget crates to
+`cargo-plushie`, which discovers them via `cargo metadata`, wires
+them into the renderer, and builds the binary.
 
 See the [Custom Widgets reference](../reference/custom-widgets.md) for
 full details.

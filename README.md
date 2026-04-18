@@ -72,8 +72,10 @@ Pin to an exact version and read the
 [CHANGELOG](CHANGELOG.md) carefully when upgrading.
 
 The precompiled binary requires no Rust toolchain. To build from
-source instead, install [rustup](https://rustup.rs/) and run
-`gleam run -m plushie/build`.
+source instead, install [rustup](https://rustup.rs/) and
+[`cargo-plushie`](https://crates.io/crates/cargo-plushie) (see the
+installation hints printed by `plushie/build` if it's not yet on
+PATH), then run `gleam run -m plushie/build`.
 
 The repo includes [several examples](examples/) you can try. Edit
 them while the GUI is running and see changes instantly. See the

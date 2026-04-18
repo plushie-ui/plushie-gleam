@@ -74,10 +74,19 @@ pub fn gauge(id: String, value: Float) -> node.Node {
 ```
 
 On the Rust side, implement the `PlushieWidget` trait from
-`plushie_widget_sdk::prelude::*`.
+`plushie_widget_sdk::prelude::*`. Scaffold a new widget crate with:
 
-`gleam run -m plushie/build` auto-detects native widgets and builds
-the renderer with your widgets registered.
+```
+cargo plushie new-widget my-gauge
+```
+
+This produces the crate layout `cargo-plushie` expects, including
+`[package.metadata.plushie.widget]` in the crate's `Cargo.toml`
+(with `type_name` and `constructor` keys). List the widget crate
+under `[plushie].native_widgets` in `gleam.toml`, then run
+`gleam run -m plushie/build`. The SDK generates a virtual app
+manifest and hands it to `cargo-plushie`, which discovers the
+widget, registers it, and builds the renderer.
 
 ## See also
 
