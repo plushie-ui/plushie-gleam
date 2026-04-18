@@ -1,4 +1,4 @@
-//// Build the plushie binary and/or WASM renderer from source.
+//// Build the plushie renderer binary or WASM bundle.
 ////
 //// Ships in the hex package. Users run:
 ////
@@ -12,30 +12,35 @@
 //// gleam run -m plushie/build -- --wasm-dir PATH      # custom WASM dest
 //// ```
 ////
-//// Requires PLUSHIE_RUST_SOURCE_PATH env var pointing to the plushie Rust
-//// source checkout. Checks Rust toolchain version, runs cargo build,
-//// and installs the binary to build/plushie/bin/. Creates a
-//// bin/plushie symlink. WASM files go to priv/wasm/.
+//// The heavy lifting is delegated to `cargo-plushie`. This module
+//// only prepares a tiny virtual app crate under
+//// `_build/plushie-renderer-spec/` that declares the project's native
+//// widget crates as path dependencies, then shells out to:
 ////
-//// `--bin-file` overrides the default binary destination. The parent
-//// directory is created automatically. `--wasm-dir` overrides the
-//// default WASM output directory (priv/wasm/).
+////   <cargo-plushie> build --manifest-path <virtual>/Cargo.toml [--release]
 ////
-//// ## Native widgets
+//// `cargo-plushie` resolves its workspace under
+//// `_build/plushie-renderer-spec/target/plushie-renderer/`, generates a
+//// `main.rs` registering every widget, and runs `cargo build`.
 ////
-//// When `gleam.toml` contains `native_widgets` entries, the build
-//// generates a Cargo workspace in `_build/plushie-renderer/` with a
-//// custom main.rs that registers each widget extension. The generated
-//// binary is named `{project}-renderer` instead of `plushie-renderer`.
+//// Resolution for `cargo-plushie`:
 ////
-//// ```toml
-//// [plushie]
-//// source_path = "../plushie-rust"
-//// native_widgets = ["native/gauge|gauge::GaugeExtension::new()", "native/sparkline|sparkline::SparklineExtension::new()"]
-//// ```
+//// 1. `PLUSHIE_RUST_SOURCE_PATH` env var points at a plushie-rust
+////    checkout: invoke via `cargo run -p cargo-plushie ...`.
+//// 2. `cargo-plushie` on PATH at matching version: invoke directly.
+//// 3. Fail with install instructions.
 ////
-//// The array must be on a single line (the TOML parser does not
-//// support multi-line arrays).
+//// See `plushie/cargo_plushie` for details.
+////
+//// ## Native widget metadata (important)
+////
+//// Each widget crate listed under `[plushie].native_widgets` in the
+//// project's `gleam.toml` MUST declare
+//// `[package.metadata.plushie.widget]` in its own `Cargo.toml` with
+//// `type_name` and `constructor` keys. `cargo-plushie` discovers
+//// widgets via `cargo metadata` and refuses to build a crate without
+//// that table. Use `cargo plushie new-widget <name>` to scaffold a
+//// widget crate with the correct layout.
 
 @target(erlang)
 import gleam/io
@@ -45,6 +50,8 @@ import gleam/list
 import gleam/string
 @target(erlang)
 import plushie/binary
+@target(erlang)
+import plushie/cargo_plushie.{type CargoPlushie}
 @target(erlang)
 import plushie/config.{type NativeWidgetConfig}
 @target(erlang)
@@ -59,7 +66,6 @@ pub fn main() -> Nil {
   let release = has_flag("--release")
   let verbose = has_flag("--verbose")
 
-  // Resolve paths: CLI flag > gleam.toml [plushie] > default
   let bin_file =
     get_flag_value("--bin-file")
     |> or_config("bin_file")
@@ -67,7 +73,6 @@ pub fn main() -> Nil {
     get_flag_value("--wasm-dir")
     |> or_config("wasm_dir")
 
-  // Only CLI flags (not config paths) imply artifact selection
   let cli_bin_file = get_flag_value("--bin-file")
   let cli_wasm_dir = get_flag_value("--wasm-dir")
   let #(want_bin, want_wasm) = resolve_artifacts(cli_bin_file, cli_wasm_dir)
@@ -93,120 +98,58 @@ fn build_bin(
 ) -> Nil {
   check_rust_toolchain()
 
-  let source_dir = resolve_source_path()
+  let expected_version = require_plushie_rust_version()
+  let tool = require_cargo_plushie(expected_version)
 
-  case dir_exists(source_dir) {
-    False -> {
-      io.println_error(
-        "Error: plushie source not found at " <> source_dir <> ".",
-      )
-      halt(1)
-    }
-    True -> Nil
-  }
-
-  // Check for native widgets configuration
-  let native_widgets = config.get_native_widgets()
-  case native_widgets {
-    [] -> build_stock_bin(source_dir, release, verbose, bin_file_override)
-    _ ->
-      build_with_native_widgets(
-        source_dir,
-        release,
-        verbose,
-        bin_file_override,
-        native_widgets,
-      )
-  }
-}
-
-@target(erlang)
-fn build_stock_bin(
-  source_dir: String,
-  release: Bool,
-  verbose: Bool,
-  bin_file_override: Result(String, Nil),
-) -> Nil {
-  let label = case release {
-    True -> "Building plushie (release)..."
-    False -> "Building plushie..."
-  }
-  io.println(label)
-
-  case cargo_build(source_dir, release) {
-    Ok(output) -> {
-      io.println("Build succeeded.")
-      case verbose {
-        True -> io.println(output)
-        False -> Nil
-      }
-      install_binary(source_dir, release, bin_file_override)
-    }
-    Error(output) -> {
-      io.println_error("Build failed:")
-      io.println_error(output)
-      halt(1)
-    }
-  }
-}
-
-// -- Native widget build ------------------------------------------------------
-
-@target(erlang)
-fn build_with_native_widgets(
-  source_dir: String,
-  release: Bool,
-  verbose: Bool,
-  bin_file_override: Result(String, Nil),
-  widgets: List(NativeWidgetConfig),
-) -> Nil {
-  let proj_name = case project_name() {
-    Ok(name) -> name
-    Error(_) -> "plushie"
-  }
+  let widgets = config.get_native_widgets()
+  let proj_name = project_name() |> result_or("plushie")
   let bin_name = binary.build_name(Ok(proj_name))
 
-  io.println(
-    "Building "
-    <> bin_name
-    <> " with native widgets ("
-    <> string.join(list.map(widgets, fn(w) { w.crate_path }), ", ")
-    <> ")...",
-  )
-
-  // Validate all widget crate paths
-  validate_native_widgets(widgets)
-
   let cwd = get_cwd()
-  let workspace_dir = "_build/plushie-renderer"
-  let src_dir = workspace_dir <> "/src"
-  ensure_dir(workspace_dir)
+  let spec_dir = "_build/plushie-renderer-spec"
+  let src_dir = spec_dir <> "/src"
+  ensure_dir(spec_dir)
   ensure_dir(src_dir)
 
-  // Generate workspace Cargo.toml
-  let cargo_toml = generate_cargo_toml(cwd, source_dir, bin_name, widgets)
-  write_if_changed(workspace_dir <> "/Cargo.toml", cargo_toml)
+  let virtual_cargo_toml =
+    render_virtual_cargo_toml(
+      cwd,
+      proj_name,
+      bin_name,
+      expected_version,
+      widgets,
+    )
+  write_if_changed(spec_dir <> "/Cargo.toml", virtual_cargo_toml)
+  // cargo_metadata refuses a package with no targets. A stub lib.rs
+  // satisfies that without adding a binary of our own; the real
+  // renderer binary is emitted by the workspace cargo-plushie
+  // generates under target/plushie-renderer/.
+  write_if_changed(
+    src_dir <> "/lib.rs",
+    "// Stub for cargo_metadata. Do not edit.\n",
+  )
 
-  // Generate main.rs
-  let main_rs = generate_main_rs(widgets)
-  write_if_changed(src_dir <> "/main.rs", main_rs)
-
-  // Copy Cargo.lock from lockfile stash if available
-  let lock_stash = "native/plushie/Cargo.lock"
-  case file_exists(lock_stash) {
-    True -> copy_file(lock_stash, workspace_dir <> "/Cargo.lock")
-    False -> Nil
-  }
-
-  let manifest_path = cwd <> "/" <> workspace_dir <> "/Cargo.toml"
-
-  let label = case release {
-    True -> "Running cargo build (release)..."
-    False -> "Running cargo build..."
+  let manifest_path = cwd <> "/" <> spec_dir <> "/Cargo.toml"
+  let label = case widgets, release {
+    [], True -> "Building " <> bin_name <> " (release)..."
+    [], False -> "Building " <> bin_name <> "..."
+    _, True ->
+      "Building "
+      <> bin_name
+      <> " with native widgets ("
+      <> string.join(list.map(widgets, fn(w) { w.crate_path }), ", ")
+      <> ", release)..."
+    _, False ->
+      "Building "
+      <> bin_name
+      <> " with native widgets ("
+      <> string.join(list.map(widgets, fn(w) { w.crate_path }), ", ")
+      <> ")..."
   }
   io.println(label)
 
-  case cargo_build_workspace(manifest_path, release, verbose) {
+  let args = build_args(manifest_path, release, verbose)
+  case run_cargo_plushie(tool, args) {
     Ok(output) -> {
       io.println("Build succeeded.")
       case verbose {
@@ -221,474 +164,131 @@ fn build_with_native_widgets(
     }
   }
 
-  // Copy Cargo.lock back to lockfile stash
-  let ws_lock = workspace_dir <> "/Cargo.lock"
-  case file_exists(ws_lock) {
-    True -> {
-      ensure_dir("native/plushie")
-      copy_file(ws_lock, lock_stash)
-      io.println("Saved Cargo.lock to " <> lock_stash)
-    }
-    False -> Nil
+  install_binary_from_spec(spec_dir, bin_name, release, bin_file_override)
+}
+
+@target(erlang)
+fn build_args(
+  manifest_path: String,
+  release: Bool,
+  verbose: Bool,
+) -> List(String) {
+  let base = ["build", "--manifest-path", manifest_path]
+  let base = case release {
+    True -> list.append(base, ["--release"])
+    False -> base
   }
-
-  // Install the built binary
-  install_native_binary(workspace_dir, bin_name, release, bin_file_override)
+  case verbose {
+    True -> list.append(base, ["--verbose"])
+    False -> base
+  }
 }
 
 @target(erlang)
-fn validate_native_widgets(widgets: List(NativeWidgetConfig)) -> Nil {
-  // Validate crate paths exist and contain Cargo.toml
-  list.each(widgets, fn(w) {
-    case dir_exists(w.crate_path) {
-      False -> {
-        io.println_error(
-          "Error: native widget crate not found at " <> w.crate_path,
-        )
-        halt(1)
-      }
-      True -> Nil
-    }
-    let cargo_path = w.crate_path <> "/Cargo.toml"
-    case file_exists(cargo_path) {
-      False -> {
-        io.println_error("Error: Cargo.toml not found at " <> cargo_path)
-        halt(1)
-      }
-      True -> Nil
-    }
-  })
-
-  // Validate constructor expressions match expected pattern
-  list.each(widgets, fn(w) {
-    case validate_constructor(w.constructor) {
-      True -> Nil
-      False -> {
-        io.println_error(
-          "Error: invalid constructor expression: " <> w.constructor,
-        )
-        io.println_error(
-          "Expected format: module::Type::method() "
-          <> "(e.g. gauge::GaugeExtension::new())",
-        )
-        halt(1)
-      }
-    }
-  })
-
-  // Check for duplicate crate basenames
-  let basenames = list.map(widgets, fn(w) { basename(w.crate_path) })
-  check_duplicates(basenames, [])
-}
-
-@target(erlang)
-fn validate_constructor(ctor: String) -> Bool {
-  // Must end with "()" and contain at least one identifier segment
-  case string.ends_with(ctor, "()") {
-    False -> False
-    True -> {
-      let without_parens = string.drop_end(ctor, 2)
-      case without_parens {
-        "" -> False
-        _ -> {
-          // Split on "::" and verify each segment is a valid Rust identifier
-          let segments = string.split(without_parens, "::")
-          list.all(segments, fn(seg) {
-            case seg {
-              "" -> False
-              _ -> is_valid_rust_ident(seg)
-            }
-          })
-        }
-      }
+fn require_plushie_rust_version() -> String {
+  case config.plushie_rust_version() {
+    Ok(v) -> v
+    Error(_) -> {
+      io.println_error(
+        "Error: plushie_rust_version not declared in gleam.toml. Expected:",
+      )
+      io.println_error("")
+      io.println_error("  plushie_rust_version = \"0.6.1\"")
+      halt(1)
+      panic as "unreachable"
     }
   }
 }
 
 @target(erlang)
-fn is_valid_rust_ident(s: String) -> Bool {
-  let chars = string.to_graphemes(s)
-  case chars {
-    [] -> False
-    [first, ..rest] -> {
-      let first_ok = is_alpha_or_underscore(first)
-      let rest_ok = list.all(rest, is_alnum_or_underscore)
-      first_ok && rest_ok
+fn require_cargo_plushie(expected_version: String) -> CargoPlushie {
+  case cargo_plushie.resolve(expected_version) {
+    Ok(tool) -> tool
+    Error(err) -> {
+      io.println_error(cargo_plushie.resolve_error_message(err))
+      halt(1)
+      panic as "unreachable"
     }
   }
 }
 
 @target(erlang)
-fn is_alpha_or_underscore(c: String) -> Bool {
-  case c {
-    "_"
-    | "a"
-    | "b"
-    | "c"
-    | "d"
-    | "e"
-    | "f"
-    | "g"
-    | "h"
-    | "i"
-    | "j"
-    | "k"
-    | "l"
-    | "m"
-    | "n"
-    | "o"
-    | "p"
-    | "q"
-    | "r"
-    | "s"
-    | "t"
-    | "u"
-    | "v"
-    | "w"
-    | "x"
-    | "y"
-    | "z"
-    | "A"
-    | "B"
-    | "C"
-    | "D"
-    | "E"
-    | "F"
-    | "G"
-    | "H"
-    | "I"
-    | "J"
-    | "K"
-    | "L"
-    | "M"
-    | "N"
-    | "O"
-    | "P"
-    | "Q"
-    | "R"
-    | "S"
-    | "T"
-    | "U"
-    | "V"
-    | "W"
-    | "X"
-    | "Y"
-    | "Z" -> True
-    _ -> False
-  }
-}
-
-@target(erlang)
-fn is_alnum_or_underscore(c: String) -> Bool {
-  case c {
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
-    _ -> is_alpha_or_underscore(c)
-  }
-}
-
-@target(erlang)
-fn check_duplicates(names: List(String), seen: List(String)) -> Nil {
-  case names {
-    [] -> Nil
-    [name, ..rest] ->
-      case list.contains(seen, name) {
-        True -> {
-          io.println_error(
-            "Error: duplicate native widget crate basename: " <> name,
-          )
-          halt(1)
-        }
-        False -> check_duplicates(rest, [name, ..seen])
-      }
-  }
-}
-
-@target(erlang)
-fn basename(path: String) -> String {
-  let parts = string.split(path, "/")
-  case list_reverse(parts) {
-    [last, ..] -> last
-    [] -> path
-  }
-}
-
-@target(erlang)
-fn generate_cargo_toml(
+/// Render the virtual app `Cargo.toml` that `cargo-plushie` consumes.
+///
+/// Declares every native widget crate as a path dependency and carries
+/// metadata overrides under `[package.metadata.plushie]`:
+///
+///   - `binary_name` fixes the produced binary name to `{proj}-renderer`.
+///   - `source_path`, if `PLUSHIE_RUST_SOURCE_PATH` is set, pins patch
+///     deps at the local plushie-rust checkout.
+pub fn render_virtual_cargo_toml(
   cwd: String,
-  source_dir: String,
+  project: String,
   bin_name: String,
+  version: String,
   widgets: List(NativeWidgetConfig),
 ) -> String {
-  // Resolve source_dir to absolute path
-  let abs_source = to_absolute(cwd, source_dir)
-
-  let widget_sdk_dep =
-    "plushie-widget-sdk = { path = \""
-    <> abs_source
-    <> "/crates/plushie-widget-sdk\" }\n"
-
-  let renderer_lib_dep =
-    "plushie-renderer-lib = { path = \""
-    <> abs_source
-    <> "/crates/plushie-renderer-lib\" }\n"
-
-  let renderer_dep =
-    "plushie-renderer = { path = \""
-    <> abs_source
-    <> "/crates/plushie-renderer\" }\n"
-
-  // Widget crate dependencies (use absolute paths)
-  let widget_deps =
+  let package_name = project <> "_renderer_spec"
+  let abs_widgets =
     list.map(widgets, fn(w) {
-      let abs_crate = to_absolute(cwd, w.crate_path)
+      let abs = to_absolute(cwd, w.crate_path)
       let dep_name = basename(w.crate_path)
-      dep_name <> " = { path = \"" <> abs_crate <> "\" }\n"
+      #(dep_name, abs)
     })
-    |> string.join("")
 
-  // Forward [patch.crates-io] from the plushie-rust workspace and add
-  // patches for plushie crates so native widget crates that depend on
-  // published versions get redirected to the local source checkout.
-  let patch_section = forward_patches_with_sdk(abs_source)
+  let header =
+    "# Auto-generated by plushie/build. Do not edit.\n\n"
+    <> "[package]\n"
+    <> "name = \""
+    <> package_name
+    <> "\"\n"
+    <> "version = \""
+    <> version
+    <> "\"\n"
+    <> "edition = \"2024\"\n"
+    <> "publish = false\n"
+    <> "\n"
 
-  "[package]\n"
-  <> "name = \""
-  <> bin_name
-  <> "\"\n"
-  <> "version = \"0.1.0\"\n"
-  <> "edition = \"2024\"\n"
-  <> "rust-version = \"1.92\"\n"
-  <> "\n"
-  <> "[[bin]]\n"
-  <> "name = \""
-  <> bin_name
-  <> "\"\n"
-  <> "path = \"src/main.rs\"\n"
-  <> "\n"
-  <> "[dependencies]\n"
-  <> widget_sdk_dep
-  <> renderer_lib_dep
-  <> renderer_dep
-  <> widget_deps
-  <> "\n"
-  <> patch_section
-}
-
-@target(erlang)
-fn generate_main_rs(widgets: List(NativeWidgetConfig)) -> String {
-  let widget_calls =
-    list.map(widgets, fn(w) { "            .widget(" <> w.constructor <> ")\n" })
-    |> string.join("")
-
-  "// Generated by plushie/build. Do not edit.\n"
-  <> "\n"
-  <> "fn main() -> plushie_widget_sdk::iced::Result {\n"
-  <> "    plushie_renderer::run(\n"
-  <> "        plushie_widget_sdk::app::PlushieAppBuilder::new()\n"
-  <> widget_calls
-  <> "    )\n"
-  <> "}\n"
-}
-
-@target(erlang)
-fn forward_patches(abs_source: String) -> String {
-  // Sources of [patch.crates-io] entries to forward:
-  //   1. Cargo.toml (committed, for published workspace patches)
-  //   2. .cargo/config.toml (gitignored local dev overrides, e.g. plushie-iced)
-  [abs_source <> "/Cargo.toml", abs_source <> "/.cargo/config.toml"]
-  |> list.map(fn(path) {
-    case read_file(path) {
-      Ok(content) -> extract_and_resolve_patches(content, abs_source)
-      Error(_) -> ""
-    }
-  })
-  |> list.filter(fn(section) { section != "" })
-  |> merge_patch_sections
-}
-
-@target(erlang)
-fn merge_patch_sections(sections: List(String)) -> String {
-  case sections {
+  let deps_header = "[dependencies]\n"
+  let deps_body = case abs_widgets {
     [] -> ""
-    [only] -> only
-    _ -> {
-      let bodies =
-        sections
-        |> list.map(fn(section) {
-          section
-          |> string.replace("[patch.crates-io]\n", "")
-          |> string.trim_end
-        })
-        |> list.filter(fn(body) { body != "" })
-        |> string.join("\n")
-      "[patch.crates-io]\n" <> bodies <> "\n"
-    }
+    _ ->
+      abs_widgets
+      |> list.map(fn(pair) {
+        let #(name, path) = pair
+        name <> " = { path = \"" <> path <> "\" }\n"
+      })
+      |> string.join("")
   }
-}
+  let deps = deps_header <> deps_body <> "\n"
 
-@target(erlang)
-fn forward_patches_with_sdk(abs_source: String) -> String {
-  // Start with patches forwarded from the plushie-rust workspace
-  let base_patches = forward_patches(abs_source)
-
-  // Add path patches for plushie SDK crates so native widget crates
-  // that depend on published versions (e.g. plushie-widget-sdk = "0.6")
-  // resolve to the local source checkout instead of crates.io.
-  let sdk_patches =
-    sdk_crate_patches(abs_source)
-    |> list.filter(fn(patch) {
-      // Only add patches not already present from the workspace.
-      // Match "name = " to avoid substring collisions (e.g.
-      // "plushie-renderer" matching "plushie-renderer-lib").
-      !string.contains(base_patches, patch.name <> " = ")
-    })
-    |> list.filter(fn(patch) { dir_exists(patch.path) })
-    |> list.map(fn(patch) {
-      patch.name <> " = { path = \"" <> patch.path <> "\" }\n"
-    })
-    |> string.join("")
-
-  case base_patches, sdk_patches {
-    "", "" -> ""
-    "", _ -> "[patch.crates-io]\n" <> sdk_patches
-    _, "" -> base_patches
-    _, _ -> string.trim_end(base_patches) <> "\n" <> sdk_patches <> "\n"
+  let meta_header = "[package.metadata.plushie]\n"
+  let meta_bin = "binary_name = \"" <> bin_name <> "\"\n"
+  let meta_source = case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
+    Ok(path) -> "source_path = \"" <> path <> "\"\n"
+    Error(_) -> ""
   }
+  let metadata = meta_header <> meta_bin <> meta_source
+
+  header <> deps <> metadata
 }
 
 @target(erlang)
-/// Crate name and local path for SDK patch entries.
-type CratePatch {
-  CratePatch(name: String, path: String)
-}
-
-@target(erlang)
-fn sdk_crate_patches(abs_source: String) -> List(CratePatch) {
-  [
-    CratePatch("plushie-widget-sdk", abs_source <> "/crates/plushie-widget-sdk"),
-    CratePatch("plushie-renderer", abs_source <> "/crates/plushie-renderer"),
-    CratePatch(
-      "plushie-renderer-lib",
-      abs_source <> "/crates/plushie-renderer-lib",
-    ),
-    CratePatch("plushie-core", abs_source <> "/crates/plushie-core"),
-  ]
-}
-
-@target(erlang)
-fn extract_and_resolve_patches(content: String, abs_source: String) -> String {
-  let lines = string.split(content, "\n")
-  let patch_lines = collect_patch_section(lines, False, [])
-  case patch_lines {
-    [] -> ""
-    _ -> {
-      let resolved =
-        list.map(patch_lines, fn(line) { resolve_patch_path(line, abs_source) })
-      "[patch.crates-io]\n" <> string.join(resolved, "\n") <> "\n"
-    }
-  }
-}
-
-@target(erlang)
-fn collect_patch_section(
-  lines: List(String),
-  in_section: Bool,
-  acc: List(String),
-) -> List(String) {
-  case lines {
-    [] -> list_reverse(acc)
-    [line, ..rest] -> {
-      let trimmed = string.trim(line)
-      case in_section {
-        False ->
-          case trimmed == "[patch.crates-io]" {
-            True -> collect_patch_section(rest, True, acc)
-            False -> collect_patch_section(rest, False, acc)
-          }
-        True ->
-          case trimmed {
-            "" -> collect_patch_section(rest, True, acc)
-            _ ->
-              case string.starts_with(trimmed, "[") {
-                True -> list_reverse(acc)
-                False ->
-                  case string.starts_with(trimmed, "#") {
-                    True -> collect_patch_section(rest, True, acc)
-                    False -> collect_patch_section(rest, True, [trimmed, ..acc])
-                  }
-              }
-          }
-      }
-    }
-  }
-}
-
-@target(erlang)
-fn resolve_patch_path(line: String, abs_source: String) -> String {
-  // Transform relative paths in patch entries to absolute paths.
-  // Input:  plushie-iced = { path = "../plushie-iced" }
-  // Output: plushie-iced = { path = "/abs/path/to/plushie-iced" }
-  case string.split_once(line, "path = \"") {
-    Ok(#(before, after)) ->
-      case string.split_once(after, "\"") {
-        Ok(#(rel_path, rest)) -> {
-          let abs_path = to_absolute(abs_source, rel_path)
-          before <> "path = \"" <> abs_path <> "\"" <> rest
-        }
-        Error(_) -> line
-      }
-    Error(_) -> line
-  }
-}
-
-@target(erlang)
-fn to_absolute(base: String, path: String) -> String {
-  case string.starts_with(path, "/") {
-    True -> path
-    False -> normalize_path(base <> "/" <> path)
-  }
-}
-
-@target(erlang)
-fn normalize_path(path: String) -> String {
-  let parts = string.split(path, "/")
-  let normalized = normalize_parts(parts, [])
-  "/" <> string.join(normalized, "/")
-}
-
-@target(erlang)
-fn normalize_parts(parts: List(String), stack: List(String)) -> List(String) {
-  case parts {
-    [] -> list_reverse(stack)
-    [part, ..rest] ->
-      case part {
-        "" -> normalize_parts(rest, stack)
-        "." -> normalize_parts(rest, stack)
-        ".." ->
-          case stack {
-            [_, ..parent] -> normalize_parts(rest, parent)
-            [] -> normalize_parts(rest, [])
-          }
-        _ -> normalize_parts(rest, [part, ..stack])
-      }
-  }
-}
-
-@target(erlang)
-fn install_native_binary(
-  workspace_dir: String,
+fn install_binary_from_spec(
+  spec_dir: String,
   bin_name: String,
   release: Bool,
   bin_file_override: Result(String, Nil),
 ) -> Nil {
+  // cargo-plushie generates its workspace at
+  // {spec_dir}/target/plushie-renderer/ and cargo builds into
+  // {spec_dir}/target/plushie-renderer/target/{profile}/<bin-name>.
   let profile = case release {
     True -> "release"
     False -> "debug"
   }
-  let plat = platform.platform_string()
-  let arch = platform.arch_string()
-  let platform_name = bin_name <> "-" <> plat <> "-" <> arch
-  let src = workspace_dir <> "/target/" <> profile <> "/" <> bin_name
+  let src =
+    spec_dir <> "/target/plushie-renderer/target/" <> profile <> "/" <> bin_name
 
   case file_exists(src) {
     False -> {
@@ -697,6 +297,10 @@ fn install_native_binary(
     }
     True -> Nil
   }
+
+  let plat = platform.platform_string()
+  let arch = platform.arch_string()
+  let platform_name = bin_name <> "-" <> plat <> "-" <> arch
 
   let dest = case bin_file_override {
     Ok(path) -> path
@@ -707,9 +311,7 @@ fn install_native_binary(
   copy_file(src, dest)
   chmod(dest, 0o755)
 
-  // Create a convenience symlink in bin/ using the project-specific name.
-  // Targets are resolved relative to the link's directory, so prefix
-  // with ../ to escape bin/.
+  // Convenience symlink bin/<bin_name> -> <dest>
   let link_dir = "bin"
   let relative_dest = "../" <> dest
   let link_path = link_dir <> "/" <> bin_name
@@ -721,9 +323,8 @@ fn install_native_binary(
     Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 
-  // Create a standard-named symlink in the download dir so binary.gleam's
-  // resolution finds the custom binary via its standard search path.
-  // The symlink is relative (same directory as the binary).
+  // Standard-named symlink in the download dir so binary.gleam's
+  // lookup chain finds the custom binary under the stock name.
   let std_name = "plushie-renderer-" <> plat <> "-" <> arch
   let std_dest = binary.download_dir() <> "/" <> std_name
   case dest == std_dest {
@@ -760,6 +361,23 @@ fn build_wasm(
   verbose: Bool,
   wasm_dir_override: Result(String, Nil),
 ) -> Nil {
+  // WASM is always built out of a plushie-rust source checkout. The
+  // renderer has no published wasm-pack artifact to fall back on.
+  let source_dir = case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
+    Ok(p) -> p
+    Error(_) ->
+      case config.get_string("source_path") {
+        Ok(p) -> p
+        Error(_) -> {
+          io.println_error(
+            "Error: WASM build requires PLUSHIE_RUST_SOURCE_PATH or gleam.toml [plushie] source_path.",
+          )
+          halt(1)
+          panic as "unreachable"
+        }
+      }
+  }
+
   case check_wasm_pack() {
     Error(msg) -> {
       io.println_error(msg)
@@ -768,20 +386,12 @@ fn build_wasm(
     Ok(_) -> Nil
   }
 
-  let source_dir = resolve_source_path()
-
   let wasm_crate = source_dir <> "/crates/plushie-renderer-wasm"
-
   case dir_exists(wasm_crate) {
     False -> {
       io.println_error(
         "plushie-renderer-wasm crate not found at " <> wasm_crate <> ".",
       )
-      io.println_error("")
-      io.println_error(
-        "The WASM build requires the plushie source checkout to include",
-      )
-      io.println_error("the plushie-renderer-wasm crate directory.")
       halt(1)
     }
     True -> Nil
@@ -845,7 +455,6 @@ fn copy_wasm_file(pkg_dir: String, dest_dir: String, name: String) -> Nil {
 
 @target(erlang)
 fn check_rust_toolchain() -> Nil {
-  // Validate cargo is available before checking versions
   case executable_exists("cargo") {
     False -> {
       io.println_error(
@@ -863,14 +472,13 @@ fn check_rust_toolchain() -> Nil {
     }
     Ok(version_str) -> {
       case compare_versions(version_str, min_rust_version) {
-        Error(_) -> {
+        Error(_) ->
           io.println(
             "Warning: could not parse rustc version from: " <> version_str,
           )
-        }
         Ok(is_ok) ->
           case is_ok {
-            False -> {
+            False ->
               io.println(
                 "Warning: rustc "
                 <> version_str
@@ -878,7 +486,6 @@ fn check_rust_toolchain() -> Nil {
                 <> min_rust_version
                 <> ". Consider upgrading with `rustup update`.",
               )
-            }
             True -> Nil
           }
       }
@@ -887,68 +494,12 @@ fn check_rust_toolchain() -> Nil {
 }
 
 @target(erlang)
-fn install_binary(
-  source_dir: String,
-  release: Bool,
-  bin_file_override: Result(String, Nil),
-) -> Nil {
-  let profile = case release {
-    True -> "release"
-    False -> "debug"
-  }
-  let plat = platform.platform_string()
-  let arch = platform.arch_string()
-  let binary_name = "plushie-renderer-" <> plat <> "-" <> arch
-  let src = source_dir <> "/target/" <> profile <> "/plushie-renderer"
-
-  case platform.file_exists(src) {
-    False -> {
-      io.println_error("Build succeeded but binary not found at " <> src)
-      halt(1)
-    }
-    True -> Nil
-  }
-
-  let dest = case bin_file_override {
-    Ok(path) -> path
-    Error(_) -> binary.download_dir() <> "/" <> binary_name
-  }
-  let dest_dir = dirname(dest)
-  ensure_dir(dest_dir)
-  copy_file(src, dest)
-  chmod(dest, 0o755)
-  create_bin_symlink(dest)
-  copy_cargo_lock(source_dir, dest_dir)
-  io.println("Installed to " <> dest)
-}
-
-@target(erlang)
-fn copy_cargo_lock(source_dir: String, dest_dir: String) -> Nil {
-  let lock_src = source_dir <> "/Cargo.lock"
-  let lock_dest = dest_dir <> "/Cargo.lock"
-  case platform.file_exists(lock_src) {
-    True -> {
-      copy_file(lock_src, lock_dest)
-      io.println("Copied Cargo.lock to " <> dest_dir)
-    }
-    False -> io.println("Warning: Cargo.lock not found at " <> lock_src)
-  }
-}
-
-@target(erlang)
-fn create_bin_symlink(target_path: String) -> Nil {
-  let link_dir = "bin"
-  let link_path = link_dir <> "/plushie-renderer"
-  // Symlink targets are resolved relative to the link's directory,
-  // so prefix with ../ to escape bin/ and reach the project root.
-  let relative_target = "../" <> target_path
-  ensure_dir(link_dir)
-  delete_file(link_path)
-  case make_symlink(relative_target, link_path) {
-    Ok(_) ->
-      io.println("Created symlink " <> link_path <> " -> " <> relative_target)
-    Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
-  }
+fn run_cargo_plushie(
+  tool: CargoPlushie,
+  sub_args: List(String),
+) -> Result(String, String) {
+  let args = cargo_plushie.args(tool, sub_args)
+  run_command(tool.command, args)
 }
 
 @target(erlang)
@@ -978,6 +529,127 @@ fn compare_versions(actual: String, minimum: String) -> Result(Bool, Nil) {
   }
 }
 
+// -- Helpers ------------------------------------------------------------------
+
+@target(erlang)
+fn is_ok(result: Result(a, b)) -> Bool {
+  case result {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+@target(erlang)
+fn result_or(result: Result(a, b), default: a) -> a {
+  case result {
+    Ok(v) -> v
+    Error(_) -> default
+  }
+}
+
+@target(erlang)
+/// Resolve which artifacts to build.
+fn resolve_artifacts(
+  bin_file: Result(String, Nil),
+  wasm_dir: Result(String, Nil),
+) -> #(Bool, Bool) {
+  let cli_bin = has_flag("--bin") || is_ok(bin_file)
+  let cli_wasm = has_flag("--wasm") || is_ok(wasm_dir)
+
+  case cli_bin || cli_wasm {
+    True -> #(cli_bin, cli_wasm)
+    False ->
+      case config.get_artifacts() {
+        Ok(artifacts) -> #(
+          list.contains(artifacts, "bin"),
+          list.contains(artifacts, "wasm"),
+        )
+        Error(_) -> #(True, False)
+      }
+  }
+}
+
+@target(erlang)
+/// Use a gleam.toml config value as fallback when the CLI flag is absent.
+fn or_config(
+  flag_result: Result(String, Nil),
+  config_key: String,
+) -> Result(String, Nil) {
+  case flag_result {
+    Ok(_) -> flag_result
+    Error(_) -> config.get_string(config_key)
+  }
+}
+
+@target(erlang)
+fn basename(path: String) -> String {
+  let parts = string.split(path, "/")
+  case list_reverse(parts) {
+    [last, ..] -> last
+    [] -> path
+  }
+}
+
+@target(erlang)
+fn to_absolute(base: String, path: String) -> String {
+  case string.starts_with(path, "/") {
+    True -> path
+    False -> normalize_path(base <> "/" <> path)
+  }
+}
+
+@target(erlang)
+fn normalize_path(path: String) -> String {
+  let parts = string.split(path, "/")
+  let normalized = normalize_parts(parts, [])
+  "/" <> string.join(normalized, "/")
+}
+
+@target(erlang)
+fn normalize_parts(parts: List(String), stack: List(String)) -> List(String) {
+  case parts {
+    [] -> list_reverse(stack)
+    [part, ..rest] ->
+      case part {
+        "" -> normalize_parts(rest, stack)
+        "." -> normalize_parts(rest, stack)
+        ".." ->
+          case stack {
+            [_, ..parent] -> normalize_parts(rest, parent)
+            [] -> normalize_parts(rest, [])
+          }
+        _ -> normalize_parts(rest, [part, ..stack])
+      }
+  }
+}
+
+@target(erlang)
+fn dirname(path: String) -> String {
+  case string.split(path, "/") {
+    [_] -> "."
+    parts -> {
+      let reversed = list_reverse(parts)
+      case reversed {
+        [_, ..parent] -> list_reverse(parent) |> string.join("/")
+        _ -> "."
+      }
+    }
+  }
+}
+
+@target(erlang)
+fn list_reverse(items: List(a)) -> List(a) {
+  do_reverse(items, [])
+}
+
+@target(erlang)
+fn do_reverse(items: List(a), acc: List(a)) -> List(a) {
+  case items {
+    [] -> acc
+    [first, ..rest] -> do_reverse(rest, [first, ..acc])
+  }
+}
+
 // -- FFI bindings -------------------------------------------------------------
 
 @target(erlang)
@@ -989,16 +661,8 @@ fn rustc_version() -> Result(String, String)
 fn executable_exists(name: String) -> Bool
 
 @target(erlang)
-@external(erlang, "plushie_build_ffi", "cargo_build")
-fn cargo_build(source_dir: String, release: Bool) -> Result(String, String)
-
-@target(erlang)
-@external(erlang, "plushie_build_ffi", "cargo_build_workspace")
-fn cargo_build_workspace(
-  manifest_path: String,
-  release: Bool,
-  verbose: Bool,
-) -> Result(String, String)
+@external(erlang, "plushie_build_ffi", "run_command")
+fn run_command(cmd: String, args: List(String)) -> Result(String, String)
 
 @target(erlang)
 @external(erlang, "plushie_build_ffi", "has_flag")
@@ -1067,105 +731,3 @@ fn get_cwd() -> String
 @target(erlang)
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
-
-// -- Helpers ------------------------------------------------------------------
-
-@target(erlang)
-fn is_ok(result: Result(a, b)) -> Bool {
-  case result {
-    Ok(_) -> True
-    Error(_) -> False
-  }
-}
-
-@target(erlang)
-/// Resolve which artifacts to build.
-///
-/// CLI flags > gleam.toml [plushie] artifacts > default (bin only).
-fn resolve_artifacts(
-  bin_file: Result(String, Nil),
-  wasm_dir: Result(String, Nil),
-) -> #(Bool, Bool) {
-  let cli_bin = has_flag("--bin") || is_ok(bin_file)
-  let cli_wasm = has_flag("--wasm") || is_ok(wasm_dir)
-
-  case cli_bin || cli_wasm {
-    True -> #(cli_bin, cli_wasm)
-    False ->
-      // No CLI flags; check gleam.toml config
-      case config.get_artifacts() {
-        Ok(artifacts) -> #(
-          list.contains(artifacts, "bin"),
-          list.contains(artifacts, "wasm"),
-        )
-        Error(_) -> #(True, False)
-      }
-  }
-}
-
-@target(erlang)
-/// Resolve the plushie source path.
-///
-/// Resolution: PLUSHIE_RUST_SOURCE_PATH env > gleam.toml source_path > error.
-fn resolve_source_path() -> String {
-  case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
-    Ok(path) -> path
-    Error(_) ->
-      case config.get_string("source_path") {
-        Ok(path) -> path
-        Error(_) -> {
-          io.println_error("Error: plushie source path not configured.")
-          io.println_error("")
-          io.println_error("Set one of:")
-          io.println_error(
-            "  export PLUSHIE_RUST_SOURCE_PATH=/path/to/plushie-rust",
-          )
-          io.println_error("")
-          io.println_error("  # or in gleam.toml:")
-          io.println_error("  [plushie]")
-          io.println_error("  source_path = \"/path/to/plushie-renderer\"")
-          halt(1)
-          panic as "unreachable"
-        }
-      }
-  }
-}
-
-@target(erlang)
-/// Use a gleam.toml config value as fallback when the CLI flag is absent.
-fn or_config(
-  flag_result: Result(String, Nil),
-  config_key: String,
-) -> Result(String, Nil) {
-  case flag_result {
-    Ok(_) -> flag_result
-    Error(_) -> config.get_string(config_key)
-  }
-}
-
-@target(erlang)
-fn dirname(path: String) -> String {
-  case string.split(path, "/") {
-    [_] -> "."
-    parts -> {
-      let reversed = list_reverse(parts)
-      case reversed {
-        [_, ..parent] -> list_reverse(parent) |> string.join("/")
-        _ -> "."
-      }
-    }
-  }
-}
-
-@target(erlang)
-fn list_reverse(items: List(a)) -> List(a) {
-  do_reverse(items, [])
-}
-
-@target(erlang)
-fn do_reverse(items: List(a), acc: List(a)) -> List(a) {
-  case items {
-    [] -> acc
-    [first, ..rest] -> do_reverse(rest, [first, ..acc])
-  }
-}

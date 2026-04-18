@@ -1,8 +1,6 @@
 -module(plushie_build_ffi).
 -export([
     rustc_version/0,
-    cargo_build/2,
-    cargo_build_workspace/3,
     executable_exists/1,
     has_flag/1,
     get_flag_value/1,
@@ -47,22 +45,6 @@ rustc_version() ->
         _:_ ->
             {error, <<"rustc not found. Install Rust 1.92.0+ via https://rustup.rs">>}
     end.
-
-%% Run cargo build. Returns {ok, Output} on success, {error, Output} on failure.
-%% Uses spawn_executable with cargo directly and {cd, Dir} for cross-platform support.
-cargo_build(SourceDir, Release) ->
-    SourceDirStr = binary_to_list(SourceDir),
-    Cargo = find_executable("cargo"),
-    Args = case Release of
-        true -> ["-p", "plushie-renderer", "--release"];
-        false -> ["-p", "plushie-renderer"]
-    end,
-    Port = erlang:open_port({spawn_executable, Cargo}, [
-        {args, ["build" | Args]},
-        {cd, SourceDirStr},
-        stream, binary, exit_status, use_stdio, stderr_to_stdout
-    ]),
-    collect_port_output(Port, <<>>).
 
 find_executable(Name) ->
     case os:find_executable(Name) of
@@ -166,22 +148,6 @@ wasm_pack_build(CrateDir, Release) ->
     Port = erlang:open_port({spawn_executable, WasmPack}, [
         {args, ["build", "--target", "web", Profile]},
         {cd, CrateDirStr},
-        stream, binary, exit_status, use_stdio, stderr_to_stdout
-    ]),
-    collect_port_output(Port, <<>>).
-
-%% Run cargo build with an explicit --manifest-path.
-%% Returns {ok, Output} on success, {error, Output} on failure.
-cargo_build_workspace(ManifestPath, Release, _Verbose) ->
-    ManifestPathStr = binary_to_list(ManifestPath),
-    Cargo = find_executable("cargo"),
-    BaseArgs = ["build", "--manifest-path", ManifestPathStr],
-    Args = case Release of
-        true -> BaseArgs ++ ["--release"];
-        false -> BaseArgs
-    end,
-    Port = erlang:open_port({spawn_executable, Cargo}, [
-        {args, Args},
         stream, binary, exit_status, use_stdio, stderr_to_stdout
     ]),
     collect_port_output(Port, <<>>).

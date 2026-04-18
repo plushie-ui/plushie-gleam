@@ -44,6 +44,16 @@ pub fn get_string(key: String) -> Result(String, Nil) {
 }
 
 @target(erlang)
+/// Read the `plushie_rust_version` root-level key from gleam.toml.
+///
+/// This value pins the plushie-rust release the SDK expects. Used by
+/// build and download tooling to negotiate the matching `cargo-plushie`
+/// and to embed into the generated renderer workspace.
+pub fn plushie_rust_version() -> Result(String, Nil) {
+  read_root_string("plushie_rust_version")
+}
+
+@target(erlang)
 /// Read the artifacts list from gleam.toml.
 /// Returns the list of artifact names (e.g. ["bin", "wasm"]).
 pub fn get_artifacts() -> Result(List(String), Nil) {
@@ -100,3 +110,7 @@ fn read_config_string(key: String) -> Result(String, Nil)
 @target(erlang)
 @external(erlang, "plushie_config_ffi", "read_config")
 fn read_config_list(key: String) -> Result(List(String), Nil)
+
+@target(erlang)
+@external(erlang, "plushie_config_ffi", "read_root_string")
+fn read_root_string(key: String) -> Result(String, Nil)

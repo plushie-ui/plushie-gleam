@@ -1,7 +1,37 @@
 -module(plushie_config_ffi).
 -export([
-    read_config/1
+    read_config/1,
+    read_root_string/1
 ]).
+
+%% Read a top-level (not inside any section) string key from gleam.toml.
+%% Returns {ok, Binary} or {error, nil}.
+read_root_string(Key) when is_binary(Key) ->
+    case file:read_file("gleam.toml") of
+        {ok, Content} ->
+            Lines = binary:split(Content, <<"\n">>, [global]),
+            find_root_key(Key, Lines);
+        {error, _} ->
+            {error, nil}
+    end.
+
+find_root_key(_Key, []) ->
+    {error, nil};
+find_root_key(Key, [Line | Rest]) ->
+    Trimmed = string:trim(binary_to_list(Line)),
+    case Trimmed of
+        [$[ | _] ->
+            %% First section header: stop looking in root.
+            {error, nil};
+        "" -> find_root_key(Key, Rest);
+        [$# | _] -> find_root_key(Key, Rest);
+        _ ->
+            KeyStr = binary_to_list(Key),
+            case parse_kv(Trimmed) of
+                {KeyStr, Value} when is_binary(Value) -> {ok, Value};
+                _ -> find_root_key(Key, Rest)
+            end
+    end.
 
 %% Read a key from the [plushie] section of gleam.toml.
 %% Returns {ok, Value} or {error, nil}.
