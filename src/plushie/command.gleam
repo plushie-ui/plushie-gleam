@@ -137,8 +137,9 @@ pub type RendererCommand {
   /// Announce text to screen readers via the accessibility system.
   Announce(text: String, politeness: Politeness)
   /// Load a font at runtime from raw TrueType or OpenType binary data.
-  /// Once loaded, the font can be referenced by name in widget props.
-  LoadFont(data: BitArray)
+  /// `family` is the name the app uses to reference the font in
+  /// `default_font` and widget font props.
+  LoadFont(family: String, data: BitArray)
 
   /// Compute a SHA-256 hash of the renderer's current tree state.
   /// Result arrives as a TreeHash event.
@@ -761,9 +762,10 @@ pub fn list_images(tag: String) -> Command(msg) {
 // --- Font and native commands ------------------------------------------------
 
 /// Load a font at runtime from raw TrueType or OpenType binary data.
-/// Once loaded, the font can be referenced by name in widget props.
-pub fn load_font(data: BitArray) -> Command(msg) {
-  Renderer(LoadFont(data:))
+/// `family` is the name the app uses to reference the font in
+/// `default_font` and widget font props.
+pub fn load_font(family: String, data: BitArray) -> Command(msg) {
+  Renderer(LoadFont(family:, data:))
 }
 
 /// Send a command directly to a native widget, bypassing the

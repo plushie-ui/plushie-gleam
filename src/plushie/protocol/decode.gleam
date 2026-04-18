@@ -422,6 +422,7 @@ fn dispatch(
   case msg_type {
     "hello" -> decode_hello(map)
     "event" -> decode_event(map)
+    "diagnostic" -> decode_diagnostic_message(map)
     "effect_response" -> decode_effect_response(map)
     "op_query_response" -> decode_op_query_response(map)
     "effect_stub_register_ack" | "effect_stub_unregister_ack" -> {
@@ -637,9 +638,6 @@ fn decode_event(
 
     // Transition complete
     "transition_complete" -> decode_transition_complete(map)
-
-    // Diagnostic events
-    "diagnostic" -> decode_diagnostic(map)
 
     // Pane events
     "pane_resized" -> decode_pane_resized(map)
@@ -1577,19 +1575,25 @@ fn decode_ime_closed(
 // Diagnostic decoder
 // ---------------------------------------------------------------------------
 
-fn decode_diagnostic(
+/// Decode a top-level `diagnostic` message. Wire shape:
+///
+/// ```json
+/// {"type":"diagnostic","session":"...","level":"warn",
+///  "diagnostic":{"kind":"...",...}}
+/// ```
+///
+/// The `diagnostic` object is a tagged payload; we surface `kind` as a
+/// string and pass the remaining variant-specific fields through as a
+/// `Dynamic` so apps can decode whichever variants they care about
+/// without the runtime needing to know every emit site.
+fn decode_diagnostic_message(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
-  let data = get_map(map, "value")
-  let level = get_string_or(data, "level", "")
-  let element_id = get_string_or(data, "element_id", "")
-  let code = get_string_or(data, "code", "")
-  let message = get_string_or(data, "message", "")
-  Ok(
-    EventMessage(
-      event.Error(event.Diagnostic(level:, element_id:, code:, message:)),
-    ),
-  )
+  let level = get_string_or(map, "level", "warn")
+  let payload = get_map(map, "diagnostic")
+  let kind = get_string_or(payload, "kind", "")
+  let data = prop_to_dynamic(PMap(payload))
+  Ok(EventMessage(event.Error(event.Diagnostic(level:, kind:, data:))))
 }
 
 // ---------------------------------------------------------------------------

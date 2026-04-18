@@ -1074,16 +1074,15 @@ pub fn decode_canvas_blurred_json_test() {
 
 pub fn decode_diagnostic_json_test() {
   let json =
-    "{\"type\":\"event\",\"family\":\"diagnostic\",\"value\":{\"level\":\"warning\",\"element_id\":\"btn-1\",\"code\":\"W001\",\"message\":\"overlapping hit regions\"}}"
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"warn\","
+    <> "\"diagnostic\":{\"kind\":\"font_family_not_found\",\"family\":\"Inter\"}}"
   let data = bit_array.from_string(json)
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Error(event.Diagnostic(level:, element_id:, code:, message:)) -> {
-      should.equal(level, "warning")
-      should.equal(element_id, "btn-1")
-      should.equal(code, "W001")
-      should.equal(message, "overlapping hit regions")
+    event.Error(event.Diagnostic(level:, kind:, data: _)) -> {
+      should.equal(level, "warn")
+      should.equal(kind, "font_family_not_found")
     }
     _ -> should.fail()
   }

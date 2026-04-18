@@ -142,8 +142,9 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
       WidgetOp("tree_hash", [#("tag", StringVal(tag))])
     command.FindFocused(tag:) ->
       WidgetOp("find_focused", [#("tag", StringVal(tag))])
-    command.LoadFont(data:) ->
+    command.LoadFont(family:, data:) ->
       WidgetOp("load_font", [
+        #("family", StringVal(family)),
         #("data", StringVal(bit_array.base64_encode(data, True))),
       ])
 
@@ -196,8 +197,7 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
 
 fn classify_window(cmd: command.WindowCommand) -> WireOp(msg) {
   case cmd {
-    command.CloseWindow(window_id:) ->
-      WidgetOp("close_window", [#("window_id", StringVal(window_id))])
+    command.CloseWindow(window_id:) -> WindowOp("close", window_id, [])
     command.ResizeWindow(window_id:, width:, height:) ->
       WindowOp("resize", window_id, [
         #("width", FloatVal(width)),

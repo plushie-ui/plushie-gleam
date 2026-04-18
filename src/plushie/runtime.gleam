@@ -521,15 +521,10 @@ fn handle_message(
     // Intercept diagnostic events: emit as telemetry, don't dispatch to update.
     FromBridge(InboundEvent(EventMessage(event.Error(event.Diagnostic(
       level:,
-      element_id:,
-      code:,
-      message:,
+      kind:,
+      data: _,
     ))))) -> {
-      let prefix = case element_id {
-        "" -> ""
-        id -> " [" <> id <> "]"
-      }
-      let log_msg = "plushie:" <> prefix <> " " <> code <> ": " <> message
+      let log_msg = "plushie: " <> kind
       case level {
         "error" -> platform.log_error(log_msg)
         "info" -> platform.log_info(log_msg)

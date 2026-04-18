@@ -585,16 +585,6 @@ pub fn decode_test_event(
         ))
       })
 
-    "diagnostic" ->
-      Ok(
-        event.Error(event.Diagnostic(
-          level: get_string(data, "level", ""),
-          element_id: get_string(data, "element_id", ""),
-          code: get_string(data, "code", ""),
-          message: get_string(data, "message", ""),
-        )),
-      )
-
     // -- Pane events ---------------------------------------------------------
     "pane_resized" ->
       require_window_event(window_id, fn(_window_id) {

@@ -353,7 +353,13 @@ pub type ErrorEvent {
   /// The tree contains duplicate node IDs after normalization.
   DuplicateNodeIds(details: Dynamic)
   /// A renderer diagnostic message (warnings, errors).
-  Diagnostic(level: String, element_id: String, code: String, message: String)
+  ///
+  /// `level` is `"info"`, `"warn"`, or `"error"`. `kind` identifies
+  /// the typed diagnostic variant emitted by the renderer (e.g.
+  /// `"font_family_not_found"`, `"duplicate_id"`). `data` carries the
+  /// variant-specific payload fields as a dynamic value the app can
+  /// decode when it wants richer context.
+  Diagnostic(level: String, kind: String, data: Dynamic)
   /// Prop validation warning from the renderer.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
 }
