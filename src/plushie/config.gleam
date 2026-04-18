@@ -24,7 +24,7 @@
 ////
 //// 1. CLI flag (`--bin-file`, `--wasm-dir`)
 //// 2. `[plushie]` section in gleam.toml
-//// 3. Environment variable (`PLUSHIE_SOURCE_PATH`)
+//// 3. Environment variable (`PLUSHIE_RUST_SOURCE_PATH`)
 //// 4. Hardcoded default
 
 @target(erlang)

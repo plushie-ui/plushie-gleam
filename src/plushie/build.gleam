@@ -12,7 +12,7 @@
 //// gleam run -m plushie/build -- --wasm-dir PATH      # custom WASM dest
 //// ```
 ////
-//// Requires PLUSHIE_SOURCE_PATH env var pointing to the plushie Rust
+//// Requires PLUSHIE_RUST_SOURCE_PATH env var pointing to the plushie Rust
 //// source checkout. Checks Rust toolchain version, runs cargo build,
 //// and installs the binary to build/plushie/bin/. Creates a
 //// bin/plushie symlink. WASM files go to priv/wasm/.
@@ -1106,9 +1106,9 @@ fn resolve_artifacts(
 @target(erlang)
 /// Resolve the plushie source path.
 ///
-/// Resolution: PLUSHIE_SOURCE_PATH env > gleam.toml source_path > error.
+/// Resolution: PLUSHIE_RUST_SOURCE_PATH env > gleam.toml source_path > error.
 fn resolve_source_path() -> String {
-  case platform.get_env("PLUSHIE_SOURCE_PATH") {
+  case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
     Ok(path) -> path
     Error(_) ->
       case config.get_string("source_path") {
@@ -1118,7 +1118,7 @@ fn resolve_source_path() -> String {
           io.println_error("")
           io.println_error("Set one of:")
           io.println_error(
-            "  export PLUSHIE_SOURCE_PATH=/path/to/plushie-renderer",
+            "  export PLUSHIE_RUST_SOURCE_PATH=/path/to/plushie-rust",
           )
           io.println_error("")
           io.println_error("  # or in gleam.toml:")

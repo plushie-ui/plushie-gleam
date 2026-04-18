@@ -9,7 +9,7 @@ that a real user session uses.
 The renderer binary must be built before running tests:
 
 ```bash
-PLUSHIE_SOURCE_PATH=../plushie-rust gleam run -m plushie/build
+PLUSHIE_RUST_SOURCE_PATH=../plushie-rust gleam run -m plushie/build
 gleam test
 ```
 

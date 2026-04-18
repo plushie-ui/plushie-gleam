@@ -30,7 +30,7 @@ import plushie/config
 import plushie/platform
 
 @target(erlang)
-const binary_version = "0.6.1"
+const plushie_rust_version = "0.6.1"
 
 @target(erlang)
 const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
@@ -193,7 +193,7 @@ fn create_bin_symlink(target_path: String) -> Nil {
 
 @target(erlang)
 fn release_url(artifact: String) -> String {
-  base_url <> "/v" <> binary_version <> "/" <> artifact
+  base_url <> "/v" <> plushie_rust_version <> "/" <> artifact
 }
 
 @target(erlang)

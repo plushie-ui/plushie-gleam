@@ -7,10 +7,10 @@ import gleam/result
 import plushie/binary
 import plushie/platform
 
-/// Look up the plushie source checkout path from the PLUSHIE_SOURCE_PATH
-/// environment variable.
+/// Look up the plushie source checkout path from the
+/// PLUSHIE_RUST_SOURCE_PATH environment variable.
 pub fn source_path() -> Result(String, Nil) {
-  platform.get_env("PLUSHIE_SOURCE_PATH")
+  platform.get_env("PLUSHIE_RUST_SOURCE_PATH")
 }
 
 /// Error when the plushie binary cannot be resolved.
