@@ -6,17 +6,14 @@ import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/length.{type Length}
-import plushie/prop/padding.{type Padding}
 import plushie/widget/build
 
 pub opaque type Grid {
   Grid(
     id: String,
     children: List(Node),
-    columns: Option(Int),
-    column_count: Option(Int),
-    spacing: Option(Int),
-    padding: Option(Padding),
+    num_columns: Option(Int),
+    spacing: Option(Float),
     width: Option(Length),
     height: Option(Length),
     column_width: Option(Length),
@@ -31,10 +28,8 @@ pub fn new(id: String) -> Grid {
   Grid(
     id:,
     children: [],
-    columns: None,
-    column_count: None,
+    num_columns: None,
     spacing: None,
-    padding: None,
     width: None,
     height: None,
     column_width: None,
@@ -45,23 +40,13 @@ pub fn new(id: String) -> Grid {
 }
 
 /// Set the number of columns.
-pub fn columns(g: Grid, n: Int) -> Grid {
-  Grid(..g, columns: option.Some(n))
+pub fn num_columns(g: Grid, n: Int) -> Grid {
+  Grid(..g, num_columns: option.Some(n))
 }
 
-/// Set the count on a column definition.
-pub fn column_count(g: Grid, n: Int) -> Grid {
-  Grid(..g, column_count: option.Some(n))
-}
-
-/// Set the spacing between children.
-pub fn spacing(g: Grid, s: Int) -> Grid {
+/// Set the spacing between children in pixels.
+pub fn spacing(g: Grid, s: Float) -> Grid {
   Grid(..g, spacing: option.Some(s))
-}
-
-/// Set the padding.
-pub fn padding(g: Grid, p: Padding) -> Grid {
-  Grid(..g, padding: option.Some(p))
 }
 
 /// Set the width.
@@ -106,10 +91,8 @@ pub fn a11y(g: Grid, a: A11y) -> Grid {
 
 /// Option type for grid properties.
 pub type Opt {
-  Columns(Int)
-  ColumnCount(Int)
-  Spacing(Int)
-  Padding(Padding)
+  NumColumns(Int)
+  Spacing(Float)
   Width(Length)
   Height(Length)
   ColumnWidth(Length)
@@ -122,10 +105,8 @@ pub type Opt {
 pub fn with_opts(g: Grid, opts: List(Opt)) -> Grid {
   list.fold(opts, g, fn(gr, opt) {
     case opt {
-      Columns(n) -> columns(gr, n)
-      ColumnCount(n) -> column_count(gr, n)
+      NumColumns(n) -> num_columns(gr, n)
       Spacing(s) -> spacing(gr, s)
-      Padding(p) -> padding(gr, p)
       Width(w) -> width(gr, w)
       Height(h) -> height(gr, h)
       ColumnWidth(w) -> column_width(gr, w)
@@ -140,10 +121,8 @@ pub fn with_opts(g: Grid, opts: List(Opt)) -> Grid {
 pub fn build(g: Grid) -> Node {
   let props =
     dict.new()
-    |> build.put_optional_int("columns", g.columns)
-    |> build.put_optional_int("column_count", g.column_count)
-    |> build.put_optional_int("spacing", g.spacing)
-    |> build.put_optional("padding", g.padding, padding.to_prop_value)
+    |> build.put_optional_int("num_columns", g.num_columns)
+    |> build.put_optional_float("spacing", g.spacing)
     |> build.put_optional("width", g.width, length.to_prop_value)
     |> build.put_optional("height", g.height, length.to_prop_value)
     |> build.put_optional("column_width", g.column_width, length.to_prop_value)

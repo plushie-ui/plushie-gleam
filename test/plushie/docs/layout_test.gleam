@@ -285,10 +285,11 @@ pub fn layout_space_test() {
 }
 
 pub fn layout_grid_test() {
-  let node = ui.grid("gallery", [grid.Spacing(8)], [])
+  let node = ui.grid("gallery", [grid.NumColumns(3), grid.Spacing(8.0)], [])
   assert node.kind == "grid"
   assert node.id == "gallery"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(node.props, "num_columns") == Ok(IntVal(3))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(8.0))
   assert node.children == []
 }
 
