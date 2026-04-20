@@ -285,14 +285,14 @@ pub fn batch(commands: List(Command(msg))) -> Command(msg) {
 /// may be after further state changes. Do not capture the current
 /// model in the closure; use the model available in your update
 /// function instead.
-pub fn done(value: Dynamic, mapper: fn(Dynamic) -> msg) -> Command(msg) {
+pub fn dispatch(value: Dynamic, mapper: fn(Dynamic) -> msg) -> Command(msg) {
   Done(value:, mapper:)
 }
 
 /// Run a function asynchronously on a background process. The result
 /// is delivered as an AsyncResult event identified by the tag.
 /// Starting a new task with the same tag cancels the running one.
-pub fn async(work: fn() -> Dynamic, tag: String) -> Command(msg) {
+pub fn task(work: fn() -> Dynamic, tag: String) -> Command(msg) {
   Async(work:, tag:)
 }
 
@@ -780,7 +780,7 @@ pub fn native_command(
 
 /// Send a batch of native widget commands processed in one cycle.
 /// Each tuple is `#(node_id, op, payload)`.
-pub fn native_commands(
+pub fn widget_batch(
   commands: List(#(String, String, Dict(String, PropValue))),
 ) -> Command(msg) {
   Renderer(NativeCommands(commands:))

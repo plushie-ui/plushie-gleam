@@ -80,7 +80,7 @@ fn async_update(
   case event {
     event.Widget(event.Click(target: EventTarget(id: "go", ..))) -> #(
       model,
-      command.async(fn() { to_dynamic(42) }, "compute"),
+      command.task(fn() { to_dynamic(42) }, "compute"),
     )
     event.Async(event.AsyncEvent(tag: "compute", result: Ok(value))) -> {
       let assert Ok(n) = dyn_decode.run(value, dyn_decode.int)
@@ -293,7 +293,7 @@ fn done_init() -> #(DoneModel, command.Command(Event)) {
   let value: Dynamic = coerce_to_dynamic(99)
   #(
     DoneModel(result: 0),
-    command.done(value, fn(d) {
+    command.dispatch(value, fn(d) {
       let assert Ok(n) = dyn_decode.run(d, dyn_decode.int)
       event.Timer(event.TimerEvent(
         tag: "done:" <> int.to_string(n),

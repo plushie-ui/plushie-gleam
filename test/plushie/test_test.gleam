@@ -351,7 +351,7 @@ type CmdModel {
 fn cmd_init() {
   #(
     CmdModel(value: "init"),
-    command.done(dynamic.string("from_init"), fn(_d) {
+    command.dispatch(dynamic.string("from_init"), fn(_d) {
       Widget(
         Click(target: EventTarget(
           window_id: "main",

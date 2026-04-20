@@ -8,7 +8,7 @@ result as an event:
 ```gleam
 import plushie/command
 
-let cmd = command.async(fn() { Ok(fetch_data()) }, "data_loaded")
+let cmd = command.task(fn() { Ok(fetch_data()) }, "data_loaded")
 #(Model(..model, status: Loading), cmd)
 ```
 

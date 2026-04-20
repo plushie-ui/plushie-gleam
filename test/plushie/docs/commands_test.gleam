@@ -17,7 +17,7 @@ pub fn commands_none_test() {
 
 pub fn commands_async_construct_test() {
   let work = fn() { dynamic.string("result") }
-  let cmd = command.async(work, "data_fetched")
+  let cmd = command.task(work, "data_fetched")
   case cmd {
     command.Async(tag: "data_fetched", ..) -> should.be_true(True)
     _ -> should.fail()
@@ -48,7 +48,7 @@ pub fn commands_cancel_construct_test() {
 // -- command.done ------------------------------------------------------------
 
 pub fn commands_done_construct_test() {
-  let cmd = command.done(dynamic.nil(), fn(_) { "msg" })
+  let cmd = command.dispatch(dynamic.nil(), fn(_) { "msg" })
   case cmd {
     command.Done(..) -> should.be_true(True)
     _ -> should.fail()
@@ -688,7 +688,7 @@ pub fn commands_timer_tick_event_test() {
 // -- Update testability pattern ----------------------------------------------
 
 pub fn commands_update_testability_test() {
-  let cmd = command.async(fn() { dynamic.string("data") }, "fetch")
+  let cmd = command.task(fn() { dynamic.string("data") }, "fetch")
   case cmd {
     command.Async(tag: "fetch", ..) -> should.be_true(True)
     _ -> should.fail()
@@ -698,9 +698,9 @@ pub fn commands_update_testability_test() {
 // -- Chaining pattern (multi-step async) -------------------------------------
 
 pub fn commands_chaining_pattern_test() {
-  let step1 = command.async(fn() { dynamic.nil() }, "validated")
-  let step2 = command.async(fn() { dynamic.nil() }, "built")
-  let step3 = command.async(fn() { dynamic.nil() }, "deployed")
+  let step1 = command.task(fn() { dynamic.nil() }, "validated")
+  let step2 = command.task(fn() { dynamic.nil() }, "built")
+  let step3 = command.task(fn() { dynamic.nil() }, "deployed")
   case step1 {
     command.Async(tag: "validated", ..) -> should.be_true(True)
     _ -> should.fail()

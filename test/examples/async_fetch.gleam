@@ -47,7 +47,7 @@ fn update(model: Model, event: Event) {
   case event {
     Widget(Click(target: EventTarget(id: "fetch", ..))) -> #(
       Model(..model, status: Loading),
-      command.async(fetch_data, "fetch"),
+      command.task(fetch_data, "fetch"),
     )
     Async(AsyncEvent(tag: "fetch", result: Ok(value))) -> {
       let data = case decode.run(value, decode.string) {
