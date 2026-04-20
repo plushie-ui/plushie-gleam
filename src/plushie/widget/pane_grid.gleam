@@ -9,6 +9,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/color.{type Color}
 import plushie/prop/length.{type Length}
 import plushie/widget/build
 
@@ -21,7 +22,7 @@ pub opaque type PaneGrid {
     width: Option(Length),
     height: Option(Length),
     min_size: Option(Float),
-    divider_color: Option(String),
+    divider_color: Option(Color),
     divider_width: Option(Float),
     leeway: Option(Float),
     split_axis: Option(String),
@@ -75,7 +76,7 @@ pub fn min_size(pg: PaneGrid, s: Float) -> PaneGrid {
 }
 
 /// Set the divider color.
-pub fn divider_color(pg: PaneGrid, c: String) -> PaneGrid {
+pub fn divider_color(pg: PaneGrid, c: Color) -> PaneGrid {
   PaneGrid(..pg, divider_color: option.Some(c))
 }
 
@@ -121,7 +122,7 @@ pub type Opt {
   Width(Length)
   Height(Length)
   MinSize(Float)
-  DividerColor(String)
+  DividerColor(Color)
   DividerWidth(Float)
   Leeway(Float)
   SplitAxis(String)
@@ -159,7 +160,11 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional("width", pg.width, length.to_prop_value)
     |> build.put_optional("height", pg.height, length.to_prop_value)
     |> build.put_optional_float("min_size", pg.min_size)
-    |> build.put_optional_string("divider_color", pg.divider_color)
+    |> build.put_optional(
+      "divider_color",
+      pg.divider_color,
+      color.to_prop_value,
+    )
     |> build.put_optional_float("divider_width", pg.divider_width)
     |> build.put_optional_float("leeway", pg.leeway)
     |> build.put_optional_string("split_axis", pg.split_axis)

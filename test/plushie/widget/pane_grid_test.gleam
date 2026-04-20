@@ -1,6 +1,7 @@
 import gleam/dict
 import gleam/list
 import plushie/node.{FloatVal, IntVal, StringVal}
+import plushie/prop/color
 import plushie/prop/length
 import plushie/widget/pane_grid
 
@@ -46,7 +47,10 @@ pub fn min_size_sets_prop_test() {
 pub fn divider_props_test() {
   let node =
     pane_grid.new("pg")
-    |> pane_grid.divider_color("#cccccc")
+    |> pane_grid.divider_color({
+      let assert Ok(c) = color.from_hex("#cccccc")
+      c
+    })
     |> pane_grid.divider_width(2.0)
     |> pane_grid.build()
 
