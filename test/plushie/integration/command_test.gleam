@@ -17,6 +17,7 @@ import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event, EventTarget}
 import plushie/node.{type Node}
+import plushie/runtime_core
 import plushie/support
 import plushie/ui
 import plushie/widget/window
@@ -344,6 +345,54 @@ fn done_app() -> App(DoneModel, Event) {
   app.simple(done_init, done_update, done_view)
 }
 
+// -- dispatch loop: pathological chain that triggers the depth guard --------
+//
+// Each update returning the trigger event returns a Command.dispatch that
+// produces the same trigger event again. The runtime's depth counter bumps
+// per chained dispatch; once it hits `dispatch_depth_limit`, the command is
+// dropped and a typed `DispatchLoopExceeded` diagnostic surfaces on the
+// log channel. The test verifies the cap holds (model counter stops
+// advancing) and the runtime remains responsive afterwards.
+
+type LoopModel {
+  LoopModel(ticks: Int, recovered: Int)
+}
+
+fn loop_init() -> #(LoopModel, command.Command(Event)) {
+  #(LoopModel(ticks: 0, recovered: 0), command.none())
+}
+
+fn loop_update(
+  model: LoopModel,
+  event: Event,
+) -> #(LoopModel, command.Command(Event)) {
+  case event {
+    event.Timer(event.TimerEvent(tag: "loop_trigger", ..)) -> {
+      let next_event =
+        event.Timer(event.TimerEvent(tag: "loop_trigger", timestamp: 0))
+      let cmd = command.dispatch(coerce_to_dynamic(Nil), fn(_) { next_event })
+      #(LoopModel(..model, ticks: model.ticks + 1), cmd)
+    }
+    event.Timer(event.TimerEvent(tag: "recover", ..)) -> #(
+      LoopModel(..model, recovered: model.recovered + 1),
+      command.none(),
+    )
+    _ -> #(model, command.none())
+  }
+}
+
+fn loop_view(_model: LoopModel) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Dispatch Loop Test")], [
+      ui.text_("label", "looping"),
+    ]),
+  )
+}
+
+fn loop_app() -> App(LoopModel, Event) {
+  app.simple(loop_init, loop_update, loop_view)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -486,6 +535,54 @@ pub fn view_exception_does_not_crash_runtime_test() -> Nil {
     let result = support.await(rt, fn(m) { m.count >= 1 }, 500)
     support.stop(rt)
     let assert Ok(_) = result
+    Nil
+  })
+}
+
+/// A pathological update loop that keeps dispatching is stopped at
+/// the configured depth cap. The runtime drops the command, surfaces
+/// the DispatchLoopExceeded diagnostic (log channel), and remains
+/// responsive to subsequent events.
+pub fn dispatch_loop_is_capped_at_depth_limit_test() -> Nil {
+  support.quiet_logs(fn() {
+    let rt = support.start(loop_app(), [])
+    // Kick off the chain. The initial dispatch counts as depth 1;
+    // each follow-up bumps until the cap, then stops.
+    support.dispatch_event(
+      rt,
+      event.Timer(event.TimerEvent(tag: "loop_trigger", timestamp: 0)),
+    )
+
+    // Wait for the chain to run to completion (bounded by the cap).
+    // The initial dispatch is depth 0; each follow-up Command.dispatch
+    // bumps by one. Update runs at depths 0..cap (the depth=cap+1
+    // follow-up is the one that trips the guard and gets dropped), so
+    // ticks lands at cap + 1.
+    let cap = runtime_core.dispatch_depth_limit
+    let expected_ticks = cap + 1
+    let result = support.await(rt, fn(m) { m.ticks >= expected_ticks }, 1000)
+    let assert Ok(model) = result
+
+    // Cap is exact: ticks should not exceed expected_ticks even if we
+    // keep polling.
+    assert model.ticks == expected_ticks
+
+    // The runtime is still responsive: dispatch another event through
+    // a fresh chain and confirm it lands. This proves the guard
+    // dropped the offending command cleanly instead of hanging the
+    // mailbox.
+    support.dispatch_event(
+      rt,
+      event.Timer(event.TimerEvent(tag: "recover", timestamp: 0)),
+    )
+    let recover_result = support.await(rt, fn(m) { m.recovered >= 1 }, 500)
+    let assert Ok(final_model) = recover_result
+    assert final_model.recovered == 1
+    // ticks stays at expected_ticks: the guard dropped further chained
+    // dispatches in the pathological chain.
+    assert final_model.ticks == expected_ticks
+
+    support.stop(rt)
     Nil
   })
 }
