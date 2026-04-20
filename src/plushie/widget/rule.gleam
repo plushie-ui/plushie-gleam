@@ -13,6 +13,7 @@ pub opaque type Rule {
     id: String,
     height: Option(Float),
     width: Option(Float),
+    thickness: Option(Float),
     direction: Option(Direction),
     style: Option(String),
     a11y: Option(A11y),
@@ -21,7 +22,15 @@ pub opaque type Rule {
 
 /// Create a new rule builder.
 pub fn new(id: String) -> Rule {
-  Rule(id:, height: None, width: None, direction: None, style: None, a11y: None)
+  Rule(
+    id:,
+    height: None,
+    width: None,
+    thickness: None,
+    direction: None,
+    style: None,
+    a11y: None,
+  )
 }
 
 /// Set the height.
@@ -32,6 +41,14 @@ pub fn height(r: Rule, h: Float) -> Rule {
 /// Set the width.
 pub fn width(r: Rule, w: Float) -> Rule {
   Rule(..r, width: option.Some(w))
+}
+
+/// Set the direction-agnostic line thickness in pixels.
+///
+/// The renderer uses this when the direction-specific width/height
+/// isn't set.
+pub fn thickness(r: Rule, t: Float) -> Rule {
+  Rule(..r, thickness: option.Some(t))
 }
 
 /// Set the direction.
@@ -53,6 +70,7 @@ pub fn a11y(r: Rule, a: A11y) -> Rule {
 pub type Opt {
   Height(Float)
   Width(Float)
+  Thickness(Float)
   Direction(Direction)
   Style(String)
   A11y(A11y)
@@ -64,6 +82,7 @@ pub fn with_opts(r: Rule, opts: List(Opt)) -> Rule {
     case opt {
       Height(h) -> height(rl, h)
       Width(w) -> width(rl, w)
+      Thickness(t) -> thickness(rl, t)
       Direction(d) -> direction(rl, d)
       Style(s) -> style(rl, s)
       A11y(a) -> a11y(rl, a)
@@ -77,6 +96,7 @@ pub fn build(r: Rule) -> Node {
     dict.new()
     |> build.put_optional_float("height", r.height)
     |> build.put_optional_float("width", r.width)
+    |> build.put_optional_float("thickness", r.thickness)
     |> build.put_optional("direction", r.direction, fn(d) {
       StringVal(direction.to_string(d))
     })
