@@ -2212,7 +2212,8 @@ fn execute_commands(
         }
         Error(reason) -> {
           platform.log_error(
-            "plushie: Command.done mapper crashed: " <> string.inspect(reason),
+            "plushie: Command.dispatch mapper crashed: "
+            <> string.inspect(reason),
           )
         }
       }
