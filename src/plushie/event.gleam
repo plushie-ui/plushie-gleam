@@ -502,6 +502,12 @@ pub type Diagnostic {
   )
   /// The view function panicked and was caught by the runtime.
   ViewPanicked(consecutive: Int, message: String)
+  /// The update function panicked and was caught by the runtime. The
+  /// model is reverted to the last-good snapshot so the app keeps
+  /// running; the consecutive counter is shared with `ViewPanicked`
+  /// so the frozen-UI overlay surfaces after enough total panics
+  /// across either callback.
+  UpdatePanicked(consecutive: Int, message: String)
   /// A wire message carried a `type` field the SDK does not recognise.
   UnknownMessageType(msg_type: String)
 }

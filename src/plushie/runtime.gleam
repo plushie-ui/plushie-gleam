@@ -1490,6 +1490,7 @@ fn describe_diagnostic(diag: event.Diagnostic) -> String {
     event.EmitterCoalesceCapExceeded(..) -> "emitter_coalesce_cap_exceeded"
     event.WidgetIdTypeCollision(id:, ..) -> "widget_id_type_collision: " <> id
     event.ViewPanicked(message:, ..) -> "view_panicked: " <> message
+    event.UpdatePanicked(message:, ..) -> "update_panicked: " <> message
     event.UnknownMessageType(msg_type:) -> "unknown_message_type: " <> msg_type
   }
 }

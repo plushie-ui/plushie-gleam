@@ -1169,6 +1169,27 @@ pub fn decode_diagnostic_unknown_kind_returns_error_test() {
   let assert Error(_) = decode.decode_message(data, protocol.Json)
 }
 
+pub fn decode_diagnostic_update_panicked_json_test() {
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"error\","
+    <> "\"diagnostic\":{\"kind\":\"update_panicked\",\"consecutive\":2,"
+    <> "\"message\":\"nil dereference\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Error(event.Diagnostic(
+      level:,
+      payload: event.UpdatePanicked(consecutive:, message:),
+    )) -> {
+      should.equal(level, "error")
+      should.equal(consecutive, 2)
+      should.equal(message, "nil dereference")
+    }
+    _ -> should.fail()
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Canvas scroll (decoded as WidgetEvent catch-all with x/y field names)
 // ---------------------------------------------------------------------------

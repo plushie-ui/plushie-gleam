@@ -1819,6 +1819,11 @@ fn decode_diagnostic_payload(
         consecutive: get_int_or(payload, "consecutive", 0),
         message: get_string_or(payload, "message", ""),
       ))
+    "update_panicked" ->
+      Ok(event.UpdatePanicked(
+        consecutive: get_int_or(payload, "consecutive", 0),
+        message: get_string_or(payload, "message", ""),
+      ))
     "unknown_message_type" ->
       Ok(
         event.UnknownMessageType(msg_type: get_string_or(
