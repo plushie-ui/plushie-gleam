@@ -41,10 +41,10 @@ fn view(model: Model) -> Node {
   ui.window("main", [window.Title("Counter")], [
     ui.column(
       "content",
-      [column.Padding(padding.all(16.0)), column.Spacing(8)],
+      [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
       [
         ui.text_("count", "Count: " <> int.to_string(model.count)),
-        ui.row("buttons", [row.Spacing(8)], [
+        ui.row("buttons", [row.Spacing(8.0)], [
           ui.button_("inc", "+"),
           ui.button_("dec", "-"),
         ]),

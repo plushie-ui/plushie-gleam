@@ -3,7 +3,7 @@ import gleam/int
 import gleeunit/should
 import plushie/command
 import plushie/event.{type Event, Click, EventTarget, Widget}
-import plushie/node.{type Node, IntVal, StringVal}
+import plushie/node.{type Node, FloatVal, IntVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
 import plushie/widget/column
@@ -38,10 +38,10 @@ fn view(model: Model) -> Node {
   ui.window("main", [window.Title("Counter")], [
     ui.column(
       "content",
-      [column.Padding(padding.all(16.0)), column.Spacing(8)],
+      [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
       [
         ui.text_("count", "Count: " <> int.to_string(model.count)),
-        ui.row("buttons", [row.Spacing(8)], [
+        ui.row("buttons", [row.Spacing(8.0)], [
           ui.button_("inc", "+"),
           ui.button_("dec", "-"),
         ]),
@@ -119,7 +119,7 @@ pub fn readme_counter_view_structure_test() {
 
   let assert [column] = tree.children
   should.equal(column.kind, "column")
-  should.equal(dict.get(column.props, "spacing"), Ok(IntVal(8)))
+  should.equal(dict.get(column.props, "spacing"), Ok(FloatVal(8.0)))
 
   let assert [text_node, row_node] = column.children
   should.equal(text_node.kind, "text")

@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{IntVal, Node}
+import plushie/node.{FloatVal, IntVal, Node}
 import plushie/prop/alignment
 import plushie/prop/length
 import plushie/widget/row
@@ -13,13 +13,13 @@ pub fn new_builds_empty_row_test() {
   assert dict.is_empty(node.props)
 }
 
-pub fn spacing_sets_int_prop_test() {
+pub fn spacing_sets_float_prop_test() {
   let node =
     row.new("r")
-    |> row.spacing(12)
+    |> row.spacing(12.5)
     |> row.build()
 
-  assert dict.get(node.props, "spacing") == Ok(IntVal(12))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(12.5))
 }
 
 pub fn push_adds_child_test() {

@@ -108,13 +108,13 @@ pub fn layout_padding_per_side_test() {
 
 pub fn layout_spacing_test() {
   let node =
-    ui.column("col", [column.Spacing(8)], [
+    ui.column("col", [column.Spacing(8.0)], [
       ui.text_("first", "First"),
       ui.text_("second", "Second"),
       ui.text_("third", "Third"),
     ])
   assert node.kind == "column"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(8.0))
   let assert [a, b, c] = node.children
   assert dict.get(a.props, "content") == Ok(StringVal("First"))
   assert dict.get(b.props, "content") == Ok(StringVal("Second"))
@@ -164,7 +164,7 @@ pub fn layout_column_with_props_test() {
     ui.column(
       "main",
       [
-        column.Spacing(16),
+        column.Spacing(16.0),
         column.Padding(padding.all(20.0)),
         column.Width(Fill),
         column.AlignX(Center),
@@ -175,7 +175,7 @@ pub fn layout_column_with_props_test() {
       ],
     )
   assert node.kind == "column"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(16))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(16.0))
   assert dict.get(node.props, "width") == Ok(StringVal("fill"))
   assert dict.get(node.props, "align_x") == Ok(StringVal("center"))
   let assert [title, subtitle] = node.children
@@ -185,13 +185,13 @@ pub fn layout_column_with_props_test() {
 
 pub fn layout_row_with_align_y_test() {
   let node =
-    ui.row("nav", [row.Spacing(8), row.AlignY(Center)], [
+    ui.row("nav", [row.Spacing(8.0), row.AlignY(Center)], [
       ui.button_("back", "<"),
       ui.text_("page", "Page 1 of 5"),
       ui.button_("next", ">"),
     ])
   assert node.kind == "row"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(8.0))
   assert dict.get(node.props, "align_y") == Ok(StringVal("center"))
   let assert [back, page, next] = node.children
   assert dict.get(back.props, "label") == Ok(StringVal("<"))
@@ -231,7 +231,7 @@ pub fn layout_scrollable_test() {
       "list",
       [scrollable.Height(Fixed(400.0)), scrollable.Width(Fill)],
       [
-        ui.column("items", [column.Spacing(4)], []),
+        ui.column("items", [column.Spacing(4.0)], []),
       ],
     )
   assert node.kind == "scrollable"
@@ -306,7 +306,7 @@ pub fn layout_centered_page_test() {
         container.AlignY(Center),
       ],
       [
-        ui.column("content", [column.Spacing(16), column.AlignX(Center)], [
+        ui.column("content", [column.Spacing(16.0), column.AlignX(Center)], [
           ui.text("welcome", "Welcome", [text.Size(32.0)]),
           ui.button_("start", "Get Started"),
         ]),

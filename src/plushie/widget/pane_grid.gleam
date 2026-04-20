@@ -18,7 +18,7 @@ pub opaque type PaneGrid {
     id: String,
     children: List(Node),
     panes: Option(List(String)),
-    spacing: Option(Int),
+    spacing: Option(Float),
     width: Option(Length),
     height: Option(Length),
     min_size: Option(Float),
@@ -56,7 +56,7 @@ pub fn panes(pg: PaneGrid, p: List(String)) -> PaneGrid {
 }
 
 /// Set the spacing between children.
-pub fn spacing(pg: PaneGrid, s: Int) -> PaneGrid {
+pub fn spacing(pg: PaneGrid, s: Float) -> PaneGrid {
   PaneGrid(..pg, spacing: option.Some(s))
 }
 
@@ -118,7 +118,7 @@ pub fn a11y(pg: PaneGrid, a: A11y) -> PaneGrid {
 /// Option type for pane grid properties.
 pub type Opt {
   Panes(List(String))
-  Spacing(Int)
+  Spacing(Float)
   Width(Length)
   Height(Length)
   MinSize(Float)
@@ -156,7 +156,7 @@ pub fn build(pg: PaneGrid) -> Node {
     |> build.put_optional("panes", pg.panes, fn(p) {
       ListVal(list.map(p, StringVal))
     })
-    |> build.put_optional_int("spacing", pg.spacing)
+    |> build.put_optional_float("spacing", pg.spacing)
     |> build.put_optional("width", pg.width, length.to_prop_value)
     |> build.put_optional("height", pg.height, length.to_prop_value)
     |> build.put_optional_float("min_size", pg.min_size)

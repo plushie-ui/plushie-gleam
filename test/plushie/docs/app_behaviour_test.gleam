@@ -278,9 +278,9 @@ pub fn app_behaviour_view_basic_structure_test() {
     ui.window("main", [window.Title("Todos")], [
       ui.column(
         "content",
-        [column.Padding(padding.all(16.0)), column.Spacing(8)],
+        [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
         [
-          ui.row("input-row", [row.Spacing(8)], [
+          ui.row("input-row", [row.Spacing(8.0)], [
             ui.text_input("todo_field", "", [
               text_input.Placeholder("What needs doing?"),
               text_input.OnSubmit(True),
@@ -307,10 +307,10 @@ pub fn app_behaviour_dialog_window_test() {
     ui.window("confirm", [], [
       ui.column(
         "dialog",
-        [column.Padding(padding.all(16.0)), column.Spacing(12)],
+        [column.Padding(padding.all(16.0)), column.Spacing(12.0)],
         [
           ui.text_("prompt", "Are you sure?"),
-          ui.row("buttons", [row.Spacing(8)], [
+          ui.row("buttons", [row.Spacing(8.0)], [
             ui.button_("confirm_yes", "Yes"),
             ui.button_("confirm_no", "No"),
           ]),

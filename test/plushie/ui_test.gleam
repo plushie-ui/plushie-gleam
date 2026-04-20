@@ -24,19 +24,19 @@ pub fn window_creates_window_node_test() {
 }
 
 pub fn column_creates_column_node_test() {
-  let node = ui.column("col", [column.Spacing(8)], [])
+  let node = ui.column("col", [column.Spacing(8.0)], [])
 
   assert node.id == "col"
   assert node.kind == "column"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(8.0))
 }
 
 pub fn row_creates_row_node_test() {
-  let node = ui.row("r", [row.Spacing(4)], [])
+  let node = ui.row("r", [row.Spacing(4.0)], [])
 
   assert node.id == "r"
   assert node.kind == "row"
-  assert dict.get(node.props, "spacing") == Ok(IntVal(4))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(4.0))
 }
 
 pub fn text_underscore_creates_text_node_test() {
@@ -142,9 +142,9 @@ pub fn align_attrs_test() {
 pub fn nested_tree_test() {
   let tree =
     ui.window("main", [window.Title("Counter")], [
-      ui.column("body", [column.Spacing(8)], [
+      ui.column("body", [column.Spacing(8.0)], [
         ui.text_("count", "0"),
-        ui.row("buttons", [row.Spacing(4)], [
+        ui.row("buttons", [row.Spacing(4.0)], [
           ui.button_("inc", "+"),
           ui.button_("dec", "-"),
         ]),

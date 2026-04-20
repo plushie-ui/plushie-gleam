@@ -120,7 +120,7 @@ fn view(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(16.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(length.Fill),
       ],
       [
@@ -130,7 +130,7 @@ fn view(model: Model) -> Node {
         ui.scrollable("log", [scrollable.Height(length.Fill)], [
           ui.column(
             "log-entries",
-            [column.Spacing(2), column.Width(length.Fill)],
+            [column.Spacing(2.0), column.Width(length.Fill)],
             list.index_map(model.log, fn(entry, idx) {
               ui.text("log_" <> int.to_string(idx), entry, [
                 text.Size(13.0),

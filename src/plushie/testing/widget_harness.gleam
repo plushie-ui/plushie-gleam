@@ -91,7 +91,7 @@ fn harness_update(
 
 fn harness_view(widget_node: Node) -> Node {
   ui.window("harness", [window.Title("Widget Test")], [
-    ui.column("harness_col", [column.Spacing(0)], [widget_node]),
+    ui.column("harness_col", [column.Spacing(0.0)], [widget_node]),
   ])
 }
 

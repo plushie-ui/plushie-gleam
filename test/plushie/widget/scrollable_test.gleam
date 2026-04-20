@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{BoolVal, IntVal, Node, StringVal}
+import plushie/node.{BoolVal, FloatVal, IntVal, Node, StringVal}
 import plushie/prop/direction
 import plushie/prop/length
 import plushie/widget/scrollable
@@ -55,13 +55,13 @@ pub fn direction_both_test() {
     == Ok(direction.to_prop_value(direction.Both))
 }
 
-pub fn spacing_sets_int_prop_test() {
+pub fn spacing_sets_float_prop_test() {
   let node =
     scrollable.new("scroll")
-    |> scrollable.spacing(8)
+    |> scrollable.spacing(8.25)
     |> scrollable.build()
 
-  assert dict.get(node.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(8.25))
 }
 
 pub fn on_scroll_sets_bool_prop_test() {

@@ -98,7 +98,7 @@ pub fn extensions_hex_view_no_commands_test() {
 // -- Composite widget from the "Composite widgets" section --------------------
 
 fn labeled_input(id: String, label: String, value: String) -> Node {
-  ui.column(id, [column.Spacing(4)], [
+  ui.column(id, [column.Spacing(4.0)], [
     ui.text_(id <> "-label", label),
     ui.text_input(id <> "-input", value, []),
   ])

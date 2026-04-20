@@ -50,7 +50,7 @@ fn tab_view(model: TabModel) -> Node {
     ui.column("tabs_layout", [column.Width(Fill)], [
       ui.row(
         "tab_row",
-        [row.Spacing(0)],
+        [row.Spacing(0.0)],
         list.map(tabs, fn(tab) {
           ui.button("tab:" <> tab, string.capitalise(tab), [
             button.Padding(padding.xy(10.0, 20.0)),
@@ -150,7 +150,7 @@ fn sidebar_view(model: SidebarModel) -> Node {
         [
           ui.column(
             "nav",
-            [column.Spacing(4), column.Width(Fill)],
+            [column.Spacing(4.0), column.Width(Fill)],
             list.map(nav_items, fn(item) {
               let #(id, label) = item
               ui.button("nav:" <> id, label, [button.Width(Fill)])
@@ -241,7 +241,7 @@ fn modal_view(model: ModalModel) -> Node {
     ui.container("main", [container.Width(Fill), container.Height(Fill)], [
       ui.column(
         "main_col",
-        [column.Spacing(12)],
+        [column.Spacing(12.0)],
         list.flatten([
           [
             ui.text("main_content", "Main application content", [
@@ -273,13 +273,13 @@ fn modal_view(model: ModalModel) -> Node {
         ],
         [
           ui.container("dialog", [container.MaxWidth(400.0)], [
-            ui.column("dialog_col", [column.Spacing(16)], [
+            ui.column("dialog_col", [column.Spacing(16.0)], [
               ui.text_("dialog_title", "Confirm action"),
               ui.text_(
                 "dialog_body",
                 "Are you sure you want to proceed? This cannot be undone.",
               ),
-              ui.row("dialog_actions", [row.Spacing(8)], [
+              ui.row("dialog_actions", [row.Spacing(8.0)], [
                 ui.button("cancel", "Cancel", [button.Style(button.Secondary)]),
                 ui.button("confirm", "Confirm", [button.Style(button.Primary)]),
               ]),
@@ -396,7 +396,7 @@ fn card(id: String, title: String, body: List(Node)) -> Node {
   ui.container(id, [container.Width(Fill)], [
     ui.column(
       id <> "_col",
-      [column.Spacing(8)],
+      [column.Spacing(8.0)],
       list.flatten([
         [
           ui.text("card_title", title, [text.Size(16.0)]),

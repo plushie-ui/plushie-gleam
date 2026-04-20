@@ -241,7 +241,7 @@ fn view_list(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(16.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(length.Fill),
       ],
       [
@@ -252,7 +252,7 @@ fn view_list(model: Model) -> Node {
         ui.scrollable("notes_list", [scrollable.Height(length.Fill)], [
           ui.column(
             "notes_col",
-            [column.Spacing(4), column.Width(length.Fill)],
+            [column.Spacing(4.0), column.Width(length.Fill)],
             list.map(filtered, fn(note) {
               let id_str = int.to_string(note.id)
               let display_title = case note.title {
@@ -261,7 +261,7 @@ fn view_list(model: Model) -> Node {
               }
               ui.row(
                 "note_row:" <> id_str,
-                [row.Spacing(8), row.Width(length.Fill)],
+                [row.Spacing(8.0), row.Width(length.Fill)],
                 [
                   ui.checkbox(
                     "note_select:" <> id_str,
@@ -275,7 +275,7 @@ fn view_list(model: Model) -> Node {
             }),
           ),
         ]),
-        ui.row("actions", [row.Spacing(8)], [
+        ui.row("actions", [row.Spacing(8.0)], [
           ui.button_("new_note", "New Note"),
           ui.button_("delete_selected", "Delete Selected"),
         ]),
@@ -292,11 +292,11 @@ fn view_edit(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(16.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(length.Fill),
       ],
       [
-        ui.row("toolbar", [row.Spacing(8)], [
+        ui.row("toolbar", [row.Spacing(8.0)], [
           ui.button_("back", "Back"),
           ui.button_("undo", "Undo"),
           ui.button_("redo", "Redo"),

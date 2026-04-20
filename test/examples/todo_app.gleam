@@ -126,7 +126,7 @@ fn view(model: Model) -> Node {
       "app",
       [
         column.Padding(padding.all(20.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(length.Fill),
       ],
       [
@@ -135,14 +135,14 @@ fn view(model: Model) -> Node {
           text_input.Placeholder("What needs doing?"),
           text_input.OnSubmit(True),
         ]),
-        ui.row("filters", [row.Spacing(8)], [
+        ui.row("filters", [row.Spacing(8.0)], [
           ui.button_("filter_all", "All"),
           ui.button_("filter_active", "Active"),
           ui.button_("filter_done", "Done"),
         ]),
         ui.column(
           "list",
-          [column.Spacing(4)],
+          [column.Spacing(4.0)],
           filtered(model) |> list.map(todo_row),
         ),
       ],
@@ -160,7 +160,7 @@ fn filtered(model: Model) -> List(Todo) {
 
 fn todo_row(entry: Todo) -> Node {
   ui.container(entry.id, [], [
-    ui.row("row", [row.Spacing(8)], [
+    ui.row("row", [row.Spacing(8.0)], [
       ui.checkbox("toggle", "", entry.done, []),
       ui.text_("text", entry.text),
       ui.button_("delete", "x"),

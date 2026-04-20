@@ -78,7 +78,7 @@ fn view(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(24.0)),
-        column.Spacing(16),
+        column.Spacing(16.0),
         column.Width(length.Fill),
       ],
       [
@@ -99,7 +99,7 @@ fn status_message(model: Model) -> Node {
       ])
     Loading -> ui.text("status", "Loading...", [text.Color(hex("#cc8800"))])
     Loaded ->
-      ui.column("result_col", [column.Spacing(4)], [
+      ui.column("result_col", [column.Spacing(4.0)], [
         ui.text("label", "Result:", [text.Size(14.0)]),
         ui.text("result", model.data, [text.Color(hex("#22aa44"))]),
       ])

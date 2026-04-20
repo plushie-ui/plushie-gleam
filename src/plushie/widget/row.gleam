@@ -14,7 +14,7 @@ pub opaque type Row {
   Row(
     id: String,
     children: List(Node),
-    spacing: Option(Int),
+    spacing: Option(Float),
     padding: Option(Padding),
     width: Option(Length),
     height: Option(Length),
@@ -44,7 +44,7 @@ pub fn new(id: String) -> Row {
 }
 
 /// Set the spacing between children.
-pub fn spacing(row: Row, s: Int) -> Row {
+pub fn spacing(row: Row, s: Float) -> Row {
   Row(..row, spacing: option.Some(s))
 }
 
@@ -100,7 +100,7 @@ pub fn a11y(row: Row, a: A11y) -> Row {
 
 /// Option type for row properties.
 pub type Opt {
-  Spacing(Int)
+  Spacing(Float)
   Padding(Padding)
   Width(Length)
   Height(Length)
@@ -132,7 +132,7 @@ pub fn with_opts(row: Row, opts: List(Opt)) -> Row {
 pub fn build(row: Row) -> Node {
   let props =
     dict.new()
-    |> build.put_optional_int("spacing", row.spacing)
+    |> build.put_optional_float("spacing", row.spacing)
     |> build.put_optional("padding", row.padding, padding.to_prop_value)
     |> build.put_optional("width", row.width, length.to_prop_value)
     |> build.put_optional("height", row.height, length.to_prop_value)

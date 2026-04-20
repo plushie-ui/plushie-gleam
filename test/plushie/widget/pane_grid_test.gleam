@@ -17,10 +17,10 @@ pub fn new_builds_minimal_pane_grid_test() {
 pub fn spacing_sets_prop_test() {
   let node =
     pane_grid.new("pg")
-    |> pane_grid.spacing(4)
+    |> pane_grid.spacing(4.5)
     |> pane_grid.build()
 
-  assert dict.get(node.props, "spacing") == Ok(IntVal(4))
+  assert dict.get(node.props, "spacing") == Ok(FloatVal(4.5))
 }
 
 pub fn width_and_height_set_props_test() {

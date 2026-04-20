@@ -341,7 +341,7 @@ fn view(model: Model) -> Node {
         [
           ui.column(
             "main-col",
-            [column.Spacing(24), column.Width(length.Fill)],
+            [column.Spacing(24.0), column.Width(length.Fill)],
             [
               ui.text("heading", "Rate Plushie", [
                 text.Size(28.0),
@@ -385,12 +385,12 @@ fn rating_card(model: Model, p: Float, t: Theme) -> Node {
       container.BgColor(hex(t.card_bg)),
     ],
     [
-      ui.column("card-col", [column.Spacing(20), column.Width(length.Fill)], [
+      ui.column("card-col", [column.Spacing(20.0), column.Width(length.Fill)], [
         ui.text("prompt", "How would you rate Plushie?", [
           text.Size(14.0),
           text.Color(hex(t.text_secondary)),
         ]),
-        ui.column("stars-group", [column.Spacing(4)], [
+        ui.column("stars-group", [column.Spacing(4.0)], [
           star_rating.widget(
             "stars",
             star_rating.props(model.rating) |> star_rating.theme_progress(p),
@@ -422,8 +422,8 @@ fn review_form(model: Model, t: Theme) -> Node {
   let name_error = dict.get(model.errors, "name")
   let comment_error = dict.get(model.errors, "comment")
 
-  ui.column("review-form", [column.Spacing(12), column.Width(length.Fill)], [
-    ui.column("name-field", [column.Spacing(4), column.Width(length.Fill)], [
+  ui.column("review-form", [column.Spacing(12.0), column.Width(length.Fill)], [
+    ui.column("name-field", [column.Spacing(4.0), column.Width(length.Fill)], [
       ui.text_input("review-name", model.review_name, [
         text_input.Placeholder("Your name"),
         text_input.OnSubmit(True),
@@ -451,34 +451,38 @@ fn review_form(model: Model, t: Theme) -> Node {
         Error(_) -> []
       }
     ]),
-    ui.column("comment-field", [column.Spacing(4), column.Width(length.Fill)], [
-      text_editor.new("review-comment", model.review_comment)
-        |> text_editor.placeholder("Write your review...")
-        |> text_editor.height(length.Fixed(80.0))
-        |> text_editor.a11y(
-          a11y.new()
-          |> a11y.label("Review text")
-          |> a11y.required(True)
-          |> a11y.invalid(comment_error != Error(Nil))
-          |> case comment_error {
-            Ok(_) -> a11y.error_message(_, "review-comment-error")
-            Error(_) -> fn(a) { a }
-          },
-        )
-        |> text_editor.build(),
-      ..case comment_error {
-        Ok(error) -> [
-          ui.text("review-comment-error", error, [
-            text.Size(12.0),
-            text.Color(hex(t.error_text)),
-            text.A11y(
-              a11y.new() |> a11y.role(a11y.Alert) |> a11y.live("polite"),
-            ),
-          ]),
-        ]
-        Error(_) -> []
-      }
-    ]),
+    ui.column(
+      "comment-field",
+      [column.Spacing(4.0), column.Width(length.Fill)],
+      [
+        text_editor.new("review-comment", model.review_comment)
+          |> text_editor.placeholder("Write your review...")
+          |> text_editor.height(length.Fixed(80.0))
+          |> text_editor.a11y(
+            a11y.new()
+            |> a11y.label("Review text")
+            |> a11y.required(True)
+            |> a11y.invalid(comment_error != Error(Nil))
+            |> case comment_error {
+              Ok(_) -> a11y.error_message(_, "review-comment-error")
+              Error(_) -> fn(a) { a }
+            },
+          )
+          |> text_editor.build(),
+        ..case comment_error {
+          Ok(error) -> [
+            ui.text("review-comment-error", error, [
+              text.Size(12.0),
+              text.Color(hex(t.error_text)),
+              text.A11y(
+                a11y.new() |> a11y.role(a11y.Alert) |> a11y.live("polite"),
+              ),
+            ]),
+          ]
+          Error(_) -> []
+        }
+      ],
+    ),
     ui.button_("submit-review", "Submit Review"),
   ])
 }
@@ -500,7 +504,7 @@ fn theme_row(t: Theme) -> Node {
 fn reviews_list(reviews: List(Review), p: Float, t: Theme) -> Node {
   ui.column(
     "reviews",
-    [column.Spacing(0), column.Width(length.Fill)],
+    [column.Spacing(0.0), column.Width(length.Fill)],
     reviews
       |> list.index_map(fn(review, i) {
         case i > 0 {
@@ -520,12 +524,12 @@ fn review_card(review: Review, i: Int, p: Float, t: Theme) -> Node {
   ui.column(
     "review-" <> idx,
     [
-      column.Spacing(4),
+      column.Spacing(4.0),
       column.Padding(padding.all(12.0)),
       column.Width(length.Fill),
     ],
     [
-      ui.row("rhdr-" <> idx, [row.Spacing(8), row.AlignY(alignment.Center)], [
+      ui.row("rhdr-" <> idx, [row.Spacing(8.0), row.AlignY(alignment.Center)], [
         star_rating.widget(
           "rstars-" <> idx,
           star_rating.props(review.stars)

@@ -14,7 +14,7 @@ pub opaque type Column {
   Column(
     id: String,
     children: List(Node),
-    spacing: Option(Int),
+    spacing: Option(Float),
     padding: Option(Padding),
     width: Option(Length),
     height: Option(Length),
@@ -44,7 +44,7 @@ pub fn new(id: String) -> Column {
 }
 
 /// Set the spacing between children.
-pub fn spacing(col: Column, s: Int) -> Column {
+pub fn spacing(col: Column, s: Float) -> Column {
   Column(..col, spacing: option.Some(s))
 }
 
@@ -100,7 +100,7 @@ pub fn a11y(col: Column, a: A11y) -> Column {
 
 /// Option type for column properties.
 pub type Opt {
-  Spacing(Int)
+  Spacing(Float)
   Padding(Padding)
   Width(Length)
   Height(Length)
@@ -132,7 +132,7 @@ pub fn with_opts(col: Column, opts: List(Opt)) -> Column {
 pub fn build(col: Column) -> Node {
   let props =
     dict.new()
-    |> build.put_optional_int("spacing", col.spacing)
+    |> build.put_optional_float("spacing", col.spacing)
     |> build.put_optional("padding", col.padding, padding.to_prop_value)
     |> build.put_optional("width", col.width, length.to_prop_value)
     |> build.put_optional("height", col.height, length.to_prop_value)

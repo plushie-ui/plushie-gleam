@@ -68,7 +68,7 @@ fn view(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(24.0)),
-        column.Spacing(16),
+        column.Spacing(16.0),
         column.Width(length.Fill),
         column.AlignX(alignment.Center),
       ],

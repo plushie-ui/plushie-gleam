@@ -18,7 +18,7 @@ pub opaque type Scrollable {
     width: Option(Length),
     height: Option(Length),
     direction: Option(Direction),
-    spacing: Option(Int),
+    spacing: Option(Float),
     scrollbar_width: Option(Float),
     scrollbar_margin: Option(Float),
     scroller_width: Option(Float),
@@ -67,8 +67,8 @@ pub fn direction(s: Scrollable, d: Direction) -> Scrollable {
   Scrollable(..s, direction: option.Some(d))
 }
 
-/// Set the spacing between children.
-pub fn spacing(s: Scrollable, sp: Int) -> Scrollable {
+/// Set the spacing between children in pixels.
+pub fn spacing(s: Scrollable, sp: Float) -> Scrollable {
   Scrollable(..s, spacing: option.Some(sp))
 }
 
@@ -132,7 +132,7 @@ pub type Opt {
   Width(Length)
   Height(Length)
   Direction(Direction)
-  Spacing(Int)
+  Spacing(Float)
   ScrollbarWidth(Float)
   ScrollbarMargin(Float)
   ScrollerWidth(Float)
@@ -173,7 +173,7 @@ pub fn build(s: Scrollable) -> Node {
     |> build.put_optional("width", s.width, length.to_prop_value)
     |> build.put_optional("height", s.height, length.to_prop_value)
     |> build.put_optional("direction", s.direction, direction.to_prop_value)
-    |> build.put_optional_int("spacing", s.spacing)
+    |> build.put_optional_float("spacing", s.spacing)
     |> build.put_optional_float("scrollbar_width", s.scrollbar_width)
     |> build.put_optional_float("scrollbar_margin", s.scrollbar_margin)
     |> build.put_optional_float("scroller_width", s.scroller_width)

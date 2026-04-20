@@ -122,7 +122,7 @@ fn filtered(model: Model) -> List(Todo) {
 
 fn todo_row(t: Todo) -> Node {
   ui.container(t.id, [], [
-    ui.row("row", [row.Spacing(8)], [
+    ui.row("row", [row.Spacing(8.0)], [
       ui.checkbox("toggle", "", t.done, []),
       ui.text_("text", t.text),
       ui.button_("delete", "x"),
@@ -138,7 +138,7 @@ fn step1_view(_model: Model) -> Node {
       "app",
       [
         column.Padding(padding.all(20.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(Fill),
       ],
       [
@@ -157,7 +157,7 @@ fn step3_view(model: Model) -> Node {
       "app",
       [
         column.Padding(padding.all(20.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(Fill),
       ],
       [
@@ -168,10 +168,10 @@ fn step3_view(model: Model) -> Node {
         ]),
         ui.column(
           "list",
-          [column.Spacing(4)],
+          [column.Spacing(4.0)],
           list.map(model.todos, fn(t) {
             ui.container(t.id, [], [
-              ui.row("row", [row.Spacing(8)], [
+              ui.row("row", [row.Spacing(8.0)], [
                 ui.checkbox("toggle", "", t.done, []),
                 ui.text_("text", t.text),
                 ui.button_("delete", "x"),
@@ -192,7 +192,7 @@ fn full_view(model: Model) -> Node {
       "app",
       [
         column.Padding(padding.all(20.0)),
-        column.Spacing(12),
+        column.Spacing(12.0),
         column.Width(Fill),
       ],
       [
@@ -201,14 +201,14 @@ fn full_view(model: Model) -> Node {
           text_input.Placeholder("What needs doing?"),
           text_input.OnSubmit(True),
         ]),
-        ui.row("filters", [row.Spacing(8)], [
+        ui.row("filters", [row.Spacing(8.0)], [
           ui.button_("filter_all", "All"),
           ui.button_("filter_active", "Active"),
           ui.button_("filter_done", "Done"),
         ]),
         ui.column(
           "list",
-          [column.Spacing(4)],
+          [column.Spacing(4.0)],
           list.map(filtered(model), fn(t) { todo_row(t) }),
         ),
       ],
@@ -235,7 +235,7 @@ pub fn tutorial_step1_view_test() {
   let assert [col] = tree.children
   assert col.kind == "column"
   assert col.id == "app"
-  assert dict.get(col.props, "spacing") == Ok(IntVal(12))
+  assert dict.get(col.props, "spacing") == Ok(FloatVal(12.0))
   assert dict.get(col.props, "width") == Ok(StringVal("fill"))
 
   let assert [title, empty] = col.children
@@ -363,7 +363,7 @@ pub fn tutorial_step3_view_renders_todo_list_test() {
   let assert [_title, _input, list_col] = col.children
   assert list_col.kind == "column"
   assert list_col.id == "list"
-  assert dict.get(list_col.props, "spacing") == Ok(IntVal(4))
+  assert dict.get(list_col.props, "spacing") == Ok(FloatVal(4.0))
 
   let assert [row1, row2] = list_col.children
   assert row1.id == "todo_1"
@@ -379,7 +379,7 @@ pub fn tutorial_step3_todo_row_structure_test() {
   let assert [inner_row] = row.children
   assert inner_row.kind == "row"
   assert inner_row.id == "row"
-  assert dict.get(inner_row.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(inner_row.props, "spacing") == Ok(FloatVal(8.0))
 
   let assert [cb, text, btn] = inner_row.children
   assert cb.kind == "checkbox"

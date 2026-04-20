@@ -14,7 +14,7 @@ pub opaque type KeyedColumn {
   KeyedColumn(
     id: String,
     children: List(Node),
-    spacing: Option(Int),
+    spacing: Option(Float),
     padding: Option(Padding),
     width: Option(Length),
     height: Option(Length),
@@ -40,7 +40,7 @@ pub fn new(id: String) -> KeyedColumn {
 }
 
 /// Set the spacing between children.
-pub fn spacing(kc: KeyedColumn, s: Int) -> KeyedColumn {
+pub fn spacing(kc: KeyedColumn, s: Float) -> KeyedColumn {
   KeyedColumn(..kc, spacing: option.Some(s))
 }
 
@@ -86,7 +86,7 @@ pub fn a11y(kc: KeyedColumn, a: A11y) -> KeyedColumn {
 
 /// Option type for keyed column properties.
 pub type Opt {
-  Spacing(Int)
+  Spacing(Float)
   Padding(Padding)
   Width(Length)
   Height(Length)
@@ -114,7 +114,7 @@ pub fn with_opts(kc: KeyedColumn, opts: List(Opt)) -> KeyedColumn {
 pub fn build(kc: KeyedColumn) -> Node {
   let props =
     dict.new()
-    |> build.put_optional_int("spacing", kc.spacing)
+    |> build.put_optional_float("spacing", kc.spacing)
     |> build.put_optional("padding", kc.padding, padding.to_prop_value)
     |> build.put_optional("width", kc.width, length.to_prop_value)
     |> build.put_optional("height", kc.height, length.to_prop_value)

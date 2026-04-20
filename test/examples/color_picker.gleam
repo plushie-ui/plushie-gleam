@@ -178,11 +178,11 @@ fn view(model: Model) -> Node {
       "content",
       [
         column.Padding(padding.all(20.0)),
-        column.Spacing(16),
+        column.Spacing(16.0),
       ],
       [
         color_picker_widget.widget("picker"),
-        ui.row("info", [row.Spacing(16)], [
+        ui.row("info", [row.Spacing(16.0)], [
           ui.container(
             "swatch",
             [
@@ -203,7 +203,7 @@ fn view(model: Model) -> Node {
             ],
             [],
           ),
-          ui.column("color_info", [column.Spacing(4)], [
+          ui.column("color_info", [column.Spacing(4.0)], [
             ui.text("hex_display", hex, [
               text.Size(18.0),
               text.A11y(

@@ -42,7 +42,7 @@ fn counter_update(model: CounterModel, event: Event) {
 
 fn counter_view(model: CounterModel) -> Node {
   ui.window("main", [window.Title("Counter")], [
-    ui.column("content", [column.Spacing(8)], [
+    ui.column("content", [column.Spacing(8.0)], [
       ui.text("count", int.to_string(model.count), []),
       ui.button_("increment", "+"),
       ui.button_("decrement", "-"),
@@ -98,7 +98,7 @@ fn todo_update(model: TodoModel, event: Event) {
 
 fn todo_view(model: TodoModel) -> Node {
   ui.window("main", [], [
-    ui.column("layout", [column.Spacing(8)], [
+    ui.column("layout", [column.Spacing(8.0)], [
       ui.text_input("todo_input", model.input, []),
       ui.button_("add_todo", "Add"),
       ui.text("todo_count", int.to_string(list.length(model.todos)), []),

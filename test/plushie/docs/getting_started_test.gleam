@@ -38,12 +38,12 @@ fn view(model: Model) -> Node {
   ui.window("main", [window.Title("Counter")], [
     ui.column(
       "content",
-      [column.Padding(padding.all(16.0)), column.Spacing(8)],
+      [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
       [
         ui.text("count", "Count: " <> int.to_string(model.count), [
           text.Size(20.0),
         ]),
-        ui.row("buttons", [row.Spacing(8)], [
+        ui.row("buttons", [row.Spacing(8.0)], [
           ui.button_("increment", "+"),
           ui.button_("decrement", "-"),
         ]),
@@ -122,7 +122,7 @@ pub fn getting_started_counter_view_test() {
   let assert [column] = tree.children
   assert column.kind == "column"
   assert column.id == "content"
-  assert dict.get(column.props, "spacing") == Ok(IntVal(8))
+  assert dict.get(column.props, "spacing") == Ok(FloatVal(8.0))
 
   let assert [text_node, row_node] = column.children
   assert text_node.kind == "text"
