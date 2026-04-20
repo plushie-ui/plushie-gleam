@@ -229,6 +229,30 @@ pub fn encode_settings_msgpack_has_nested_settings_test() {
   )
 }
 
+pub fn encode_settings_with_required_widgets_includes_names_test() {
+  let settings =
+    app.Settings(..app.default_settings(), required_widgets: [
+      "gauge",
+      "custom_chart",
+    ])
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"required_widgets\"")
+  assert string.contains(s, "\"gauge\"")
+  assert string.contains(s, "\"custom_chart\"")
+}
+
+pub fn encode_settings_with_empty_required_widgets_omits_key_test() {
+  // default_settings() already has required_widgets: [] so this
+  // pins down the "omit when empty" branch against drift.
+  let settings = app.default_settings()
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert !string.contains(s, "\"required_widgets\"")
+}
+
 // --- encode_snapshot ---------------------------------------------------------
 
 pub fn encode_snapshot_wraps_tree_test() {
