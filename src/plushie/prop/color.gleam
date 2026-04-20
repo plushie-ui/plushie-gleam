@@ -407,8 +407,6 @@ pub const dim_gray = Color("#696969")
 
 pub const light_slate_gray = Color("#778899")
 
-pub const dark_gray_web = Color("#a9a9a9")
-
 pub const gainsboro = Color("#dcdcdc")
 
 pub const white_smoke = Color("#f5f5f5")
@@ -444,3 +442,27 @@ pub const goldenrod = Color("#daa520")
 pub const pale_goldenrod = Color("#eee8aa")
 
 pub const rosy_brown = Color("#bc8f8f")
+
+pub const burlywood = Color("#deb887")
+
+pub const dark_grey = Color("#a9a9a9")
+
+pub const dark_magenta = Color("#8b008b")
+
+pub const dark_slate_grey = Color("#2f4f4f")
+
+pub const dim_grey = Color("#696969")
+
+pub const light_grey = Color("#d3d3d3")
+
+pub const light_slate_grey = Color("#778899")
+
+pub const light_steel_blue = Color("#b0c4de")
+
+pub const lime_green = Color("#32cd32")
+
+pub const rebecca_purple = Color("#663399")
+
+pub const saddle_brown = Color("#8b4513")
+
+pub const slate_grey = Color("#708090")
