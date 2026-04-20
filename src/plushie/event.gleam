@@ -403,6 +403,10 @@ pub type ErrorEvent {
   Diagnostic(level: String, payload: Diagnostic)
   /// Prop validation warning from the renderer.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
+  /// The renderer's advertised protocol version did not match the
+  /// version this SDK was built against. The runtime stops after
+  /// surfacing this event so the app can observe it before teardown.
+  ProtocolVersionMismatch(expected: Int, got: Int)
 }
 
 // ============================================================================

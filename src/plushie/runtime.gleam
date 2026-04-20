@@ -71,6 +71,11 @@ pub type RuntimeMessage {
   /// Internal msg dispatch (Done, SendAfter, already mapped to msg).
   /// The nonce distinguishes current from stale timer deliveries.
   InternalMsg(Dynamic, Int)
+  /// Msg dispatched by `Command.dispatch` with the current chain
+  /// depth attached. The runtime bumps the counter per chained
+  /// dispatch and drops the msg once it reaches the configured cap,
+  /// emitting a typed `DispatchLoopExceeded` diagnostic.
+  DispatchedMsg(Dynamic, Int)
   /// Subscription timer fired.
   TimerFired(tag: String)
   /// Async task completed with nonce for freshness validation.
@@ -318,6 +323,7 @@ type LoopState(model, msg) {
     focus: FocusState,
     error_state: ErrorState,
     dev_overlay: Option(String),
+    dispatch_depth: Int,
   )
 }
 
@@ -443,6 +449,7 @@ fn init_runtime(
         prop_warnings: [],
       ),
       dev_overlay: None,
+      dispatch_depth: 0,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -524,7 +531,7 @@ fn handle_message(
       level:,
       payload:,
     ))))) -> {
-      let log_msg = "plushie: " <> describe_diagnostic(payload)
+      let log_msg = "plushie: " <> runtime_core.describe_diagnostic(payload)
       case level {
         "error" -> platform.log_error(log_msg)
         "info" -> platform.log_info(log_msg)
@@ -633,12 +640,18 @@ fn handle_message(
             }
           }
         False -> {
+          // Construct the typed ErrorEvent so tests and telemetry
+          // handlers can match on `ProtocolVersionMismatch` with both
+          // versions attached, matching the shape used by Rust,
+          // Elixir, Python, Ruby, and TypeScript. The runtime still
+          // stops: a mismatched protocol is not safe to continue on.
+          let mismatch =
+            event.ProtocolVersionMismatch(
+              expected: protocol.protocol_version,
+              got: proto,
+            )
           platform.log_error(
-            "plushie: protocol version mismatch (expected "
-            <> int.to_string(protocol.protocol_version)
-            <> ", got "
-            <> int.to_string(proto)
-            <> "); stopping runtime",
+            "plushie: " <> format_protocol_version_mismatch(mismatch),
           )
           actor.stop()
         }
@@ -776,10 +789,9 @@ fn handle_message(
     }
 
     InternalMsg(dyn_msg, nonce) -> {
-      // Done/SendAfter deliver msg values wrapped as Dynamic.
-      // Nonce -1 means "always deliver" (from Done, not a timer).
-      // Otherwise, check nonce against the pending timer entry to
-      // detect stale deliveries from cancelled timers.
+      // SendAfter delivers msg values wrapped as Dynamic.
+      // Check nonce against the pending timer entry to detect stale
+      // deliveries from cancelled timers.
       let timer_key = platform.stable_hash_key(dyn_msg)
       let is_current = case nonce {
         -1 -> True
@@ -795,12 +807,28 @@ fn handle_message(
           let state =
             LoopState(..state, timers: dict.delete(state.timers, timer_key))
           let msg = unsafe_coerce_dynamic(dyn_msg)
+          // SendAfter is a fresh chain (not a Command.dispatch tail),
+          // so reset the dispatch depth counter before handling.
+          let state = LoopState(..state, dispatch_depth: 0)
           let new_state = handle_msg(state, msg)
           actor.continue(new_state)
         }
         // Stale delivery from a cancelled timer; discard silently
         False -> actor.continue(state)
       }
+    }
+
+    DispatchedMsg(dyn_msg, depth) -> {
+      // A `Command.dispatch` follow-up; the depth counter is the
+      // chain position. The guard at the emit site caps new
+      // dispatches past the limit, so by the time we see one here it
+      // is within bounds. Bump the stored depth so any dispatch
+      // produced by `handle_msg` for this msg sees the correct chain
+      // position.
+      let state = LoopState(..state, dispatch_depth: depth)
+      let msg = unsafe_coerce_dynamic(dyn_msg)
+      let new_state = handle_msg(state, msg)
+      actor.continue(new_state)
     }
 
     TimerFired(tag:) -> {
@@ -1449,53 +1477,19 @@ fn coerce_to_string(value: Dynamic) -> String
 // -- Event coalescing --------------------------------------------------------
 
 /// Render a typed Diagnostic variant as a single-line string for log output.
-fn describe_diagnostic(diag: event.Diagnostic) -> String {
-  case diag {
-    event.DuplicateId(id:, ..) -> "duplicate_id: " <> id
-    event.EmptyId(type_name:) -> "empty_id: " <> type_name
-    event.MultipleTopLevelWindows(..) -> "multiple_top_level_windows"
-    event.UnknownWindow(window_id:, subscription_tag:) ->
-      "unknown_window: subscription "
-      <> subscription_tag
-      <> " targets "
-      <> window_id
-    event.UnrecognizedWidgetPlaceholder(id:) ->
-      "unrecognized_widget_placeholder: " <> id
-    event.TreeDepthExceeded(id:, ..) -> "tree_depth_exceeded: " <> id
-    event.TooManyDuplicates(..) -> "too_many_duplicates"
-    event.WidgetIdInvalid(reason:, type_name:, id:, ..) ->
-      "widget_id_invalid: " <> type_name <> " " <> id <> " (" <> reason <> ")"
-    event.MissingAccessibleName(type_name:, id:) ->
-      "missing_accessible_name: " <> type_name <> " " <> id
-    event.A11yRefUnresolved(id:, key:, ..) ->
-      "a11y_ref_unresolved: " <> id <> " " <> key
-    event.PropRangeExceeded(id:, prop:, ..) ->
-      "prop_range_exceeded: " <> id <> " prop " <> prop
-    event.PropTypeMismatch(id:, prop:, ..) ->
-      "prop_type_mismatch: " <> id <> " prop " <> prop
-    event.PropUnknown(id:, prop:, ..) ->
-      "prop_unknown: " <> id <> " prop " <> prop
-    event.ContentLengthExceeded(id:, field:, ..) ->
-      "content_length_exceeded: " <> id <> "." <> field
-    event.FontCacheCapExceeded(..) -> "font_cache_cap_exceeded"
-    event.FontCapExceeded(..) -> "font_cap_exceeded"
-    event.FontFamilyNotFound(family:) -> "font_family_not_found: " <> family
-    event.InvalidSettings(detail:) -> "invalid_settings: " <> detail
-    event.RequiredWidgetsMissing(..) -> "required_widgets_missing"
-    event.WidgetPanic(id:, type_name:, label:) ->
-      "widget_panic: " <> type_name <> " " <> id <> " in " <> label
-    event.SvgParseError(id:, ..) -> "svg_parse_error: " <> id
-    event.SvgDecodeTimeout(id:, ..) -> "svg_decode_timeout: " <> id
-    event.DashCacheCapExceeded(..) -> "dash_cache_cap_exceeded"
-    event.EmitterCoalesceCapExceeded(..) -> "emitter_coalesce_cap_exceeded"
-    event.WidgetIdTypeCollision(id:, ..) -> "widget_id_type_collision: " <> id
-    event.ViewPanicked(message:, ..) -> "view_panicked: " <> message
-    event.UpdatePanicked(message:, ..) -> "update_panicked: " <> message
-    event.UnknownMessageType(msg_type:) -> "unknown_message_type: " <> msg_type
-    event.DispatchLoopExceeded(..) -> "dispatch_loop_exceeded"
-    event.BufferOverflow(..) -> "buffer_overflow"
+fn format_protocol_version_mismatch(ev: event.ErrorEvent) -> String {
+  case ev {
+    event.ProtocolVersionMismatch(expected:, got:) ->
+      "protocol version mismatch: expected "
+      <> int.to_string(expected)
+      <> ", got "
+      <> int.to_string(got)
+    _ -> "protocol version mismatch"
   }
 }
+
+// `describe_diagnostic` moved to `runtime_core` so both the BEAM
+// actor runtime and the JS web runtime share one implementation.
 
 @target(erlang)
 /// Track widget focus state from renderer status events.
@@ -2060,6 +2054,10 @@ fn handle_event(
   state: LoopState(model, msg),
   ev: Event,
 ) -> LoopState(model, msg) {
+  // A renderer-originated event is a fresh chain: reset the
+  // `Command.dispatch` depth counter so a genuine user input is not
+  // clamped by a prior chain that ran to the cap.
+  let state = LoopState(..state, dispatch_depth: 0)
   let registry_before = state.cw_registry
   let #(result, new_registry) =
     widget.dispatch_through_widgets(state.cw_registry, ev)
@@ -2264,22 +2262,41 @@ fn execute_commands(
     }
 
     command_encode.DoneImmediate(value, mapper) -> {
-      case platform.try_call(fn() { mapper(value) }) {
-        Ok(mapped_msg) -> {
-          // Nonce -1 signals "always deliver" (Done, not a timer)
-          process.send(
-            state.self,
-            InternalMsg(coerce_to_dynamic(mapped_msg), -1),
-          )
-        }
-        Error(reason) -> {
+      // The current `dispatch_depth` is the chain position we entered
+      // at; the new dispatch bumps it by one. Past the cap we drop
+      // the msg and surface the typed diagnostic so app code observes
+      // the guard firing rather than a silently backlogged mailbox.
+      let next_depth = state.dispatch_depth + 1
+      case next_depth > runtime_core.dispatch_depth_limit {
+        True -> {
+          let diag =
+            event.DispatchLoopExceeded(
+              depth: next_depth,
+              limit: runtime_core.dispatch_depth_limit,
+            )
           platform.log_error(
-            "plushie: Command.dispatch mapper crashed: "
-            <> string.inspect(reason),
+            "plushie: " <> runtime_core.describe_diagnostic(diag),
           )
+          state
         }
+        False ->
+          case platform.try_call(fn() { mapper(value) }) {
+            Ok(mapped_msg) -> {
+              process.send(
+                state.self,
+                DispatchedMsg(coerce_to_dynamic(mapped_msg), next_depth),
+              )
+              state
+            }
+            Error(reason) -> {
+              platform.log_error(
+                "plushie: Command.dispatch mapper crashed: "
+                <> string.inspect(reason),
+              )
+              state
+            }
+          }
       }
-      state
     }
 
     command_encode.SpawnAsync(tag, work) -> {

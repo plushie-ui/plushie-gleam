@@ -1190,6 +1190,48 @@ pub fn decode_diagnostic_update_panicked_json_test() {
   }
 }
 
+pub fn decode_diagnostic_dispatch_loop_exceeded_json_test() {
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"error\","
+    <> "\"diagnostic\":{\"kind\":\"dispatch_loop_exceeded\","
+    <> "\"depth\":101,\"limit\":100}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Error(event.Diagnostic(
+      level:,
+      payload: event.DispatchLoopExceeded(depth:, limit:),
+    )) -> {
+      should.equal(level, "error")
+      should.equal(depth, 101)
+      should.equal(limit, 100)
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_diagnostic_buffer_overflow_json_test() {
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"error\","
+    <> "\"diagnostic\":{\"kind\":\"buffer_overflow\","
+    <> "\"size\":80000000,\"limit\":67108864}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Error(event.Diagnostic(
+      level:,
+      payload: event.BufferOverflow(size:, limit:),
+    )) -> {
+      should.equal(level, "error")
+      should.equal(size, 80_000_000)
+      should.equal(limit, 67_108_864)
+    }
+    _ -> should.fail()
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Canvas scroll (decoded as WidgetEvent catch-all with x/y field names)
 // ---------------------------------------------------------------------------

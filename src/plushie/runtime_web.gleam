@@ -122,7 +122,7 @@ pub fn start(
   let dispatch = fn(event) { handle_event(handle, app, event) }
   let dispatch_direct = fn(event) {
     case platform.try_call(fn() { runtime_core.map_event(app, event) }) {
-      Ok(msg) -> dispatch_update(handle, app, msg)
+      Ok(msg) -> dispatch_update(handle, app, msg, 0)
       Error(reason) -> {
         platform.log_warning(
           "plushie: map_event error: " <> dynamic.classify(reason),
@@ -159,8 +159,8 @@ pub fn start(
   // First render (always snapshot)
   render_and_sync(handle, app, True)
 
-  // Execute init commands
-  execute_commands(handle, app, init_commands)
+  // Execute init commands (fresh chain, depth 0)
+  execute_commands(handle, app, init_commands, 0)
 
   WebRuntime(handle:)
 }
@@ -222,10 +222,17 @@ pub fn stop(runtime: WebRuntime(model)) -> Nil {
 
 @target(javascript)
 /// Run one update cycle: update model, execute commands, re-render.
+///
+/// `depth` is the current `Command.dispatch` chain position. Fresh
+/// entry points (bridge events, async completions, user-facing
+/// `dispatch_event`) call with `0`; each `Command.dispatch` follow-up
+/// re-enters with `depth + 1` so the cap at `dispatch_depth_limit`
+/// breaks a pathological `update` loop.
 fn dispatch_update(
   handle: WebRuntimeHandle,
   app: App(model, msg),
   msg: msg,
+  depth: Int,
 ) -> Nil {
   let update_fn = app.get_update(app)
   let model = do_get_model(handle)
@@ -233,7 +240,7 @@ fn dispatch_update(
   case platform.try_call(fn() { update_fn(model, msg) }) {
     Ok(#(new_model, commands)) -> {
       do_set_model(handle, new_model)
-      execute_commands(handle, app, commands)
+      execute_commands(handle, app, commands, depth)
       render_and_sync(handle, app, False)
     }
     Error(reason) -> {
@@ -361,7 +368,7 @@ fn handle_event(
       case runtime_core.resolve_dispatch(result) {
         Some(ev) -> {
           case platform.try_call(fn() { runtime_core.map_event(app, ev) }) {
-            Ok(msg) -> dispatch_update(handle, app, msg)
+            Ok(msg) -> dispatch_update(handle, app, msg, 0)
             Error(reason) -> {
               platform.log_warning(
                 "plushie: map_event error: " <> dynamic.classify(reason),
@@ -573,29 +580,49 @@ fn execute_commands(
   handle: WebRuntimeHandle,
   app: App(model, msg),
   cmd: Command(msg),
+  depth: Int,
 ) -> Nil {
   let session = do_get_session(handle)
   case command_encode.classify(cmd) {
     command_encode.NoOp -> Nil
 
     command_encode.RunBatch(commands) ->
-      list.each(commands, fn(c) { execute_commands(handle, app, c) })
+      list.each(commands, fn(c) { execute_commands(handle, app, c, depth) })
 
     command_encode.Exit -> do_stop(handle)
 
     command_encode.DoneImmediate(value, mapper) -> {
-      let msg = mapper(value)
-      // Defer to next microtask to match BEAM's mailbox semantics
-      defer(fn() { dispatch_update(handle, app, msg) })
+      let next_depth = depth + 1
+      case next_depth > runtime_core.dispatch_depth_limit {
+        True -> {
+          // Cap the chain: drop the msg and surface the typed
+          // diagnostic so a pathological update loop is visible
+          // rather than an indefinitely-pumped microtask queue.
+          let diag =
+            event.DispatchLoopExceeded(
+              depth: next_depth,
+              limit: runtime_core.dispatch_depth_limit,
+            )
+          platform.log_error(
+            "plushie: " <> runtime_core.describe_diagnostic(diag),
+          )
+        }
+        False -> {
+          let msg = mapper(value)
+          // Defer to next microtask to match BEAM's mailbox semantics
+          defer(fn() { dispatch_update(handle, app, msg, next_depth) })
+        }
+      }
     }
 
     command_encode.ScheduleTimer(delay_ms, msg) -> {
       let key = platform.stable_hash_key(msg)
       // SendAfter msg is already the app's msg type; dispatch
       // directly to dispatch_update, not through handle_event
-      // (which expects Event for coalesce checking).
+      // (which expects Event for coalesce checking). The timer is a
+      // fresh chain, so restart the depth counter at 0.
       set_send_after(handle, key, delay_ms, fn() {
-        dispatch_update(handle, app, msg)
+        dispatch_update(handle, app, msg, 0)
       })
     }
 
