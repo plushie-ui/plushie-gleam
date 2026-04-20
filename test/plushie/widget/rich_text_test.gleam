@@ -2,6 +2,7 @@ import gleam/dict
 import gleam/list
 import gleam/option
 import plushie/node.{BoolVal, DictVal, FloatVal, ListVal, StringVal}
+import plushie/prop/border
 import plushie/prop/color
 import plushie/prop/font
 import plushie/prop/length
@@ -82,12 +83,15 @@ pub fn span_with_padding_test() {
 }
 
 pub fn span_with_highlight_test() {
+  let b =
+    border.new()
+    |> border.color(color.black)
+    |> border.width(1.0)
+    |> border.radius(4.0)
   let h =
     rich_text.SpanHighlight(
       background: option.Some(color.yellow),
-      border_color: option.Some(color.black),
-      border_width: option.Some(1.0),
-      border_radius: option.Some(rich_text.UniformRadius(4.0)),
+      border: option.Some(b),
     )
   let s =
     rich_text.span("Highlighted")
@@ -97,19 +101,19 @@ pub fn span_with_highlight_test() {
   let assert DictVal(fields) = pv
   let assert Ok(DictVal(hl)) = dict.get(fields, "highlight")
   assert dict.get(hl, "background") == Ok(color.to_prop_value(color.yellow))
-  let assert Ok(DictVal(border)) = dict.get(hl, "border")
-  assert dict.get(border, "width") == Ok(FloatVal(1.0))
-  assert dict.get(border, "radius") == Ok(FloatVal(4.0))
+  let assert Ok(DictVal(border_fields)) = dict.get(hl, "border")
+  assert dict.get(border_fields, "width") == Ok(FloatVal(1.0))
+  assert dict.get(border_fields, "radius") == Ok(FloatVal(4.0))
+  assert dict.get(border_fields, "color")
+    == Ok(color.to_prop_value(color.black))
 }
 
 pub fn span_highlight_per_corner_radius_test() {
+  let b =
+    border.new()
+    |> border.radius_corners(1.0, 2.0, 3.0, 4.0)
   let h =
-    rich_text.SpanHighlight(
-      background: option.None,
-      border_color: option.None,
-      border_width: option.None,
-      border_radius: option.Some(rich_text.PerCornerRadius(1.0, 2.0, 3.0, 4.0)),
-    )
+    rich_text.SpanHighlight(background: option.None, border: option.Some(b))
   let s =
     rich_text.span("Corners")
     |> rich_text.span_highlight(h)
@@ -117,9 +121,12 @@ pub fn span_highlight_per_corner_radius_test() {
   let pv = rich_text.span_to_prop_value(s)
   let assert DictVal(fields) = pv
   let assert Ok(DictVal(hl)) = dict.get(fields, "highlight")
-  let assert Ok(DictVal(border)) = dict.get(hl, "border")
-  assert dict.get(border, "radius")
-    == Ok(ListVal([FloatVal(1.0), FloatVal(2.0), FloatVal(3.0), FloatVal(4.0)]))
+  let assert Ok(DictVal(border_fields)) = dict.get(hl, "border")
+  let assert Ok(DictVal(radius)) = dict.get(border_fields, "radius")
+  assert dict.get(radius, "top_left") == Ok(FloatVal(1.0))
+  assert dict.get(radius, "top_right") == Ok(FloatVal(2.0))
+  assert dict.get(radius, "bottom_right") == Ok(FloatVal(3.0))
+  assert dict.get(radius, "bottom_left") == Ok(FloatVal(4.0))
 }
 
 pub fn widget_level_props_test() {

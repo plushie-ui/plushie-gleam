@@ -3,9 +3,12 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, Node}
+import plushie/node.{
+  type Node, type PropValue, DictVal, FloatVal, Node, StringVal,
+}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/alignment.{type Alignment}
+import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
 import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
@@ -13,6 +16,29 @@ import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
 import plushie/prop/validation_state.{type ValidationState}
 import plushie/widget/build
+
+/// Leading or trailing edge for a text input's icon.
+pub type IconSide {
+  Left
+  Right
+}
+
+/// Glyph displayed inside a text input.
+///
+/// `code_point` is a single-character string identifying the glyph from
+/// `font` (an icon font when set, the default font otherwise). `size`
+/// and `spacing` are the pixel size of the glyph and the spacing
+/// between the glyph and the text. `side` selects the leading or
+/// trailing edge.
+pub type TextInputIcon {
+  TextInputIcon(
+    code_point: String,
+    size: Option(Float),
+    spacing: Option(Float),
+    side: Option(IconSide),
+    font: Option(Font),
+  )
+}
 
 pub opaque type TextInput {
   TextInput(
@@ -25,11 +51,14 @@ pub opaque type TextInput {
     font: Option(Font),
     line_height: Option(LineHeight),
     align_x: Option(Alignment),
+    icon: Option(TextInputIcon),
     on_submit: Option(Bool),
     on_paste: Option(Bool),
     secure: Option(Bool),
     input_purpose: Option(InputPurpose),
     style: Option(String),
+    placeholder_color: Option(Color),
+    selection_color: Option(Color),
     required: Option(Bool),
     validation: Option(ValidationState),
     a11y: Option(A11y),
@@ -48,11 +77,14 @@ pub fn new(id: String, value: String) -> TextInput {
     font: None,
     line_height: None,
     align_x: None,
+    icon: None,
     on_submit: None,
     on_paste: None,
     secure: None,
     input_purpose: None,
     style: None,
+    placeholder_color: None,
+    selection_color: None,
     required: None,
     validation: None,
     a11y: None,
@@ -92,6 +124,21 @@ pub fn line_height(input: TextInput, lh: LineHeight) -> TextInput {
 /// Set the horizontal alignment.
 pub fn align_x(input: TextInput, a: Alignment) -> TextInput {
   TextInput(..input, align_x: option.Some(a))
+}
+
+/// Set an icon inside the input field.
+pub fn icon(input: TextInput, i: TextInputIcon) -> TextInput {
+  TextInput(..input, icon: option.Some(i))
+}
+
+/// Set the placeholder text color.
+pub fn placeholder_color(input: TextInput, c: Color) -> TextInput {
+  TextInput(..input, placeholder_color: option.Some(c))
+}
+
+/// Set the text selection highlight color.
+pub fn selection_color(input: TextInput, c: Color) -> TextInput {
+  TextInput(..input, selection_color: option.Some(c))
 }
 
 /// Enable the submit event.
@@ -144,11 +191,14 @@ pub type Opt {
   Font(Font)
   LineHeight(LineHeight)
   AlignX(Alignment)
+  Icon(TextInputIcon)
   OnSubmit(Bool)
   OnPaste(Bool)
   Secure(Bool)
   InputPurpose(InputPurpose)
   Style(String)
+  PlaceholderColor(Color)
+  SelectionColor(Color)
   Required(Bool)
   Validation(ValidationState)
   A11y(A11y)
@@ -165,11 +215,14 @@ pub fn with_opts(input: TextInput, opts: List(Opt)) -> TextInput {
       Font(f) -> font(i, f)
       LineHeight(h) -> line_height(i, h)
       AlignX(a) -> align_x(i, a)
+      Icon(ic) -> icon(i, ic)
       OnSubmit(v) -> on_submit(i, v)
       OnPaste(v) -> on_paste(i, v)
       Secure(v) -> secure(i, v)
       InputPurpose(p) -> input_purpose(i, p)
       Style(s) -> style(i, s)
+      PlaceholderColor(c) -> placeholder_color(i, c)
+      SelectionColor(c) -> selection_color(i, c)
       Required(r) -> required(i, r)
       Validation(v) -> validation(i, v)
       A11y(a) -> a11y(i, a)
@@ -193,6 +246,7 @@ pub fn build(input: TextInput) -> Node {
       line_height.to_prop_value,
     )
     |> build.put_optional("align_x", input.align_x, alignment.to_prop_value)
+    |> build.put_optional("icon", input.icon, icon_to_prop_value)
     |> build.put_optional_bool("on_submit", input.on_submit)
     |> build.put_optional_bool("on_paste", input.on_paste)
     |> build.put_optional_bool("secure", input.secure)
@@ -202,6 +256,16 @@ pub fn build(input: TextInput) -> Node {
       input_purpose.to_prop_value,
     )
     |> build.put_optional_string("style", input.style)
+    |> build.put_optional(
+      "placeholder_color",
+      input.placeholder_color,
+      color.to_prop_value,
+    )
+    |> build.put_optional(
+      "selection_color",
+      input.selection_color,
+      color.to_prop_value,
+    )
     |> build.put_optional_bool("required", input.required)
     |> build.put_optional(
       "validation",
@@ -214,4 +278,35 @@ pub fn build(input: TextInput) -> Node {
       option.Some("placeholder"),
     )
   Node(id: input.id, kind: "text_input", props:, children: [], meta: dict.new())
+}
+
+fn icon_side_to_string(side: IconSide) -> String {
+  case side {
+    Left -> "left"
+    Right -> "right"
+  }
+}
+
+fn icon_to_prop_value(i: TextInputIcon) -> PropValue {
+  let fields =
+    dict.new()
+    |> dict.insert("code_point", StringVal(i.code_point))
+  let fields = case i.size {
+    option.Some(s) -> dict.insert(fields, "size", FloatVal(s))
+    option.None -> fields
+  }
+  let fields = case i.spacing {
+    option.Some(s) -> dict.insert(fields, "spacing", FloatVal(s))
+    option.None -> fields
+  }
+  let fields = case i.side {
+    option.Some(s) ->
+      dict.insert(fields, "side", StringVal(icon_side_to_string(s)))
+    option.None -> fields
+  }
+  let fields = case i.font {
+    option.Some(f) -> dict.insert(fields, "font", font.to_prop_value(f))
+    option.None -> fields
+  }
+  DictVal(fields)
 }

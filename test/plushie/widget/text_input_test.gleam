@@ -1,6 +1,9 @@
 import gleam/dict
-import plushie/node.{BoolVal, FloatVal, StringVal}
+import gleam/option
+import plushie/node.{BoolVal, DictVal, FloatVal, StringVal}
 import plushie/prop/alignment
+import plushie/prop/color
+import plushie/prop/font
 import plushie/prop/length
 import plushie/prop/line_height
 import plushie/prop/padding
@@ -132,4 +135,71 @@ pub fn omitted_optionals_are_absent_test() {
   assert dict.get(node.props, "secure") == Error(Nil)
   assert dict.get(node.props, "style") == Error(Nil)
   assert dict.get(node.props, "width") == Error(Nil)
+  assert dict.get(node.props, "icon") == Error(Nil)
+  assert dict.get(node.props, "placeholder_color") == Error(Nil)
+  assert dict.get(node.props, "selection_color") == Error(Nil)
+}
+
+pub fn placeholder_color_sets_color_prop_test() {
+  let node =
+    text_input.new("in", "")
+    |> text_input.placeholder_color(color.gray)
+    |> text_input.build()
+
+  assert dict.get(node.props, "placeholder_color")
+    == Ok(color.to_prop_value(color.gray))
+}
+
+pub fn selection_color_sets_color_prop_test() {
+  let node =
+    text_input.new("in", "")
+    |> text_input.selection_color(color.blue)
+    |> text_input.build()
+
+  assert dict.get(node.props, "selection_color")
+    == Ok(color.to_prop_value(color.blue))
+}
+
+pub fn icon_sets_dict_prop_test() {
+  let ic =
+    text_input.TextInputIcon(
+      code_point: "\u{F002}",
+      size: option.Some(16.0),
+      spacing: option.Some(4.0),
+      side: option.Some(text_input.Left),
+      font: option.Some(font.Family("icons")),
+    )
+
+  let node =
+    text_input.new("search", "")
+    |> text_input.icon(ic)
+    |> text_input.build()
+
+  let assert Ok(DictVal(icon_fields)) = dict.get(node.props, "icon")
+  assert dict.get(icon_fields, "code_point") == Ok(StringVal("\u{F002}"))
+  assert dict.get(icon_fields, "size") == Ok(FloatVal(16.0))
+  assert dict.get(icon_fields, "spacing") == Ok(FloatVal(4.0))
+  assert dict.get(icon_fields, "side") == Ok(StringVal("left"))
+  assert dict.get(icon_fields, "font")
+    == Ok(font.to_prop_value(font.Family("icons")))
+}
+
+pub fn icon_minimal_has_only_code_point_test() {
+  let ic =
+    text_input.TextInputIcon(
+      code_point: "X",
+      size: option.None,
+      spacing: option.None,
+      side: option.None,
+      font: option.None,
+    )
+
+  let node =
+    text_input.new("in", "")
+    |> text_input.icon(ic)
+    |> text_input.build()
+
+  let assert Ok(DictVal(icon_fields)) = dict.get(node.props, "icon")
+  assert dict.size(icon_fields) == 1
+  assert dict.get(icon_fields, "code_point") == Ok(StringVal("X"))
 }

@@ -11,6 +11,7 @@ import plushie/node.{
   StringVal,
 }
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/border.{type Border}
 import plushie/prop/color.{type Color}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
@@ -21,21 +22,10 @@ import plushie/widget/build
 
 // --- Span --------------------------------------------------------------------
 
-/// Highlight behind a span's text.
+/// Highlight behind a span's text: an optional fill colour and an
+/// optional border around the text box.
 pub type SpanHighlight {
-  SpanHighlight(
-    background: Option(Color),
-    border_color: Option(Color),
-    border_width: Option(Float),
-    border_radius: Option(BorderRadius),
-  )
-}
-
-/// Border radius: uniform or per-corner (top-left, top-right, bottom-right,
-/// bottom-left).
-pub type BorderRadius {
-  UniformRadius(Float)
-  PerCornerRadius(Float, Float, Float, Float)
+  SpanHighlight(background: Option(Color), border: Option(Border))
 }
 
 /// A single styled span within a rich text widget.
@@ -122,30 +112,9 @@ fn highlight_to_prop_value(h: SpanHighlight) -> PropValue {
     Some(c) -> dict.insert(fields, "background", color.to_prop_value(c))
     None -> fields
   }
-  let fields = case h.border_color, h.border_width, h.border_radius {
-    None, None, None -> fields
-    _, _, _ -> {
-      let border = dict.new()
-      let border = case h.border_color {
-        Some(c) -> dict.insert(border, "color", color.to_prop_value(c))
-        None -> border
-      }
-      let border = case h.border_width {
-        Some(w) -> dict.insert(border, "width", FloatVal(w))
-        None -> border
-      }
-      let border = case h.border_radius {
-        Some(UniformRadius(r)) -> dict.insert(border, "radius", FloatVal(r))
-        Some(PerCornerRadius(tl, tr, br, bl)) ->
-          dict.insert(
-            border,
-            "radius",
-            ListVal([FloatVal(tl), FloatVal(tr), FloatVal(br), FloatVal(bl)]),
-          )
-        None -> border
-      }
-      dict.insert(fields, "border", DictVal(border))
-    }
+  let fields = case h.border {
+    Some(b) -> dict.insert(fields, "border", border.to_prop_value(b))
+    None -> fields
   }
   DictVal(fields)
 }
