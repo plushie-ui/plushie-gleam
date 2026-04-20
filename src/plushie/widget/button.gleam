@@ -7,6 +7,7 @@ import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/length.{type Length}
 import plushie/prop/padding.{type Padding}
+import plushie/prop/style_map.{type StyleMap}
 import plushie/widget/build
 
 pub type ButtonStyle {
@@ -18,6 +19,10 @@ pub type ButtonStyle {
   TextStyle
   BackgroundStyle
   Subtle
+  /// Reusable-design-token style: pass a StyleMap for background,
+  /// text_color, border, shadow, and state overrides. Matches the
+  /// pattern Elixir / Python / TypeScript / Ruby already use.
+  Custom(StyleMap)
 }
 
 pub opaque type Button {
@@ -144,9 +149,7 @@ pub fn build(button: Button) -> Node {
   let props =
     dict.new()
     |> build.put_string("label", button.label)
-    |> build.put_optional("style", button.style, fn(s) {
-      StringVal(style_to_string(s))
-    })
+    |> build.put_optional("style", button.style, style_to_prop_value)
     |> build.put_optional("width", button.width, length.to_prop_value)
     |> build.put_optional("height", button.height, length.to_prop_value)
     |> build.put_optional("padding", button.padding, padding.to_prop_value)
@@ -157,15 +160,16 @@ pub fn build(button: Button) -> Node {
   Node(id: button.id, kind: "button", props:, children: [], meta: dict.new())
 }
 
-fn style_to_string(s: ButtonStyle) -> String {
+fn style_to_prop_value(s: ButtonStyle) -> node.PropValue {
   case s {
-    Primary -> "primary"
-    Secondary -> "secondary"
-    Success -> "success"
-    Warning -> "warning"
-    Danger -> "danger"
-    TextStyle -> "text"
-    BackgroundStyle -> "background"
-    Subtle -> "subtle"
+    Primary -> StringVal("primary")
+    Secondary -> StringVal("secondary")
+    Success -> StringVal("success")
+    Warning -> StringVal("warning")
+    Danger -> StringVal("danger")
+    TextStyle -> StringVal("text")
+    BackgroundStyle -> StringVal("background")
+    Subtle -> StringVal("subtle")
+    Custom(sm) -> style_map.to_prop_value(sm)
   }
 }

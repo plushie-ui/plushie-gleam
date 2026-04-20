@@ -11,6 +11,7 @@ import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
+import plushie/prop/style_map.{type StyleMap}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
 
@@ -21,6 +22,12 @@ pub type TextStyle {
   SuccessStyle
   DangerStyle
   WarningStyle
+  /// Reusable-design-token style: pass a StyleMap that other widgets
+  /// may also honor (background, border, shadow, state overrides).
+  /// Only `text_color` is currently applied by the text widget itself;
+  /// other fields are silently ignored for raw text. Wrap text in a
+  /// container to apply background / border / shadow.
+  Custom(StyleMap)
 }
 
 pub opaque type Text {
@@ -187,14 +194,15 @@ pub fn with_opts(text: Text, opts: List(Opt)) -> Text {
   })
 }
 
-fn style_to_string(s: TextStyle) -> String {
+fn style_to_prop_value(s: TextStyle) -> node.PropValue {
   case s {
-    DefaultStyle -> "default"
-    PrimaryStyle -> "primary"
-    SecondaryStyle -> "secondary"
-    SuccessStyle -> "success"
-    DangerStyle -> "danger"
-    WarningStyle -> "warning"
+    DefaultStyle -> StringVal("default")
+    PrimaryStyle -> StringVal("primary")
+    SecondaryStyle -> StringVal("secondary")
+    SuccessStyle -> StringVal("success")
+    DangerStyle -> StringVal("danger")
+    WarningStyle -> StringVal("warning")
+    Custom(sm) -> style_map.to_prop_value(sm)
   }
 }
 
@@ -218,9 +226,7 @@ pub fn build(text: Text) -> Node {
     |> build.put_optional("wrapping", text.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("ellipsis", text.ellipsis)
     |> build.put_optional("shaping", text.shaping, shaping.to_prop_value)
-    |> build.put_optional("style", text.style, fn(s) {
-      StringVal(style_to_string(s))
-    })
+    |> build.put_optional("style", text.style, style_to_prop_value)
     |> build.apply_default_a11y(text.a11y, "label", option.Some("content"))
     |> build.merge_animated(text.animated_props)
   Node(id: text.id, kind: "text", props:, children: [], meta: dict.new())
