@@ -18,7 +18,7 @@ pub opaque type Row {
     padding: Option(Padding),
     width: Option(Length),
     height: Option(Length),
-    max_height: Option(Float),
+    max_width: Option(Float),
     align_y: Option(Alignment),
     clip: Option(Bool),
     wrap: Option(Bool),
@@ -35,7 +35,7 @@ pub fn new(id: String) -> Row {
     padding: None,
     width: None,
     height: None,
-    max_height: None,
+    max_width: None,
     align_y: None,
     clip: None,
     wrap: None,
@@ -63,9 +63,9 @@ pub fn height(row: Row, h: Length) -> Row {
   Row(..row, height: option.Some(h))
 }
 
-/// Set the maximum height in pixels.
-pub fn max_height(row: Row, m: Float) -> Row {
-  Row(..row, max_height: option.Some(m))
+/// Set the maximum width in pixels (main-axis cap for a row).
+pub fn max_width(row: Row, m: Float) -> Row {
+  Row(..row, max_width: option.Some(m))
 }
 
 /// Set the vertical alignment.
@@ -104,7 +104,7 @@ pub type Opt {
   Padding(Padding)
   Width(Length)
   Height(Length)
-  MaxHeight(Float)
+  MaxWidth(Float)
   AlignY(Alignment)
   Clip(Bool)
   Wrap(Bool)
@@ -119,7 +119,7 @@ pub fn with_opts(row: Row, opts: List(Opt)) -> Row {
       Padding(p) -> padding(r, p)
       Width(w) -> width(r, w)
       Height(h) -> height(r, h)
-      MaxHeight(m) -> max_height(r, m)
+      MaxWidth(m) -> max_width(r, m)
       AlignY(a) -> align_y(r, a)
       Clip(v) -> clip(r, v)
       Wrap(v) -> wrap(r, v)
@@ -136,7 +136,7 @@ pub fn build(row: Row) -> Node {
     |> build.put_optional("padding", row.padding, padding.to_prop_value)
     |> build.put_optional("width", row.width, length.to_prop_value)
     |> build.put_optional("height", row.height, length.to_prop_value)
-    |> build.put_optional_float("max_height", row.max_height)
+    |> build.put_optional_float("max_width", row.max_width)
     |> build.put_optional("align_y", row.align_y, alignment.to_prop_value)
     |> build.put_optional_bool("clip", row.clip)
     |> build.put_optional_bool("wrap", row.wrap)
