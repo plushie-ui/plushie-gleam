@@ -42,6 +42,11 @@ pub type Settings {
     /// Configuration passed to custom (native Rust) widgets.
     /// Keys are widget type names; values are widget-specific config.
     widget_config: Dict(String, PropValue),
+    /// Native widget type names this app requires the renderer to
+    /// have registered. The renderer emits a
+    /// `required_widgets_missing` diagnostic during the handshake for
+    /// any names it does not recognize. Non-fatal.
+    required_widgets: List(String),
   )
 }
 
@@ -58,6 +63,7 @@ pub fn default_settings() -> Settings {
     default_event_rate: option.None,
     validate_props: False,
     widget_config: dict.new(),
+    required_widgets: [],
   )
 }
 

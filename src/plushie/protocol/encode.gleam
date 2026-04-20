@@ -248,6 +248,13 @@ pub fn encode_settings(
       ..settings_fields
     ]
   }
+  let settings_fields = case settings.required_widgets {
+    [] -> settings_fields
+    items -> [
+      #("required_widgets", ListVal(list.map(items, StringVal))),
+      ..settings_fields
+    ]
+  }
   let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]
   serialize(message("settings", session, fields), format)
 }
