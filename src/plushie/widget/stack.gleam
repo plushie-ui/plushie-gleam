@@ -6,7 +6,6 @@ import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/length.{type Length}
-import plushie/prop/padding.{type Padding}
 import plushie/widget/build
 
 pub opaque type Stack {
@@ -15,7 +14,6 @@ pub opaque type Stack {
     children: List(Node),
     width: Option(Length),
     height: Option(Length),
-    padding: Option(Padding),
     clip: Option(Bool),
     a11y: Option(A11y),
   )
@@ -23,15 +21,7 @@ pub opaque type Stack {
 
 /// Create a new stack builder.
 pub fn new(id: String) -> Stack {
-  Stack(
-    id:,
-    children: [],
-    width: None,
-    height: None,
-    padding: None,
-    clip: None,
-    a11y: None,
-  )
+  Stack(id:, children: [], width: None, height: None, clip: None, a11y: None)
 }
 
 /// Set the width.
@@ -42,11 +32,6 @@ pub fn width(s: Stack, w: Length) -> Stack {
 /// Set the height.
 pub fn height(s: Stack, h: Length) -> Stack {
   Stack(..s, height: option.Some(h))
-}
-
-/// Set the padding.
-pub fn padding(s: Stack, p: Padding) -> Stack {
-  Stack(..s, padding: option.Some(p))
 }
 
 /// Set whether overflowing content is clipped.
@@ -73,7 +58,6 @@ pub fn a11y(s: Stack, a: A11y) -> Stack {
 pub type Opt {
   Width(Length)
   Height(Length)
-  Padding(Padding)
   Clip(Bool)
   A11y(A11y)
 }
@@ -84,7 +68,6 @@ pub fn with_opts(s: Stack, opts: List(Opt)) -> Stack {
     case opt {
       Width(w) -> width(st, w)
       Height(h) -> height(st, h)
-      Padding(p) -> padding(st, p)
       Clip(v) -> clip(st, v)
       A11y(a) -> a11y(st, a)
     }
@@ -97,7 +80,6 @@ pub fn build(s: Stack) -> Node {
     dict.new()
     |> build.put_optional("width", s.width, length.to_prop_value)
     |> build.put_optional("height", s.height, length.to_prop_value)
-    |> build.put_optional("padding", s.padding, padding.to_prop_value)
     |> build.put_optional_bool("clip", s.clip)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "stack", props:, children: s.children, meta: dict.new())

@@ -26,7 +26,6 @@ pub opaque type QrCode {
     alt: Option(String),
     description: Option(String),
     total_size: Option(Float),
-    style: Option(String),
     a11y: Option(A11y),
   )
 }
@@ -43,7 +42,6 @@ pub fn new(id: String, data: String) -> QrCode {
     alt: None,
     description: None,
     total_size: None,
-    style: None,
     a11y: None,
   )
 }
@@ -83,11 +81,6 @@ pub fn total_size(qr: QrCode, s: Float) -> QrCode {
   QrCode(..qr, total_size: option.Some(s))
 }
 
-/// Set the style.
-pub fn style(qr: QrCode, s: String) -> QrCode {
-  QrCode(..qr, style: option.Some(s))
-}
-
 /// Set accessibility properties for this widget.
 pub fn a11y(qr: QrCode, a: A11y) -> QrCode {
   QrCode(..qr, a11y: option.Some(a))
@@ -102,7 +95,6 @@ pub type Opt {
   Alt(String)
   Description(String)
   TotalSize(Float)
-  Style(String)
   A11y(A11y)
 }
 
@@ -117,7 +109,6 @@ pub fn with_opts(qr: QrCode, opts: List(Opt)) -> QrCode {
       Alt(a) -> alt(q, a)
       Description(d) -> description(q, d)
       TotalSize(s) -> total_size(q, s)
-      Style(s) -> style(q, s)
       A11y(a) -> a11y(q, a)
     }
   })
@@ -146,7 +137,6 @@ pub fn build(qr: QrCode) -> Node {
     |> build.put_optional_string("alt", qr.alt)
     |> build.put_optional_string("description", qr.description)
     |> build.put_optional_float("total_size", qr.total_size)
-    |> build.put_optional_string("style", qr.style)
     |> build.apply_default_a11y(qr.a11y, "image", option.None)
   Node(id: qr.id, kind: "qr_code", props:, children: [], meta: dict.new())
 }

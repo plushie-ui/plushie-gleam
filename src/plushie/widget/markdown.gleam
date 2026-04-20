@@ -22,7 +22,6 @@ pub opaque type Markdown {
     spacing: Option(Float),
     link_color: Option(Color),
     code_theme: Option(String),
-    style: Option(String),
     a11y: Option(A11y),
   )
 }
@@ -41,7 +40,6 @@ pub fn new(id: String, content: String) -> Markdown {
     spacing: None,
     link_color: None,
     code_theme: None,
-    style: None,
     a11y: None,
   )
 }
@@ -91,11 +89,6 @@ pub fn code_theme(md: Markdown, t: String) -> Markdown {
   Markdown(..md, code_theme: option.Some(t))
 }
 
-/// Set the style.
-pub fn style(md: Markdown, s: String) -> Markdown {
-  Markdown(..md, style: option.Some(s))
-}
-
 /// Set accessibility properties for this widget.
 pub fn a11y(md: Markdown, a: A11y) -> Markdown {
   Markdown(..md, a11y: option.Some(a))
@@ -112,7 +105,6 @@ pub type Opt {
   Spacing(Float)
   LinkColor(Color)
   CodeTheme(String)
-  Style(String)
   A11y(A11y)
 }
 
@@ -129,7 +121,6 @@ pub fn with_opts(md: Markdown, opts: List(Opt)) -> Markdown {
       Spacing(s) -> spacing(m, s)
       LinkColor(c) -> link_color(m, c)
       CodeTheme(t) -> code_theme(m, t)
-      Style(s) -> style(m, s)
       A11y(a) -> a11y(m, a)
     }
   })
@@ -149,7 +140,6 @@ pub fn build(md: Markdown) -> Node {
     |> build.put_optional_float("spacing", md.spacing)
     |> build.put_optional("link_color", md.link_color, color.to_prop_value)
     |> build.put_optional_string("code_theme", md.code_theme)
-    |> build.put_optional_string("style", md.style)
     |> build.apply_default_a11y(md.a11y, "document", option.None)
   Node(id: md.id, kind: "markdown", props:, children: [], meta: dict.new())
 }
