@@ -63,7 +63,12 @@ pub type Event {
 /// `--max-sessions > 1`.
 pub type SessionEvent {
   /// A session encountered an error (panic, cap, transport failure).
-  SessionError(session: String, error: String)
+  ///
+  /// `code` is the stable diagnostic code from the protocol spec
+  /// (`max_sessions_reached`, `session_panic`, `session_channel_closed`,
+  /// etc.) used for programmatic matching; `error` carries the
+  /// free-form message intended for logs.
+  SessionError(session: String, code: String, error: String)
   /// A session was closed by the renderer (Reset complete, etc.).
   SessionClosed(session: String, reason: String)
 }

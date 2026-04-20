@@ -229,8 +229,9 @@ pub fn decode_session_error_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Session(event.SessionError(session:, error:)) -> {
+    event.Session(event.SessionError(session:, code:, error:)) -> {
       should.equal(session, "s1")
+      should.equal(code, "session_panic")
       should.equal(error, "boom")
     }
     _ -> should.fail()

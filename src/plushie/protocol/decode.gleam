@@ -1959,8 +1959,9 @@ fn decode_session_error(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let session = get_string_or(map, "session", "")
   let data = get_map(map, "value")
+  let code = get_string_or(data, "code", "")
   let error = get_string_or(data, "error", "")
-  Ok(EventMessage(event.Session(event.SessionError(session:, error:))))
+  Ok(EventMessage(event.Session(event.SessionError(session:, code:, error:))))
 }
 
 fn decode_session_closed(
