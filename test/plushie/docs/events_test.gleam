@@ -3,14 +3,14 @@ import gleam/option
 import gleeunit/should
 import plushie/event.{
   type Event, AnimationFrame, Async, AsyncEvent, Click, Close, CloseRequested,
-  CustomWidget, Effect, EffectCancelled, EffectError, EffectEvent, EffectOk,
-  Enter, EventTarget, FileDropped, FileHovered, FilesHoveredLeft, Ime, ImeCommit,
-  ImeEvent, ImePreedit, Input, Key, KeyBinding, KeyEvent, KeyPressed, LeftButton,
-  Modifiers, ModifiersChanged, ModifiersEvent, Mouse, Move, Open, OptionHovered,
-  PaneClicked, PaneResized, Paste, Press, Resize, Resized, ScrollData, Scrolled,
-  Select, Slide, SlideRelease, Sort, Standard, Stream, StreamEvent, Submit,
-  System, ThemeChanged, Timer, TimerEvent, Toggle, Touch, Widget, Window,
-  WindowEvent,
+  CustomWidget, Effect, EffectCancelled, EffectError, EffectEvent, Enter,
+  EventTarget, FileDropped, FileHovered, FileOpened, FilesHoveredLeft, Ime,
+  ImeCommit, ImeEvent, ImePreedit, Input, Key, KeyBinding, KeyEvent, KeyPressed,
+  LeftButton, Modifiers, ModifiersChanged, ModifiersEvent, Mouse, Move, Open,
+  OptionHovered, PaneClicked, PaneResized, Paste, Press, Resize, Resized,
+  ScrollData, Scrolled, Select, Slide, SlideRelease, Sort, Standard, Stream,
+  StreamEvent, Submit, System, ThemeChanged, Timer, TimerEvent, Toggle, Touch,
+  Widget, Window, WindowEvent,
 }
 
 // -- Widget events -----------------------------------------------------------
@@ -858,9 +858,12 @@ pub fn events_stream_value_match_test() {
 
 pub fn events_effect_response_ok_match_test() {
   let event: Event =
-    Effect(EffectEvent(tag: "import", result: EffectOk(dynamic.nil())))
+    Effect(EffectEvent(
+      tag: "import",
+      result: FileOpened(path: "/tmp/notes.txt"),
+    ))
   case event {
-    Effect(EffectEvent(tag: "import", result: EffectOk(_data))) ->
+    Effect(EffectEvent(tag: "import", result: FileOpened(path: _p))) ->
       should.be_true(True)
     _ -> should.fail()
   }
@@ -877,12 +880,9 @@ pub fn events_effect_response_cancelled_match_test() {
 
 pub fn events_effect_response_error_match_test() {
   let event: Event =
-    Effect(EffectEvent(
-      tag: "import",
-      result: EffectError(dynamic.string("err")),
-    ))
+    Effect(EffectEvent(tag: "import", result: EffectError(message: "err")))
   case event {
-    Effect(EffectEvent(result: EffectError(_reason), ..)) ->
+    Effect(EffectEvent(result: EffectError(message: _), ..)) ->
       should.be_true(True)
     _ -> should.fail()
   }

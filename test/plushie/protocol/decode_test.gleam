@@ -352,36 +352,30 @@ pub fn decode_effect_response_ok_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_42\",\"status\":\"ok\",\"result\":{\"path\":\"/tmp/test.txt\"}}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, status:, payload: _)) =
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_42")
-  case result {
-    event.EffectOk(_) -> Nil
-    _ -> should.fail()
-  }
+  should.equal(status, "ok")
 }
 
 pub fn decode_effect_response_cancelled_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_99\",\"status\":\"cancelled\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, status:, payload: _)) =
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_99")
-  should.equal(result, event.EffectCancelled)
+  should.equal(status, "cancelled")
 }
 
 pub fn decode_effect_response_error_json_test() {
   let json =
     "{\"type\":\"effect_response\",\"id\":\"req_7\",\"status\":\"error\",\"error\":\"not found\"}"
   let data = bit_array.from_string(json)
-  let assert Ok(decode.EffectResponseRaw(wire_id:, result:)) =
+  let assert Ok(decode.EffectResponseRaw(wire_id:, status:, payload: _)) =
     decode.decode_message(data, protocol.Json)
   should.equal(wire_id, "req_7")
-  case result {
-    event.EffectError(_) -> Nil
-    _ -> should.fail()
-  }
+  should.equal(status, "error")
 }
 
 // ---------------------------------------------------------------------------

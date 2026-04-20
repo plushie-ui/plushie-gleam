@@ -7,6 +7,7 @@
 import gleam/dict.{type Dict}
 @target(erlang)
 import gleam/dynamic.{type Dynamic}
+import gleam/dynamic/decode as dyn_decode
 @target(erlang)
 import gleam/erlang/process.{type Pid, type Subject}
 @target(erlang)
@@ -208,7 +209,7 @@ type AsyncTask {
 
 @target(erlang)
 type PendingEffect {
-  PendingEffect(tag: String, timer: process.Timer)
+  PendingEffect(tag: String, kind: String, timer: process.Timer)
 }
 
 @target(erlang)
@@ -676,11 +677,12 @@ fn handle_message(
       actor.continue(state)
     }
 
-    FromBridge(InboundEvent(EffectResponseRaw(wire_id:, result:))) -> {
+    FromBridge(InboundEvent(EffectResponseRaw(wire_id:, status:, payload:))) -> {
       case dict.get(state.effects.pending, wire_id) {
-        Ok(PendingEffect(tag:, timer:)) -> {
+        Ok(PendingEffect(tag:, kind:, timer:)) -> {
           process.cancel_timer(timer)
-          let ev = event.Effect(event.EffectEvent(tag:, result:))
+          let typed_result = decode_effect_result(kind, status, payload)
+          let ev = event.Effect(event.EffectEvent(tag:, result: typed_result))
           let new_state = handle_event(state, ev)
           LoopState(
             ..new_state,
@@ -865,10 +867,7 @@ fn handle_message(
       case dict.get(state.effects.pending, request_id) {
         Ok(PendingEffect(tag:, ..)) -> {
           let timeout_event =
-            event.Effect(event.EffectEvent(
-              tag:,
-              result: event.EffectError(dynamic.string("timeout")),
-            ))
+            event.Effect(event.EffectEvent(tag:, result: event.EffectTimeout))
           let new_state = handle_event(state, timeout_event)
           LoopState(
             ..new_state,
@@ -1589,7 +1588,7 @@ fn flush_pending_effects_on_restart(
   // the flush are not wiped by an unconditional dict.new().
   let snapshot = dict.to_list(state.effects.pending)
   list.fold(snapshot, state, fn(st, entry) {
-    let #(wire_id, PendingEffect(tag:, timer:)) = entry
+    let #(wire_id, PendingEffect(tag:, kind: _, timer:)) = entry
     process.cancel_timer(timer)
     let st =
       LoopState(
@@ -1600,10 +1599,7 @@ fn flush_pending_effects_on_restart(
         ),
       )
     let timeout_event =
-      event.Effect(event.EffectEvent(
-        tag:,
-        result: event.EffectError(dynamic.string("renderer_restarted")),
-      ))
+      event.Effect(event.EffectEvent(tag:, result: event.RendererRestarted))
     handle_event(st, timeout_event)
   })
 }
@@ -1903,6 +1899,95 @@ fn apply_event(state: LoopState(model, msg), ev: Event) -> LoopState(model, msg)
       }
     }
     None -> state
+  }
+}
+
+@target(erlang)
+/// Decode a renderer effect response (kind, status, dynamic payload)
+/// into the typed `event.EffectResult` variant.
+fn decode_effect_result(
+  kind: String,
+  status: String,
+  payload: Dynamic,
+) -> event.EffectResult {
+  case status {
+    "cancelled" -> event.EffectCancelled
+    "unsupported" -> event.EffectUnsupported
+    "error" -> {
+      let msg = case dyn_decode.run(payload, dyn_decode.string) {
+        Ok(s) -> s
+        Error(_) -> ""
+      }
+      event.EffectError(message: msg)
+    }
+    "ok" -> decode_effect_ok(kind, payload)
+    _ -> event.EffectError(message: "unknown effect status: " <> status)
+  }
+}
+
+@target(erlang)
+fn decode_effect_ok(kind: String, payload: Dynamic) -> event.EffectResult {
+  case kind {
+    "file_open" -> event.FileOpened(path: dyn_string_field(payload, "path"))
+    "file_open_multiple" ->
+      event.FilesOpened(paths: dyn_string_list_field(payload, "paths"))
+    "file_save" -> event.FileSaved(path: dyn_string_field(payload, "path"))
+    "directory_select" ->
+      event.DirectorySelected(path: dyn_string_field(payload, "path"))
+    "directory_select_multiple" ->
+      event.DirectoriesSelected(paths: dyn_string_list_field(payload, "paths"))
+    "clipboard_read" | "clipboard_read_primary" ->
+      event.ClipboardText(text: dyn_string_field(payload, "text"))
+    "clipboard_read_html" ->
+      event.ClipboardHtml(
+        html: dyn_string_field(payload, "html"),
+        alt_text: dyn_optional_string_field(payload, "alt_text"),
+      )
+    "clipboard_write" | "clipboard_write_html" | "clipboard_write_primary" ->
+      event.ClipboardWritten
+    "clipboard_clear" -> event.ClipboardCleared
+    "notification" -> event.NotificationShown
+    _ -> event.EffectError(message: "unknown effect kind: " <> kind)
+  }
+}
+
+@target(erlang)
+fn dyn_string_field(payload: Dynamic, key: String) -> String {
+  let decoder =
+    dyn_decode.optional_field(key, "", dyn_decode.string, dyn_decode.success)
+  case dyn_decode.run(payload, decoder) {
+    Ok(s) -> s
+    Error(_) -> ""
+  }
+}
+
+@target(erlang)
+fn dyn_optional_string_field(payload: Dynamic, key: String) -> Option(String) {
+  let decoder =
+    dyn_decode.optional_field(
+      key,
+      None,
+      dyn_decode.optional(dyn_decode.string),
+      dyn_decode.success,
+    )
+  case dyn_decode.run(payload, decoder) {
+    Ok(v) -> v
+    Error(_) -> None
+  }
+}
+
+@target(erlang)
+fn dyn_string_list_field(payload: Dynamic, key: String) -> List(String) {
+  let decoder =
+    dyn_decode.optional_field(
+      key,
+      [],
+      dyn_decode.list(dyn_decode.string),
+      dyn_decode.success,
+    )
+  case dyn_decode.run(payload, decoder) {
+    Ok(l) -> l
+    Error(_) -> []
   }
 }
 
@@ -2252,7 +2337,7 @@ fn execute_commands(
           pending: dict.insert(
             state.effects.pending,
             id,
-            PendingEffect(tag:, timer: timeout_timer),
+            PendingEffect(tag:, kind:, timer: timeout_timer),
           ),
         ),
       )

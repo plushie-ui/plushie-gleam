@@ -6,12 +6,12 @@
 //// This tests the full request/response cycle over the wire:
 //// command -> bridge -> renderer -> stub response -> bridge -> runtime -> update.
 
-import gleam/dynamic/decode as dyn_decode
+import gleam/dict
 import plushie/app.{type App}
 import plushie/command
 import plushie/effect
-import plushie/event.{type Event, EffectOk, EffectUnsupported, EventTarget}
-import plushie/node.{type Node, StringVal}
+import plushie/event.{type Event, ClipboardText, EffectUnsupported, EventTarget}
+import plushie/node.{type Node, DictVal, StringVal}
 import plushie/support
 import plushie/ui
 import plushie/widget/window
@@ -37,13 +37,10 @@ fn effect_update(
       model,
       effect.clipboard_read("test"),
     )
-    event.Effect(event.EffectEvent(result: EffectOk(data), ..)) -> {
-      let text = case dyn_decode.run(data, dyn_decode.string) {
-        Ok(s) -> s
-        Error(_) -> ""
-      }
-      #(EffectModel(..model, clipboard_text: text), command.none())
-    }
+    event.Effect(event.EffectEvent(result: ClipboardText(text:), ..)) -> #(
+      EffectModel(..model, clipboard_text: text),
+      command.none(),
+    )
     event.Effect(event.EffectEvent(result: EffectUnsupported, ..)) -> #(
       EffectModel(..model, got_unsupported: True),
       command.none(),
@@ -74,7 +71,11 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
   // Register a stub so clipboard_read returns "test data".
   // This blocks until the renderer confirms the stub is stored.
   let assert Ok(_) =
-    support.register_effect_stub(rt, "clipboard_read", StringVal("test data"))
+    support.register_effect_stub(
+      rt,
+      "clipboard_read",
+      DictVal(dict.from_list([#("text", StringVal("test data"))])),
+    )
 
   // Trigger the clipboard read
   support.dispatch_event(
@@ -104,7 +105,11 @@ pub fn unregister_removes_stub_test() -> Nil {
 
   // Register and then immediately unregister
   let assert Ok(_) =
-    support.register_effect_stub(rt, "clipboard_read", StringVal("first"))
+    support.register_effect_stub(
+      rt,
+      "clipboard_read",
+      DictVal(dict.from_list([#("text", StringVal("first"))])),
+    )
   let assert Ok(_) = support.unregister_effect_stub(rt, "clipboard_read")
 
   // Trigger the clipboard read; should not get "first" back

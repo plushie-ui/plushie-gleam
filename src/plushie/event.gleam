@@ -481,10 +481,40 @@ pub type ScrollData {
 
 // -- Effect result ------------------------------------------------------------
 
-/// Platform effect result.
+/// Typed outcome of a platform effect.
+///
+/// Matches the Rust SDK's EffectResult enum. Host SDKs share the
+/// concept across language-idiomatic shapes; Gleam models it as a
+/// sum type so apps can pattern-match on the variant directly.
 pub type EffectResult {
-  EffectOk(Dynamic)
+  /// A file was selected from an open-file dialog.
+  FileOpened(path: String)
+  /// Multiple files were selected from a multi-file open dialog.
+  FilesOpened(paths: List(String))
+  /// A file path was chosen in a save dialog.
+  FileSaved(path: String)
+  /// A directory was selected from a directory picker.
+  DirectorySelected(path: String)
+  /// Multiple directories were selected.
+  DirectoriesSelected(paths: List(String))
+  /// Clipboard text was read.
+  ClipboardText(text: String)
+  /// Clipboard HTML was read. `alt_text` may be None.
+  ClipboardHtml(html: String, alt_text: Option(String))
+  /// Clipboard write completed.
+  ClipboardWritten
+  /// Clipboard was cleared.
+  ClipboardCleared
+  /// An OS notification was shown.
+  NotificationShown
+  /// The user dismissed a dialog.
   EffectCancelled
-  EffectError(Dynamic)
+  /// The effect did not receive a response within its timeout.
+  EffectTimeout
+  /// A platform error occurred. `message` is renderer-supplied.
+  EffectError(message: String)
+  /// The backend does not support this effect.
   EffectUnsupported
+  /// The renderer restarted while this effect was in flight.
+  RendererRestarted
 }
