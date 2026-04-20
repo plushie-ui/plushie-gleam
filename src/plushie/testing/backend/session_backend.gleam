@@ -189,6 +189,7 @@ pub fn backend() -> TestBackend(model) {
           finger: option.Some(finger),
           modifiers: event.modifiers_none(),
           captured: False,
+          lost: option.None,
         )),
       )
     },

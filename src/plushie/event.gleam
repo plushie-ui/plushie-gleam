@@ -109,6 +109,9 @@ pub type WidgetEvent {
     finger: Option(Int),
     modifiers: Modifiers,
     captured: Bool,
+    /// Present on touch release events when the release happened
+    /// outside the widget's bounds. Absent for mouse / pen releases.
+    lost: Option(Bool),
   )
   /// A pointer moved.
   Move(
@@ -156,6 +159,29 @@ pub type WidgetEvent {
   Drag(target: EventTarget, x: Float, y: Float, delta_x: Float, delta_y: Float)
   /// A drag ended on a draggable element.
   DragEnd(target: EventTarget, x: Float, y: Float)
+  /// A key was pressed while a widget had keyboard focus. Distinct
+  /// from the global `Key` event: this variant is scoped to a widget
+  /// via `target` so apps can react without a global subscription.
+  WidgetKeyPress(
+    target: EventTarget,
+    key: String,
+    modified_key: String,
+    physical_key: Option(String),
+    modifiers: Modifiers,
+    location: KeyLocation,
+    text: Option(String),
+    repeat: Bool,
+  )
+  /// A key was released while a widget had keyboard focus.
+  WidgetKeyRelease(
+    target: EventTarget,
+    key: String,
+    modified_key: String,
+    physical_key: Option(String),
+    modifiers: Modifiers,
+    location: KeyLocation,
+    text: Option(String),
+  )
   /// A renderer-side transition completed.
   TransitionComplete(target: EventTarget, tag: String, prop: String)
   /// A widget status event (used internally for focus tracking).

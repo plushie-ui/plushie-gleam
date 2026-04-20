@@ -334,6 +334,13 @@ fn get_bool_or(map: Dict(String, PropValue), key: String, default: Bool) -> Bool
   }
 }
 
+fn get_optional_bool(map: Dict(String, PropValue), key: String) -> Option(Bool) {
+  case dict.get(map, key) {
+    Ok(PBool(b)) -> Some(b)
+    _ -> None
+  }
+}
+
 fn get_float_or(
   map: Dict(String, PropValue),
   key: String,
@@ -578,8 +585,16 @@ fn decode_event(
     "scrolled" -> decode_widget_scrolled(map)
 
     // Key events (global subscription)
-    "key_press" -> decode_key_press(map)
-    "key_release" -> decode_key_release(map)
+    "key_press" ->
+      case get_string_or(map, "id", "") {
+        "" -> decode_key_press(map)
+        _ -> decode_widget_key_press(map)
+      }
+    "key_release" ->
+      case get_string_or(map, "id", "") {
+        "" -> decode_key_release(map)
+        _ -> decode_widget_key_release(map)
+      }
     "modifiers_changed" -> decode_modifiers_changed(map)
 
     // Window events
@@ -621,8 +636,8 @@ fn decode_event(
     "wheel_scrolled" -> decode_sub_wheel_scrolled(map)
     "finger_pressed" -> decode_sub_touch_press(map)
     "finger_moved" -> decode_sub_touch_move(map)
-    "finger_lifted" -> decode_sub_touch_release(map)
-    "finger_lost" -> decode_sub_touch_release(map)
+    "finger_lifted" -> decode_sub_touch_release(map, False)
+    "finger_lost" -> decode_sub_touch_release(map, True)
 
     // IME events
     "ime_opened" -> decode_ime_opened(map)
@@ -876,6 +891,60 @@ fn decode_key_press(
   )
 }
 
+fn decode_widget_key_press(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use target <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "value")
+  let key = get_string_or(data, "key", "")
+  let modified_key = get_string_or(data, "modified_key", key)
+  let modifiers = decode_modifiers_from_data(data)
+  let physical_key = get_optional_string(data, "physical_key")
+  let location = parse_key_location(get_string_or(data, "location", "standard"))
+  let text = get_optional_string(data, "text")
+  let repeat = get_bool_or(data, "repeat", False)
+  Ok(
+    EventMessage(
+      event.Widget(event.WidgetKeyPress(
+        target:,
+        key:,
+        modified_key:,
+        physical_key:,
+        modifiers:,
+        location:,
+        text:,
+        repeat:,
+      )),
+    ),
+  )
+}
+
+fn decode_widget_key_release(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use target <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "value")
+  let key = get_string_or(data, "key", "")
+  let modified_key = get_string_or(data, "modified_key", key)
+  let modifiers = decode_modifiers_from_data(data)
+  let physical_key = get_optional_string(data, "physical_key")
+  let location = parse_key_location(get_string_or(data, "location", "standard"))
+  let text = get_optional_string(data, "text")
+  Ok(
+    EventMessage(
+      event.Widget(event.WidgetKeyRelease(
+        target:,
+        key:,
+        modified_key:,
+        physical_key:,
+        modifiers:,
+        location:,
+        text:,
+      )),
+    ),
+  )
+}
+
 fn decode_key_release(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
@@ -1122,7 +1191,8 @@ fn decode_pointer_press(
         pointer: decode_pointer_type_from_data(data),
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
-        captured: False,
+        captured: get_bool_or(map, "captured", False)
+          || get_bool_or(data, "captured", False),
       )),
     ),
   )
@@ -1147,7 +1217,9 @@ fn decode_pointer_release(
         pointer: decode_pointer_type_from_data(data),
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
-        captured: False,
+        captured: get_bool_or(map, "captured", False)
+          || get_bool_or(data, "captured", False),
+        lost: get_optional_bool(data, "lost"),
       )),
     ),
   )
@@ -1167,7 +1239,8 @@ fn decode_pointer_move(
         pointer: decode_pointer_type_from_data(data),
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
-        captured: False,
+        captured: get_bool_or(map, "captured", False)
+          || get_bool_or(data, "captured", False),
       )),
     ),
   )
@@ -1189,7 +1262,8 @@ fn decode_pointer_scroll(
         pointer: decode_pointer_type_from_data(data),
         modifiers: decode_modifiers_from_data(data),
         unit: None,
-        captured: False,
+        captured: get_bool_or(map, "captured", False)
+          || get_bool_or(data, "captured", False),
       )),
     ),
   )
@@ -1358,6 +1432,7 @@ fn decode_sub_button_released(
         finger: None,
         modifiers: event.modifiers_none(),
         captured:,
+        lost: None,
       )),
     ),
   )
@@ -1420,6 +1495,7 @@ fn decode_sub_touch_press(
 
 fn decode_sub_touch_release(
   map: Dict(String, PropValue),
+  lost: Bool,
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
   let data = get_map(map, "value")
@@ -1437,6 +1513,7 @@ fn decode_sub_touch_release(
         finger: Some(finger_id),
         modifiers: event.modifiers_none(),
         captured:,
+        lost: Some(lost),
       )),
     ),
   )

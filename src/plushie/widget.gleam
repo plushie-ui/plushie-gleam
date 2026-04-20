@@ -816,6 +816,8 @@ fn widget_event_target(ev: event.WidgetEvent) -> EventTarget {
     event.PaneClicked(target:, ..) -> target
     event.PaneFocusCycle(target:, ..) -> target
     event.CustomWidget(target:, ..) -> target
+    event.WidgetKeyPress(target:, ..) -> target
+    event.WidgetKeyRelease(target:, ..) -> target
   }
 }
 

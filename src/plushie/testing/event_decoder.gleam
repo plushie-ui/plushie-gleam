@@ -199,6 +199,7 @@ pub fn decode_test_event(
           finger: option.None,
           modifiers: event.modifiers_none(),
           captured: False,
+          lost: option.None,
         )),
       )
     }
@@ -251,6 +252,7 @@ pub fn decode_test_event(
     }
     "finger_lifted" | "finger_lost" -> {
       let wid = result.unwrap(window_id, "")
+      let is_lost = family == "finger_lost"
       Ok(
         event.Widget(event.Release(
           target: EventTarget(window_id: wid, id: wid, scope: [], full: wid),
@@ -261,6 +263,7 @@ pub fn decode_test_event(
           finger: option.Some(get_int(data, "finger_id", 0)),
           modifiers: event.modifiers_none(),
           captured: False,
+          lost: option.Some(is_lost),
         )),
       )
     }
@@ -488,6 +491,7 @@ pub fn decode_test_event(
           finger: decode_finger(data),
           modifiers: decode_modifiers(data),
           captured: False,
+          lost: option.None,
         ))
       })
     "move" ->
