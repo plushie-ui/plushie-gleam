@@ -1667,18 +1667,173 @@ fn decode_ime_closed(
 ///  "diagnostic":{"kind":"...",...}}
 /// ```
 ///
-/// The `diagnostic` object is a tagged payload; we surface `kind` as a
-/// string and pass the remaining variant-specific fields through as a
-/// `Dynamic` so apps can decode whichever variants they care about
-/// without the runtime needing to know every emit site.
+/// Dispatches on the `kind` field to produce a typed
+/// [`event.Diagnostic`] variant. Unknown kinds surface as a
+/// `protocol.DecodeError` so version skew is loud, not silent.
 fn decode_diagnostic_message(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let level = get_string_or(map, "level", "warn")
   let payload = get_map(map, "diagnostic")
   let kind = get_string_or(payload, "kind", "")
-  let data = prop_to_dynamic(PMap(payload))
-  Ok(EventMessage(event.Error(event.Diagnostic(level:, kind:, data:))))
+  use diag <- result.try(decode_diagnostic_payload(kind, payload))
+  Ok(EventMessage(event.Error(event.Diagnostic(level:, payload: diag))))
+}
+
+fn decode_diagnostic_payload(
+  kind: String,
+  payload: Dict(String, PropValue),
+) -> Result(event.Diagnostic, protocol.DecodeError) {
+  case kind {
+    "duplicate_id" ->
+      Ok(event.DuplicateId(
+        id: get_string_or(payload, "id", ""),
+        window_id: get_optional_string(payload, "window_id"),
+      ))
+    "empty_id" ->
+      Ok(event.EmptyId(type_name: get_string_or(payload, "type_name", "")))
+    "multiple_top_level_windows" ->
+      Ok(
+        event.MultipleTopLevelWindows(window_ids: get_string_list(
+          payload,
+          "window_ids",
+        )),
+      )
+    "unknown_window" ->
+      Ok(event.UnknownWindow(
+        window_id: get_string_or(payload, "window_id", ""),
+        subscription_tag: get_string_or(payload, "subscription_tag", ""),
+      ))
+    "unrecognized_widget_placeholder" ->
+      Ok(
+        event.UnrecognizedWidgetPlaceholder(id: get_string_or(payload, "id", "")),
+      )
+    "tree_depth_exceeded" ->
+      Ok(event.TreeDepthExceeded(
+        id: get_string_or(payload, "id", ""),
+        max_depth: get_int_or(payload, "max_depth", 0),
+      ))
+    "too_many_duplicates" ->
+      Ok(event.TooManyDuplicates(limit: get_int_or(payload, "limit", 0)))
+    "widget_id_invalid" ->
+      Ok(event.WidgetIdInvalid(
+        reason: get_string_or(payload, "reason", ""),
+        type_name: get_string_or(payload, "type_name", ""),
+        id: get_string_or(payload, "id", ""),
+        detail: get_string_or(payload, "detail", ""),
+      ))
+    "missing_accessible_name" ->
+      Ok(event.MissingAccessibleName(
+        type_name: get_string_or(payload, "type_name", ""),
+        id: get_string_or(payload, "id", ""),
+      ))
+    "a11y_ref_unresolved" ->
+      Ok(event.A11yRefUnresolved(
+        id: get_string_or(payload, "id", ""),
+        key: get_string_or(payload, "key", ""),
+        value: get_string_or(payload, "value", ""),
+        is_member: get_bool_or(payload, "is_member", False),
+      ))
+    "prop_range_exceeded" ->
+      Ok(event.PropRangeExceeded(
+        id: get_string_or(payload, "id", ""),
+        type_name: get_string_or(payload, "type_name", ""),
+        prop: get_string_or(payload, "prop", ""),
+        raw: get_float_or(payload, "raw", 0.0),
+        clamped: get_float_or(payload, "clamped", 0.0),
+        non_finite: get_bool_or(payload, "non_finite", False),
+      ))
+    "prop_type_mismatch" ->
+      Ok(event.PropTypeMismatch(
+        id: get_string_or(payload, "id", ""),
+        type_name: get_string_or(payload, "type_name", ""),
+        prop: get_string_or(payload, "prop", ""),
+        value_debug: get_string_or(payload, "value_debug", ""),
+        expected_debug: get_string_or(payload, "expected_debug", ""),
+      ))
+    "prop_unknown" ->
+      Ok(event.PropUnknown(
+        id: get_string_or(payload, "id", ""),
+        type_name: get_string_or(payload, "type_name", ""),
+        prop: get_string_or(payload, "prop", ""),
+        known_debug: get_string_or(payload, "known_debug", ""),
+      ))
+    "content_length_exceeded" ->
+      Ok(event.ContentLengthExceeded(
+        id: get_string_or(payload, "id", ""),
+        field: get_string_or(payload, "field", ""),
+        actual: get_int_or(payload, "actual", 0),
+        cap: get_int_or(payload, "cap", 0),
+        truncated: get_int_or(payload, "truncated", 0),
+      ))
+    "font_cache_cap_exceeded" ->
+      Ok(event.FontCacheCapExceeded(max: get_int_or(payload, "max", 0)))
+    "font_cap_exceeded" ->
+      Ok(event.FontCapExceeded(
+        max: get_int_or(payload, "max", 0),
+        requested: get_int_or(payload, "requested", 0),
+        granted: get_int_or(payload, "granted", 0),
+        dropped: get_int_or(payload, "dropped", 0),
+      ))
+    "font_family_not_found" ->
+      Ok(event.FontFamilyNotFound(family: get_string_or(payload, "family", "")))
+    "invalid_settings" ->
+      Ok(event.InvalidSettings(detail: get_string_or(payload, "detail", "")))
+    "required_widgets_missing" ->
+      Ok(
+        event.RequiredWidgetsMissing(missing: get_string_list(
+          payload,
+          "missing",
+        )),
+      )
+    "widget_panic" ->
+      Ok(event.WidgetPanic(
+        id: get_string_or(payload, "id", ""),
+        type_name: get_string_or(payload, "type_name", ""),
+        label: get_string_or(payload, "label", ""),
+      ))
+    "svg_parse_error" ->
+      Ok(event.SvgParseError(
+        id: get_string_or(payload, "id", ""),
+        source: get_string_or(payload, "source", ""),
+        detail: get_string_or(payload, "detail", ""),
+      ))
+    "svg_decode_timeout" ->
+      Ok(event.SvgDecodeTimeout(
+        id: get_string_or(payload, "id", ""),
+        source: get_string_or(payload, "source", ""),
+        deadline_debug: get_string_or(payload, "deadline_debug", ""),
+      ))
+    "dash_cache_cap_exceeded" ->
+      Ok(event.DashCacheCapExceeded(max: get_int_or(payload, "max", 0)))
+    "emitter_coalesce_cap_exceeded" ->
+      Ok(event.EmitterCoalesceCapExceeded(cap: get_int_or(payload, "cap", 0)))
+    "widget_id_type_collision" ->
+      Ok(event.WidgetIdTypeCollision(
+        id: get_string_or(payload, "id", ""),
+        existing_type: get_string_or(payload, "existing_type", ""),
+        incoming_type: get_string_or(payload, "incoming_type", ""),
+      ))
+    "view_panicked" ->
+      Ok(event.ViewPanicked(
+        consecutive: get_int_or(payload, "consecutive", 0),
+        message: get_string_or(payload, "message", ""),
+      ))
+    "unknown_message_type" ->
+      Ok(
+        event.UnknownMessageType(msg_type: get_string_or(
+          payload,
+          "msg_type",
+          "",
+        )),
+      )
+    other ->
+      Error(protocol.MalformedEvent(
+        "unknown diagnostic kind: \""
+        <> other
+        <> "\"; SDK and renderer versions may be skewed",
+      ))
+  }
 }
 
 // ---------------------------------------------------------------------------

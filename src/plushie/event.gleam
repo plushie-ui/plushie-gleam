@@ -396,16 +396,114 @@ pub type ErrorEvent {
   RendererError(id: String, data: Dynamic)
   /// The tree contains duplicate node IDs after normalization.
   DuplicateNodeIds(details: Dynamic)
-  /// A renderer diagnostic message (warnings, errors).
+  /// A structured diagnostic emitted by the renderer.
   ///
-  /// `level` is `"info"`, `"warn"`, or `"error"`. `kind` identifies
-  /// the typed diagnostic variant emitted by the renderer (e.g.
-  /// `"font_family_not_found"`, `"duplicate_id"`). `data` carries the
-  /// variant-specific payload fields as a dynamic value the app can
-  /// decode when it wants richer context.
-  Diagnostic(level: String, kind: String, data: Dynamic)
+  /// `level` is `"info"`, `"warn"`, or `"error"`. `payload` is one
+  /// of the typed [`Diagnostic`] variants.
+  Diagnostic(level: String, payload: Diagnostic)
   /// Prop validation warning from the renderer.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
+}
+
+// ============================================================================
+// Diagnostic variants
+// ============================================================================
+
+/// Severity level of a diagnostic emitted by the renderer.
+pub type DiagnosticLevel {
+  DiagnosticInfo
+  DiagnosticWarn
+  DiagnosticError
+}
+
+/// Typed diagnostic payload emitted by the renderer. Each variant
+/// mirrors the renderer's `plushie-core::Diagnostic` enum and carries
+/// the structured fields the emitter knew at the time.
+pub type Diagnostic {
+  /// A widget ID collided with one already declared within the same
+  /// window scope.
+  DuplicateId(id: String, window_id: Option(String))
+  /// A widget was declared with an empty ID where a non-empty one
+  /// was expected.
+  EmptyId(type_name: String)
+  /// More than one window appeared at the top level of the tree.
+  MultipleTopLevelWindows(window_ids: List(String))
+  /// A subscription was declared for a window not in the tree.
+  UnknownWindow(window_id: String, subscription_tag: String)
+  /// A `__widget__` placeholder had no registered expander.
+  UnrecognizedWidgetPlaceholder(id: String)
+  /// Tree traversal hit the global depth cap.
+  TreeDepthExceeded(id: String, max_depth: Int)
+  /// Duplicate-ID collection stopped at the configured cap.
+  TooManyDuplicates(limit: Int)
+  /// A user-authored widget ID violated the canonical ID ruleset.
+  WidgetIdInvalid(reason: String, type_name: String, id: String, detail: String)
+  /// A widget that needs an accessible name was declared without one.
+  MissingAccessibleName(type_name: String, id: String)
+  /// A cross-widget a11y reference did not resolve to any declared
+  /// widget.
+  A11yRefUnresolved(id: String, key: String, value: String, is_member: Bool)
+  /// A numeric prop was outside its declared range and was clamped.
+  PropRangeExceeded(
+    id: String,
+    type_name: String,
+    prop: String,
+    raw: Float,
+    clamped: Float,
+    non_finite: Bool,
+  )
+  /// A prop value had an unexpected JSON type.
+  PropTypeMismatch(
+    id: String,
+    type_name: String,
+    prop: String,
+    value_debug: String,
+    expected_debug: String,
+  )
+  /// A widget carried a prop name not in its declared schema.
+  PropUnknown(id: String, type_name: String, prop: String, known_debug: String)
+  /// A text-like content prop exceeded its per-widget byte cap.
+  ContentLengthExceeded(
+    id: String,
+    field: String,
+    actual: Int,
+    cap: Int,
+    truncated: Int,
+  )
+  /// The leaked font-family-name cache reached its entry cap.
+  FontCacheCapExceeded(max: Int)
+  /// Inline fonts declared in Settings exceeded the process-wide cap.
+  FontCapExceeded(max: Int, requested: Int, granted: Int, dropped: Int)
+  /// A font family from `default_font` (or fallbacks) did not resolve
+  /// to a loaded or built-in family.
+  FontFamilyNotFound(family: String)
+  /// The Settings payload failed typed validation.
+  InvalidSettings(detail: String)
+  /// `required_widgets` named native widgets the renderer doesn't
+  /// know about.
+  RequiredWidgetsMissing(missing: List(String))
+  /// A widget panicked inside the registry's catch_unwind firewall.
+  WidgetPanic(id: String, type_name: String, label: String)
+  /// SVG decode returned a parse error.
+  SvgParseError(id: String, source: String, detail: String)
+  /// SVG decode exceeded its wall-clock budget.
+  SvgDecodeTimeout(id: String, source: String, deadline_debug: String)
+  /// The leaked dash-segment cache reached its entry cap.
+  DashCacheCapExceeded(max: Int)
+  /// The renderer-lib event coalesce map hit its cap and was
+  /// force-flushed.
+  EmitterCoalesceCapExceeded(cap: Int)
+  /// A composite widget ID was registered against two different
+  /// widget types.
+  WidgetIdTypeCollision(
+    id: String,
+    existing_type: String,
+    incoming_type: String,
+  )
+  /// The view function panicked and was caught by the runtime.
+  ViewPanicked(consecutive: Int, message: String)
+  /// A wire message carried a `type` field the SDK does not recognise.
+  UnknownMessageType(msg_type: String)
 }
 
 // ============================================================================

@@ -1131,12 +1131,42 @@ pub fn decode_diagnostic_json_test() {
   let assert Ok(decode.EventMessage(evt)) =
     decode.decode_message(data, protocol.Json)
   case evt {
-    event.Error(event.Diagnostic(level:, kind:, data: _)) -> {
+    event.Error(event.Diagnostic(
+      level:,
+      payload: event.FontFamilyNotFound(family:),
+    )) -> {
       should.equal(level, "warn")
-      should.equal(kind, "font_family_not_found")
+      should.equal(family, "Inter")
     }
     _ -> should.fail()
   }
+}
+
+pub fn decode_diagnostic_duplicate_id_json_test() {
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"warn\","
+    <> "\"diagnostic\":{\"kind\":\"duplicate_id\",\"id\":\"form/email\",\"window_id\":\"main\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Error(event.Diagnostic(
+      payload: event.DuplicateId(id:, window_id:),
+      ..,
+    )) -> {
+      should.equal(id, "form/email")
+      should.equal(window_id, Some("main"))
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_diagnostic_unknown_kind_returns_error_test() {
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"s1\",\"level\":\"warn\","
+    <> "\"diagnostic\":{\"kind\":\"totally_made_up\"}}"
+  let data = bit_array.from_string(json)
+  let assert Error(_) = decode.decode_message(data, protocol.Json)
 }
 
 // ---------------------------------------------------------------------------

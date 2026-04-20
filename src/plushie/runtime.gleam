@@ -522,10 +522,9 @@ fn handle_message(
     // Intercept diagnostic events: emit as telemetry, don't dispatch to update.
     FromBridge(InboundEvent(EventMessage(event.Error(event.Diagnostic(
       level:,
-      kind:,
-      data: _,
+      payload:,
     ))))) -> {
-      let log_msg = "plushie: " <> kind
+      let log_msg = "plushie: " <> describe_diagnostic(payload)
       case level {
         "error" -> platform.log_error(log_msg)
         "info" -> platform.log_info(log_msg)
@@ -1448,6 +1447,52 @@ fn to_dynamic(value: a) -> Dynamic
 fn coerce_to_string(value: Dynamic) -> String
 
 // -- Event coalescing --------------------------------------------------------
+
+/// Render a typed Diagnostic variant as a single-line string for log output.
+fn describe_diagnostic(diag: event.Diagnostic) -> String {
+  case diag {
+    event.DuplicateId(id:, ..) -> "duplicate_id: " <> id
+    event.EmptyId(type_name:) -> "empty_id: " <> type_name
+    event.MultipleTopLevelWindows(..) -> "multiple_top_level_windows"
+    event.UnknownWindow(window_id:, subscription_tag:) ->
+      "unknown_window: subscription "
+      <> subscription_tag
+      <> " targets "
+      <> window_id
+    event.UnrecognizedWidgetPlaceholder(id:) ->
+      "unrecognized_widget_placeholder: " <> id
+    event.TreeDepthExceeded(id:, ..) -> "tree_depth_exceeded: " <> id
+    event.TooManyDuplicates(..) -> "too_many_duplicates"
+    event.WidgetIdInvalid(reason:, type_name:, id:, ..) ->
+      "widget_id_invalid: " <> type_name <> " " <> id <> " (" <> reason <> ")"
+    event.MissingAccessibleName(type_name:, id:) ->
+      "missing_accessible_name: " <> type_name <> " " <> id
+    event.A11yRefUnresolved(id:, key:, ..) ->
+      "a11y_ref_unresolved: " <> id <> " " <> key
+    event.PropRangeExceeded(id:, prop:, ..) ->
+      "prop_range_exceeded: " <> id <> " prop " <> prop
+    event.PropTypeMismatch(id:, prop:, ..) ->
+      "prop_type_mismatch: " <> id <> " prop " <> prop
+    event.PropUnknown(id:, prop:, ..) ->
+      "prop_unknown: " <> id <> " prop " <> prop
+    event.ContentLengthExceeded(id:, field:, ..) ->
+      "content_length_exceeded: " <> id <> "." <> field
+    event.FontCacheCapExceeded(..) -> "font_cache_cap_exceeded"
+    event.FontCapExceeded(..) -> "font_cap_exceeded"
+    event.FontFamilyNotFound(family:) -> "font_family_not_found: " <> family
+    event.InvalidSettings(detail:) -> "invalid_settings: " <> detail
+    event.RequiredWidgetsMissing(..) -> "required_widgets_missing"
+    event.WidgetPanic(id:, type_name:, label:) ->
+      "widget_panic: " <> type_name <> " " <> id <> " in " <> label
+    event.SvgParseError(id:, ..) -> "svg_parse_error: " <> id
+    event.SvgDecodeTimeout(id:, ..) -> "svg_decode_timeout: " <> id
+    event.DashCacheCapExceeded(..) -> "dash_cache_cap_exceeded"
+    event.EmitterCoalesceCapExceeded(..) -> "emitter_coalesce_cap_exceeded"
+    event.WidgetIdTypeCollision(id:, ..) -> "widget_id_type_collision: " <> id
+    event.ViewPanicked(message:, ..) -> "view_panicked: " <> message
+    event.UnknownMessageType(msg_type:) -> "unknown_message_type: " <> msg_type
+  }
+}
 
 @target(erlang)
 /// Track widget focus state from renderer status events.
