@@ -25,13 +25,20 @@ pub fn none() -> Padding {
 }
 
 /// Encode to wire-format PropValue (always full 4-key map).
+///
+/// Panics when any side is negative. Negatives are rejected at the
+/// SDK boundary rather than silently reaching the renderer.
 pub fn to_prop_value(p: Padding) -> PropValue {
-  DictVal(
-    dict.from_list([
-      #("top", FloatVal(p.top)),
-      #("right", FloatVal(p.right)),
-      #("bottom", FloatVal(p.bottom)),
-      #("left", FloatVal(p.left)),
-    ]),
-  )
+  case p.top <. 0.0 || p.right <. 0.0 || p.bottom <. 0.0 || p.left <. 0.0 {
+    True -> panic as "padding must be non-negative"
+    False ->
+      DictVal(
+        dict.from_list([
+          #("top", FloatVal(p.top)),
+          #("right", FloatVal(p.right)),
+          #("bottom", FloatVal(p.bottom)),
+          #("left", FloatVal(p.left)),
+        ]),
+      )
+  }
 }

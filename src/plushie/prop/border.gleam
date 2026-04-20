@@ -55,18 +55,35 @@ pub fn radius_corners(
 }
 
 /// Encode a Border to its wire-format PropValue.
+///
+/// Panics when the width or any radius value is negative. Negatives
+/// are rejected at the SDK boundary rather than silently reaching the
+/// renderer.
 pub fn to_prop_value(b: Border) -> PropValue {
+  case b.width <. 0.0 {
+    True -> panic as "border width must be non-negative"
+    False -> Nil
+  }
+
   let radius_val = case b.radius {
-    Uniform(r) -> FloatVal(r)
+    Uniform(r) ->
+      case r <. 0.0 {
+        True -> panic as "border radius must be non-negative"
+        False -> FloatVal(r)
+      }
     PerCorner(tl, tr, br, bl) ->
-      DictVal(
-        dict.from_list([
-          #("top_left", FloatVal(tl)),
-          #("top_right", FloatVal(tr)),
-          #("bottom_right", FloatVal(br)),
-          #("bottom_left", FloatVal(bl)),
-        ]),
-      )
+      case tl <. 0.0 || tr <. 0.0 || br <. 0.0 || bl <. 0.0 {
+        True -> panic as "border radius must be non-negative"
+        False ->
+          DictVal(
+            dict.from_list([
+              #("top_left", FloatVal(tl)),
+              #("top_right", FloatVal(tr)),
+              #("bottom_right", FloatVal(br)),
+              #("bottom_left", FloatVal(bl)),
+            ]),
+          )
+      }
   }
 
   let base = [#("width", FloatVal(b.width)), #("radius", radius_val)]
