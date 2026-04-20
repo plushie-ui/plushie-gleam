@@ -51,6 +51,21 @@ pub type Event {
   ModifiersChanged(ModifiersEvent)
   /// Errors from the renderer or runtime.
   Error(ErrorEvent)
+  /// Multiplexed session lifecycle events.
+  Session(SessionEvent)
+}
+
+// ============================================================================
+// Session events (multiplexed mode)
+// ============================================================================
+
+/// Session lifecycle events emitted when the renderer is run with
+/// `--max-sessions > 1`.
+pub type SessionEvent {
+  /// A session encountered an error (panic, cap, transport failure).
+  SessionError(session: String, error: String)
+  /// A session was closed by the renderer (Reset complete, etc.).
+  SessionClosed(session: String, reason: String)
 }
 
 // ============================================================================

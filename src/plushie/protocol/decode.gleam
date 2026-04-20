@@ -664,6 +664,10 @@ fn decode_event(
     // Announce (headless/mock: screen reader announcements)
     "announce" -> decode_announce(map)
 
+    // Session lifecycle events (multiplexed mode)
+    "session_error" -> decode_session_error(map)
+    "session_closed" -> decode_session_closed(map)
+
     // Error events
     "error" -> decode_error_event(map)
 
@@ -1774,6 +1778,28 @@ fn decode_announce(
   let data = get_map(map, "value")
   let text = get_string_or(data, "text", "")
   Ok(EventMessage(event.System(event.Announce(text:))))
+}
+
+// ---------------------------------------------------------------------------
+// Session lifecycle decoders
+// ---------------------------------------------------------------------------
+
+fn decode_session_error(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let session = get_string_or(map, "session", "")
+  let data = get_map(map, "value")
+  let error = get_string_or(data, "error", "")
+  Ok(EventMessage(event.Session(event.SessionError(session:, error:))))
+}
+
+fn decode_session_closed(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  let session = get_string_or(map, "session", "")
+  let data = get_map(map, "value")
+  let reason = get_string_or(data, "reason", "")
+  Ok(EventMessage(event.Session(event.SessionClosed(session:, reason:))))
 }
 
 // ---------------------------------------------------------------------------

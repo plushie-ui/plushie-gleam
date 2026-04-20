@@ -219,6 +219,40 @@ pub fn decode_link_click_json_test() {
 }
 
 // ---------------------------------------------------------------------------
+// Session lifecycle events
+// ---------------------------------------------------------------------------
+
+pub fn decode_session_error_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"session_error\",\"session\":\"s1\",\"value\":{\"error\":\"boom\",\"code\":\"session_panic\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Session(event.SessionError(session:, error:)) -> {
+      should.equal(session, "s1")
+      should.equal(error, "boom")
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_session_closed_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"session_closed\",\"session\":\"s2\",\"value\":{\"reason\":\"reset\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Session(event.SessionClosed(session:, reason:)) -> {
+      should.equal(session, "s2")
+      should.equal(reason, "reset")
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Slide event
 // ---------------------------------------------------------------------------
 
