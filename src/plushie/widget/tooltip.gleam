@@ -5,7 +5,6 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, Node}
 import plushie/prop/a11y.{type A11y}
-import plushie/prop/padding.{type Padding}
 import plushie/prop/position.{type Position}
 import plushie/widget/build
 
@@ -16,7 +15,7 @@ pub opaque type Tooltip {
     tip: String,
     position: Option(Position),
     gap: Option(Float),
-    padding: Option(Padding),
+    padding: Option(Float),
     snap_within_viewport: Option(Bool),
     delay: Option(Int),
     style: Option(String),
@@ -50,8 +49,11 @@ pub fn gap(tt: Tooltip, g: Float) -> Tooltip {
   Tooltip(..tt, gap: option.Some(g))
 }
 
-/// Set the padding.
-pub fn padding(tt: Tooltip, p: Padding) -> Tooltip {
+/// Set the padding in pixels.
+///
+/// The renderer's tooltip widget accepts a scalar thickness only;
+/// iced's tooltip API has no per-side padding.
+pub fn padding(tt: Tooltip, p: Float) -> Tooltip {
   Tooltip(..tt, padding: option.Some(p))
 }
 
@@ -89,7 +91,7 @@ pub fn a11y(tt: Tooltip, a: A11y) -> Tooltip {
 pub type Opt {
   Position(Position)
   Gap(Float)
-  Padding(Padding)
+  Padding(Float)
   SnapWithinViewport(Bool)
   Delay(Int)
   Style(String)
@@ -119,7 +121,7 @@ pub fn build(tt: Tooltip) -> Node {
     |> build.put_string("tip", tt.tip)
     |> build.put_optional("position", tt.position, position.to_prop_value)
     |> build.put_optional_float("gap", tt.gap)
-    |> build.put_optional("padding", tt.padding, padding.to_prop_value)
+    |> build.put_optional_float("padding", tt.padding)
     |> build.put_optional_bool("snap_within_viewport", tt.snap_within_viewport)
     |> build.put_optional_int("delay", tt.delay)
     |> build.put_optional_string("style", tt.style)

@@ -10,7 +10,6 @@ import plushie/prop/font.{type Font}
 import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
-import plushie/prop/padding.{type Padding}
 import plushie/prop/validation_state.{type ValidationState}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -24,7 +23,7 @@ pub opaque type TextEditor {
     height: Option(Length),
     min_height: Option(Float),
     max_height: Option(Float),
-    padding: Option(Padding),
+    padding: Option(Float),
     font: Option(Font),
     size: Option(Float),
     line_height: Option(LineHeight),
@@ -95,8 +94,11 @@ pub fn max_height(te: TextEditor, h: Float) -> TextEditor {
   TextEditor(..te, max_height: option.Some(h))
 }
 
-/// Set the padding.
-pub fn padding(te: TextEditor, p: Padding) -> TextEditor {
+/// Set the padding in pixels.
+///
+/// The renderer's text_editor widget accepts a scalar thickness only;
+/// iced's text_editor API has no per-side padding.
+pub fn padding(te: TextEditor, p: Float) -> TextEditor {
   TextEditor(..te, padding: option.Some(p))
 }
 
@@ -178,7 +180,7 @@ pub type Opt {
   Height(Length)
   MinHeight(Float)
   MaxHeight(Float)
-  Padding(Padding)
+  Padding(Float)
   Font(Font)
   Size(Float)
   LineHeight(LineHeight)
@@ -233,7 +235,7 @@ pub fn build(te: TextEditor) -> Node {
     |> build.put_optional("height", te.height, length.to_prop_value)
     |> build.put_optional_float("min_height", te.min_height)
     |> build.put_optional_float("max_height", te.max_height)
-    |> build.put_optional("padding", te.padding, padding.to_prop_value)
+    |> build.put_optional_float("padding", te.padding)
     |> build.put_optional("font", te.font, font.to_prop_value)
     |> build.put_optional_float("size", te.size)
     |> build.put_optional(
