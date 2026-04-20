@@ -151,6 +151,9 @@ pub fn clipboard_write_primary(tag: String, text: String) -> Command(msg) {
 // -- Notifications -----------------------------------------------------------
 
 /// Show a desktop notification.
+///
+/// On macOS, notifications may require the app to be bundled (.app)
+/// or have notification entitlements to display.
 pub fn notification(
   tag: String,
   title: String,
