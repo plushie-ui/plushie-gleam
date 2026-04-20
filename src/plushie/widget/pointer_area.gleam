@@ -1,7 +1,6 @@
 //// Pointer area widget builder (pointer interaction wrapper).
 ////
 //// Captures all pointer input (mouse, touch, pen) within a region.
-//// Renamed from mouse_area to reflect device-agnostic pointer model.
 
 import gleam/dict
 import gleam/list
