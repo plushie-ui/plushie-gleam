@@ -7,7 +7,7 @@ import gleam/int
 @target(erlang)
 import gleam/io
 import gleam/list
-import gleam/option
+import gleam/option.{type Option, Some}
 import gleam/string
 @target(erlang)
 import plushie
@@ -114,33 +114,38 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
   [subscription.on_key_press()]
 }
 
-fn view(model: Model) -> Node {
-  ui.window("main", [window.Title("Keyboard Shortcuts")], [
-    ui.column(
-      "content",
-      [
-        column.Padding(padding.all(16.0)),
-        column.Spacing(12.0),
-        column.Width(length.Fill),
-      ],
-      [
-        ui.text("header", "Press any key", [text.Size(20.0)]),
-        ui.text_("count", int.to_string(model.count) <> " key events captured"),
-        ui.rule("divider", []),
-        ui.scrollable("log", [scrollable.Height(length.Fill)], [
-          ui.column(
-            "log-entries",
-            [column.Spacing(2.0), column.Width(length.Fill)],
-            list.index_map(model.log, fn(entry, idx) {
-              ui.text("log_" <> int.to_string(idx), entry, [
-                text.Size(13.0),
-              ])
-            }),
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Keyboard Shortcuts")], [
+      ui.column(
+        "content",
+        [
+          column.Padding(padding.all(16.0)),
+          column.Spacing(12.0),
+          column.Width(length.Fill),
+        ],
+        [
+          ui.text("header", "Press any key", [text.Size(20.0)]),
+          ui.text_(
+            "count",
+            int.to_string(model.count) <> " key events captured",
           ),
-        ]),
-      ],
-    ),
-  ])
+          ui.rule("divider", []),
+          ui.scrollable("log", [scrollable.Height(length.Fill)], [
+            ui.column(
+              "log-entries",
+              [column.Spacing(2.0), column.Width(length.Fill)],
+              list.index_map(model.log, fn(entry, idx) {
+                ui.text("log_" <> int.to_string(idx), entry, [
+                  text.Size(13.0),
+                ])
+              }),
+            ),
+          ]),
+        ],
+      ),
+    ]),
+  )
 }
 
 pub fn app() {

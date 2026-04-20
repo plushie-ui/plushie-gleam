@@ -64,12 +64,12 @@ pub fn get_app(session: TestSession(model)) -> App(model, Event) {
 
 fn render(app: App(model, Event), model: model) -> Node {
   let view_fn = app.get_view(app)
+  let raw = case view_fn(model) {
+    option.Some(n) -> n
+    option.None -> node.empty_container()
+  }
   case
-    tree.normalize_view(
-      view_fn(model),
-      widget.empty_registry(),
-      tree.empty_memo_cache(),
-    )
+    tree.normalize_view(raw, widget.empty_registry(), tree.empty_memo_cache())
   {
     Ok(result) -> result.tree
     Error(message) -> panic as message

@@ -68,11 +68,17 @@ pub fn default_settings() -> Settings {
 }
 
 /// Application definition bundling all callbacks.
+///
+/// `view` returns `Option(Node)` so apps can return `None` to
+/// render an empty tree (loading, transition, or error screens
+/// where the app has nothing to display yet). Matches the other
+/// host SDKs where this nullable-view convention has been
+/// normalized.
 pub opaque type App(model, msg) {
   App(
     init: fn(Dynamic) -> #(model, Command(msg)),
     update: fn(model, msg) -> #(model, Command(msg)),
-    view: fn(model) -> Node,
+    view: fn(model) -> Option(Node),
     subscribe: fn(model) -> List(Subscription),
     settings: fn() -> Settings,
     window_config: fn(model) -> Dict(String, PropValue),
@@ -91,7 +97,7 @@ pub opaque type App(model, msg) {
 pub fn simple(
   init: fn() -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
-  view: fn(model) -> Node,
+  view: fn(model) -> Option(Node),
 ) -> App(model, Event) {
   App(
     init: fn(_opts) { init() },
@@ -112,7 +118,7 @@ pub fn simple(
 pub fn simple_with_opts(
   init: fn(Dynamic) -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
-  view: fn(model) -> Node,
+  view: fn(model) -> Option(Node),
 ) -> App(model, Event) {
   App(
     init:,
@@ -134,7 +140,7 @@ pub fn simple_with_opts(
 pub fn application(
   init: fn() -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
-  view: fn(model) -> Node,
+  view: fn(model) -> Option(Node),
   on_event: fn(Event) -> msg,
 ) -> App(model, msg) {
   App(
@@ -156,7 +162,7 @@ pub fn application(
 pub fn application_with_opts(
   init: fn(Dynamic) -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
-  view: fn(model) -> Node,
+  view: fn(model) -> Option(Node),
   on_event: fn(Event) -> msg,
 ) -> App(model, msg) {
   App(
@@ -219,8 +225,9 @@ pub fn get_update(
 }
 
 /// Returns the app's view function, called after every update to produce
-/// the UI tree.
-pub fn get_view(app: App(model, msg)) -> fn(model) -> Node {
+/// the UI tree. A `None` return renders an empty tree so apps can use
+/// nil for transition, loading, or error screens.
+pub fn get_view(app: App(model, msg)) -> fn(model) -> Option(Node) {
   app.view
 }
 

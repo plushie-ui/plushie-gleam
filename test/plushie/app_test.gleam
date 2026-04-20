@@ -28,7 +28,7 @@ fn test_update(model: Model, event: Event) {
 }
 
 fn test_view(_model: Model) {
-  ui.window("main", [window.Title("App Test")], [])
+  option.Some(ui.window("main", [window.Title("App Test")], []))
 }
 
 pub fn simple_creates_app_test() {
@@ -105,7 +105,7 @@ pub fn update_through_accessor_test() {
 pub fn view_through_accessor_test() {
   let my_app = app.simple(test_init, test_update, test_view)
   let view = app.get_view(my_app)
-  let tree = view(Model(count: 0))
+  let assert option.Some(tree) = view(Model(count: 0))
   should.equal(tree.id, "main")
 }
 
@@ -136,7 +136,7 @@ fn msg_update(model: Model, msg: Msg) {
 }
 
 fn msg_view(_model: Model) {
-  ui.window("main", [window.Title("App Test")], [])
+  option.Some(ui.window("main", [window.Title("App Test")], []))
 }
 
 pub fn application_stores_on_event_test() {

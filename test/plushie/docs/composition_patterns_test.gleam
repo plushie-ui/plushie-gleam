@@ -1,7 +1,7 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{type Option, None, Some}
 import gleam/set.{type Set}
 import gleam/string
 import gleeunit/should
@@ -45,30 +45,32 @@ fn tab_update(model: TabModel, event: Event) {
   }
 }
 
-fn tab_view(model: TabModel) -> Node {
-  ui.window("main", [window.Title("Tab Demo")], [
-    ui.column("tabs_layout", [column.Width(Fill)], [
-      ui.row(
-        "tab_row",
-        [row.Spacing(0.0)],
-        list.map(tabs, fn(tab) {
-          ui.button("tab:" <> tab, string.capitalise(tab), [
-            button.Padding(padding.xy(10.0, 20.0)),
-          ])
-        }),
-      ),
-      ui.rule("tab_rule", []),
-      ui.container(
-        "content",
-        [
-          container.Padding(padding.all(20.0)),
-          container.Width(Fill),
-          container.Height(Fill),
-        ],
-        [ui.text_("tab_content", "Content for " <> model.active_tab)],
-      ),
+fn tab_view(model: TabModel) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Tab Demo")], [
+      ui.column("tabs_layout", [column.Width(Fill)], [
+        ui.row(
+          "tab_row",
+          [row.Spacing(0.0)],
+          list.map(tabs, fn(tab) {
+            ui.button("tab:" <> tab, string.capitalise(tab), [
+              button.Padding(padding.xy(10.0, 20.0)),
+            ])
+          }),
+        ),
+        ui.rule("tab_rule", []),
+        ui.container(
+          "content",
+          [
+            container.Padding(padding.all(20.0)),
+            container.Width(Fill),
+            container.Height(Fill),
+          ],
+          [ui.text_("tab_content", "Content for " <> model.active_tab)],
+        ),
+      ]),
     ]),
-  ])
+  )
 }
 
 pub fn tab_bar_init_test() {
@@ -94,7 +96,7 @@ pub fn tab_bar_click_changes_active_tab_test() {
 }
 
 pub fn tab_bar_view_has_three_tab_buttons_test() {
-  let tree = tab_view(TabModel(active_tab: "overview"))
+  let assert Some(tree) = tab_view(TabModel(active_tab: "overview"))
   let assert [column] = tree.children
   let assert [row, _rule, _content] = column.children
   should.equal(list.length(row.children), 3)
@@ -103,7 +105,7 @@ pub fn tab_bar_view_has_three_tab_buttons_test() {
 }
 
 pub fn tab_bar_view_content_reflects_active_tab_test() {
-  let tree = tab_view(TabModel(active_tab: "details"))
+  let assert Some(tree) = tab_view(TabModel(active_tab: "details"))
   let assert [column] = tree.children
   let assert [_, _, content] = column.children
   let assert [text_node] = content.children
@@ -141,28 +143,30 @@ fn sidebar_update(model: SidebarModel, event: Event) {
   }
 }
 
-fn sidebar_view(model: SidebarModel) -> Node {
-  ui.window("main", [window.Title("Sidebar Demo")], [
-    ui.row("layout", [row.Width(Fill), row.Height(Fill)], [
-      ui.container(
-        "sidebar",
-        [container.Width(Fixed(200.0)), container.Height(Fill)],
-        [
-          ui.column(
-            "nav",
-            [column.Spacing(4.0), column.Width(Fill)],
-            list.map(nav_items, fn(item) {
-              let #(id, label) = item
-              ui.button("nav:" <> id, label, [button.Width(Fill)])
-            }),
-          ),
-        ],
-      ),
-      ui.container("main", [container.Width(Fill), container.Height(Fill)], [
-        ui.text_("page_title", string.capitalise(model.page) <> " page"),
+fn sidebar_view(model: SidebarModel) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Sidebar Demo")], [
+      ui.row("layout", [row.Width(Fill), row.Height(Fill)], [
+        ui.container(
+          "sidebar",
+          [container.Width(Fixed(200.0)), container.Height(Fill)],
+          [
+            ui.column(
+              "nav",
+              [column.Spacing(4.0), column.Width(Fill)],
+              list.map(nav_items, fn(item) {
+                let #(id, label) = item
+                ui.button("nav:" <> id, label, [button.Width(Fill)])
+              }),
+            ),
+          ],
+        ),
+        ui.container("main", [container.Width(Fill), container.Height(Fill)], [
+          ui.text_("page_title", string.capitalise(model.page) <> " page"),
+        ]),
       ]),
     ]),
-  ])
+  )
 }
 
 pub fn sidebar_init_test() {
@@ -188,7 +192,7 @@ pub fn sidebar_click_changes_page_test() {
 }
 
 pub fn sidebar_view_has_nav_items_test() {
-  let tree = sidebar_view(SidebarModel(page: "inbox"))
+  let assert Some(tree) = sidebar_view(SidebarModel(page: "inbox"))
   let assert [row] = tree.children
   let assert [sidebar_container, main_container] = row.children
   should.equal(sidebar_container.id, "sidebar")
@@ -199,7 +203,7 @@ pub fn sidebar_view_has_nav_items_test() {
 }
 
 pub fn sidebar_view_shows_page_title_test() {
-  let tree = sidebar_view(SidebarModel(page: "drafts"))
+  let assert Some(tree) = sidebar_view(SidebarModel(page: "drafts"))
   let assert [row] = tree.children
   let assert [_, main_container] = row.children
   let assert [title] = main_container.children
@@ -236,7 +240,7 @@ fn modal_update(model: ModalModel, event: Event) {
   }
 }
 
-fn modal_view(model: ModalModel) -> Node {
+fn modal_view(model: ModalModel) -> Option(Node) {
   let main_content =
     ui.container("main", [container.Width(Fill), container.Height(Fill)], [
       ui.column(
@@ -291,12 +295,14 @@ fn modal_view(model: ModalModel) -> Node {
     False -> []
   }
 
-  ui.window("main", [window.Title("Modal Demo")], [
-    ui.stack("modal_stack", [stack.Width(Fill), stack.Height(Fill)], [
-      main_content,
-      ..modal_layer
+  Some(
+    ui.window("main", [window.Title("Modal Demo")], [
+      ui.stack("modal_stack", [stack.Width(Fill), stack.Height(Fill)], [
+        main_content,
+        ..modal_layer
+      ]),
     ]),
-  ])
+  )
 }
 
 pub fn modal_init_test() {
@@ -359,14 +365,16 @@ pub fn modal_cancel_test() {
 }
 
 pub fn modal_view_no_overlay_when_closed_test() {
-  let tree = modal_view(ModalModel(show_modal: False, confirmed: False))
+  let assert Some(tree) =
+    modal_view(ModalModel(show_modal: False, confirmed: False))
   let assert [stack] = tree.children
   // Only the main_content child, no overlay
   should.equal(list.length(stack.children), 1)
 }
 
 pub fn modal_view_has_overlay_when_open_test() {
-  let tree = modal_view(ModalModel(show_modal: True, confirmed: False))
+  let assert Some(tree) =
+    modal_view(ModalModel(show_modal: True, confirmed: False))
   let assert [stack] = tree.children
   // main_content + overlay
   should.equal(list.length(stack.children), 2)
@@ -378,7 +386,8 @@ pub fn modal_view_has_overlay_when_open_test() {
 }
 
 pub fn modal_view_shows_confirmed_message_test() {
-  let tree = modal_view(ModalModel(show_modal: False, confirmed: True))
+  let assert Some(tree) =
+    modal_view(ModalModel(show_modal: False, confirmed: True))
   let assert [stack] = tree.children
   let assert [main] = stack.children
   let assert [main_col] = main.children
@@ -437,39 +446,41 @@ type SplitModel {
   SplitModel(left_width: Float)
 }
 
-fn split_view(model: SplitModel) -> Node {
-  ui.window("main", [window.Title("Split Panel Demo")], [
-    ui.row("split", [row.Width(Fill), row.Height(Fill)], [
-      ui.container(
-        "left_panel",
-        [
-          container.Width(Fixed(model.left_width)),
-          container.Height(Fill),
-        ],
-        [ui.text_("left_title", "Left panel")],
-      ),
-      ui.pointer_area("divider", [], [
+fn split_view(model: SplitModel) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Split Panel Demo")], [
+      ui.row("split", [row.Width(Fill), row.Height(Fill)], [
         ui.container(
-          "divider_track",
-          [container.Width(Fixed(5.0)), container.Height(Fill)],
+          "left_panel",
           [
-            ui.rule("divider_rule", []),
+            container.Width(Fixed(model.left_width)),
+            container.Height(Fill),
+          ],
+          [ui.text_("left_title", "Left panel")],
+        ),
+        ui.pointer_area("divider", [], [
+          ui.container(
+            "divider_track",
+            [container.Width(Fixed(5.0)), container.Height(Fill)],
+            [
+              ui.rule("divider_rule", []),
+            ],
+          ),
+        ]),
+        ui.container(
+          "right_panel",
+          [container.Width(Fill), container.Height(Fill)],
+          [
+            ui.text_("right_title", "Right panel"),
           ],
         ),
       ]),
-      ui.container(
-        "right_panel",
-        [container.Width(Fill), container.Height(Fill)],
-        [
-          ui.text_("right_title", "Right panel"),
-        ],
-      ),
     ]),
-  ])
+  )
 }
 
 pub fn split_panel_has_three_sections_test() {
-  let tree = split_view(SplitModel(left_width: 300.0))
+  let assert Some(tree) = split_view(SplitModel(left_width: 300.0))
   let assert [row] = tree.children
   should.equal(list.length(row.children), 3)
 

@@ -16,6 +16,7 @@ import gleam/dynamic.{type Dynamic}
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/option.{type Option, Some}
 import gleam/string
 @target(erlang)
 import plushie
@@ -305,7 +306,7 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
 
 // -- View ---------------------------------------------------------------------
 
-fn view(model: Model) -> Node {
+fn view(model: Model) -> Option(Node) {
   let p = case model.dark_mode {
     True -> 1.0
     False -> 0.0
@@ -322,50 +323,52 @@ fn view(model: Model) -> Node {
       ]),
     )
 
-  ui.window("main", [window.Title("Rate Plushie")], [
-    themer.new("page-theme", page_theme)
-    |> themer.extend([
-      ui.container(
-        "page",
-        [
-          container.Padding(padding.Padding(
-            top: 32.0,
-            bottom: 32.0,
-            left: 24.0,
-            right: 24.0,
-          )),
-          container.BgColor(hex(t.page_bg)),
-          container.Width(length.Fill),
-          container.Height(length.Fill),
-        ],
-        [
-          ui.column(
-            "main-col",
-            [column.Spacing(24.0), column.Width(length.Fill)],
-            [
-              ui.text("heading", "Rate Plushie", [
-                text.Size(28.0),
-                text.Color(hex(t.text)),
-                text.A11y(
-                  a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1),
-                ),
-              ]),
-              rating_card(model, p, t),
-              ui.text("reviews-heading", "Reviews", [
-                text.Size(20.0),
-                text.Color(hex(t.text)),
-                text.A11y(
-                  a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2),
-                ),
-              ]),
-              reviews_list(model.reviews, p, t),
-            ],
-          ),
-        ],
-      ),
-    ])
-    |> themer.build(),
-  ])
+  Some(
+    ui.window("main", [window.Title("Rate Plushie")], [
+      themer.new("page-theme", page_theme)
+      |> themer.extend([
+        ui.container(
+          "page",
+          [
+            container.Padding(padding.Padding(
+              top: 32.0,
+              bottom: 32.0,
+              left: 24.0,
+              right: 24.0,
+            )),
+            container.BgColor(hex(t.page_bg)),
+            container.Width(length.Fill),
+            container.Height(length.Fill),
+          ],
+          [
+            ui.column(
+              "main-col",
+              [column.Spacing(24.0), column.Width(length.Fill)],
+              [
+                ui.text("heading", "Rate Plushie", [
+                  text.Size(28.0),
+                  text.Color(hex(t.text)),
+                  text.A11y(
+                    a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(1),
+                  ),
+                ]),
+                rating_card(model, p, t),
+                ui.text("reviews-heading", "Reviews", [
+                  text.Size(20.0),
+                  text.Color(hex(t.text)),
+                  text.A11y(
+                    a11y.new() |> a11y.role(a11y.Heading) |> a11y.level(2),
+                  ),
+                ]),
+                reviews_list(model.reviews, p, t),
+              ],
+            ),
+          ],
+        ),
+      ])
+      |> themer.build(),
+    ]),
+  )
 }
 
 // -- View: rating card --------------------------------------------------------

@@ -7,7 +7,7 @@ import gleam/int
 @target(erlang)
 import gleam/io
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/set
 import gleam/string
 @target(erlang)
@@ -214,11 +214,11 @@ fn save_current_edit(model: Model) -> Model {
   }
 }
 
-fn view(model: Model) -> Node {
-  case route.current(model.nav) {
+fn view(model: Model) -> Option(Node) {
+  Some(case route.current(model.nav) {
     "/edit" -> view_edit(model)
     _ -> view_list(model)
-  }
+  })
 }
 
 fn view_list(model: Model) -> Node {

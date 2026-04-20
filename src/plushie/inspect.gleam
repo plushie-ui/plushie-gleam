@@ -20,8 +20,10 @@
 import gleam/dynamic
 import gleam/io
 import gleam/json
+import gleam/option.{None, Some}
 import plushie/app.{type App}
 import plushie/event.{type Event}
+import plushie/node
 import plushie/protocol/encode
 import plushie/tree
 
@@ -36,8 +38,13 @@ pub fn run(app: App(model, Event)) -> Nil {
   // Initialize the app with nil opts
   let #(model, _commands) = init_fn(dynamic.nil())
 
-  // Render and normalize the view tree
-  let raw_tree = view_fn(model)
+  // Render and normalize the view tree. `None` renders an empty
+  // container so inspect output is structurally valid even when
+  // the app is in a loading or transition state.
+  let raw_tree = case view_fn(model) {
+    Some(n) -> n
+    None -> node.empty_container()
+  }
   let normalized = tree.normalize(raw_tree)
 
   // Convert to PropValue and encode as JSON

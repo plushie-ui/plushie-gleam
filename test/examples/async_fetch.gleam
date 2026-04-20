@@ -9,6 +9,7 @@ import gleam/dynamic/decode
 import gleam/erlang/process
 @target(erlang)
 import gleam/io
+import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 @target(erlang)
@@ -72,22 +73,24 @@ fn fetch_data() -> dynamic.Dynamic {
 }
 
 @target(erlang)
-fn view(model: Model) -> Node {
-  ui.window("main", [window.Title("Async Fetch")], [
-    ui.column(
-      "content",
-      [
-        column.Padding(padding.all(24.0)),
-        column.Spacing(16.0),
-        column.Width(length.Fill),
-      ],
-      [
-        ui.text("header", "Async Command Demo", [text.Size(20.0)]),
-        ui.button_("fetch", "Fetch Data"),
-        status_message(model),
-      ],
-    ),
-  ])
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Async Fetch")], [
+      ui.column(
+        "content",
+        [
+          column.Padding(padding.all(24.0)),
+          column.Spacing(16.0),
+          column.Width(length.Fill),
+        ],
+        [
+          ui.text("header", "Async Command Demo", [text.Size(20.0)]),
+          ui.button_("fetch", "Fetch Data"),
+          status_message(model),
+        ],
+      ),
+    ]),
+  )
 }
 
 @target(erlang)

@@ -256,7 +256,7 @@ fn render_and_sync(
   let model = do_get_model(handle)
   let session = do_get_session(handle)
 
-  case platform.try_call(fn() { view_fn(model) }) {
+  case platform.try_call(fn() { view_or_empty(view_fn(model)) }) {
     Ok(raw_tree) -> {
       let registry = do_get_cw_registry(handle)
       let memo_cache = do_get_memo_cache(handle)
@@ -321,6 +321,14 @@ fn try_normalize_view(
   memo_cache: tree.MemoCache,
 ) -> Result(tree.NormalizeResult, String) {
   tree.normalize_view(view_tree, registry, memo_cache)
+}
+
+@target(javascript)
+fn view_or_empty(view_opt: Option(Node)) -> Node {
+  case view_opt {
+    Some(node) -> node
+    None -> node.empty_container()
+  }
 }
 
 // -- Event handling ----------------------------------------------------------

@@ -1,6 +1,7 @@
 import gleam/dict
 import gleam/int
 import gleam/list
+import gleam/option.{type Option, Some}
 import gleam/string
 import plushie/command
 import plushie/event.{
@@ -186,34 +187,36 @@ fn step3_view(model: Model) -> Node {
 
 // -- Step 6: full view --------------------------------------------------------
 
-fn full_view(model: Model) -> Node {
-  ui.window("main", [window.Title("Todos")], [
-    ui.column(
-      "app",
-      [
-        column.Padding(padding.all(20.0)),
-        column.Spacing(12.0),
-        column.Width(Fill),
-      ],
-      [
-        ui.text("title", "My Todos", [text.Size(24.0)]),
-        ui.text_input("new_todo", model.input, [
-          text_input.Placeholder("What needs doing?"),
-          text_input.OnSubmit(True),
-        ]),
-        ui.row("filters", [row.Spacing(8.0)], [
-          ui.button_("filter_all", "All"),
-          ui.button_("filter_active", "Active"),
-          ui.button_("filter_done", "Done"),
-        ]),
-        ui.column(
-          "list",
-          [column.Spacing(4.0)],
-          list.map(filtered(model), fn(t) { todo_row(t) }),
-        ),
-      ],
-    ),
-  ])
+fn full_view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Todos")], [
+      ui.column(
+        "app",
+        [
+          column.Padding(padding.all(20.0)),
+          column.Spacing(12.0),
+          column.Width(Fill),
+        ],
+        [
+          ui.text("title", "My Todos", [text.Size(24.0)]),
+          ui.text_input("new_todo", model.input, [
+            text_input.Placeholder("What needs doing?"),
+            text_input.OnSubmit(True),
+          ]),
+          ui.row("filters", [row.Spacing(8.0)], [
+            ui.button_("filter_all", "All"),
+            ui.button_("filter_active", "Active"),
+            ui.button_("filter_done", "Done"),
+          ]),
+          ui.column(
+            "list",
+            [column.Spacing(4.0)],
+            list.map(filtered(model), fn(t) { todo_row(t) }),
+          ),
+        ],
+      ),
+    ]),
+  )
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -516,7 +519,7 @@ pub fn tutorial_step6_filtered_helper_test() {
 
 pub fn tutorial_step6_view_has_filter_buttons_test() {
   let #(model, _) = init()
-  let tree = full_view(model)
+  let assert Some(tree) = full_view(model)
   let assert [col] = tree.children
   let assert [_title, _input, filters, _list] = col.children
   assert filters.kind == "row"
@@ -539,7 +542,7 @@ pub fn tutorial_step6_view_filters_todos_test() {
       filter: Active,
       next_id: 3,
     )
-  let tree = full_view(model)
+  let assert Some(tree) = full_view(model)
   let assert [col] = tree.children
   let assert [_title, _input, _filters, list_col] = col.children
   let assert [row] = list_col.children

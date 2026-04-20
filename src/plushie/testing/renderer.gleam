@@ -550,7 +550,11 @@ fn init_renderer(
   let #(model, _events) =
     command_processor.process_commands(app, init_model, init_commands, None)
   let view_fn = app.get_view(app)
-  let initial_tree = view_fn(model) |> tree.normalize()
+  let initial_raw = case view_fn(model) {
+    Some(n) -> n
+    None -> node.empty_container()
+  }
+  let initial_tree = initial_raw |> tree.normalize()
 
   // Send initial snapshot
   let assert Ok(snapshot_data) =
@@ -775,7 +779,11 @@ fn handle_reset(
       None,
     )
   let view_fn = app.get_view(state.app)
-  let new_tree = view_fn(model) |> tree.normalize()
+  let raw_tree = case view_fn(model) {
+    Some(n) -> n
+    None -> node.empty_container()
+  }
+  let new_tree = raw_tree |> tree.normalize()
 
   // Send fresh snapshot
   let assert Ok(snapshot_data) =
@@ -994,7 +1002,11 @@ fn run_update(state: RendererState(model), event: Event) -> RendererState(model)
   let #(model, _events) =
     command_processor.process_commands(state.app, new_model, commands, None)
   let view_fn = app.get_view(state.app)
-  let new_tree = view_fn(model) |> tree.normalize()
+  let raw_tree = case view_fn(model) {
+    Some(n) -> n
+    None -> node.empty_container()
+  }
+  let new_tree = raw_tree |> tree.normalize()
 
   let assert Ok(snapshot_data) =
     proto_encode.encode_snapshot(new_tree, "", state.format)

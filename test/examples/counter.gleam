@@ -3,6 +3,7 @@
 import gleam/int
 @target(erlang)
 import gleam/io
+import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 import plushie/app
@@ -37,20 +38,22 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Node {
-  ui.window("main", [window.Title("Counter")], [
-    ui.column(
-      "content",
-      [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
-      [
-        ui.text_("count", "Count: " <> int.to_string(model.count)),
-        ui.row("buttons", [row.Spacing(8.0)], [
-          ui.button_("inc", "+"),
-          ui.button_("dec", "-"),
-        ]),
-      ],
-    ),
-  ])
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Counter")], [
+      ui.column(
+        "content",
+        [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
+        [
+          ui.text_("count", "Count: " <> int.to_string(model.count)),
+          ui.row("buttons", [row.Spacing(8.0)], [
+            ui.button_("inc", "+"),
+            ui.button_("dec", "-"),
+          ]),
+        ],
+      ),
+    ]),
+  )
 }
 
 pub fn app() {

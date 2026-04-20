@@ -384,7 +384,7 @@ fn init_runtime(
     windows: initial_windows,
   )) =
     try_normalize_view(
-      app.get_view(app)(model),
+      view_or_empty(app.get_view(app)(model)),
       widget.empty_registry(),
       tree.empty_memo_cache(),
     )
@@ -1084,7 +1084,7 @@ fn handle_message(
       // still receives a snapshot and subscriptions are re-registered.
       let view_fn = app.get_view(state.app)
       let restart_result = case
-        platform.try_call(fn() { view_fn(state.model) })
+        platform.try_call(fn() { view_or_empty(view_fn(state.model)) })
       {
         Ok(t) ->
           case try_normalize_view(t, state.cw_registry, state.memo_cache) {
@@ -1160,7 +1160,7 @@ fn handle_message(
       platform.log_info("plushie runtime: force re-render (code reload)")
       // Re-render view and diff/patch
       let view_fn = app.get_view(state.app)
-      case platform.try_call(fn() { view_fn(state.model) }) {
+      case platform.try_call(fn() { view_or_empty(view_fn(state.model)) }) {
         Ok(new_tree_raw) -> {
           case
             try_normalize_view(
@@ -1556,14 +1556,28 @@ fn inject_frozen_indicator(
 }
 
 /// Build a dev overlay node with the given message text.
+///
+/// Structured as a red container with a white text child, matching
+/// the shape the other host SDKs (Rust, Ruby, Python, TypeScript,
+/// Elixir) inject so the overlay reads as a production error banner
+/// rather than a line of debug prose.
 fn build_dev_overlay_node(message: String) -> Node {
-  let overlay_node = node.new("__plushie_dev_overlay__", "text")
+  let text_node =
+    node.Node(
+      ..node.new("", "text"),
+      props: dict.from_list([
+        #("content", StringVal("[plushie] " <> message)),
+        #("size", node.FloatVal(14.0)),
+        #("color", StringVal("#ffffff")),
+      ]),
+    )
   node.Node(
-    ..overlay_node,
+    ..node.new("__plushie_dev_overlay__", "container"),
     props: dict.from_list([
-      #("content", StringVal("[plushie] " <> message)),
-      #("size", node.FloatVal(14.0)),
+      #("background", StringVal("#b91c1c")),
+      #("padding", node.FloatVal(12.0)),
     ]),
+    children: [text_node],
   )
 }
 
@@ -1826,7 +1840,7 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
   let meta = dict.new()
   case
     telemetry.span(["plushie", "view"], meta, fn() {
-      platform.try_call(fn() { view_fn(state.model) })
+      platform.try_call(fn() { view_or_empty(view_fn(state.model)) })
     })
   {
     Ok(new_tree_raw) -> {
@@ -2095,7 +2109,7 @@ fn dispatch_update(
       let view_fn = app.get_view(state.app)
       case
         telemetry.span(["plushie", "view"], meta, fn() {
-          platform.try_call(fn() { view_fn(new_model) })
+          platform.try_call(fn() { view_or_empty(view_fn(new_model)) })
         })
       {
         Ok(new_tree_raw) -> {
@@ -2950,4 +2964,15 @@ fn try_normalize_view(
   memo_cache: tree.MemoCache,
 ) -> Result(tree.NormalizeResult, String) {
   tree.normalize_view(view_tree, registry, memo_cache)
+}
+
+/// Unwrap an `Option(Node)` returned from `App.view`, falling back
+/// to an empty container when the user returns `None`. Matches the
+/// other host SDKs where a nil view renders an empty tree so loading,
+/// transition, and error screens don't need to build a placeholder.
+fn view_or_empty(view_opt: Option(Node)) -> Node {
+  case view_opt {
+    Some(node) -> node
+    None -> node.empty_container()
+  }
 }

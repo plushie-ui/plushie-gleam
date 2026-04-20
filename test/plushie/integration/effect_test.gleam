@@ -7,6 +7,7 @@
 //// command -> bridge -> renderer -> stub response -> bridge -> runtime -> update.
 
 import gleam/dict
+import gleam/option.{type Option, Some}
 import plushie/app.{type App}
 import plushie/command
 import plushie/effect
@@ -49,10 +50,12 @@ fn effect_update(
   }
 }
 
-fn effect_view(_model: EffectModel) -> Node {
-  ui.window("main", [window.Title("Effect Test")], [
-    ui.button_("read", "Read Clipboard"),
-  ])
+fn effect_view(_model: EffectModel) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Effect Test")], [
+      ui.button_("read", "Read Clipboard"),
+    ]),
+  )
 }
 
 fn effect_app() -> App(EffectModel, Event) {

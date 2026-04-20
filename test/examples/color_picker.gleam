@@ -14,6 +14,7 @@ import gleam/float
 import gleam/int
 @target(erlang)
 import gleam/io
+import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 @target(erlang)
@@ -167,70 +168,72 @@ fn float_abs(x: Float) -> Float {
 // -- View ---------------------------------------------------------------------
 
 @target(erlang)
-fn view(model: Model) -> Node {
+fn view(model: Model) -> Option(Node) {
   let hex = hsv_to_hex(model.hue, model.saturation, model.value)
   let h_int = float.round(model.hue)
   let s_pct = float.round(model.saturation *. 100.0)
   let v_pct = float.round(model.value *. 100.0)
 
-  ui.window("color_picker", [window.Title("Color Picker")], [
-    ui.column(
-      "content",
-      [
-        column.Padding(padding.all(20.0)),
-        column.Spacing(16.0),
-      ],
-      [
-        color_picker_widget.widget("picker"),
-        ui.row("info", [row.Spacing(16.0)], [
-          ui.container(
-            "swatch",
-            [
-              container.Width(length.Fixed(48.0)),
-              container.Height(length.Fixed(48.0)),
-              container.BgColor(unsafe_color(hex)),
-              container.Border(
-                border.new()
-                |> border.width(1.0)
-                |> border.color(unsafe_color("#cccccc"))
-                |> border.radius(4.0),
-              ),
-              container.A11y(
-                a11y.new()
-                |> a11y.role(a11y.Image)
-                |> a11y.label("Selected color: " <> hex),
-              ),
-            ],
-            [],
-          ),
-          ui.column("color_info", [column.Spacing(4.0)], [
-            ui.text("hex_display", hex, [
-              text.Size(18.0),
-              text.A11y(
-                a11y.new()
-                |> a11y.live("polite")
-                |> a11y.busy(
-                  model.hue == 0.0
-                  && model.saturation == 1.0
-                  && model.value == 1.0,
+  Some(
+    ui.window("color_picker", [window.Title("Color Picker")], [
+      ui.column(
+        "content",
+        [
+          column.Padding(padding.all(20.0)),
+          column.Spacing(16.0),
+        ],
+        [
+          color_picker_widget.widget("picker"),
+          ui.row("info", [row.Spacing(16.0)], [
+            ui.container(
+              "swatch",
+              [
+                container.Width(length.Fixed(48.0)),
+                container.Height(length.Fixed(48.0)),
+                container.BgColor(unsafe_color(hex)),
+                container.Border(
+                  border.new()
+                  |> border.width(1.0)
+                  |> border.color(unsafe_color("#cccccc"))
+                  |> border.radius(4.0),
                 ),
+                container.A11y(
+                  a11y.new()
+                  |> a11y.role(a11y.Image)
+                  |> a11y.label("Selected color: " <> hex),
+                ),
+              ],
+              [],
+            ),
+            ui.column("color_info", [column.Spacing(4.0)], [
+              ui.text("hex_display", hex, [
+                text.Size(18.0),
+                text.A11y(
+                  a11y.new()
+                  |> a11y.live("polite")
+                  |> a11y.busy(
+                    model.hue == 0.0
+                    && model.saturation == 1.0
+                    && model.value == 1.0,
+                  ),
+                ),
+              ]),
+              ui.text_(
+                "hsv_display",
+                "H: "
+                  <> int.to_string(h_int)
+                  <> "  S: "
+                  <> int.to_string(s_pct)
+                  <> "%  V: "
+                  <> int.to_string(v_pct)
+                  <> "%",
               ),
             ]),
-            ui.text_(
-              "hsv_display",
-              "H: "
-                <> int.to_string(h_int)
-                <> "  S: "
-                <> int.to_string(s_pct)
-                <> "%  V: "
-                <> int.to_string(v_pct)
-                <> "%",
-            ),
           ]),
-        ]),
-      ],
-    ),
-  ])
+        ],
+      ),
+    ]),
+  )
 }
 
 // -- Helpers ------------------------------------------------------------------

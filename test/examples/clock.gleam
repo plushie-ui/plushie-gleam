@@ -9,6 +9,7 @@
 import gleam/int
 @target(erlang)
 import gleam/io
+import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 @target(erlang)
@@ -60,27 +61,29 @@ fn update(model: Model, event: Event) {
 }
 
 @target(erlang)
-fn view(model: Model) -> Node {
+fn view(model: Model) -> Option(Node) {
   let assert Ok(muted) = color.from_hex("#888888")
 
-  ui.window("main", [window.Title("Clock")], [
-    ui.column(
-      "content",
-      [
-        column.Padding(padding.all(24.0)),
-        column.Spacing(16.0),
-        column.Width(length.Fill),
-        column.AlignX(alignment.Center),
-      ],
-      [
-        ui.text("clock_display", model.time, [text.Size(48.0)]),
-        ui.text("subtitle", "Updates every second", [
-          text.Size(12.0),
-          text.Color(muted),
-        ]),
-      ],
-    ),
-  ])
+  Some(
+    ui.window("main", [window.Title("Clock")], [
+      ui.column(
+        "content",
+        [
+          column.Padding(padding.all(24.0)),
+          column.Spacing(16.0),
+          column.Width(length.Fill),
+          column.AlignX(alignment.Center),
+        ],
+        [
+          ui.text("clock_display", model.time, [text.Size(48.0)]),
+          ui.text("subtitle", "Updates every second", [
+            text.Size(12.0),
+            text.Color(muted),
+          ]),
+        ],
+      ),
+    ]),
+  )
 }
 
 @target(erlang)

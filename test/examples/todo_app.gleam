@@ -10,6 +10,7 @@ import gleam/int
 @target(erlang)
 import gleam/io
 import gleam/list
+import gleam/option.{type Option, Some}
 import gleam/string
 @target(erlang)
 import plushie
@@ -120,34 +121,36 @@ fn add_todo(model: Model) {
 
 // -- View ---------------------------------------------------------------------
 
-fn view(model: Model) -> Node {
-  ui.window("main", [window.Title("Todos")], [
-    ui.column(
-      "app",
-      [
-        column.Padding(padding.all(20.0)),
-        column.Spacing(12.0),
-        column.Width(length.Fill),
-      ],
-      [
-        ui.text("title", "My Todos", [text.Size(24.0)]),
-        ui.text_input("new_todo", model.input, [
-          text_input.Placeholder("What needs doing?"),
-          text_input.OnSubmit(True),
-        ]),
-        ui.row("filters", [row.Spacing(8.0)], [
-          ui.button_("filter_all", "All"),
-          ui.button_("filter_active", "Active"),
-          ui.button_("filter_done", "Done"),
-        ]),
-        ui.column(
-          "list",
-          [column.Spacing(4.0)],
-          filtered(model) |> list.map(todo_row),
-        ),
-      ],
-    ),
-  ])
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Todos")], [
+      ui.column(
+        "app",
+        [
+          column.Padding(padding.all(20.0)),
+          column.Spacing(12.0),
+          column.Width(length.Fill),
+        ],
+        [
+          ui.text("title", "My Todos", [text.Size(24.0)]),
+          ui.text_input("new_todo", model.input, [
+            text_input.Placeholder("What needs doing?"),
+            text_input.OnSubmit(True),
+          ]),
+          ui.row("filters", [row.Spacing(8.0)], [
+            ui.button_("filter_all", "All"),
+            ui.button_("filter_active", "Active"),
+            ui.button_("filter_done", "Done"),
+          ]),
+          ui.column(
+            "list",
+            [column.Spacing(4.0)],
+            filtered(model) |> list.map(todo_row),
+          ),
+        ],
+      ),
+    ]),
+  )
 }
 
 fn filtered(model: Model) -> List(Todo) {

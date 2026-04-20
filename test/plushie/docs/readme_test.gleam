@@ -1,5 +1,6 @@
 import gleam/dict
 import gleam/int
+import gleam/option.{type Option, Some}
 import gleeunit/should
 import plushie/command
 import plushie/event.{type Event, Click, EventTarget, Widget}
@@ -34,20 +35,22 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Node {
-  ui.window("main", [window.Title("Counter")], [
-    ui.column(
-      "content",
-      [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
-      [
-        ui.text_("count", "Count: " <> int.to_string(model.count)),
-        ui.row("buttons", [row.Spacing(8.0)], [
-          ui.button_("inc", "+"),
-          ui.button_("dec", "-"),
-        ]),
-      ],
-    ),
-  ])
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Counter")], [
+      ui.column(
+        "content",
+        [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
+        [
+          ui.text_("count", "Count: " <> int.to_string(model.count)),
+          ui.row("buttons", [row.Spacing(8.0)], [
+            ui.button_("inc", "+"),
+            ui.button_("dec", "-"),
+          ]),
+        ],
+      ),
+    ]),
+  )
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -111,7 +114,7 @@ pub fn readme_counter_unknown_event_test() {
 }
 
 pub fn readme_counter_view_structure_test() {
-  let tree = view(Model(count: 0))
+  let assert Some(tree) = view(Model(count: 0))
 
   should.equal(tree.kind, "window")
   should.equal(tree.id, "main")
@@ -134,7 +137,7 @@ pub fn readme_counter_view_structure_test() {
 }
 
 pub fn readme_counter_view_after_increment_test() {
-  let tree = view(Model(count: 3))
+  let assert Some(tree) = view(Model(count: 3))
   let assert [column] = tree.children
   let assert [text_node, _] = column.children
   should.equal(dict.get(text_node.props, "content"), Ok(StringVal("Count: 3")))
