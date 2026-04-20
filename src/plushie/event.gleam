@@ -510,6 +510,13 @@ pub type Diagnostic {
   UpdatePanicked(consecutive: Int, message: String)
   /// A wire message carried a `type` field the SDK does not recognise.
   UnknownMessageType(msg_type: String)
+  /// The runtime's command dispatch chain exceeded the configured
+  /// depth limit, indicating an `update` loop that keeps returning a
+  /// command whose delivered event produces another command.
+  DispatchLoopExceeded(depth: Int, limit: Int)
+  /// A single wire message exceeded the protocol's 64 MiB per-message
+  /// size cap.
+  BufferOverflow(size: Int, limit: Int)
 }
 
 // ============================================================================

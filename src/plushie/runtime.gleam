@@ -1492,6 +1492,8 @@ fn describe_diagnostic(diag: event.Diagnostic) -> String {
     event.ViewPanicked(message:, ..) -> "view_panicked: " <> message
     event.UpdatePanicked(message:, ..) -> "update_panicked: " <> message
     event.UnknownMessageType(msg_type:) -> "unknown_message_type: " <> msg_type
+    event.DispatchLoopExceeded(..) -> "dispatch_loop_exceeded"
+    event.BufferOverflow(..) -> "buffer_overflow"
   }
 }
 

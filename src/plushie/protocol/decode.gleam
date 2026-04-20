@@ -1832,6 +1832,16 @@ fn decode_diagnostic_payload(
           "",
         )),
       )
+    "dispatch_loop_exceeded" ->
+      Ok(event.DispatchLoopExceeded(
+        depth: get_int_or(payload, "depth", 0),
+        limit: get_int_or(payload, "limit", 0),
+      ))
+    "buffer_overflow" ->
+      Ok(event.BufferOverflow(
+        size: get_int_or(payload, "size", 0),
+        limit: get_int_or(payload, "limit", 0),
+      ))
     other ->
       Error(protocol.MalformedEvent(
         "unknown diagnostic kind: \""
