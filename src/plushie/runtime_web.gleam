@@ -29,6 +29,8 @@ import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
 @target(javascript)
+import gleam/int
+@target(javascript)
 import gleam/list
 @target(javascript)
 import gleam/option.{type Option, None, Some}
@@ -175,9 +177,36 @@ pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
   case bit_array.from_string(json) |> decode.decode_message(Json) {
     Ok(decode.EventMessage(event)) ->
       handle_event(runtime.handle, do_get_app(runtime.handle), event)
-    Ok(decode.Hello(..)) -> {
-      // Hello handshake: acknowledged, no dispatch needed
-      Nil
+    Ok(decode.Hello(protocol: proto, ..)) -> {
+      // Verify the renderer's protocol version matches what this SDK
+      // was built against. On mismatch, deliver a typed
+      // `Error(ProtocolVersionMismatch)` through the same event path
+      // so the app observes a structured event, matching the
+      // BEAM runtime's behaviour and the other host SDKs. Then stop
+      // the runtime and close the transport: a mismatched protocol
+      // is not safe to continue on.
+      case proto == protocol.protocol_version {
+        True -> Nil
+        False -> {
+          let mismatch =
+            event.ProtocolVersionMismatch(
+              expected: protocol.protocol_version,
+              got: proto,
+            )
+          platform.log_error(
+            "plushie: protocol version mismatch: expected "
+            <> int.to_string(protocol.protocol_version)
+            <> ", got "
+            <> int.to_string(proto),
+          )
+          handle_event(
+            runtime.handle,
+            do_get_app(runtime.handle),
+            event.Error(mismatch),
+          )
+          stop(runtime)
+        }
+      }
     }
     Ok(decode.EffectStubAck(..)) -> {
       // Effect stub ack: not yet implemented on JS

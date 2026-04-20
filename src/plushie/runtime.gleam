@@ -640,11 +640,12 @@ fn handle_message(
             }
           }
         False -> {
-          // Construct the typed ErrorEvent so tests and telemetry
-          // handlers can match on `ProtocolVersionMismatch` with both
-          // versions attached, matching the shape used by Rust,
-          // Elixir, Python, Ruby, and TypeScript. The runtime still
-          // stops: a mismatched protocol is not safe to continue on.
+          // Construct the typed ErrorEvent and route it through the
+          // normal event path so the app observes a structured
+          // `Error(ProtocolVersionMismatch)` before the runtime
+          // stops. Matches the shape used by Rust, Elixir, Python,
+          // Ruby, and TypeScript. The runtime still stops: a
+          // mismatched protocol is not safe to continue on.
           let mismatch =
             event.ProtocolVersionMismatch(
               expected: protocol.protocol_version,
@@ -653,6 +654,7 @@ fn handle_message(
           platform.log_error(
             "plushie: " <> format_protocol_version_mismatch(mismatch),
           )
+          let _state = handle_event(state, event.Error(mismatch))
           actor.stop()
         }
       }
