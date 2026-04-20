@@ -528,6 +528,7 @@ fn handle_message(
 
     // Intercept diagnostic events: emit as telemetry, don't dispatch to update.
     FromBridge(InboundEvent(EventMessage(event.Error(event.Diagnostic(
+      session: _,
       level:,
       payload:,
     ))))) -> {

@@ -1133,12 +1133,34 @@ pub fn decode_diagnostic_json_test() {
     decode.decode_message(data, protocol.Json)
   case evt {
     event.Error(event.Diagnostic(
+      session:,
       level:,
       payload: event.FontFamilyNotFound(family:),
     )) -> {
+      should.equal(session, "s1")
       should.equal(level, "warn")
       should.equal(family, "Inter")
     }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_process_scoped_diagnostic_leaves_session_empty_test() {
+  // Process-scoped diagnostics (e.g. font load failure) carry an
+  // empty `session` field on the wire; the typed variant preserves
+  // that so hosts can tell process-scoped from session-scoped events.
+  let json =
+    "{\"type\":\"diagnostic\",\"session\":\"\",\"level\":\"warn\","
+    <> "\"diagnostic\":{\"kind\":\"font_family_not_found\",\"family\":\"Inter\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Error(event.Diagnostic(
+      session:,
+      payload: event.FontFamilyNotFound(..),
+      ..,
+    )) -> should.equal(session, "")
     _ -> should.fail()
   }
 }
@@ -1182,6 +1204,7 @@ pub fn decode_diagnostic_update_panicked_json_test() {
     event.Error(event.Diagnostic(
       level:,
       payload: event.UpdatePanicked(consecutive:, message:),
+      ..,
     )) -> {
       should.equal(level, "error")
       should.equal(consecutive, 2)
@@ -1203,6 +1226,7 @@ pub fn decode_diagnostic_dispatch_loop_exceeded_json_test() {
     event.Error(event.Diagnostic(
       level:,
       payload: event.DispatchLoopExceeded(depth:, limit:),
+      ..,
     )) -> {
       should.equal(level, "error")
       should.equal(depth, 101)
@@ -1224,6 +1248,7 @@ pub fn decode_diagnostic_buffer_overflow_json_test() {
     event.Error(event.Diagnostic(
       level:,
       payload: event.BufferOverflow(size:, limit:),
+      ..,
     )) -> {
       should.equal(level, "error")
       should.equal(size, 80_000_000)

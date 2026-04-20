@@ -1673,11 +1673,14 @@ fn decode_ime_closed(
 fn decode_diagnostic_message(
   map: Dict(String, PropValue),
 ) -> Result(InboundMessage, protocol.DecodeError) {
+  let session = get_string_or(map, "session", "")
   let level = get_string_or(map, "level", "warn")
   let payload = get_map(map, "diagnostic")
   let kind = get_string_or(payload, "kind", "")
   use diag <- result.try(decode_diagnostic_payload(kind, payload))
-  Ok(EventMessage(event.Error(event.Diagnostic(level:, payload: diag))))
+  Ok(
+    EventMessage(event.Error(event.Diagnostic(session:, level:, payload: diag))),
+  )
 }
 
 fn decode_diagnostic_payload(

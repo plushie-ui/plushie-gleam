@@ -403,9 +403,15 @@ pub type ErrorEvent {
   DuplicateNodeIds(details: Dynamic)
   /// A structured diagnostic emitted by the renderer.
   ///
+  /// `session` is the session ID this diagnostic is attributable
+  /// to, or an empty string for process-scoped diagnostics (font
+  /// load failures, renderer startup / panic, writer-dead, anything
+  /// that affects the whole renderer rather than one session).
+  /// Session-scoped diagnostics (widget panics, view errors, tree
+  /// validation warnings) always carry a non-empty session.
   /// `level` is `"info"`, `"warn"`, or `"error"`. `payload` is one
   /// of the typed [`Diagnostic`] variants.
-  Diagnostic(level: String, payload: Diagnostic)
+  Diagnostic(session: String, level: String, payload: Diagnostic)
   /// Prop validation warning from the renderer.
   PropValidation(node_id: String, node_type: String, warnings: List(String))
   /// The renderer's advertised protocol version did not match the
