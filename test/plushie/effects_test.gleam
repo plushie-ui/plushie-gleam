@@ -40,7 +40,9 @@ pub fn file_dialog_default_path_test() {
   let cmd = effect.file_open("test", [effect.DefaultPath("/home")])
   case cmd {
     command.Renderer(command.Effect(payload:, ..)) -> {
-      assert dict.get(payload, "default_path") == Ok(StringVal("/home"))
+      // Wire field is "directory": the renderer's file-dialog handler
+      // reads that key only.
+      assert dict.get(payload, "directory") == Ok(StringVal("/home"))
     }
     _ -> panic as "expected Effect command"
   }

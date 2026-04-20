@@ -203,7 +203,8 @@ fn file_dialog_payload(opts: List(FileDialogOpt)) -> List(#(String, PropValue)) 
   list.fold(opts, [], fn(acc, opt) {
     case opt {
       DialogTitle(t) -> [#("title", StringVal(t)), ..acc]
-      DefaultPath(p) -> [#("default_path", StringVal(p)), ..acc]
+      // The renderer's file-dialog handler reads "directory" only.
+      DefaultPath(p) -> [#("directory", StringVal(p)), ..acc]
       Filters(filters) -> {
         let filter_list =
           list.map(filters, fn(f) { ListVal([StringVal(f.0), StringVal(f.1)]) })
