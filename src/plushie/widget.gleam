@@ -797,6 +797,7 @@ fn widget_event_target(ev: event.WidgetEvent) -> EventTarget {
     event.OptionHovered(target:, ..) -> target
     event.Sort(target:, ..) -> target
     event.KeyBinding(target:, ..) -> target
+    event.LinkClicked(target:, ..) -> target
     event.Press(target:, ..) -> target
     event.Release(target:, ..) -> target
     event.Move(target:, ..) -> target

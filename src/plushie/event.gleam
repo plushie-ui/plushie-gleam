@@ -88,6 +88,9 @@ pub type WidgetEvent {
   Sort(target: EventTarget, value: String)
   /// A registered key binding was triggered on a widget.
   KeyBinding(target: EventTarget, value: String)
+  /// A hyperlink in a link-capable widget (rich_text, markdown) was
+  /// clicked. Carries the link URL extracted from the event payload.
+  LinkClicked(target: EventTarget, link: String)
   /// A pointer button was pressed (mouse click, touch start).
   Press(
     target: EventTarget,

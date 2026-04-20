@@ -582,6 +582,7 @@ fn decode_event(
     "option_hovered" -> decode_widget_string_value(map, event.OptionHovered)
     "sort" -> decode_widget_sort(map)
     "key_binding" -> decode_widget_key_binding(map)
+    "link_click" -> decode_widget_link_click(map)
     "scrolled" -> decode_widget_scrolled(map)
 
     // Key events (global subscription)
@@ -789,6 +790,15 @@ fn decode_widget_key_binding(
       }
   }
   Ok(EventMessage(event.Widget(event.KeyBinding(target:, value: binding))))
+}
+
+fn decode_widget_link_click(
+  map: Dict(String, PropValue),
+) -> Result(InboundMessage, protocol.DecodeError) {
+  use target <- result.try(decode_windowed_target(map))
+  let data = get_map(map, "value")
+  let link = get_string_or(data, "link", "")
+  Ok(EventMessage(event.Widget(event.LinkClicked(target:, link:))))
 }
 
 fn decode_widget_scrolled(

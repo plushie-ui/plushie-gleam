@@ -196,6 +196,29 @@ pub fn decode_toggle_json_test() {
 }
 
 // ---------------------------------------------------------------------------
+// Link click event
+// ---------------------------------------------------------------------------
+
+pub fn decode_link_click_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"link_click\",\"id\":\"main#article\",\"value\":{\"link\":\"https://example.com/article\"}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Widget(event.LinkClicked(
+      target: EventTarget(window_id: "main", id:, scope:, ..),
+      link:,
+    )) -> {
+      should.equal(id, "article")
+      should.equal(scope, ["main"])
+      should.equal(link, "https://example.com/article")
+    }
+    _ -> should.fail()
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Slide event
 // ---------------------------------------------------------------------------
 
