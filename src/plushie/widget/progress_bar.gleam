@@ -3,7 +3,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, FloatVal, ListVal, Node}
+import plushie/node.{type Node, type PropValue, FloatVal, ListVal, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/length.{type Length}
 import plushie/widget/build
@@ -19,6 +19,7 @@ pub opaque type ProgressBar {
     vertical: Option(Bool),
     label: Option(String),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, PropValue),
   )
 }
 
@@ -34,6 +35,7 @@ pub fn new(id: String, range: #(Float, Float), value: Float) -> ProgressBar {
     vertical: None,
     label: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -69,6 +71,16 @@ fn range_to_prop_value(range: #(Float, Float)) -> node.PropValue {
 /// Set accessibility properties for this widget.
 pub fn a11y(pb: ProgressBar, a: A11y) -> ProgressBar {
   ProgressBar(..pb, a11y: option.Some(a))
+}
+
+/// Set value to an animation descriptor (Transition, Spring, or
+/// Sequence). The descriptor must be pre-encoded via its module's
+/// `encode` function.
+pub fn value_animated(pb: ProgressBar, animation: PropValue) -> ProgressBar {
+  ProgressBar(
+    ..pb,
+    animated_props: dict.insert(pb.animated_props, "value", animation),
+  )
 }
 
 /// Option type for progress bar properties.
@@ -107,5 +119,6 @@ pub fn build(pb: ProgressBar) -> Node {
     |> build.put_optional_bool("vertical", pb.vertical)
     |> build.put_optional_string("label", pb.label)
     |> build.apply_default_a11y(pb.a11y, "progress_indicator", option.None)
+    |> build.merge_animated(pb.animated_props)
   Node(id: pb.id, kind: "progress_bar", props:, children: [], meta: dict.new())
 }

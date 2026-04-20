@@ -3,7 +3,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, Node}
+import plushie/node.{type Node, type PropValue, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/prop/content_fit.{type ContentFit}
@@ -24,6 +24,7 @@ pub opaque type Svg {
     description: Option(String),
     decorative: Option(Bool),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, PropValue),
   )
 }
 
@@ -42,6 +43,7 @@ pub fn new(id: String, source: String) -> Svg {
     description: None,
     decorative: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -95,6 +97,20 @@ pub fn a11y(s: Svg, a: A11y) -> Svg {
   Svg(..s, a11y: option.Some(a))
 }
 
+/// Set rotation to an animation descriptor (Transition, Spring, or
+/// Sequence). The descriptor must be pre-encoded via its module's
+/// `encode` function.
+pub fn rotation_animated(s: Svg, animation: PropValue) -> Svg {
+  Svg(..s, animated_props: dict.insert(s.animated_props, "rotation", animation))
+}
+
+/// Set opacity to an animation descriptor (Transition, Spring, or
+/// Sequence). The descriptor must be pre-encoded via its module's
+/// `encode` function.
+pub fn opacity_animated(s: Svg, animation: PropValue) -> Svg {
+  Svg(..s, animated_props: dict.insert(s.animated_props, "opacity", animation))
+}
+
 /// Option type for svg properties.
 pub type Opt {
   Width(Length)
@@ -146,5 +162,6 @@ pub fn build(s: Svg) -> Node {
     |> build.put_optional_string("description", s.description)
     |> build.put_optional_bool("decorative", s.decorative)
     |> build.apply_default_a11y(s.a11y, "image", option.None)
+    |> build.merge_animated(s.animated_props)
   Node(id: s.id, kind: "svg", props:, children: [], meta: dict.new())
 }

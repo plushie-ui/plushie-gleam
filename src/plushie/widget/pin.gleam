@@ -3,7 +3,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, Node}
+import plushie/node.{type Node, type PropValue, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/length.{type Length}
 import plushie/widget/build
@@ -17,6 +17,7 @@ pub opaque type Pin {
     width: Option(Length),
     height: Option(Length),
     a11y: Option(A11y),
+    animated_props: dict.Dict(String, PropValue),
   )
 }
 
@@ -30,6 +31,7 @@ pub fn new(id: String) -> Pin {
     width: None,
     height: None,
     a11y: None,
+    animated_props: dict.new(),
   )
 }
 
@@ -68,6 +70,18 @@ pub fn a11y(p: Pin, a: A11y) -> Pin {
   Pin(..p, a11y: option.Some(a))
 }
 
+/// Set x to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn x_animated(p: Pin, animation: PropValue) -> Pin {
+  Pin(..p, animated_props: dict.insert(p.animated_props, "x", animation))
+}
+
+/// Set y to an animation descriptor (Transition, Spring, or Sequence).
+/// The descriptor must be pre-encoded via its module's `encode` function.
+pub fn y_animated(p: Pin, animation: PropValue) -> Pin {
+  Pin(..p, animated_props: dict.insert(p.animated_props, "y", animation))
+}
+
 /// Option type for pin properties.
 pub type Opt {
   X(Float)
@@ -100,5 +114,6 @@ pub fn build(p: Pin) -> Node {
     |> build.put_optional("width", p.width, length.to_prop_value)
     |> build.put_optional("height", p.height, length.to_prop_value)
     |> build.put_optional("a11y", p.a11y, a11y.to_prop_value)
+    |> build.merge_animated(p.animated_props)
   Node(id: p.id, kind: "pin", props:, children: p.children, meta: dict.new())
 }
