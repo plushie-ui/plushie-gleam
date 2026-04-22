@@ -61,12 +61,16 @@ export function identity(value) {
 }
 
 // Returns a deterministic string key for deduplication purposes.
-// On BEAM this is erlang:phash2 which produces a 32-bit integer hash.
-// The JS version uses JSON.stringify, sufficient for the dedup use
-// case (SendAfter timers) where the value is a Gleam term serialized
-// to JS objects. Not a cryptographic hash.
+// Uses a DJB2 hash of JSON.stringify for compact, consistent output.
+// BEAM uses erlang:phash2 (also compact). Neither is cryptographic;
+// both are sufficient for SendAfter timer dedup within a platform.
 export function stableHashKey(value) {
-  return JSON.stringify(value);
+  const str = JSON.stringify(value);
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+  }
+  return String(hash);
 }
 
 // -- Math ---------------------------------------------------------------------
@@ -180,11 +184,17 @@ export function archString() {
 
 export function sha256Hex(data) {
   const crypto = await_or_require("crypto");
-  return crypto.createHash("sha256").update(data.buffer).digest("hex");
+  const buf = data.buffer instanceof ArrayBuffer
+    ? data.buffer
+    : new Uint8Array(data.buffer).buffer;
+  return crypto.createHash("sha256").update(Buffer.from(buf)).digest("hex");
 }
 
 export function crc32(data) {
-  const buf = data.buffer;
+  const raw = data.buffer;
+  const buf = raw instanceof Uint8Array || raw instanceof ArrayBuffer
+    ? (raw instanceof ArrayBuffer ? new Uint8Array(raw) : raw)
+    : new Uint8Array(raw);
   let crc = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {
     crc = (crc >>> 8) ^ crc32Table[(crc ^ buf[i]) & 0xff];
@@ -203,6 +213,9 @@ for (let i = 0; i < 256; i++) {
 
 export function zlibCompress(data) {
   const zlib = await_or_require("zlib");
-  const result = zlib.deflateSync(Buffer.from(data.buffer));
+  const raw = data.buffer instanceof ArrayBuffer
+    ? data.buffer
+    : new Uint8Array(data.buffer).buffer;
+  const result = zlib.deflateSync(Buffer.from(raw));
   return new BitArray(new Uint8Array(result));
 }

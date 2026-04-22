@@ -80,7 +80,9 @@ pub fn try_call(f: fn() -> a) -> Result(a, Dynamic)
 /// same message value. Not a cryptographic hash. Accepts any type
 /// since both BEAM and JS implementations handle arbitrary values.
 ///
-/// BEAM: `erlang:phash2/1` (32-bit hash). JS: `JSON.stringify`.
+/// BEAM: `erlang:phash2/1`. JS: DJB2 hash of `JSON.stringify`.
+/// Both produce compact numeric strings; collision profiles differ
+/// but are adequate for same-platform timer dedup.
 @external(erlang, "plushie_ffi", "stable_hash_key")
 @external(javascript, "../plushie_platform_ffi.mjs", "stableHashKey")
 pub fn stable_hash_key(value: a) -> String

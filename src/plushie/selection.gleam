@@ -24,8 +24,15 @@ pub opaque type Selection {
 }
 
 /// Create a new empty selection.
+///
+/// Panics if mode is `Range`, since range selection requires a known
+/// item order. Use `new_with_order` instead for `Range` mode.
 pub fn new(mode: SelectionMode) -> Selection {
-  Selection(mode:, selected: set.new(), anchor: None, order: [])
+  case mode {
+    Range ->
+      panic as "Selection.new: Range mode requires an item order. Use new_with_order instead."
+    _ -> Selection(mode:, selected: set.new(), anchor: None, order: [])
+  }
 }
 
 /// Create with a known item order (for range selection).

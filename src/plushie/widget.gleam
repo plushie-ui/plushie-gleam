@@ -554,7 +554,7 @@ fn walk_chain(
                     event.Widget(event.CustomWidget(
                       kind:,
                       target: EventTarget(window_id:, id:, scope:, full: id),
-                      value: coerce(Nil),
+                      value: dynamic.nil(),
                       data:,
                     ))
                   walk_chain(registry, emitted, rest)
@@ -675,7 +675,7 @@ pub fn handle_widget_timer(
                     event.Widget(event.CustomWidget(
                       kind:,
                       target: EventTarget(window_id:, id:, scope:, full: id),
-                      value: coerce(Nil),
+                      value: dynamic.nil(),
                       data:,
                     ))
                   let #(result, registry) =
