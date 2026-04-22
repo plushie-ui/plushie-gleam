@@ -37,7 +37,7 @@ read_stdin_line_timeout(TimeoutMs) ->
         {stdin_line, {ok, Line}} -> {ok, Line};
         {stdin_line, error} -> {error, nil}
     after TimeoutMs ->
-        exit(Pid, kill),
+        catch exit(Pid, kill),
         {error, nil}
     end.
 

@@ -53,13 +53,19 @@ find_executable(Name) ->
     end.
 
 collect_port_output(Port, Acc) ->
+    collect_port_output(Port, Acc, 120000).
+
+collect_port_output(Port, Acc, Timeout) ->
     receive
         {Port, {data, Data}} ->
-            collect_port_output(Port, <<Acc/binary, Data/binary>>);
+            collect_port_output(Port, <<Acc/binary, Data/binary>>, Timeout);
         {Port, {exit_status, 0}} ->
             {ok, Acc};
         {Port, {exit_status, _Status}} ->
             {error, Acc}
+    after Timeout ->
+        erlang:port_close(Port),
+        {error, Acc}
     end.
 
 %% Check if a flag is present in init:get_plain_arguments().

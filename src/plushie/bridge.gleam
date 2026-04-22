@@ -738,6 +738,7 @@ fn handle_message(
                       awaiting_resync: True,
                       json_buffer: <<>>,
                       discard_next_eol: False,
+                      heartbeat_timer: None,
                     ),
                   )
                 }
