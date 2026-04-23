@@ -1,9 +1,10 @@
 //// Slider widget builder (numeric range selection).
 
 import gleam/dict
+import gleam/float
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, FloatVal, ListVal, Node}
+import plushie/node.{type Node, FloatVal, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/prop/length.{type Length}
@@ -177,6 +178,8 @@ pub fn build(slider: Slider) -> Node {
     |> build.put_optional_string("style", slider.style)
     |> build.put_optional_string("label", slider.label)
     |> build.put_optional_int("event_rate", slider.event_rate)
-    |> build.apply_default_a11y(slider.a11y, "slider", option.None)
+    |> build.apply_default_a11y_props(slider.a11y, "slider", option.None, [
+      #("value", StringVal(float.to_string(slider.value))),
+    ])
   Node(id: slider.id, kind: "slider", props:, children: [], meta: dict.new())
 }

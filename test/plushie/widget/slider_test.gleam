@@ -1,7 +1,9 @@
 import gleam/dict
-import plushie/node.{FloatVal, ListVal, StringVal}
+import plushie/node.{DictVal, FloatVal, ListVal, StringVal}
+import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget/slider
+import plushie/widget/vertical_slider
 
 pub fn new_builds_minimal_slider_test() {
   let node = slider.new("vol", #(0.0, 100.0), 50.0) |> slider.build()
@@ -13,6 +15,37 @@ pub fn new_builds_minimal_slider_test() {
   let range_val = ListVal([FloatVal(0.0), FloatVal(100.0)])
   assert dict.get(node.props, "range") == Ok(range_val)
   assert dict.size(node.props) == 3
+}
+
+pub fn default_a11y_includes_value_test() {
+  let node = slider.new("vol", #(0.0, 100.0), 50.0) |> slider.build()
+
+  let assert Ok(DictVal(props)) = dict.get(node.props, "a11y")
+  assert dict.get(props, "role") == Ok(StringVal("slider"))
+  assert dict.get(props, "value") == Ok(StringVal("50.0"))
+}
+
+pub fn explicit_a11y_replaces_slider_defaults_test() {
+  let node =
+    slider.new("vol", #(0.0, 100.0), 50.0)
+    |> slider.a11y(a11y.new() |> a11y.label("Volume"))
+    |> slider.build()
+
+  let assert Ok(DictVal(props)) = dict.get(node.props, "a11y")
+  assert dict.get(props, "label") == Ok(StringVal("Volume"))
+  assert dict.get(props, "role") == Error(Nil)
+  assert dict.get(props, "value") == Error(Nil)
+}
+
+pub fn vertical_slider_default_a11y_includes_value_and_orientation_test() {
+  let node =
+    vertical_slider.new("gain", #(0.0, 1.0), 0.25)
+    |> vertical_slider.build()
+
+  let assert Ok(DictVal(props)) = dict.get(node.props, "a11y")
+  assert dict.get(props, "role") == Ok(StringVal("slider"))
+  assert dict.get(props, "value") == Ok(StringVal("0.25"))
+  assert dict.get(props, "orientation") == Ok(StringVal("vertical"))
 }
 
 pub fn step_sets_float_prop_test() {

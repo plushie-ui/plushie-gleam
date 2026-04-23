@@ -137,11 +137,22 @@ pub fn apply_default_a11y(
   role: String,
   label_from_key: Option(String),
 ) -> Dict(String, PropValue) {
+  apply_default_a11y_props(props, a11y_opt, role, label_from_key, [])
+}
+
+/// Apply default a11y props plus widget-specific defaults.
+pub fn apply_default_a11y_props(
+  props: Dict(String, PropValue),
+  a11y_opt: Option(A11y),
+  role: String,
+  label_from_key: Option(String),
+  extra_props: List(#(String, PropValue)),
+) -> Dict(String, PropValue) {
   case a11y_opt {
     option.Some(explicit) ->
       dict.insert(props, "a11y", a11y.to_prop_value(explicit))
     option.None -> {
-      let a11y_props = [#("role", StringVal(role))]
+      let a11y_props = [#("role", StringVal(role)), ..extra_props]
       let a11y_props = case label_from_key {
         option.Some(key) ->
           case dict.get(props, key) {

@@ -3,7 +3,7 @@
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, type PropValue, DictVal, Node}
+import plushie/node.{type Node, type PropValue, BoolVal, DictVal, Node}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
@@ -221,6 +221,13 @@ pub fn build(cb: Checkbox) -> Node {
       cb.validation,
       validation_state.to_prop_value,
     )
-    |> build.apply_default_a11y(cb.a11y, "check_box", option.Some("label"))
+    |> build.apply_default_a11y_props(
+      cb.a11y,
+      "check_box",
+      option.Some("label"),
+      [
+        #("toggled", BoolVal(cb.is_toggled)),
+      ],
+    )
   Node(id: cb.id, kind: "checkbox", props:, children: [], meta: dict.new())
 }

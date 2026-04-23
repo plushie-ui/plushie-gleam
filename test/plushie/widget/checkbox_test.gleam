@@ -1,5 +1,6 @@
 import gleam/dict
-import plushie/node.{BoolVal, FloatVal, IntVal, StringVal}
+import plushie/node.{BoolVal, DictVal, FloatVal, IntVal, StringVal}
+import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget/checkbox
 
@@ -12,6 +13,27 @@ pub fn new_builds_minimal_checkbox_test() {
   assert dict.get(node.props, "label") == Ok(StringVal("I agree"))
   assert dict.get(node.props, "checked") == Ok(BoolVal(False))
   assert dict.size(node.props) == 3
+}
+
+pub fn default_a11y_includes_label_and_toggled_state_test() {
+  let node = checkbox.new("agree", "I agree", True) |> checkbox.build()
+
+  let assert Ok(DictVal(props)) = dict.get(node.props, "a11y")
+  assert dict.get(props, "role") == Ok(StringVal("check_box"))
+  assert dict.get(props, "label") == Ok(StringVal("I agree"))
+  assert dict.get(props, "toggled") == Ok(BoolVal(True))
+}
+
+pub fn explicit_a11y_replaces_checkbox_defaults_test() {
+  let node =
+    checkbox.new("agree", "I agree", True)
+    |> checkbox.a11y(a11y.new() |> a11y.label("Custom"))
+    |> checkbox.build()
+
+  let assert Ok(DictVal(props)) = dict.get(node.props, "a11y")
+  assert dict.get(props, "label") == Ok(StringVal("Custom"))
+  assert dict.get(props, "role") == Error(Nil)
+  assert dict.get(props, "toggled") == Error(Nil)
 }
 
 pub fn toggled_true_sets_bool_prop_test() {

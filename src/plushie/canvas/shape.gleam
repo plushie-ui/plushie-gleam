@@ -506,6 +506,13 @@ fn infer_a11y_defaults(opts: List(InteractiveOpt)) -> List(#(String, PropValue))
         _ -> False
       }
     })
+  let has_hover =
+    list.any(opts, fn(o) {
+      case o {
+        OnHover(True) -> True
+        _ -> False
+      }
+    })
   let tooltip =
     list.find_map(opts, fn(o) {
       case o {
@@ -519,6 +526,7 @@ fn infer_a11y_defaults(opts: List(InteractiveOpt)) -> List(#(String, PropValue))
     True, _, _ -> "button"
     _, True, _ -> "slider"
     _, _, True -> "group"
+    _, _, _ if has_hover -> "group"
     _, _, _ -> ""
   }
 
@@ -527,9 +535,8 @@ fn infer_a11y_defaults(opts: List(InteractiveOpt)) -> List(#(String, PropValue))
     r -> [#("role", StringVal(r))]
   }
 
-  // Use tooltip as default label for focusable elements
-  case tooltip, has_focusable || has_click {
-    Ok(text), True -> [#("label", StringVal(text)), ..acc]
+  case tooltip, acc {
+    Ok(text), [_, ..] -> [#("label", StringVal(text)), ..acc]
     _, _ -> acc
   }
 }

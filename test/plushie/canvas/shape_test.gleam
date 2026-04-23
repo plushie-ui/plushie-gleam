@@ -403,6 +403,72 @@ pub fn interactive_with_drag_bounds_test() {
   assert dict.get(bounds, "max_x") == Ok(FloatVal(100.0))
 }
 
+pub fn hover_only_interactive_gets_default_a11y_test() {
+  let s =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("hover-me", [shape.OnHover(True)])
+
+  let assert Ok(DictVal(a11y)) = get(s, "a11y")
+  assert dict.get(a11y, "role") == Ok(StringVal("group"))
+}
+
+pub fn tooltip_labels_hover_click_drag_and_focusable_defaults_test() {
+  let hover =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("hover-me", [
+      shape.OnHover(True),
+      shape.Tooltip("Hover me"),
+    ])
+  let click =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("click-me", [
+      shape.OnClick(True),
+      shape.Tooltip("Click me"),
+    ])
+  let drag =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("drag-me", [
+      shape.Draggable(True),
+      shape.Tooltip("Drag me"),
+    ])
+  let focusable =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("focus-me", [
+      shape.Focusable(True),
+      shape.Tooltip("Focus me"),
+    ])
+
+  let assert Ok(DictVal(hover_a11y)) = get(hover, "a11y")
+  let assert Ok(DictVal(click_a11y)) = get(click, "a11y")
+  let assert Ok(DictVal(drag_a11y)) = get(drag, "a11y")
+  let assert Ok(DictVal(focusable_a11y)) = get(focusable, "a11y")
+
+  assert dict.get(hover_a11y, "label") == Ok(StringVal("Hover me"))
+  assert dict.get(click_a11y, "label") == Ok(StringVal("Click me"))
+  assert dict.get(drag_a11y, "label") == Ok(StringVal("Drag me"))
+  assert dict.get(focusable_a11y, "label") == Ok(StringVal("Focus me"))
+}
+
+pub fn explicit_a11y_replaces_interactive_defaults_test() {
+  let s =
+    shape.rect(0.0, 0.0, 50.0, 50.0, [])
+    |> shape.interactive("custom", [
+      shape.OnClick(True),
+      shape.Tooltip("Default label"),
+      shape.A11y(
+        DictVal(
+          dict.from_list([
+            #("label", StringVal("Custom label")),
+          ]),
+        ),
+      ),
+    ])
+
+  let assert Ok(DictVal(a11y)) = get(s, "a11y")
+  assert dict.get(a11y, "label") == Ok(StringVal("Custom label"))
+  assert dict.get(a11y, "role") == Error(Nil)
+}
+
 // -- group --------------------------------------------------------------------
 
 pub fn group_with_children_test() {

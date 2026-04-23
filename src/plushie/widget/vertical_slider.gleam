@@ -1,9 +1,10 @@
 //// Vertical slider widget builder (numeric range selection, vertical axis).
 
 import gleam/dict
+import gleam/float
 import gleam/list
 import gleam/option.{type Option, None}
-import plushie/node.{type Node, FloatVal, ListVal, Node}
+import plushie/node.{type Node, FloatVal, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/color.{type Color}
 import plushie/widget/build
@@ -156,7 +157,10 @@ pub fn build(vs: VerticalSlider) -> Node {
     |> build.put_optional_string("style", vs.style)
     |> build.put_optional_string("label", vs.label)
     |> build.put_optional_int("event_rate", vs.event_rate)
-    |> build.apply_default_a11y(vs.a11y, "slider", option.None)
+    |> build.apply_default_a11y_props(vs.a11y, "slider", option.None, [
+      #("value", StringVal(float.to_string(vs.value))),
+      #("orientation", StringVal("vertical")),
+    ])
   Node(
     id: vs.id,
     kind: "vertical_slider",
