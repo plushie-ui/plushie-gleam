@@ -179,6 +179,109 @@ export function archString() {
   return "unknown";
 }
 
+export function getLocale() {
+  const navigatorLocale = localeFromNavigator();
+  if (navigatorLocale) return navigatorLocale;
+
+  try {
+    const intlLocale = Intl.DateTimeFormat().resolvedOptions().locale;
+    const normalized = normalizeLocale(intlLocale);
+    if (normalized) return normalized;
+  } catch (_) {
+    // Fall through to the stable default.
+  }
+
+  return "en-US";
+}
+
+export function formatNumber(number, locale) {
+  const intlLocale = supportedLocale(locale, "number");
+  try {
+    return new Intl.NumberFormat(intlLocale || "en-US").format(number);
+  } catch (_) {
+    return String(number);
+  }
+}
+
+export function formatDate(year, month, day, locale) {
+  const intlLocale = supportedLocale(locale, "date");
+  if (!intlLocale) return isoDate(year, month, day);
+
+  try {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return new Intl.DateTimeFormat(intlLocale, {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(date);
+  } catch (_) {
+    return isoDate(year, month, day);
+  }
+}
+
+function localeFromNavigator() {
+  const nav = globalThis.navigator;
+  if (!nav) return null;
+
+  const candidates = Array.isArray(nav.languages) ? nav.languages : [];
+  for (const candidate of candidates) {
+    const normalized = normalizeLocale(candidate);
+    if (normalized) return normalized;
+  }
+
+  return normalizeLocale(nav.language || nav.userLanguage);
+}
+
+function supportedLocale(locale, formatter) {
+  const normalized = normalizeLocale(locale);
+  if (!normalized) return null;
+
+  try {
+    const supported = formatter === "date"
+      ? Intl.DateTimeFormat.supportedLocalesOf([normalized])
+      : Intl.NumberFormat.supportedLocalesOf([normalized]);
+    return supported.length > 0 ? supported[0] : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function normalizeLocale(locale) {
+  if (typeof locale !== "string") return null;
+
+  const raw = locale.trim();
+  if (raw === "") return null;
+
+  const first = raw.split(":")[0].split(".")[0].split("@")[0];
+  const parts = first.replaceAll("_", "-").split("-").filter(Boolean);
+  if (parts.length === 0) return null;
+
+  const language = parts[0].toLowerCase();
+  if (language === "c" || language === "posix") return null;
+  if (!/^[a-z]{2,3}$/.test(language)) return null;
+
+  const normalized = [language];
+  for (const part of parts.slice(1)) {
+    if (/^[a-zA-Z]{2}$/.test(part) || /^[0-9]{3}$/.test(part)) {
+      normalized.push(part.toUpperCase());
+    } else if (/^[a-zA-Z]{4}$/.test(part)) {
+      normalized.push(part[0].toUpperCase() + part.slice(1).toLowerCase());
+    } else {
+      normalized.push(part.toLowerCase());
+    }
+  }
+  return normalized.join("-");
+}
+
+function isoDate(year, month, day) {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function pad2(value) {
+  return value >= 0 && value <= 9 ? `0${value}` : String(value);
+}
+
 // -- Hashing and compression --------------------------------------------------
 // These are used by testing infrastructure (snapshots, screenshots,
 // tree hashes). They require Node.js crypto/zlib modules. Browser

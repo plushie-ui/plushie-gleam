@@ -1,3 +1,4 @@
+import gleam/list
 import gleeunit/should
 import plushie/platform
 
@@ -48,4 +49,80 @@ pub fn set_and_get_env_round_trips_test() {
   platform.get_env("PLUSHIE_TEST_FFI_VAR")
   |> should.equal(Ok("hello"))
   platform.unset_env("PLUSHIE_TEST_FFI_VAR")
+}
+
+@target(erlang)
+pub fn get_locale_normalizes_erlang_env_test() {
+  let saved = save_locale_env()
+  clear_locale_env()
+  platform.set_env("LC_ALL", "de_DE.UTF-8")
+
+  let locale = platform.get_locale()
+
+  restore_locale_env(saved)
+  should.equal(locale, "de-DE")
+}
+
+@target(erlang)
+pub fn get_locale_falls_back_for_posix_env_test() {
+  let saved = save_locale_env()
+  clear_locale_env()
+  platform.set_env("LC_ALL", "C")
+  platform.set_env("LC_MESSAGES", "POSIX")
+
+  let locale = platform.get_locale()
+
+  restore_locale_env(saved)
+  should.equal(locale, "en-US")
+}
+
+pub fn format_number_uses_english_separators_test() {
+  platform.format_number(12_345.67, "en-US")
+  |> should.equal("12,345.67")
+}
+
+pub fn format_number_uses_german_separators_test() {
+  platform.format_number(12_345.67, "de-DE")
+  |> should.equal("12.345,67")
+}
+
+pub fn format_date_uses_us_order_test() {
+  platform.format_date(2026, 4, 23, "en-US")
+  |> should.equal("4/23/2026")
+}
+
+pub fn format_date_uses_common_european_order_test() {
+  platform.format_date(2026, 4, 23, "en-GB")
+  |> should.equal("23/04/2026")
+}
+
+pub fn unknown_locale_falls_back_without_crashing_test() {
+  platform.format_number(12_345.67, "zz-ZZ")
+  |> should.equal("12,345.67")
+  platform.format_date(2026, 4, 23, "zz-ZZ")
+  |> should.equal("2026-04-23")
+}
+
+fn save_locale_env() {
+  locale_env_names()
+  |> list.map(fn(name) { #(name, platform.get_env(name)) })
+}
+
+fn clear_locale_env() {
+  locale_env_names()
+  |> list.each(fn(name) { platform.unset_env(name) })
+}
+
+fn restore_locale_env(saved) {
+  saved
+  |> list.each(fn(entry) {
+    case entry {
+      #(name, Ok(value)) -> platform.set_env(name, value)
+      #(name, Error(_)) -> platform.unset_env(name)
+    }
+  })
+}
+
+fn locale_env_names() {
+  ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
 }

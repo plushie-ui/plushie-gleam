@@ -187,6 +187,37 @@ pub fn platform_string() -> String
 @external(javascript, "../plushie_platform_ffi.mjs", "archString")
 pub fn arch_string() -> String
 
+/// Return the user's locale as a normalized tag.
+///
+/// This is a lightweight platform helper, not a full CLDR locale
+/// resolver. BEAM reads locale environment variables and JS reads
+/// browser or `Intl` language settings. Missing, `C`, and `POSIX`
+/// locales fall back to `"en-US"`.
+@external(erlang, "plushie_ffi", "get_locale")
+@external(javascript, "../plushie_platform_ffi.mjs", "getLocale")
+pub fn get_locale() -> String
+
+/// Format a number with common locale separators.
+///
+/// JS delegates to `Intl.NumberFormat`. BEAM provides dependency-free
+/// decimal and grouping separators for common English, German, and
+/// French locales, falling back to English-style formatting for
+/// unknown locales. This is not currency, percent, unit, or full CLDR
+/// formatting.
+@external(erlang, "plushie_ffi", "format_number")
+@external(javascript, "../plushie_platform_ffi.mjs", "formatNumber")
+pub fn format_number(number: Float, locale: String) -> String
+
+/// Format a numeric calendar date for common locale families.
+///
+/// JS delegates to `Intl.DateTimeFormat`. BEAM formats US dates as
+/// month/day/year, common European dates as day/month/year, and
+/// Japanese, Chinese, Korean, or unknown locales as year-month-day.
+/// This is a small date-ordering helper, not full date-time formatting.
+@external(erlang, "plushie_ffi", "format_date")
+@external(javascript, "../plushie_platform_ffi.mjs", "formatDate")
+pub fn format_date(year: Int, month: Int, day: Int, locale: String) -> String
+
 // -- Hashing and compression --------------------------------------------------
 // Used by testing infrastructure (snapshots, screenshots, tree
 // hashes). JS implementations require Node.js crypto/zlib modules

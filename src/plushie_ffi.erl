@@ -11,6 +11,9 @@
     file_exists/1,
     platform_string/0,
     arch_string/0,
+    get_locale/0,
+    format_number/2,
+    format_date/4,
     extract_port_data/1,
     extract_line_data/1,
     extract_exit_status/1,
@@ -110,6 +113,192 @@ arch_string() ->
                 false -> list_to_binary(Arch)
             end
     end.
+
+get_locale() ->
+    get_locale_from_env([<<"LC_ALL">>, <<"LC_MESSAGES">>, <<"LANGUAGE">>, <<"LANG">>]).
+
+get_locale_from_env([]) ->
+    <<"en-US">>;
+get_locale_from_env([Name | Rest]) ->
+    case get_env(Name) of
+        {ok, Value} ->
+            case normalize_locale(Value) of
+                undefined -> get_locale_from_env(Rest);
+                Locale -> Locale
+            end;
+        {error, nil} -> get_locale_from_env(Rest)
+    end.
+
+format_number(Number, Locale) ->
+    Text = number_to_binary(Number),
+    {GroupSep, DecimalSep} = number_separators(Locale),
+    format_number_text(Text, GroupSep, DecimalSep).
+
+format_date(Year, Month, Day, Locale) ->
+    Y = integer_to_binary(Year),
+    M = integer_to_binary(Month),
+    D = integer_to_binary(Day),
+    M2 = pad2(Month),
+    D2 = pad2(Day),
+    case date_order(Locale) of
+        us -> <<M/binary, "/", D/binary, "/", Y/binary>>;
+        european -> <<D2/binary, "/", M2/binary, "/", Y/binary>>;
+        iso -> <<Y/binary, "-", M2/binary, "-", D2/binary>>
+    end.
+
+normalize_locale(Value) ->
+    Trimmed = string:trim(binary_to_list(Value)),
+    case Trimmed of
+        "" -> undefined;
+        _ ->
+            FirstLanguage = first_locale_token(Trimmed),
+            Base = strip_locale_suffix(FirstLanguage),
+            Hyphenated = lists:flatten(string:replace(Base, "_", "-", all)),
+            Parts = string:lexemes(Hyphenated, "-"),
+            normalize_locale_parts(Parts)
+    end.
+
+first_locale_token(Value) ->
+    case string:lexemes(Value, ":") of
+        [] -> "";
+        [First | _] -> First
+    end.
+
+strip_locale_suffix(Value) ->
+    case string:lexemes(Value, ".@") of
+        [] -> "";
+        [First | _] -> First
+    end.
+
+normalize_locale_parts([]) ->
+    undefined;
+normalize_locale_parts([Language | Rest]) ->
+    LowerLanguage = string:lowercase(Language),
+    case valid_language(LowerLanguage) of
+        false -> undefined;
+        true ->
+            case LowerLanguage of
+                "c" -> undefined;
+                "posix" -> undefined;
+                _ -> join_locale_parts([LowerLanguage | normalize_locale_subtags(Rest)])
+            end
+    end.
+
+normalize_locale_subtags([]) ->
+    [];
+normalize_locale_subtags([Part | Rest]) ->
+    Normalized =
+        case length(Part) of
+            2 -> string:uppercase(Part);
+            3 -> string:uppercase(Part);
+            4 -> titlecase_ascii(Part);
+            _ -> string:lowercase(Part)
+        end,
+    [Normalized | normalize_locale_subtags(Rest)].
+
+join_locale_parts(Parts) ->
+    list_to_binary(string:join(Parts, "-")).
+
+valid_language(Language) ->
+    Len = length(Language),
+    (Len =:= 2 orelse Len =:= 3) andalso lists:all(fun is_ascii_letter/1, Language).
+
+is_ascii_letter(C) ->
+    (C >= $a andalso C =< $z) orelse (C >= $A andalso C =< $Z).
+
+titlecase_ascii([]) ->
+    [];
+titlecase_ascii([First | Rest]) ->
+    string:uppercase([First]) ++ string:lowercase(Rest).
+
+number_to_binary(Number) when is_float(Number) ->
+    strip_zero_fraction(float_to_binary(Number, [short]));
+number_to_binary(Number) when is_integer(Number) ->
+    integer_to_binary(Number).
+
+strip_zero_fraction(Text) ->
+    case binary:split(Text, <<".">>) of
+        [Integer, <<"0">>] -> Integer;
+        _ -> Text
+    end.
+
+number_separators(Locale) ->
+    case locale_language(Locale) of
+        <<"de">> -> {<<".">>, <<",">>};
+        <<"fr">> -> {<<" ">>, <<",">>};
+        _ -> {<<",">>, <<".">>}
+    end.
+
+format_number_text(<<"-", Rest/binary>>, GroupSep, DecimalSep) ->
+    Formatted = format_unsigned_number_text(Rest, GroupSep, DecimalSep),
+    <<"-", Formatted/binary>>;
+format_number_text(Text, GroupSep, DecimalSep) ->
+    format_unsigned_number_text(Text, GroupSep, DecimalSep).
+
+format_unsigned_number_text(Text, GroupSep, DecimalSep) ->
+    case binary:match(Text, [<<"e">>, <<"E">>]) of
+        {_, _} -> binary:replace(Text, <<".">>, DecimalSep);
+        nomatch ->
+            case binary:split(Text, <<".">>) of
+                [Integer, Fraction] ->
+                    Grouped = group_integer(Integer, GroupSep),
+                    <<Grouped/binary, DecimalSep/binary, Fraction/binary>>;
+                [Integer] -> group_integer(Integer, GroupSep)
+            end
+    end.
+
+group_integer(Integer, GroupSep) ->
+    Grouped = group_digits(binary_to_list(Integer), binary_to_list(GroupSep)),
+    list_to_binary(Grouped).
+
+group_digits(Digits, GroupSep) ->
+    case length(Digits) =< 3 of
+        true -> Digits;
+        false ->
+            SplitAt = length(Digits) - 3,
+            {Head, Tail} = lists:split(SplitAt, Digits),
+            group_digits(Head, GroupSep) ++ GroupSep ++ Tail
+    end.
+
+date_order(Locale) ->
+    Normalized = normalize_locale_or_raw(Locale),
+    Language = locale_language(Normalized),
+    case Normalized of
+        <<"en-US">> -> us;
+        <<"en">> -> us;
+        _ ->
+            case lists:member(Language, european_date_languages()) of
+                true -> european;
+                false ->
+                    case lists:member(Language, [<<"ja">>, <<"zh">>, <<"ko">>]) of
+                        true -> iso;
+                        false -> iso
+                    end
+            end
+    end.
+
+european_date_languages() ->
+    [
+        <<"bg">>, <<"cs">>, <<"da">>, <<"de">>, <<"el">>, <<"en">>, <<"es">>,
+        <<"fi">>, <<"fr">>, <<"hr">>, <<"hu">>, <<"it">>, <<"nl">>, <<"no">>,
+        <<"pl">>, <<"pt">>, <<"ro">>, <<"ru">>, <<"sk">>, <<"sl">>, <<"sv">>,
+        <<"tr">>, <<"uk">>
+    ].
+
+locale_language(Locale) ->
+    Normalized = normalize_locale_or_raw(Locale),
+    hd(binary:split(Normalized, <<"-">>)).
+
+normalize_locale_or_raw(Locale) ->
+    case normalize_locale(Locale) of
+        undefined -> Locale;
+        Normalized -> Normalized
+    end.
+
+pad2(Value) when Value >= 0, Value =< 9 ->
+    <<"0", (integer_to_binary(Value))/binary>>;
+pad2(Value) ->
+    integer_to_binary(Value).
 
 %% Extract data from a port message tuple {Port, {data, Data}}.
 %% For {packet, N} mode, Data is a plain binary.
