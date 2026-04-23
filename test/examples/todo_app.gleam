@@ -20,9 +20,11 @@ import plushie/event.{
   type Event, Click, EventTarget, Input, Submit, Toggle, Widget,
 }
 import plushie/node.{type Node}
+import plushie/prop/a11y
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/checkbox
 import plushie/widget/column
 import plushie/widget/row
 import plushie/widget/text
@@ -164,7 +166,9 @@ fn filtered(model: Model) -> List(Todo) {
 fn todo_row(entry: Todo) -> Node {
   ui.container(entry.id, [], [
     ui.row("row", [row.Spacing(8.0)], [
-      ui.checkbox("toggle", "", entry.done, []),
+      ui.checkbox("toggle", "", entry.done, [
+        checkbox.A11y(a11y.new() |> a11y.label(entry.text)),
+      ]),
       ui.text_("text", entry.text),
       ui.button_("delete", "x"),
     ]),

@@ -544,7 +544,7 @@ pub fn view_exception_does_not_crash_runtime_test() -> Nil {
 /// the DispatchLoopExceeded diagnostic (log channel), and remains
 /// responsive to subsequent events.
 pub fn dispatch_loop_is_capped_at_depth_limit_test() -> Nil {
-  support.quiet_logs(fn() {
+  support.mute_logs(fn() {
     let rt = support.start(loop_app(), [])
     // Kick off the chain. The initial dispatch counts as depth 1;
     // each follow-up bumps until the cap, then stops.

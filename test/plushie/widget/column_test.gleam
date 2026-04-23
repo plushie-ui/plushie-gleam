@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{FloatVal, IntVal, Node, StringVal}
+import plushie/node.{FloatVal, Node, StringVal}
 import plushie/prop/alignment
 import plushie/prop/length
 import plushie/prop/padding

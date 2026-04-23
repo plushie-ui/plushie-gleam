@@ -7,7 +7,7 @@ import plushie/command
 import plushie/event.{
   type Event, Click, EventTarget, Input, Submit, Toggle, Widget,
 }
-import plushie/node.{type Node, BoolVal, FloatVal, IntVal, StringVal}
+import plushie/node.{type Node, BoolVal, FloatVal, StringVal}
 import plushie/prop/length.{Fill}
 import plushie/prop/padding
 import plushie/ui

@@ -3,7 +3,7 @@ import gleam/int
 import gleam/option.{type Option, Some}
 import plushie/command
 import plushie/event.{type Event, Click, EventTarget, Widget}
-import plushie/node.{type Node, FloatVal, IntVal, StringVal}
+import plushie/node.{type Node, FloatVal, StringVal}
 import plushie/prop/padding
 import plushie/ui
 import plushie/widget/column

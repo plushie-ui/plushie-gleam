@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{BoolVal, FloatVal, IntVal, Node, StringVal}
+import plushie/node.{BoolVal, FloatVal, Node, StringVal}
 import plushie/prop/direction
 import plushie/prop/length
 import plushie/widget/scrollable

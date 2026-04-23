@@ -1,6 +1,6 @@
 import gleam/dict
 import gleam/option
-import plushie/node.{BoolVal, FloatVal, IntVal, StringVal}
+import plushie/node.{BoolVal, FloatVal, StringVal}
 import plushie/prop/alignment
 import plushie/prop/length
 import plushie/prop/padding

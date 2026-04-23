@@ -6,12 +6,15 @@ import gleeunit/should
 import plushie/node.{BoolVal, DictVal, NullVal, StringVal}
 import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import plushie/platform
+import plushie/support
 import plushie/tree
 
 // --- normalize ---------------------------------------------------------------
 
 pub fn normalize_simple_node_no_scope_test() {
-  let n = node.new("btn", "button")
+  let n =
+    node.new("btn", "button")
+    |> node.with_prop("label", StringVal("Button"))
   let result = tree.normalize(n)
   should.equal(result.id, "btn")
 }
@@ -57,7 +60,9 @@ pub fn normalize_window_uses_hash_scope_test() {
 }
 
 pub fn normalize_window_nested_scope_test() {
-  let leaf = node.new("save", "button")
+  let leaf =
+    node.new("save", "button")
+    |> node.with_prop("label", StringVal("Save"))
   let form =
     node.new("form", "container")
     |> node.with_children([leaf])
@@ -92,52 +97,58 @@ pub fn normalize_empty_id_does_not_create_scope_boundary_test() {
 }
 
 pub fn normalize_a11y_labelled_by_gets_scope_prefix_test() {
-  let a11y_props = dict.from_list([#("labelled_by", StringVal("lbl"))])
-  let child =
-    node.new("input", "text_input")
-    |> node.with_prop("a11y", DictVal(a11y_props))
-  let parent =
-    node.new("form", "container")
-    |> node.with_children([child])
+  support.quiet_logs(fn() {
+    let a11y_props = dict.from_list([#("labelled_by", StringVal("lbl"))])
+    let child =
+      node.new("input", "text_input")
+      |> node.with_prop("a11y", DictVal(a11y_props))
+    let parent =
+      node.new("form", "container")
+      |> node.with_children([child])
 
-  let result = tree.normalize(parent)
-  let assert [scoped_child] = result.children
+    let result = tree.normalize(parent)
+    let assert [scoped_child] = result.children
 
-  let assert Ok(DictVal(resolved_a11y)) = dict.get(scoped_child.props, "a11y")
-  should.equal(
-    dict.get(resolved_a11y, "labelled_by"),
-    Ok(StringVal("form/lbl")),
-  )
+    let assert Ok(DictVal(resolved_a11y)) = dict.get(scoped_child.props, "a11y")
+    should.equal(
+      dict.get(resolved_a11y, "labelled_by"),
+      Ok(StringVal("form/lbl")),
+    )
+  })
 }
 
 pub fn normalize_a11y_already_scoped_ref_unchanged_test() {
-  let a11y_props = dict.from_list([#("labelled_by", StringVal("other/lbl"))])
-  let child =
-    node.new("input", "text_input")
-    |> node.with_prop("a11y", DictVal(a11y_props))
-  let parent =
-    node.new("form", "container")
-    |> node.with_children([child])
+  support.quiet_logs(fn() {
+    let a11y_props = dict.from_list([#("labelled_by", StringVal("other/lbl"))])
+    let child =
+      node.new("input", "text_input")
+      |> node.with_prop("a11y", DictVal(a11y_props))
+    let parent =
+      node.new("form", "container")
+      |> node.with_children([child])
 
-  let result = tree.normalize(parent)
-  let assert [scoped_child] = result.children
+    let result = tree.normalize(parent)
+    let assert [scoped_child] = result.children
 
-  let assert Ok(DictVal(resolved_a11y)) = dict.get(scoped_child.props, "a11y")
-  should.equal(
-    dict.get(resolved_a11y, "labelled_by"),
-    Ok(StringVal("other/lbl")),
-  )
+    let assert Ok(DictVal(resolved_a11y)) = dict.get(scoped_child.props, "a11y")
+    should.equal(
+      dict.get(resolved_a11y, "labelled_by"),
+      Ok(StringVal("other/lbl")),
+    )
+  })
 }
 
 pub fn normalize_a11y_empty_scope_leaves_ref_alone_test() {
-  let a11y_props = dict.from_list([#("described_by", StringVal("help"))])
-  let n =
-    node.new("input", "text_input")
-    |> node.with_prop("a11y", DictVal(a11y_props))
+  support.quiet_logs(fn() {
+    let a11y_props = dict.from_list([#("described_by", StringVal("help"))])
+    let n =
+      node.new("input", "text_input")
+      |> node.with_prop("a11y", DictVal(a11y_props))
 
-  let result = tree.normalize(n)
-  let assert Ok(DictVal(resolved_a11y)) = dict.get(result.props, "a11y")
-  should.equal(dict.get(resolved_a11y, "described_by"), Ok(StringVal("help")))
+    let result = tree.normalize(n)
+    let assert Ok(DictVal(resolved_a11y)) = dict.get(result.props, "a11y")
+    should.equal(dict.get(resolved_a11y, "described_by"), Ok(StringVal("help")))
+  })
 }
 
 pub fn normalize_placeholder_flows_into_a11y_description_test() {
@@ -258,7 +269,9 @@ pub fn normalize_rejects_oversized_user_id_test() {
 
 pub fn normalize_accepts_exactly_1024_byte_user_id_test() {
   let at_limit = string.repeat("a", 1024)
-  let n = node.new(at_limit, "button")
+  let n =
+    node.new(at_limit, "button")
+    |> node.with_prop("label", StringVal("Button"))
   let result = tree.normalize(n)
   should.equal(result.id, at_limit)
 }

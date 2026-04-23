@@ -696,7 +696,7 @@ pub fn events_modifiers_changed_match_test() {
       ),
       captured: False,
     ))
-  let assert ModifiersChanged(ModifiersEvent(modifiers:, ..)) = event
+  let ModifiersChanged(ModifiersEvent(modifiers:, ..)) = event
   modifiers.shift |> should.be_true()
 }
 

@@ -155,6 +155,11 @@ pub fn quiet_logs(f: fn() -> a) -> a {
   with_logger_level("error", f)
 }
 
+/// Run a function with all logs muted.
+pub fn mute_logs(f: fn() -> a) -> a {
+  with_logger_level("none", f)
+}
+
 /// Poll the model until a condition is met or timeout expires.
 ///
 /// Queries the runtime model every 10ms and passes it to the

@@ -1,6 +1,6 @@
 import gleam/dict
 import gleam/list
-import plushie/node.{FloatVal, IntVal, StringVal}
+import plushie/node.{FloatVal, StringVal}
 import plushie/prop/color
 import plushie/prop/length
 import plushie/widget/pane_grid
