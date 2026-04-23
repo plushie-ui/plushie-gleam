@@ -148,3 +148,34 @@ pub fn validate_multiple_errors_test() {
   let assert Error(errors) = native_widget.validate(def)
   should.be_true(list.length(errors) >= 2)
 }
+
+pub fn validate_floating_and_float_widget_kinds_are_reserved_test() {
+  let floating_def =
+    native_widget.NativeDef(
+      kind: "floating",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [],
+      commands: [],
+    )
+  let float_def =
+    native_widget.NativeDef(
+      kind: "float",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [],
+      commands: [],
+    )
+
+  let assert Error(floating_errors) = native_widget.validate(floating_def)
+  let assert Error(float_errors) = native_widget.validate(float_def)
+
+  should.be_true(list.contains(
+    floating_errors,
+    "widget type \"floating\" shadows a built-in widget type",
+  ))
+  should.be_true(list.contains(
+    float_errors,
+    "widget type \"float\" shadows a built-in widget type",
+  ))
+}

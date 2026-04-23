@@ -110,5 +110,11 @@ pub fn build(f: Floating) -> Node {
     |> build.put_optional("width", f.width, length.to_prop_value)
     |> build.put_optional("height", f.height, length.to_prop_value)
     |> build.put_optional("a11y", f.a11y, a11y.to_prop_value)
-  Node(id: f.id, kind: "float", props:, children: f.children, meta: dict.new())
+  Node(
+    id: f.id,
+    kind: "floating",
+    props:,
+    children: f.children,
+    meta: dict.new(),
+  )
 }

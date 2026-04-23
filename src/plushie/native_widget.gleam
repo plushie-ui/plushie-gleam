@@ -226,8 +226,8 @@ const builtin_widget_types = [
   "slider", "vertical_slider", "pick_list", "combo_box", "column", "row",
   "container", "scrollable", "stack", "responsive", "space", "rule", "image",
   "svg", "canvas", "tooltip", "progress_bar", "rich_text", "markdown", "grid",
-  "window", "keyed_column", "sensor", "floating", "pin", "overlay", "pane_grid",
-  "table", "qr_code", "pointer_area", "themer",
+  "window", "keyed_column", "sensor", "floating", "float", "pin", "overlay",
+  "pane_grid", "table", "qr_code", "pointer_area", "themer",
 ]
 
 /// Validate a native widget definition at runtime.
