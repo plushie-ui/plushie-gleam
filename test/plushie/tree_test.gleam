@@ -245,18 +245,20 @@ pub fn normalize_rejects_hash_in_user_id_test() {
   |> should.be_error
 }
 
-pub fn normalize_rejects_non_printable_ascii_in_user_id_test() {
-  // Space (0x20) is below the printable range.
-  let n = node.new("bad id", "button")
-  platform.try_call(fn() { tree.normalize(n) })
-  |> should.be_error
+pub fn normalize_accepts_space_in_user_id_test() {
+  let n =
+    node.new("bad id", "button")
+    |> node.with_prop("label", StringVal("Button"))
+  let result = tree.normalize(n)
+  should.equal(result.id, "bad id")
 }
 
-pub fn normalize_rejects_non_ascii_in_user_id_test() {
-  // Non-ASCII codepoints (here the sharp s) are rejected.
-  let n = node.new("stra\u{00df}e", "button")
-  platform.try_call(fn() { tree.normalize(n) })
-  |> should.be_error
+pub fn normalize_accepts_non_ascii_in_user_id_test() {
+  let n =
+    node.new("stra\u{00df}e", "button")
+    |> node.with_prop("label", StringVal("Button"))
+  let result = tree.normalize(n)
+  should.equal(result.id, "stra\u{00df}e")
 }
 
 pub fn normalize_rejects_oversized_user_id_test() {

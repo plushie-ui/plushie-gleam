@@ -569,7 +569,6 @@ fn infer_radio_a11y(children: List(Node)) -> List(Node) {
 /// - Must not contain `/` (reserved for scope separators)
 /// - Must not contain `#` (reserved for window-qualified paths)
 /// - Must not exceed 1024 bytes
-/// - Must contain only printable ASCII (0x21-0x7E)
 fn validate_user_id(id: String) -> Nil {
   case id {
     "" -> panic as "widget ID must not be empty"
@@ -600,25 +599,6 @@ fn validate_user_id(id: String) -> Nil {
       }
     False -> Nil
   }
-  case is_printable_ascii(id) {
-    False ->
-      panic as {
-        "widget ID \""
-        <> id
-        <> "\" contains invalid characters: IDs must contain only printable ASCII (0x21-0x7E)"
-      }
-    True -> Nil
-  }
-}
-
-/// Check that all bytes in a string are printable ASCII (0x21-0x7E).
-fn is_printable_ascii(s: String) -> Bool {
-  s
-  |> string.to_utf_codepoints
-  |> list.all(fn(cp) {
-    let v = string.utf_codepoint_to_int(cp)
-    v >= 0x21 && v <= 0x7E
-  })
 }
 
 fn apply_scope(id: String, scope: String) -> String {
