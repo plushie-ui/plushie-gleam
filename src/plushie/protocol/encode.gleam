@@ -22,6 +22,7 @@ import plushie/node.{
 import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
+import plushie/platform
 import plushie/prop/theme
 import plushie/protocol.{
   type EncodeError, type Format, Json, Msgpack, SerializationFailed,
@@ -29,12 +30,31 @@ import plushie/protocol.{
 
 // --- PropValue conversion ----------------------------------------------------
 
+fn is_non_finite_float(value: Float) -> Bool {
+  !platform.is_finite_float(value)
+}
+
+fn float_to_json(value: Float) -> json.Json {
+  case is_non_finite_float(value) {
+    True -> json.null()
+    False -> json.float(value)
+  }
+}
+
+@target(erlang)
+fn float_to_msgpack(value: Float) -> data.Value {
+  case is_non_finite_float(value) {
+    True -> data.Nil
+    False -> data.Float(value)
+  }
+}
+
 /// Convert a PropValue to gleam_json's Json type.
 pub fn prop_value_to_json(v: PropValue) -> json.Json {
   case v {
     StringVal(s) -> json.string(s)
     IntVal(n) -> json.int(n)
-    FloatVal(f) -> json.float(f)
+    FloatVal(f) -> float_to_json(f)
     BoolVal(b) -> json.bool(b)
     NullVal -> json.null()
     BinaryVal(bytes) -> json.string(bit_array.base64_encode(bytes, True))
@@ -54,7 +74,7 @@ pub fn prop_value_to_msgpack(v: PropValue) -> data.Value {
   case v {
     StringVal(s) -> data.String(s)
     IntVal(n) -> data.Integer(n)
-    FloatVal(f) -> data.Float(f)
+    FloatVal(f) -> float_to_msgpack(f)
     BoolVal(b) -> data.Boolean(b)
     NullVal -> data.Nil
     BinaryVal(bytes) -> data.Binary(bytes)

@@ -16,6 +16,21 @@ import plushie/prop/theme
 import plushie/protocol
 import plushie/protocol/encode
 
+@external(erlang, "plushie_ffi", "identity")
+fn unsafe_float(value: a) -> Float
+
+fn nan() -> Float {
+  unsafe_float("nan")
+}
+
+fn pos_infinity() -> Float {
+  unsafe_float("infinity")
+}
+
+fn neg_infinity() -> Float {
+  unsafe_float("-infinity")
+}
+
 // --- prop_value_to_json ------------------------------------------------------
 
 pub fn prop_value_to_json_string_test() {
@@ -31,6 +46,18 @@ pub fn prop_value_to_json_int_test() {
 pub fn prop_value_to_json_float_test() {
   let j = encode.prop_value_to_json(FloatVal(3.14))
   should.equal(json.to_string(j), "3.14")
+}
+
+pub fn prop_value_to_json_nan_becomes_null_test() {
+  let j = encode.prop_value_to_json(FloatVal(nan()))
+  should.equal(json.to_string(j), "null")
+}
+
+pub fn prop_value_to_json_infinities_become_null_test() {
+  let pos = encode.prop_value_to_json(FloatVal(pos_infinity()))
+  let neg = encode.prop_value_to_json(FloatVal(neg_infinity()))
+  should.equal(json.to_string(pos), "null")
+  should.equal(json.to_string(neg), "null")
 }
 
 pub fn prop_value_to_json_bool_test() {
@@ -69,6 +96,18 @@ pub fn prop_value_to_msgpack_int_test() {
 pub fn prop_value_to_msgpack_float_test() {
   let v = encode.prop_value_to_msgpack(FloatVal(1.5))
   should.equal(v, data.Float(1.5))
+}
+
+pub fn prop_value_to_msgpack_nan_becomes_nil_test() {
+  let v = encode.prop_value_to_msgpack(FloatVal(nan()))
+  should.equal(v, data.Nil)
+}
+
+pub fn prop_value_to_msgpack_infinities_become_nil_test() {
+  let pos = encode.prop_value_to_msgpack(FloatVal(pos_infinity()))
+  let neg = encode.prop_value_to_msgpack(FloatVal(neg_infinity()))
+  should.equal(pos, data.Nil)
+  should.equal(neg, data.Nil)
 }
 
 pub fn prop_value_to_msgpack_bool_test() {
@@ -167,6 +206,29 @@ pub fn serialize_msgpack_round_trips_test() {
   let assert data.Map(m) = decoded
   should.equal(dict.get(m, data.String("type")), Ok(data.String("ping")))
   should.equal(dict.get(m, data.String("value")), Ok(data.Integer(42)))
+}
+
+pub fn serialize_json_non_finite_float_becomes_null_test() {
+  let msg =
+    dict.from_list([
+      #("type", StringVal("test")),
+      #("value", FloatVal(pos_infinity())),
+    ])
+  let assert Ok(bytes) = encode.serialize(msg, protocol.Json)
+  let assert Ok(text) = bit_array.to_string(bytes)
+  assert string.contains(text, "\"value\":null")
+}
+
+pub fn serialize_msgpack_non_finite_float_becomes_nil_test() {
+  let msg =
+    dict.from_list([
+      #("type", StringVal("ping")),
+      #("value", FloatVal(nan())),
+    ])
+  let assert Ok(bytes) = encode.serialize(msg, protocol.Msgpack)
+  let assert Ok(#(decoded, _rest)) = glepack.unpack(bytes)
+  let assert data.Map(m) = decoded
+  should.equal(dict.get(m, data.String("value")), Ok(data.Nil))
 }
 
 // --- encode_settings ---------------------------------------------------------

@@ -73,6 +73,10 @@ export function stableHashKey(value) {
   return String(hash);
 }
 
+export function isFiniteFloat(value) {
+  return Number.isFinite(value);
+}
+
 // -- Math ---------------------------------------------------------------------
 
 export function mathSin(x) {

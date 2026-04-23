@@ -87,6 +87,14 @@ pub fn try_call(f: fn() -> a) -> Result(a, Dynamic)
 @external(javascript, "../plushie_platform_ffi.mjs", "stableHashKey")
 pub fn stable_hash_key(value: a) -> String
 
+/// Return true when a float is finite.
+///
+/// BEAM: local Erlang helper that rejects NaN and infinities.
+/// JS: `Number.isFinite`.
+@external(erlang, "plushie_ffi", "is_finite_float")
+@external(javascript, "../plushie_platform_ffi.mjs", "isFiniteFloat")
+pub fn is_finite_float(value: Float) -> Bool
+
 // -- Math ---------------------------------------------------------------------
 
 /// Sine function.

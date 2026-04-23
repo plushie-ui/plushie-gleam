@@ -29,6 +29,7 @@
     null_port/0,
     drain_timer_ticks/2,
     stable_hash_key/1,
+    is_finite_float/1,
     gleam_build/0,
     reload_modules/1,
     list_beam_files/1,
@@ -257,6 +258,13 @@ subject_tag({named_subject, Name}) -> Name.
 %% how the value is wrapped (e.g. raw vs Dynamic).
 stable_hash_key(Value) ->
     integer_to_binary(erlang:phash2(Value)).
+
+%% Return true when a float is finite (not NaN or +/-Infinity).
+is_finite_float(Value) when is_float(Value) ->
+    Delta = Value - Value,
+    Delta =:= Delta;
+is_finite_float(_) ->
+    false.
 
 %% Run `gleam build` and return the output as a binary string.
 gleam_build() ->
