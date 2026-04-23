@@ -104,6 +104,11 @@ argument. Results arrive as `EffectResult` events.
 `clipboard_clear(tag)`, `clipboard_read_primary(tag)` (Linux),
 `clipboard_write_primary(tag, text)` (Linux).
 
+The primary clipboard functions target the X11 primary selection in
+practice. Treat `clipboard_read_primary(tag)` and
+`clipboard_write_primary(tag, text)` as Linux-only operations. On
+unsupported platforms, the renderer responds with `EffectUnsupported`.
+
 ### Notifications
 
 ```gleam
