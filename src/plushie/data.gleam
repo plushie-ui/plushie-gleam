@@ -44,6 +44,7 @@ pub type SortDirection {
 }
 
 /// Query options applied in order: filter -> search -> sort -> paginate.
+/// Repeated Filter and Search opts compose in list order.
 pub type QueryOpt(a) {
   /// Keep only records matching the predicate.
   Filter(fn(a) -> Bool)
@@ -63,29 +64,15 @@ pub type QueryOpt(a) {
 
 /// Run a query pipeline on a list of records.
 pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
-  let filter_fn = find_filter(opts)
-  let search = find_search(opts)
+  let filters = collect_filters(opts)
+  let searches = collect_searches(opts)
   let sort_specs = collect_sort_specs(opts)
   let page = find_page(opts)
   let page_size = find_page_size(opts)
 
   // Apply pipeline: filter -> search -> sort -> paginate
-  let result = records
-  let result = case filter_fn {
-    Some(f) -> list.filter(result, f)
-    None -> result
-  }
-  let result = case search {
-    Some(#(fields, q)) -> {
-      let q_lower = string.lowercase(q)
-      list.filter(result, fn(record) {
-        list.any(fields, fn(field) {
-          string.contains(string.lowercase(field(record)), q_lower)
-        })
-      })
-    }
-    None -> result
-  }
+  let result = apply_filters(records, filters)
+  let result = apply_searches(result, searches)
   // Apply all sort specs in order for multi-column tiebreaking
   let result = case sort_specs {
     [] -> result
@@ -108,33 +95,52 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
   QueryResult(entries: result, total:, page:, page_size:, groups:)
 }
 
-fn paginate(items: List(a), page: Int, page_size: Int) -> List(a) {
-  let skip = { page - 1 } * page_size
-  items
-  |> list.drop(skip)
-  |> list.take(page_size)
+fn apply_filters(records: List(a), filters: List(fn(a) -> Bool)) -> List(a) {
+  list.fold(filters, records, fn(filtered, filter_fn) {
+    list.filter(filtered, filter_fn)
+  })
 }
 
-fn find_filter(opts: List(QueryOpt(a))) -> Option(fn(a) -> Bool) {
-  list.find_map(opts, fn(opt) {
+fn apply_searches(
+  records: List(a),
+  searches: List(#(List(fn(a) -> String), String)),
+) -> List(a) {
+  list.fold(searches, records, fn(filtered, search) {
+    let #(fields, q) = search
+    let q_lower = string.lowercase(q)
+    list.filter(filtered, fn(record) {
+      list.any(fields, fn(field) {
+        string.contains(string.lowercase(field(record)), q_lower)
+      })
+    })
+  })
+}
+
+fn collect_filters(opts: List(QueryOpt(a))) -> List(fn(a) -> Bool) {
+  list.filter_map(opts, fn(opt) {
     case opt {
       Filter(f) -> Ok(f)
       _ -> Error(Nil)
     }
   })
-  |> option.from_result()
 }
 
-fn find_search(
+fn collect_searches(
   opts: List(QueryOpt(a)),
-) -> Option(#(List(fn(a) -> String), String)) {
-  list.find_map(opts, fn(opt) {
+) -> List(#(List(fn(a) -> String), String)) {
+  list.filter_map(opts, fn(opt) {
     case opt {
       Search(fields:, query:) -> Ok(#(fields, query))
       _ -> Error(Nil)
     }
   })
-  |> option.from_result()
+}
+
+fn paginate(items: List(a), page: Int, page_size: Int) -> List(a) {
+  let skip = { page - 1 } * page_size
+  items
+  |> list.drop(skip)
+  |> list.take(page_size)
 }
 
 /// A normalized sort comparator with direction applied.

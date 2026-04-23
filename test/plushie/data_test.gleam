@@ -47,12 +47,45 @@ pub fn query_search_test() {
   should.equal(person.name, "Alice")
 }
 
+pub fn query_repeated_filters_compose_test() {
+  let result =
+    data.query(sample_people(), [
+      Filter(fn(p: Person) { p.city == "Paris" }),
+      Filter(fn(p: Person) { p.age < 25 }),
+    ])
+  should.equal(result.total, 1)
+  let assert [person] = result.entries
+  should.equal(person.name, "Eve")
+}
+
 pub fn query_search_case_insensitive_test() {
   let result =
     data.query(sample_people(), [
       Search(fields: [fn(p: Person) { p.name }], query: "BOB"),
     ])
   should.equal(result.total, 1)
+}
+
+pub fn query_repeated_searches_compose_test() {
+  let result =
+    data.query(sample_people(), [
+      Search(fields: [fn(p: Person) { p.name }], query: "e"),
+      Search(fields: [fn(p: Person) { p.city }], query: "par"),
+    ])
+  should.equal(result.total, 1)
+  let assert [person] = result.entries
+  should.equal(person.name, "Eve")
+}
+
+pub fn query_filters_still_run_before_searches_test() {
+  let result =
+    data.query(sample_people(), [
+      Search(fields: [fn(p: Person) { p.name }], query: "a"),
+      Filter(fn(p: Person) { p.city == "London" }),
+    ])
+  should.equal(result.total, 2)
+  let names = list.map(result.entries, fn(p: Person) { p.name })
+  should.equal(names, ["Alice", "Charlie"])
 }
 
 pub fn query_sort_asc_test() {

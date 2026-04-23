@@ -35,12 +35,19 @@ Query pipeline for filtering, searching, sorting, and paginating:
 import plushie/data
 
 let result = data.query(records, [
-  data.Search(["name", "role"], "dev"),
-  data.Sort(data.Asc, "name"),
+  data.Search(
+    fields: [fn(record) { record.name }, fn(record) { record.role }],
+    query: "dev",
+  ),
+  data.Sort(direction: data.Asc, key: fn(record) { record.name }),
   data.Page(1),
   data.PageSize(10),
 ])
 ```
+
+Repeated `Filter` and `Search` opts compose as successive narrowing.
+All filters run first, in list order, then all searches run, in list
+order, before sorting and pagination.
 
 ## plushie/selection
 
