@@ -8,20 +8,21 @@ repository = { type = "github", user = "plushie-ui", repo = "plushie-gleam" }
 
 [documentation]
 pages = [
-  { title = "Getting Started", path = "getting-started.html", source = "./docs/getting-started.md" },
-  { title = "Tutorial", path = "tutorial.html", source = "./docs/tutorial.md" },
-  { title = "App & Callbacks", path = "app-behaviour.html", source = "./docs/app-behaviour.md" },
-  { title = "Layout", path = "layout.html", source = "./docs/layout.md" },
-  { title = "Events", path = "events.html", source = "./docs/events.md" },
-  { title = "Commands & Subscriptions", path = "commands.html", source = "./docs/commands.md" },
-  { title = "Effects", path = "effects.html", source = "./docs/effects.md" },
-  { title = "Theming", path = "theming.html", source = "./docs/theming.md" },
-  { title = "Composition Patterns", path = "composition-patterns.html", source = "./docs/composition-patterns.md" },
-  { title = "Scoped IDs", path = "scoped-ids.html", source = "./docs/scoped-ids.md" },
-  { title = "Testing", path = "testing.html", source = "./docs/testing.md" },
-  { title = "Accessibility", path = "accessibility.html", source = "./docs/accessibility.md" },
-  { title = "Extensions", path = "extensions.html", source = "./docs/extensions.md" },
-  { title = "Running & Deployment", path = "running.html", source = "./docs/running.md" },
+  { title = "Getting Started", path = "getting-started.html", source = "./docs/guides/02-getting-started.md" },
+  { title = "Your First App", path = "your-first-app.html", source = "./docs/guides/03-your-first-app.md" },
+  { title = "The Development Loop", path = "development-loop.html", source = "./docs/guides/04-the-development-loop.md" },
+  { title = "Events", path = "events.html", source = "./docs/guides/05-events.md" },
+  { title = "Layout", path = "layout.html", source = "./docs/guides/07-layout.md" },
+  { title = "Styling", path = "styling.html", source = "./docs/guides/08-styling.md" },
+  { title = "Subscriptions", path = "subscriptions.html", source = "./docs/guides/10-subscriptions.md" },
+  { title = "Async and Effects", path = "async-and-effects.html", source = "./docs/guides/11-async-and-effects.md" },
+  { title = "Canvas", path = "canvas.html", source = "./docs/guides/12-canvas.md" },
+  { title = "Custom Widgets", path = "custom-widgets.html", source = "./docs/guides/13-custom-widgets.md" },
+  { title = "Testing", path = "testing.html", source = "./docs/guides/15-testing.md" },
+  { title = "Shared State", path = "shared-state.html", source = "./docs/guides/16-shared-state.md" },
+  { title = "App Lifecycle", path = "app-lifecycle.html", source = "./docs/reference/app-lifecycle.md" },
+  { title = "Configuration", path = "configuration.html", source = "./docs/reference/configuration.md" },
+  { title = "Wire Protocol", path = "wire-protocol.html", source = "./docs/reference/wire-protocol.md" },
 ]
 
 [dependencies]
