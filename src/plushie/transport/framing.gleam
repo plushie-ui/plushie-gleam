@@ -28,6 +28,19 @@ pub type FramingError {
   BufferOverflow(size: Int, limit: Int)
 }
 
+/// Validate the size of one complete wire message.
+pub fn validate_message_size(size: Int) -> Result(Nil, FramingError) {
+  case size > max_message_size {
+    True -> Error(BufferOverflow(size:, limit: max_message_size))
+    False -> Ok(Nil)
+  }
+}
+
+/// Validate one complete wire message against `max_message_size`.
+pub fn validate_message(data: BitArray) -> Result(Nil, FramingError) {
+  validate_message_size(bit_array.byte_size(data))
+}
+
 /// Encode a message with a 4-byte big-endian length prefix.
 ///
 /// Returns `Error(BufferOverflow)` when `data` exceeds

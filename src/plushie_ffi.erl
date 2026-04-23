@@ -1,4 +1,5 @@
 -module(plushie_ffi).
+-define(MAX_MESSAGE_SIZE, 67108864).
 -export([
     open_port_spawn/4,
     port_command/2,
@@ -112,7 +113,10 @@ arch_string() ->
 
 %% Extract data from a port message tuple {Port, {data, Data}}.
 %% For {packet, N} mode, Data is a plain binary.
-extract_port_data({_Port, {data, Data}}) when is_binary(Data) -> {ok, Data};
+extract_port_data({_Port, {data, Data}}) when is_binary(Data), byte_size(Data) =< ?MAX_MESSAGE_SIZE ->
+    {ok, Data};
+extract_port_data({_Port, {data, Data}}) when is_binary(Data) ->
+    {error, overflow};
 extract_port_data(_) -> {error, not_data}.
 
 %% Extract line data from a port message in {line, N} mode.

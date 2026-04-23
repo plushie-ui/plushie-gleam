@@ -75,6 +75,8 @@ import plushie/testing/screenshot.{type Screenshot, Screenshot}
 @target(erlang)
 import plushie/testing/tree_hash.{type TreeHash, TreeHash}
 @target(erlang)
+import plushie/transport/framing
+@target(erlang)
 import plushie/tree
 
 // ---------------------------------------------------------------------------
@@ -866,9 +868,24 @@ fn dispatch_wire(
   state: RendererState(model),
   bytes: BitArray,
 ) -> RendererState(model) {
-  case deserialize_wire(bytes, state.format) {
+  case deserialize_wire_message(bytes, state.format) {
     Ok(raw_map) -> dispatch_raw(state, raw_map)
     Error(_) -> state
+  }
+}
+
+@target(erlang)
+fn deserialize_wire_message(
+  bytes: BitArray,
+  format: protocol.Format,
+) -> Result(Dynamic, Nil) {
+  case format {
+    protocol.Msgpack ->
+      case framing.validate_message(bytes) {
+        Ok(_) -> deserialize_wire(bytes, format)
+        Error(_) -> Error(Nil)
+      }
+    protocol.Json -> deserialize_wire(bytes, format)
   }
 }
 

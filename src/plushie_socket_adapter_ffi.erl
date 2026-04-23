@@ -1,4 +1,5 @@
 -module(plushie_socket_adapter_ffi).
+-define(MAX_MESSAGE_SIZE, 67108864).
 -behaviour(gen_server).
 
 -export([start/2]).
@@ -30,7 +31,7 @@ start(Addr, Format) ->
     end.
 
 socket_options(msgpack) ->
-    [binary, {packet, 4}, {active, true}, {nodelay, true}];
+    [binary, {packet, 4}, {packet_size, ?MAX_MESSAGE_SIZE}, {active, true}, {nodelay, true}];
 socket_options(json) ->
     [binary, {packet, line}, {active, true}, {nodelay, true}].
 

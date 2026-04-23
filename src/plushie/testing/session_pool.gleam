@@ -51,6 +51,8 @@ import plushie/protocol/encode as proto_encode
 import plushie/renderer_env
 @target(erlang)
 import plushie/renderer_port
+@target(erlang)
+import plushie/transport/framing
 
 // ---------------------------------------------------------------------------
 // Types
@@ -637,9 +639,24 @@ fn handle_port_exit(
 
 @target(erlang)
 fn dispatch_wire(state: PoolState, bytes: BitArray) -> PoolState {
-  case deserialize_wire(bytes, state.format) {
+  case deserialize_wire_message(bytes, state.format) {
     Ok(raw) -> dispatch_raw(state, raw)
     Error(_) -> state
+  }
+}
+
+@target(erlang)
+fn deserialize_wire_message(
+  bytes: BitArray,
+  format: protocol.Format,
+) -> Result(Dynamic, Nil) {
+  case format {
+    protocol.Msgpack ->
+      case framing.validate_message(bytes) {
+        Ok(_) -> deserialize_wire(bytes, format)
+        Error(_) -> Error(Nil)
+      }
+    protocol.Json -> deserialize_wire(bytes, format)
   }
 }
 

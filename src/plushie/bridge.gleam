@@ -70,6 +70,8 @@ import plushie/renderer_exit.{type RendererExit, Crash, RendererExit}
 import plushie/renderer_port
 @target(erlang)
 import plushie/telemetry
+@target(erlang)
+import plushie/transport/framing
 
 @target(erlang)
 /// Messages sent to an iostream adapter process.
@@ -1064,7 +1066,7 @@ fn buffer_or_send(
 @target(erlang)
 /// Decode a complete wire message and forward to the runtime.
 fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
-  case decode.decode_message(bytes, state.format) {
+  case decode_inbound_message(bytes, state.format) {
     Ok(msg) -> buffer_or_send(state, InboundEvent(msg))
     Error(err) -> {
       platform.log_warning(
@@ -1079,6 +1081,27 @@ fn dispatch_decoded(state: BridgeState, bytes: BitArray) -> BridgeState {
       )
       state
     }
+  }
+}
+
+@target(erlang)
+fn decode_inbound_message(
+  bytes: BitArray,
+  format: protocol.Format,
+) -> Result(InboundMessage, protocol.DecodeError) {
+  case format {
+    protocol.Msgpack ->
+      case framing.validate_message(bytes) {
+        Ok(_) -> decode.decode_message(bytes, format)
+        Error(framing.BufferOverflow(size:, limit:)) ->
+          Error(protocol.DeserializationFailed(
+            "message exceeded size limit: "
+            <> int.to_string(size)
+            <> " bytes, max "
+            <> int.to_string(limit),
+          ))
+      }
+    protocol.Json -> decode.decode_message(bytes, format)
   }
 }
 

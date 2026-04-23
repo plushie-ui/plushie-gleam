@@ -74,6 +74,22 @@ pub fn decode_packets_oversized_length_returns_error_test() {
   assert_buffer_overflow(result, oversize)
 }
 
+pub fn validate_message_size_at_limit_test() {
+  let result = framing.validate_message_size(framing.max_message_size)
+  assert result == Ok(Nil)
+}
+
+pub fn validate_message_size_oversized_returns_error_test() {
+  let oversize = framing.max_message_size + 1
+  let result = framing.validate_message_size(oversize)
+  assert_buffer_overflow(result, oversize)
+}
+
+pub fn validate_message_small_payload_test() {
+  let result = framing.validate_message(<<"ok":utf8>>)
+  assert result == Ok(Nil)
+}
+
 // --- encode_line -------------------------------------------------------------
 
 pub fn encode_line_appends_newline_test() {
