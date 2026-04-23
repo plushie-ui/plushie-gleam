@@ -19,13 +19,17 @@ SDKs are also available for
 <!-- test: readme_counter_init_test, readme_counter_view_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
+import gleam/option.{type Option, Some}
 import plushie/app
 import plushie/gui
 import plushie/command
-import plushie/event.{type Event, WidgetClick}
+import plushie/event.{type Event, Click, EventTarget, Widget}
 import plushie/node.{type Node}
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/window
 
 type Model {
   Model(count: Int)
@@ -37,22 +41,30 @@ fn init() {
 
 fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "inc", ..) -> #(Model(count: model.count + 1), command.none())
-    WidgetClick(id: "dec", ..) -> #(Model(count: model.count - 1), command.none())
+    Widget(Click(target: EventTarget(id: "inc", ..))) ->
+      #(Model(count: model.count + 1), command.none())
+    Widget(Click(target: EventTarget(id: "dec", ..))) ->
+      #(Model(count: model.count - 1), command.none())
     _ -> #(model, command.none())
   }
 }
 
-fn view(model: Model) -> Node {
-  ui.window("main", [ui.title("Counter")], [
-    ui.column("content", [ui.padding(padding.all(16.0)), ui.spacing(8)], [
-      ui.text_("count", "Count: " <> int.to_string(model.count)),
-      ui.row("buttons", [ui.spacing(8)], [
-        ui.button_("inc", "+"),
-        ui.button_("dec", "-"),
-      ]),
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Counter")], [
+      ui.column(
+        "content",
+        [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
+        [
+          ui.text_("count", "Count: " <> int.to_string(model.count)),
+          ui.row("buttons", [row.Spacing(8.0)], [
+            ui.button_("inc", "+"),
+            ui.button_("dec", "-"),
+          ]),
+        ],
+      ),
     ]),
-  ])
+  )
 }
 
 pub fn main() {
@@ -79,9 +91,9 @@ PATH), then run `gleam run -m plushie/build`.
 
 The repo includes [several examples](examples/) you can try. Edit
 them while the GUI is running and see changes instantly. See the
-[getting started guide](docs/getting-started.md) for the full
-walkthrough, or browse the [docs](docs/) for all guides and
-references.
+[getting started guide](docs/guides/02-getting-started.md) for the
+full walkthrough, or browse the [docs](docs/README.md) for all guides
+and references.
 
 ## How it works
 
@@ -94,12 +106,13 @@ user events back over stdout.
 You don't need Rust to use plushie. The renderer is a precompiled
 binary, similar to how your app talks to a database without you
 writing C. If you ever need custom native rendering, the
-[extension system](docs/extensions.md) lets you write Rust for just
-those parts.
+[custom widgets guide](docs/guides/13-custom-widgets.md) shows how to
+compose widgets in Gleam and when to drop to Rust for native widgets.
 
 The same protocol works over a local pipe, an SSH connection, or
 any bidirectional byte stream - your code doesn't need to change.
-See the [running guide](docs/running.md) for deployment options.
+See the [shared state guide](docs/guides/16-shared-state.md) for
+deployment and remote rendering options.
 
 ## Features
 
@@ -166,8 +179,8 @@ pub fn add_and_complete_a_todo_test() {
 }
 ```
 
-See the [testing guide](docs/testing.md) for the full API, backend
-details, and CI configuration.
+See the [testing reference](docs/reference/testing.md) for the full
+API, backend details, and CI configuration.
 
 ## Status
 

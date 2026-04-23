@@ -5,20 +5,28 @@ Recipes for common UI patterns built from Plushie's built-in widgets.
 ## Tabs
 
 ```gleam
+import gleam/list
+import gleam/string
+import plushie/ui
+import plushie/widget/button
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/window
+
 fn view(model: Model) {
   let tabs = ["overview", "details", "settings"]
 
-  ui.window("main", "Tabs", [
-    ui.column_("", [
-      ui.row_("", list.map(tabs, fn(tab) {
+  ui.window("main", [window.Title("Tabs")], [
+    ui.column("tabs_layout", [], [
+      ui.row("tab_row", [], list.map(tabs, fn(tab) {
         ui.button("tab:" <> tab, string.capitalise(tab), [
           button.Style(case model.active_tab == tab {
-            True -> style_map.Primary
-            False -> style_map.Text
+            True -> button.Primary
+            False -> button.TextStyle
           }),
         ])
       })),
-      ui.rule_(""),
+      ui.rule("tab_rule", []),
       case model.active_tab {
         "overview" -> overview_content(model)
         "details" -> details_content(model)
@@ -34,12 +42,15 @@ fn view(model: Model) {
 Place overlays at the window level in a `stack`:
 
 ```gleam
-ui.window("main", "App", [
-  ui.stack_("", [
+import plushie/ui
+import plushie/widget/window
+
+ui.window("main", [window.Title("App")], [
+  ui.stack("layers", [], [
     main_content(model),
     case model.show_modal {
       True -> modal_overlay(model)
-      False -> ui.space_("")
+      False -> ui.space("modal_placeholder", [])
     },
   ]),
 ])
@@ -55,12 +66,18 @@ auto-dismiss and `command.announce` for screen reader announcements.
 The `overlay` widget positions floating content relative to an anchor:
 
 ```gleam
+import plushie/prop/padding
+import plushie/ui
+import plushie/widget/button
+import plushie/widget/container
+import plushie/widget/overlay
+
 ui.overlay("menu", [overlay.Position(overlay.Below), overlay.Gap(4)], [
   ui.button_("trigger", "Options"),
-  ui.container("dropdown", [container.Padding(8)], [
-    ui.column_("", [
-      ui.button("opt-edit", "Edit", [button.Style(style_map.Text)]),
-      ui.button("opt-delete", "Delete", [button.Style(style_map.Text)]),
+  ui.container("dropdown", [container.Padding(padding.all(8.0))], [
+    ui.column("menu_items", [], [
+      ui.button("opt-edit", "Edit", [button.Style(button.TextStyle)]),
+      ui.button("opt-delete", "Delete", [button.Style(button.TextStyle)]),
     ]),
   ]),
 ])
@@ -71,7 +88,7 @@ ui.overlay("menu", [overlay.Position(overlay.Below), overlay.Gap(4)], [
 Use `command.send_after` which cancels and restarts on each keystroke:
 
 ```gleam
-WidgetInput(id: "search", value: query, ..) -> {
+Widget(Input(target: EventTarget(id: "search", ..), value: query)) -> {
   let model = Model(..model, query: query)
   #(model, command.send_after(300, RunSearch(query)))
 }
@@ -85,18 +102,29 @@ with `pin` at cursor coordinates.
 ## Multi-window detail view
 
 ```gleam
-fn view(model: Model) {
-  let main = ui.window("main", "Items", [item_list(model)])
+import gleam/option
+import plushie/node
+import plushie/ui
+import plushie/widget/window
 
-  case model.detached_id {
-    option.Some(id) -> [
-      main,
-      ui.window_with("detail:" <> id, "Detail", [
-        window.ExitOnCloseRequest(False),
-      ], [detail_view(model, id)]),
-    ]
-    option.None -> [main]
-  }
+fn view(model: Model) {
+  option.Some(
+    node.empty_container()
+    |> node.with_children(
+      case model.detached_id {
+        option.Some(id) -> [
+          ui.window("main", [window.Title("Items")], [item_list(model)]),
+          ui.window("detail:" <> id, [
+            window.Title("Detail"),
+            window.ExitOnCloseRequest(False),
+          ], [detail_view(model, id)]),
+        ]
+        option.None -> [
+          ui.window("main", [window.Title("Items")], [item_list(model)]),
+        ]
+      },
+    )
+  )
 }
 ```
 

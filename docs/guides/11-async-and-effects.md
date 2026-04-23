@@ -2,23 +2,26 @@
 
 ## Async commands
 
-`command.async` runs a function in a separate process and delivers the
+`command.task` runs a function in a separate process and delivers the
 result as an event:
 
 ```gleam
 import plushie/command
 
-let cmd = command.task(fn() { Ok(fetch_data()) }, "data_loaded")
+let cmd = command.task(fn() { fetch_data() }, "data_loaded")
 #(Model(..model, status: Loading), cmd)
 ```
 
-The result arrives as an `AsyncResult` event:
+The result arrives as an `Async(AsyncEvent(...))` event:
 
 ```gleam
-AsyncResult(tag: "data_loaded", result: Ok(data), ..) ->
-  Model(..model, status: Done, data: data)
-AsyncResult(tag: "data_loaded", result: Error(reason), ..) ->
-  Model(..model, status: Failed, error: Some(reason))
+import plushie/command
+import plushie/event.{Async, AsyncEvent}
+
+Async(AsyncEvent(tag: "data_loaded", result: Ok(data))) ->
+  #(Model(..model, status: Done, data: data), command.none())
+Async(AsyncEvent(tag: "data_loaded", result: Error(_))) ->
+  #(Model(..model, status: Failed), command.none())
 ```
 
 ## Platform effects
@@ -30,20 +33,24 @@ Every effect takes a string tag as its first argument:
 import plushie/effect
 
 let cmd = effect.file_open("import", [
-  effect.Title("Import File"),
+  effect.DialogTitle("Import File"),
   effect.Filters([#("Gleam", "*.gleam")]),
 ])
 #(model, cmd)
 ```
 
-The result arrives as an `EffectResult` event:
+The result arrives as an `Effect(EffectEvent(...))` event:
 
 ```gleam
-EffectResult(tag: "import", result: Ok(data), ..) -> {
-  let path = data.path
-  // ... load the file
+import plushie/command
+import plushie/event.{Effect, EffectCancelled, EffectEvent, FileOpened}
+
+Effect(EffectEvent(tag: "import", result: FileOpened(path: path))) -> {
+  let _selected_path = path
+  #(model, command.none())
 }
-EffectResult(tag: "import", result: Cancelled, ..) -> model
+Effect(EffectEvent(tag: "import", result: EffectCancelled)) ->
+  #(model, command.none())
 ```
 
 Available effects:
@@ -56,23 +63,32 @@ Available effects:
 
 ## Multi-window
 
-Return multiple windows from `view`:
+Return a root node whose direct children are windows:
 
 ```gleam
-fn view(model: Model) {
-  let windows = [
-    ui.window("main", "My App", [main_content(model)]),
-  ]
+import gleam/option.{Some}
+import plushie/node
+import plushie/ui
+import plushie/widget/window
 
-  case model.detached {
-    True -> [
-      ui.window_with("detail", "Detail", [
-        window.ExitOnCloseRequest(False),
-      ], [detail_content(model)]),
-      ..windows
-    ]
-    False -> windows
-  }
+fn view(model: Model) {
+  Some(
+    node.empty_container()
+    |> node.with_children(
+      case model.detached {
+        True -> [
+          ui.window("main", [window.Title("My App")], [main_content(model)]),
+          ui.window("detail", [
+            window.Title("Detail"),
+            window.ExitOnCloseRequest(False),
+          ], [detail_content(model)]),
+        ]
+        False -> [
+          ui.window("main", [window.Title("My App")], [main_content(model)]),
+        ]
+      },
+    )
+  )
 }
 ```
 

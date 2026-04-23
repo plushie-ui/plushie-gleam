@@ -33,7 +33,7 @@ Both produce the same output. The convenience functions are shorter for
 simple cases; the builders are clearer when you have many options. You can
 mix both styles freely.
 
-The `_` suffix variants (`ui.button_`, `ui.column_`, etc.) take no options,
+The `_` suffix variants (`ui.button_`, `ui.text_`, etc.) take no options,
 keeping simple cases compact.
 
 ## The layout
@@ -41,42 +41,48 @@ keeping simple cases compact.
 Here is a split-pane layout with an editor and preview:
 
 ```gleam
+import gleam/option.{Some}
+import plushie/node.{type Node}
 import plushie/ui
+import plushie/widget/window
 import plushie/widget/column
 import plushie/widget/row
 import plushie/widget/container
 import plushie/widget/text_editor
 import plushie/prop/length.{Fill, FillPortion}
+import plushie/prop/padding
 
-fn view(model: Model) {
-  ui.window("main", "My App", [
-    ui.column("", "", [column.Width(Fill), column.Height(Fill)], [
-      ui.row("", "", [row.Width(Fill), row.Height(Fill)], [
-        ui.text_editor("editor", model.source, [
-          text_editor.Width(FillPortion(1)),
-          text_editor.Height(Fill),
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("My App")], [
+      ui.column("layout", [column.Width(Fill), column.Height(Fill)], [
+        ui.row("split", [row.Width(Fill), row.Height(Fill)], [
+          ui.text_editor("editor", model.source, [
+            text_editor.Width(FillPortion(1)),
+            text_editor.Height(Fill),
+          ]),
+          ui.container("preview", [
+            container.Width(FillPortion(1)),
+            container.Height(Fill),
+            container.Padding(padding.all(16.0)),
+          ], [
+            ui.text_("placeholder", "Preview area"),
+          ]),
         ]),
-        ui.container("preview", [
-          container.Width(FillPortion(1)),
-          container.Height(Fill),
-          container.Padding(16),
-        ], [
-          ui.text("placeholder", "Preview area"),
+        ui.row("actions", [], [
+          ui.button_("save", "Save"),
         ]),
-      ]),
-      ui.row_("", [
-        ui.button_("save", "Save"),
       ]),
     ]),
-  ])
+  )
 }
 ```
 
 ### text_editor
 
 `text_editor` is a multi-line editing widget. The `content` argument
-seeds the initial text, and subsequent changes arrive as `WidgetInput`
-events with the full content as the value.
+seeds the initial text, and subsequent changes arrive as
+`Widget(Input(...))` events with the full content as the value.
 
 Some widgets hold renderer-side state (cursor position, scroll offset,
 text selection). `text_editor`, `text_input`, `combo_box`, `scrollable`,

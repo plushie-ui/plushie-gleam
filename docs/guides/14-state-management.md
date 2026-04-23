@@ -63,7 +63,7 @@ Navigation stack for multi-view apps:
 import plushie/route
 
 let nav = route.new("editor")
-let nav = route.push(nav, "browser", [])
+let nav = route.push(nav, "browser")
 route.current(nav)        // "browser"
 route.can_go_back(nav)    // True
 

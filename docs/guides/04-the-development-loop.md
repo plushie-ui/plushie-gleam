@@ -4,12 +4,13 @@ In this chapter we cover hot reload and how to inspect a running app.
 
 ## Hot reload
 
-Pass `Dev(True)` in start options to enable hot code reloading:
+Set `dev: True` in `GuiOpts` to enable hot code reloading:
 
 ```gleam
-import plushie
+import plushie/gui
 
-let assert Ok(_) = plushie.start(app, [plushie.Dev(True)])
+let opts = gui.GuiOpts(..gui.default_opts(), dev: True)
+gui.run(app(), opts)
 ```
 
 Plushie watches your `src/` directory. Edit any `.gleam` file, save it,

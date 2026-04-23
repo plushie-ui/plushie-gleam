@@ -14,11 +14,11 @@ gleam new plushie_pad
 cd plushie_pad
 ```
 
-Open `gleam.toml` and add `plushie` to your dependencies:
+Open `gleam.toml` and add `plushie_gleam` to your dependencies:
 
 ```toml
 [dependencies]
-plushie = "~> 0.6"
+plushie_gleam = "~> 0.5"
 ```
 
 Pin to an exact version pre-1.0. The API may change between minor
@@ -56,28 +56,41 @@ gleam run -m plushie/build
 Create `src/hello.gleam`:
 
 ```gleam
-import plushie
 import plushie/app
+import plushie/command
+import plushie/gui
+import gleam/option.{type Option, Some}
 import plushie/ui
 import plushie/event.{type Event}
+import plushie/node.{type Node}
+import plushie/widget/window
 
 pub type Model {
   Model
 }
 
-pub fn main() {
-  let app =
-    app.simple(
-      fn(_opts) { Model },
-      fn(model, _event) { model },
-      fn(_model) {
-        ui.window("main", "Hello", [
-          ui.text("greeting", "Hello from Plushie"),
-        ])
-      },
-    )
+pub fn app() {
+  app.simple(init, update, view)
+}
 
-  let assert Ok(_) = plushie.start(app, [])
+pub fn main() {
+  gui.run(app(), gui.default_opts())
+}
+
+fn init() {
+  #(Model, command.none())
+}
+
+fn update(model: Model, _event: Event) {
+  #(model, command.none())
+}
+
+fn view(_model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Hello")], [
+      ui.text_("greeting", "Hello from Plushie"),
+    ]),
+  )
 }
 ```
 
@@ -95,55 +108,76 @@ Here is what each piece does:
 - `app.simple` creates an app with the three Elm architecture callbacks:
   `init`, `update`, and `view`. The `simple` variant uses `Event` as the
   message type directly.
+- `gui.run` starts the desktop runtime with `gui.default_opts()`.
 - `ui.window` creates a native OS window. The first argument is the
-  window's ID (here `"main"`). The second is the title bar text.
-- `ui.text` displays a read-only string. The first argument is the
-  widget ID, the second is the content to display.
+  window's ID (here `"main"`). Window options such as the title live in
+  the second argument, here `[window.Title("Hello")]`.
+- `ui.text_` displays a read-only string with no extra options. Use
+  `ui.text` when you need text-specific opts.
 
 ## The Elm loop: a counter
 
 Let us add interactivity. Create `src/counter.gleam`:
 
 ```gleam
-import plushie
 import plushie/app
-import plushie/ui
-import plushie/event.{type Event, WidgetClick}
+import plushie/command
+import plushie/gui
 import gleam/int
+import gleam/option.{type Option, Some}
+import plushie/ui
+import plushie/event.{type Event, Click, EventTarget, Widget}
+import plushie/node.{type Node}
+import plushie/prop/padding
+import plushie/widget/column
+import plushie/widget/row
+import plushie/widget/text
+import plushie/widget/window
 
 pub type Model {
   Model(count: Int)
 }
 
-pub fn main() {
-  let app =
-    app.simple(
-      fn(_opts) { Model(count: 0) },
-      update,
-      view,
-    )
-
-  let assert Ok(_) = plushie.start(app, [])
+pub fn app() {
+  app.simple(init, update, view)
 }
 
-fn update(model: Model, event: Event) -> Model {
+pub fn main() {
+  gui.run(app(), gui.default_opts())
+}
+
+fn init() {
+  #(Model(count: 0), command.none())
+}
+
+fn update(model: Model, event: Event) {
   case event {
-    WidgetClick(id: "increment", ..) -> Model(count: model.count + 1)
-    WidgetClick(id: "decrement", ..) -> Model(count: model.count - 1)
-    _ -> model
+    Widget(Click(target: EventTarget(id: "increment", ..))) ->
+      #(Model(count: model.count + 1), command.none())
+    Widget(Click(target: EventTarget(id: "decrement", ..))) ->
+      #(Model(count: model.count - 1), command.none())
+    _ -> #(model, command.none())
   }
 }
 
-fn view(model: Model) {
-  ui.window("main", "Counter", [
-    ui.column_("", [
-      ui.text("count", "Count: " <> int.to_string(model.count)),
-      ui.row_("", [
-        ui.button_("increment", "+"),
-        ui.button_("decrement", "-"),
-      ]),
+fn view(model: Model) -> Option(Node) {
+  Some(
+    ui.window("main", [window.Title("Counter")], [
+      ui.column(
+        "content",
+        [column.Padding(padding.all(16.0)), column.Spacing(8.0)],
+        [
+          ui.text("count", "Count: " <> int.to_string(model.count), [
+            text.Size(20.0),
+          ]),
+          ui.row("buttons", [row.Spacing(8.0)], [
+            ui.button_("increment", "+"),
+            ui.button_("decrement", "-"),
+          ]),
+        ],
+      ),
     ]),
-  ])
+  )
 }
 ```
 
@@ -157,12 +191,10 @@ Click the "+" and "-" buttons. The count updates on every click.
 
 Here is what is new:
 
-- `WidgetClick` is the event variant delivered when a button is clicked.
-  It carries the `id` of the widget and a `scope` list of ancestor
-  container IDs.
-- `ui.column_` is a vertical layout container (the `_` suffix means no
-  options). Children stack top to bottom.
-- `ui.row_` is a horizontal layout container. Children flow left to right.
+- `Widget(Click(...))` is the event variant delivered when a button is
+  clicked. `EventTarget` carries the widget `id` plus scoped path data.
+- `ui.column` is a vertical layout container. Children stack top to bottom.
+- `ui.row` is a horizontal layout container. Children flow left to right.
 - `ui.button_` is a clickable button. The first argument is the widget ID,
   the second is the label text.
 
@@ -181,6 +213,7 @@ Plushie apps are easy to test. Write a test for the counter in
 
 ```gleam
 import gleeunit
+import counter
 import plushie/testing
 
 pub fn main() {
@@ -189,8 +222,8 @@ pub fn main() {
 
 pub fn increment_test() {
   let session = testing.start(counter.app())
-  testing.click(session, "#increment")
-  testing.assert_text(session, "#count", "Count: 1")
+  let session = testing.click(session, "increment")
+  testing.assert_text(session, "count", "Count: 1")
 }
 ```
 
@@ -207,17 +240,18 @@ The full testing framework is covered in [chapter 15](15-testing.md).
 ## Enabling hot reload
 
 During development, you want to see changes reflected immediately
-without restarting the application. Pass `dev: True` in start options
-to enable hot code reloading:
+without restarting the application. Set `dev: True` in `GuiOpts` to
+enable hot code reloading:
 
 ```gleam
-let assert Ok(_) = plushie.start(app, [plushie.Dev(True)])
+let opts = gui.GuiOpts(..gui.default_opts(), dev: True)
+gui.run(app(), opts)
 ```
 
-Or use the CLI with the `--watch` flag:
+Then run the app module normally:
 
 ```bash
-gleam run -m plushie/cli/gui -- counter --watch
+gleam run -m counter
 ```
 
 The dev server watches your `src/` directory for `.gleam` file changes,
@@ -232,8 +266,9 @@ at a time. Save after each one and watch the window update:
 - Change the button labels from "+" and "-" to "Increment" and "Decrement".
 - Add a reset button. Put `ui.button_("reset", "Reset")` in the row
   and add a matching clause in `update` that sets count back to `0`.
-- Change `ui.column_` to `ui.row_` and `ui.row_` to `ui.column_` to flip
-  the layout. See how the same widgets rearrange.
+- Change `ui.column` to `ui.row` and `ui.row` to `ui.column` to flip
+  the layout. Keep the matching option modules in sync too. See how the
+  same widgets rearrange.
 
 When you are comfortable with the init/update/view cycle and hot reload,
 you are ready for the next chapter.

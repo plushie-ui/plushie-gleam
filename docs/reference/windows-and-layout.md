@@ -8,8 +8,8 @@ containers to arrange widgets.
 `plushie/widget/window`
 
 ```gleam
-ui.window("main", "My App", [main_content(model)])
-ui.window_with("main", "My App", [window.Theme(theme.Dark)], [...])
+ui.window("main", [window.Title("My App")], [main_content(model)])
+ui.window("main", [window.Title("My App"), window.Theme(theme.Dark)], [...])
 ```
 
 ### Window props
@@ -33,19 +33,30 @@ ui.window_with("main", "My App", [window.Theme(theme.Dark)], [...])
 
 ### Multi-window
 
-Return multiple windows from `view`:
+Return a root node whose direct children are windows:
 
 ```gleam
+import gleam/option.{Some}
+import plushie/node
+
 fn view(model: Model) {
-  [
-    ui.window("main", "App", [main_content(model)]),
-    case model.show_settings {
-      True -> ui.window_with("settings", "Settings", [
-        window.ExitOnCloseRequest(False),
-      ], [settings_content(model)])
-      False -> ui.space_("")
-    },
-  ]
+  Some(
+    node.empty_container()
+    |> node.with_children(
+      case model.show_settings {
+        True -> [
+          ui.window("main", [window.Title("App")], [main_content(model)]),
+          ui.window("settings", [
+            window.Title("Settings"),
+            window.ExitOnCloseRequest(False),
+          ], [settings_content(model)]),
+        ]
+        False -> [
+          ui.window("main", [window.Title("App")], [main_content(model)]),
+        ]
+      },
+    )
+  )
 }
 ```
 
@@ -58,7 +69,7 @@ fn view(model: Model) {
 | `Shrink` | Content size (default) |
 | `Fill` | All available space |
 | `FillPortion(n)` | Proportional share |
-| `Px(n)` | Exact pixels |
+| `Fixed(n)` | Exact pixels |
 
 ## Padding
 
@@ -66,10 +77,10 @@ fn view(model: Model) {
 
 ```gleam
 // Uniform
-column.Padding(16)
+column.Padding(padding.all(16.0))
 
 // Per-side
-column.PaddingEach(padding.new(top: 16, bottom: 8, left: 12, right: 12))
+column.Padding(padding.Padding(top: 16.0, right: 12.0, bottom: 8.0, left: 12.0))
 ```
 
 ## Alignment
