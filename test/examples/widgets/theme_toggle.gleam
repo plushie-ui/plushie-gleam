@@ -17,6 +17,7 @@ import gleam/option
 import plushie/canvas/shape
 import plushie/event.{type Event, Click, EventTarget, Timer, TimerEvent, Widget}
 import plushie/node.{type Node, type PropValue}
+import plushie/platform
 import plushie/prop/length
 import plushie/subscription
 import plushie/widget.{
@@ -94,7 +95,7 @@ fn render(id: String, _props: Nil, state: ToggleState) -> Node {
   let half_h = int.to_float(track_h) /. 2.0
   let thumb_x = lerp(half_h, int.to_float(track_w) -. half_h, eased)
   let track_color = lerp_color(#(253, 230, 138), #(91, 33, 182), eased)
-  let rotation = eased *. pi()
+  let rotation = eased *. platform.math_pi()
   let face_color = case progress <. 0.5 {
     True -> "#665500"
     False -> "#4c1d95"
@@ -239,7 +240,3 @@ fn set_radius(shape_val: PropValue, r: Float) -> PropValue {
   let assert node.DictVal(d) = shape_val
   node.DictVal(dict.insert(d, "radius", node.FloatVal(r)))
 }
-
-@external(erlang, "math", "pi")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathPi")
-fn pi() -> Float

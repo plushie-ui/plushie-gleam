@@ -24,6 +24,7 @@ import gleam/string
 import plushie/canvas/shape
 import plushie/event.{type Event, Click, Enter, EventTarget, Exit, Widget}
 import plushie/node.{type Node, DictVal, FloatVal, StringVal}
+import plushie/platform
 import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget.{
@@ -258,12 +259,16 @@ fn star_commands(outer_r: Float, inner_r: Float) -> List(shape.PathCommand) {
   let points =
     range(0, 9)
     |> list.map(fn(i) {
-      let angle = pi() /. 2.0 +. int.to_float(i) *. { pi() /. 5.0 }
+      let angle =
+        platform.math_pi()
+        /. 2.0
+        +. int.to_float(i)
+        *. { platform.math_pi() /. 5.0 }
       let r = case i % 2 == 0 {
         True -> outer_r
         False -> inner_r
       }
-      #(r *. cos(angle), 0.0 -. r *. sin(angle))
+      #(r *. platform.math_cos(angle), 0.0 -. r *. platform.math_sin(angle))
     })
 
   case points {
@@ -323,17 +328,3 @@ fn range(from: Int, to: Int) -> List(Int) {
     False -> [from, ..range(from + 1, to)]
   }
 }
-
-// -- FFI (Erlang math) --------------------------------------------------------
-
-@external(erlang, "math", "cos")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathCos")
-fn cos(x: Float) -> Float
-
-@external(erlang, "math", "sin")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathSin")
-fn sin(x: Float) -> Float
-
-@external(erlang, "math", "pi")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathPi")
-fn pi() -> Float

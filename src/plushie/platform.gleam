@@ -112,6 +112,26 @@ pub fn math_cos(x: Float) -> Float
 @external(javascript, "../plushie_platform_ffi.mjs", "mathPow")
 pub fn math_pow(base: Float, exponent: Float) -> Float
 
+/// Square root function.
+@external(erlang, "math", "sqrt")
+@external(javascript, "../plushie_platform_ffi.mjs", "mathSqrt")
+pub fn math_sqrt(x: Float) -> Float
+
+/// Two-argument arctangent function.
+@external(erlang, "math", "atan2")
+@external(javascript, "../plushie_platform_ffi.mjs", "mathAtan2")
+pub fn math_atan2(y: Float, x: Float) -> Float
+
+/// Pi constant.
+@external(erlang, "math", "pi")
+@external(javascript, "../plushie_platform_ffi.mjs", "mathPi")
+pub fn math_pi() -> Float
+
+/// Floor function.
+@external(erlang, "math", "floor")
+@external(javascript, "../plushie_platform_ffi.mjs", "mathFloor")
+pub fn math_floor(x: Float) -> Float
+
 // -- Environment and filesystem -----------------------------------------------
 // These functions degrade gracefully in browser contexts:
 // get_env returns Error, set_env/unset_env are no-ops, file_exists

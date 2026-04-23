@@ -11,16 +11,18 @@
 
 import gleam/dict
 import gleam/dynamic
+import gleam/dynamic/decode as dyn_decode
 import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option
 import plushie/canvas/shape
 import plushie/event.{
-  type Event, type Modifiers, CustomWidget, EventTarget, LeftButton, Move, Press,
-  Release, Widget,
+  type Event, type Modifiers, CustomWidget, EventTarget, LeftButton, Modifiers,
+  Move, Press, Release, Widget, modifiers_none,
 }
 import plushie/node.{type Node, type PropValue, DictVal, FloatVal, StringVal}
+import plushie/platform
 import plushie/prop/a11y
 import plushie/prop/length
 import plushie/widget.{
@@ -100,7 +102,7 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
     Widget(Press(x: x, y: y, button: LeftButton, ..)) -> {
       let dx = x -. cx()
       let dy = y -. cy()
-      let dist = sqrt(dx *. dx +. dy *. dy)
+      let dist = platform.math_sqrt(dx *. dx +. dy *. dy)
       case dist >=. inner_radius && dist <=. outer_radius {
         True -> {
           let new_state =
@@ -138,20 +140,65 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
     Widget(CustomWidget(
       kind: "element_key_press",
       target: EventTarget(id: "hue-cursor", ..),
+      data: data,
       ..,
-    )) -> #(Consumed, state)
+    )) -> {
+      let #(key, mods) = decode_element_key_press(data)
+      handle_hue_key(key, mods, state)
+    }
 
     Widget(CustomWidget(
       kind: "element_key_press",
       target: EventTarget(id: "sv-cursor", ..),
+      data: data,
       ..,
-    )) -> #(Consumed, state)
+    )) -> {
+      let #(key, mods) = decode_element_key_press(data)
+      handle_sv_key(key, mods, state)
+    }
 
     _ -> #(Consumed, state)
   }
 }
 
 // -- Keyboard ----------------------------------------------------------------
+
+fn decode_element_key_press(data: dynamic.Dynamic) -> #(String, Modifiers) {
+  let key = case
+    dyn_decode.run(data, dyn_decode.at(["key"], dyn_decode.string))
+  {
+    Ok(value) -> value
+    Error(_) -> ""
+  }
+
+  let modifiers = case
+    dyn_decode.run(data, dyn_decode.at(["modifiers"], dyn_decode.dynamic))
+  {
+    Ok(raw) -> decode_modifiers(raw)
+    Error(_) -> modifiers_none()
+  }
+
+  #(key, modifiers)
+}
+
+fn decode_modifiers(raw: dynamic.Dynamic) -> Modifiers {
+  let get_field = fn(name) {
+    case dyn_decode.run(raw, dyn_decode.at([name], dyn_decode.bool)) {
+      Ok(value) -> value
+      Error(_) -> False
+    }
+  }
+
+  let ctrl = get_field("ctrl")
+
+  Modifiers(
+    ctrl:,
+    shift: get_field("shift"),
+    alt: get_field("alt"),
+    logo: get_field("logo"),
+    command: get_field("command") || ctrl,
+  )
+}
 
 fn handle_hue_key(
   key: String,
@@ -268,9 +315,9 @@ fn render(id: String, _props: Nil, state: PickerState) -> Node {
 
 fn cursors_layer(state: PickerState) -> List(PropValue) {
   let mid_r = { inner_radius +. outer_radius } /. 2.0
-  let angle = { state.hue -. 90.0 } *. pi() /. 180.0
-  let ring_x = cx() +. mid_r *. cos(angle)
-  let ring_y = cy() +. mid_r *. sin(angle)
+  let angle = { state.hue -. 90.0 } *. platform.math_pi() /. 180.0
+  let ring_x = cx() +. mid_r *. platform.math_cos(angle)
+  let ring_y = cy() +. mid_r *. platform.math_sin(angle)
 
   let sv_x = sq_orig +. state.saturation *. sq_sz
   let sv_y = sq_orig +. { 1.0 -. state.value } *. sq_sz
@@ -353,27 +400,28 @@ fn ring_layer() -> List(PropValue) {
   range_list(0, segments - 1)
   |> list.map(fn(i) {
     let hue_deg = int.to_float(i) *. deg_per_segment
-    let a1 = { hue_deg -. 90.0 } *. pi() /. 180.0
-    let a2 = { hue_deg +. deg_per_segment -. 90.0 } *. pi() /. 180.0
+    let a1 = { hue_deg -. 90.0 } *. platform.math_pi() /. 180.0
+    let a2 =
+      { hue_deg +. deg_per_segment -. 90.0 } *. platform.math_pi() /. 180.0
     let ctr_x = cx()
     let ctr_y = cy()
     shape.path(
       [
         shape.MoveTo(
-          x: ctr_x +. inner_radius *. cos(a1),
-          y: ctr_y +. inner_radius *. sin(a1),
+          x: ctr_x +. inner_radius *. platform.math_cos(a1),
+          y: ctr_y +. inner_radius *. platform.math_sin(a1),
         ),
         shape.LineTo(
-          x: ctr_x +. outer_radius *. cos(a1),
-          y: ctr_y +. outer_radius *. sin(a1),
+          x: ctr_x +. outer_radius *. platform.math_cos(a1),
+          y: ctr_y +. outer_radius *. platform.math_sin(a1),
         ),
         shape.LineTo(
-          x: ctr_x +. outer_radius *. cos(a2),
-          y: ctr_y +. outer_radius *. sin(a2),
+          x: ctr_x +. outer_radius *. platform.math_cos(a2),
+          y: ctr_y +. outer_radius *. platform.math_sin(a2),
         ),
         shape.LineTo(
-          x: ctr_x +. inner_radius *. cos(a2),
-          y: ctr_y +. inner_radius *. sin(a2),
+          x: ctr_x +. inner_radius *. platform.math_cos(a2),
+          y: ctr_y +. inner_radius *. platform.math_sin(a2),
         ),
         shape.Close,
       ],
@@ -425,13 +473,13 @@ fn in_square(x: Float, y: Float) -> Bool {
 // -- Coordinate math ----------------------------------------------------------
 
 fn hue_from_point(dx: Float, dy: Float) -> Float {
-  let angle = atan2(dy, dx)
-  let hue = angle +. pi() /. 2.0
+  let angle = platform.math_atan2(dy, dx)
+  let hue = angle +. platform.math_pi() /. 2.0
   let hue = case hue <. 0.0 {
-    True -> hue +. 2.0 *. pi()
+    True -> hue +. 2.0 *. platform.math_pi()
     False -> hue
   }
-  hue *. 180.0 /. pi()
+  hue *. 180.0 /. platform.math_pi()
 }
 
 fn apply_sv(state: PickerState, x: Float, y: Float) -> PickerState {
@@ -510,7 +558,7 @@ fn hex_digit(n: Int) -> String {
 }
 
 fn fmod(a: Float, b: Float) -> Float {
-  a -. b *. float_floor(a /. b)
+  a -. b *. platform.math_floor(a /. b)
 }
 
 fn float_abs(x: Float) -> Float {
@@ -526,29 +574,3 @@ fn range_list(from: Int, to: Int) -> List(Int) {
     False -> [from, ..range_list(from + 1, to)]
   }
 }
-
-// -- FFI (Erlang math) --------------------------------------------------------
-
-@external(erlang, "math", "cos")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathCos")
-fn cos(x: Float) -> Float
-
-@external(erlang, "math", "sin")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathSin")
-fn sin(x: Float) -> Float
-
-@external(erlang, "math", "sqrt")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathSqrt")
-fn sqrt(x: Float) -> Float
-
-@external(erlang, "math", "atan2")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathAtan2")
-fn atan2(y: Float, x: Float) -> Float
-
-@external(erlang, "math", "pi")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathPi")
-fn pi() -> Float
-
-@external(erlang, "math", "floor")
-@external(javascript, "../../../plushie_platform_ffi.mjs", "mathFloor")
-fn float_floor(x: Float) -> Float

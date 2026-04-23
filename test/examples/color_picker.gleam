@@ -26,6 +26,8 @@ import plushie/event.{type Event, CustomWidget, EventTarget, Widget}
 @target(erlang)
 import plushie/node.{type Node}
 @target(erlang)
+import plushie/platform
+@target(erlang)
 import plushie/prop/a11y
 @target(erlang)
 import plushie/prop/border
@@ -154,7 +156,7 @@ fn hex_digit(n: Int) -> String {
 
 @target(erlang)
 fn fmod(a: Float, b: Float) -> Float {
-  a -. b *. float_floor(a /. b)
+  a -. b *. platform.math_floor(a /. b)
 }
 
 @target(erlang)
@@ -243,12 +245,6 @@ fn unsafe_color(hex: String) -> color.Color {
   let assert Ok(c) = color.from_hex(hex)
   c
 }
-
-// -- FFI (Erlang math) --------------------------------------------------------
-
-@external(erlang, "math", "floor")
-@external(javascript, "../../plushie_platform_ffi.mjs", "mathFloor")
-fn float_floor(x: Float) -> Float
 
 // -- Entry point --------------------------------------------------------------
 
