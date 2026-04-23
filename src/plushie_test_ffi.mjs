@@ -6,6 +6,11 @@
 
 import { toList } from "./gleam.mjs";
 import { setPlushieAppConstructor } from "./plushie_bridge_web_ffi.mjs";
+import {
+  createHandle,
+  startAsync,
+  startStream,
+} from "./plushie_runtime_web_ffi.mjs";
 
 const fakePlushieState = {
   sent: [],
@@ -91,4 +96,94 @@ export function set_immediate_effect_timeouts(enabled) {
 
 export function set_immediate_clipboard_text_response(text) {
   fakePlushieState.immediateClipboardText = text;
+}
+
+export function async_task_cleans_up_when_stopped_during_sync_throw() {
+  const handle = createHandle(null, null, null, "", null, null);
+  let completions = 0;
+  handle.onAsyncComplete = () => {
+    completions += 1;
+  };
+
+  startAsync(handle, "sync-throw", () => {
+    handle.stopped = true;
+    throw new Error("stopped");
+  });
+
+  return handle.asyncTasks.size === 0 && completions === 0;
+}
+
+export function async_task_cleans_up_when_stopped_before_promise_resolve() {
+  const handle = createHandle(null, null, null, "", null, null);
+  let completions = 0;
+  let resolveLater = null;
+  handle.onAsyncComplete = () => {
+    completions += 1;
+  };
+
+  startAsync(handle, "promise-resolve", () => ({
+    then(resolve, _reject) {
+      resolveLater = resolve;
+    },
+  }));
+
+  handle.stopped = true;
+  resolveLater?.("ok");
+
+  return handle.asyncTasks.size === 0 && completions === 0;
+}
+
+export function async_task_cleans_up_when_stopped_before_promise_reject() {
+  const handle = createHandle(null, null, null, "", null, null);
+  let completions = 0;
+  let rejectLater = null;
+  handle.onAsyncComplete = () => {
+    completions += 1;
+  };
+
+  startAsync(handle, "promise-reject", () => ({
+    then(_resolve, reject) {
+      rejectLater = reject;
+    },
+  }));
+
+  handle.stopped = true;
+  rejectLater?.(new Error("stopped"));
+
+  return handle.asyncTasks.size === 0 && completions === 0;
+}
+
+export function async_task_cleans_up_when_cancelled_before_promise_resolve() {
+  const handle = createHandle(null, null, null, "", null, null);
+  let completions = 0;
+  let resolveLater = null;
+  handle.onAsyncComplete = () => {
+    completions += 1;
+  };
+
+  startAsync(handle, "promise-cancel", () => ({
+    then(resolve, _reject) {
+      resolveLater = resolve;
+    },
+  }));
+
+  handle.asyncTasks.get("promise-cancel")?.cancel();
+  resolveLater?.("ok");
+
+  return handle.asyncTasks.size === 0 && completions === 0;
+}
+
+export function stream_task_cleans_up_when_stopped_during_sync_throw() {
+  const handle = createHandle(null, null, null, "", null, null);
+  let completions = 0;
+  handle.onAsyncComplete = () => {
+    completions += 1;
+  };
+
+  startStream(handle, "stream-throw", () => {
+    handle.stopped = true;
+    throw new Error("stopped");
+  });
+
+  return handle.asyncTasks.size === 0 && completions === 0;
 }

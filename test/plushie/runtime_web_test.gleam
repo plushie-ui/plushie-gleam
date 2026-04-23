@@ -27,6 +27,11 @@ import plushie/node.{StringVal}
 @target(javascript)
 import plushie_web
 
+@target(erlang)
+pub fn main() -> Nil {
+  Nil
+}
+
 @target(javascript)
 type Model {
   Model(events: List(String))
@@ -185,6 +190,36 @@ pub fn stale_effect_response_is_ignored_after_tag_reuse_test() {
 }
 
 @target(javascript)
+pub fn async_task_entry_is_deleted_when_stopped_before_sync_error_test() {
+  async_task_cleans_up_when_stopped_during_sync_throw()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn async_task_entry_is_deleted_when_stopped_before_promise_resolve_test() {
+  async_task_cleans_up_when_stopped_before_promise_resolve()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn async_task_entry_is_deleted_when_stopped_before_promise_reject_test() {
+  async_task_cleans_up_when_stopped_before_promise_reject()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn async_task_entry_is_deleted_when_cancelled_before_promise_resolve_test() {
+  async_task_cleans_up_when_cancelled_before_promise_resolve()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn stream_task_entry_is_deleted_when_stopped_before_sync_error_test() {
+  stream_task_cleans_up_when_stopped_during_sync_throw()
+  |> should.be_true
+}
+
+@target(javascript)
 pub fn main() -> Nil {
   gleeunit.main()
 }
@@ -212,3 +247,23 @@ fn set_immediate_effect_timeouts(enabled: Bool) -> Nil
 @target(javascript)
 @external(javascript, "../../plushie_test_ffi.mjs", "set_immediate_clipboard_text_response")
 fn set_immediate_clipboard_text_response(text: String) -> Nil
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "async_task_cleans_up_when_stopped_during_sync_throw")
+fn async_task_cleans_up_when_stopped_during_sync_throw() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "async_task_cleans_up_when_stopped_before_promise_resolve")
+fn async_task_cleans_up_when_stopped_before_promise_resolve() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "async_task_cleans_up_when_stopped_before_promise_reject")
+fn async_task_cleans_up_when_stopped_before_promise_reject() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "async_task_cleans_up_when_cancelled_before_promise_resolve")
+fn async_task_cleans_up_when_cancelled_before_promise_resolve() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "stream_task_cleans_up_when_stopped_during_sync_throw")
+fn stream_task_cleans_up_when_stopped_during_sync_throw() -> Bool

@@ -8,6 +8,8 @@ import plushie/patch.{InsertChild, RemoveChild, ReplaceNode, UpdateProps}
 import plushie/platform
 import plushie/support
 import plushie/tree
+import plushie/ui
+import plushie/widget
 
 // --- normalize ---------------------------------------------------------------
 
@@ -305,6 +307,41 @@ pub fn normalize_no_warning_on_unique_sibling_ids_test() {
 
   let result = tree.normalize(root)
   should.equal(result.children |> list.map(fn(c) { c.id }), ["root/a", "root/b"])
+}
+
+pub fn memo_cache_only_carries_active_render_nodes_test() {
+  let first =
+    node.new("main", "window")
+    |> node.with_children([
+      ui.memo("old", 1, fn() { node.new("old", "text") }),
+      ui.memo("kept", 1, fn() { node.new("kept", "text") }),
+    ])
+
+  let first_result =
+    tree.normalize_with_memo(
+      first,
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+    )
+
+  should.equal(dict.size(first_result.memo_cache), 2)
+
+  let second =
+    node.new("main", "window")
+    |> node.with_children([
+      ui.memo("kept", 1, fn() { node.new("kept", "text") }),
+    ])
+
+  let second_result =
+    tree.normalize_with_memo(
+      second,
+      widget.empty_registry(),
+      first_result.memo_cache,
+    )
+
+  should.equal(dict.size(second_result.memo_cache), 1)
+  should.equal(dict.has_key(second_result.memo_cache, "main#memo:kept"), True)
+  should.equal(dict.has_key(second_result.memo_cache, "main#memo:old"), False)
 }
 
 // --- diff --------------------------------------------------------------------

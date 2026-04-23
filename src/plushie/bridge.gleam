@@ -208,6 +208,12 @@ pub type RuntimeNotification {
 @target(erlang)
 const max_json_buffer_size = 67_108_864
 
+@target(erlang)
+const max_queued_messages = 1024
+
+@target(erlang)
+const max_event_buffer = 256
+
 // Maximum backoff delay (5 seconds).
 @target(erlang)
 const max_backoff_ms = 5000
@@ -677,7 +683,8 @@ fn handle_message(
           actor.continue(state)
         }
         _, _ -> {
-          let queued = [data, ..state.queued_messages]
+          let queued =
+            bounded_prepend(state.queued_messages, data, max_queued_messages)
           actor.continue(BridgeState(..state, queued_messages: queued))
         }
       }
@@ -1059,7 +1066,22 @@ fn buffer_or_send(
       state
     }
     None ->
-      BridgeState(..state, event_buffer: [notification, ..state.event_buffer])
+      BridgeState(
+        ..state,
+        event_buffer: bounded_prepend(
+          state.event_buffer,
+          notification,
+          max_event_buffer,
+        ),
+      )
+  }
+}
+
+@target(erlang)
+fn bounded_prepend(items: List(a), item: a, max_size: Int) -> List(a) {
+  case list.length(items) < max_size {
+    True -> [item, ..items]
+    False -> [item, ..list.take(items, max_size - 1)]
   }
 }
 

@@ -345,35 +345,28 @@ export function startAsync(handle, tag, work) {
       // Promise-based async
       result.then(
         (value) => {
-          if (cancelled || handle.stopped) return;
-          const current = handle.asyncTasks.get(tag);
-          if (!current || current.nonce !== nonce) return;
-          handle.asyncTasks.delete(tag);
-          handle.onAsyncComplete?.(tag, new Ok(value));
+          settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
+            handle.onAsyncComplete?.(tag, new Ok(value));
+          });
         },
         (error) => {
-          if (cancelled || handle.stopped) return;
-          const current = handle.asyncTasks.get(tag);
-          if (!current || current.nonce !== nonce) return;
-          handle.asyncTasks.delete(tag);
-          handle.onAsyncComplete?.(tag, new Error(error));
+          settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
+            handle.onAsyncComplete?.(tag, new Error(error));
+          });
         },
       );
     } else {
       // Synchronous result; defer to next microtask
       queueMicrotask(() => {
-        if (cancelled || handle.stopped) return;
-        const current = handle.asyncTasks.get(tag);
-        if (!current || current.nonce !== nonce) return;
-        handle.asyncTasks.delete(tag);
-        handle.onAsyncComplete?.(tag, new Ok(result));
+        settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
+          handle.onAsyncComplete?.(tag, new Ok(result));
+        });
       });
     }
   } catch (error) {
-    if (!cancelled && !handle.stopped) {
-      handle.asyncTasks.delete(tag);
+    settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
       handle.onAsyncComplete?.(tag, new Error(error));
-    }
+    });
   }
 }
 
@@ -399,10 +392,9 @@ export function startStream(handle, tag, work) {
   try {
     work(emit);
   } catch (error) {
-    if (!cancelled && !handle.stopped) {
-      handle.asyncTasks.delete(tag);
+    settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
       handle.onAsyncComplete?.(tag, new Error(error));
-    }
+    });
   }
 }
 
@@ -412,4 +404,14 @@ export function cancelAsync(handle, tag) {
     task.cancel();
     handle.asyncTasks.delete(tag);
   }
+}
+
+function settleAsyncTask(handle, tag, nonce, isCancelled, notify) {
+  const current = handle.asyncTasks.get(tag);
+  if (!current || current.nonce !== nonce) return;
+
+  handle.asyncTasks.delete(tag);
+  if (isCancelled() || handle.stopped) return;
+
+  notify();
 }
