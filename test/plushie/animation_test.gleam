@@ -1,9 +1,12 @@
+import gleam/dict
 import gleam/list
 import gleeunit/should
 import plushie/animation/easing.{
   EaseIn, EaseInOut, EaseOut, EaseOutElastic, Linear,
 }
+import plushie/animation/spring
 import plushie/animation/tween
+import plushie/node.{DictVal, FloatVal, StringVal}
 
 pub fn new_creates_unstarted_animation_test() {
   let anim = tween.new(0.0, 100.0, 1000, Linear)
@@ -82,4 +85,20 @@ pub fn elastic_easing_basic_test() {
   // Elastic should produce a value at midpoint without crashing
   let v = easing.apply(EaseOutElastic, 0.5)
   assert v >. 0.0
+}
+
+pub fn spring_presets_match_cross_sdk_contract_test() {
+  let presets = [
+    #(spring.gentle(1.0), 120.0, 14.0),
+    #(spring.bouncy(1.0), 300.0, 10.0),
+    #(spring.stiff(1.0), 400.0, 30.0),
+    #(spring.snappy(1.0), 200.0, 20.0),
+    #(spring.molasses(1.0), 60.0, 12.0),
+  ]
+
+  use #(encoded, stiffness, damping) <- list.each(presets)
+  let assert DictVal(fields) = spring.encode(encoded)
+  should.equal(dict.get(fields, "type"), Ok(StringVal("spring")))
+  should.equal(dict.get(fields, "stiffness"), Ok(FloatVal(stiffness)))
+  should.equal(dict.get(fields, "damping"), Ok(FloatVal(damping)))
 }

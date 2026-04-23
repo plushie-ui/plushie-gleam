@@ -60,27 +60,27 @@ pub fn gentle(to: Float) -> Spring {
 }
 
 /// Bouncy preset: quick with visible overshoot.
-/// (stiffness: 600, damping: 15)
+/// (stiffness: 300, damping: 10)
 pub fn bouncy(to: Float) -> Spring {
-  new(to:, stiffness: 600.0, damping: 15.0)
+  new(to:, stiffness: 300.0, damping: 10.0)
 }
 
 /// Stiff preset: very quick, crisp stop.
-/// (stiffness: 600, damping: 30)
+/// (stiffness: 400, damping: 30)
 pub fn stiff(to: Float) -> Spring {
-  new(to:, stiffness: 600.0, damping: 30.0)
+  new(to:, stiffness: 400.0, damping: 30.0)
 }
 
 /// Snappy preset: quick, minimal overshoot.
-/// (stiffness: 400, damping: 25)
+/// (stiffness: 200, damping: 20)
 pub fn snappy(to: Float) -> Spring {
-  new(to:, stiffness: 400.0, damping: 25.0)
+  new(to:, stiffness: 200.0, damping: 20.0)
 }
 
 /// Molasses preset: slow, heavy, deliberate.
-/// (stiffness: 60, damping: 18)
+/// (stiffness: 60, damping: 12)
 pub fn molasses(to: Float) -> Spring {
-  new(to:, stiffness: 60.0, damping: 18.0)
+  new(to:, stiffness: 60.0, damping: 12.0)
 }
 
 /// Set the mass (higher = slower, heavier).
