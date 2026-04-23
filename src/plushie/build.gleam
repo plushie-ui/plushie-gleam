@@ -189,11 +189,7 @@ fn require_plushie_rust_version() -> String {
   case config.plushie_rust_version() {
     Ok(v) -> v
     Error(_) -> {
-      io.println_error(
-        "Error: plushie_rust_version not declared in gleam.toml. Expected:",
-      )
-      io.println_error("")
-      io.println_error("  plushie_rust_version = \"0.6.1\"")
+      io.println_error(config.missing_plushie_rust_version_message())
       halt(1)
       panic as "unreachable"
     }

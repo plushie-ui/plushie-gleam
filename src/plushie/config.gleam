@@ -4,6 +4,9 @@
 //// provide per-project defaults for build and download commands.
 //// CLI flags always override config values.
 ////
+//// `plushie_rust_version` is a root-level key. It pins the
+//// plushie-rust release used by build and download tooling.
+////
 //// ## Supported keys
 ////
 //// ```toml
@@ -51,6 +54,14 @@ pub fn get_string(key: String) -> Result(String, Nil) {
 /// and to embed into the generated renderer workspace.
 pub fn plushie_rust_version() -> Result(String, Nil) {
   read_root_string("plushie_rust_version")
+}
+
+@target(erlang)
+/// Message shown when the root-level plushie_rust_version key is missing.
+pub fn missing_plushie_rust_version_message() -> String {
+  "Error: plushie_rust_version not declared in gleam.toml.\n\n"
+  <> "Add a root-level key like:\n\n"
+  <> "  plushie_rust_version = \"<plushie-rust release>\""
 }
 
 @target(erlang)

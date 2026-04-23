@@ -30,9 +30,6 @@ import plushie/config
 import plushie/platform
 
 @target(erlang)
-const plushie_rust_version = "0.6.1"
-
-@target(erlang)
 const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
 
 @target(erlang)
@@ -42,6 +39,7 @@ const wasm_archive = "plushie-renderer-wasm.tar.gz"
 /// Entry point for `gleam run -m plushie/download`.
 pub fn main() -> Nil {
   let force = has_flag("--force")
+  let rust_version = require_plushie_rust_version()
 
   // Resolve paths: CLI flag > gleam.toml [plushie] > default
   let bin_file =
@@ -57,12 +55,12 @@ pub fn main() -> Nil {
   let #(want_bin, want_wasm) = resolve_artifacts(cli_bin_file, cli_wasm_dir)
 
   case want_bin {
-    True -> download_bin(bin_file, force)
+    True -> download_bin(rust_version, bin_file, force)
     False -> Nil
   }
 
   case want_wasm {
-    True -> download_wasm(wasm_dir, force)
+    True -> download_wasm(rust_version, wasm_dir, force)
     False -> Nil
   }
 }
@@ -70,11 +68,15 @@ pub fn main() -> Nil {
 // -- Native binary ------------------------------------------------------------
 
 @target(erlang)
-fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
+fn download_bin(
+  rust_version: String,
+  bin_file_override: Result(String, Nil),
+  force: Bool,
+) -> Nil {
   let platform = platform.platform_string()
   let arch = platform.arch_string()
   let name = "plushie-renderer-" <> platform <> "-" <> arch
-  let url = release_url(name)
+  let url = release_url(rust_version, name)
   let dest_path = case bin_file_override {
     Ok(path) -> path
     Error(_) -> binary.download_dir() <> "/" <> name
@@ -119,8 +121,12 @@ fn download_bin(bin_file_override: Result(String, Nil), force: Bool) -> Nil {
 // -- WASM ---------------------------------------------------------------------
 
 @target(erlang)
-fn download_wasm(wasm_dir_override: Result(String, Nil), force: Bool) -> Nil {
-  let url = release_url(wasm_archive)
+fn download_wasm(
+  rust_version: String,
+  wasm_dir_override: Result(String, Nil),
+  force: Bool,
+) -> Nil {
+  let url = release_url(rust_version, wasm_archive)
   let extract_dir = case wasm_dir_override {
     Ok(dir) -> dir
     Error(_) -> "priv/wasm"
@@ -192,8 +198,20 @@ fn create_bin_symlink(target_path: String) -> Nil {
 // -- Shared helpers -----------------------------------------------------------
 
 @target(erlang)
-fn release_url(artifact: String) -> String {
-  base_url <> "/v" <> plushie_rust_version <> "/" <> artifact
+pub fn release_url(rust_version: String, artifact: String) -> String {
+  base_url <> "/v" <> rust_version <> "/" <> artifact
+}
+
+@target(erlang)
+fn require_plushie_rust_version() -> String {
+  case config.plushie_rust_version() {
+    Ok(v) -> v
+    Error(_) -> {
+      io.println_error(config.missing_plushie_rust_version_message())
+      halt(1)
+      panic as "unreachable"
+    }
+  }
 }
 
 @target(erlang)

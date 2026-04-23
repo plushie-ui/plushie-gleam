@@ -31,6 +31,8 @@ import plushie/command.{type Command}
 @target(erlang)
 import plushie/command_encode
 @target(erlang)
+import plushie/config
+@target(erlang)
 import plushie/effect
 @target(erlang)
 import plushie/event.{type Event}
@@ -606,18 +608,7 @@ fn handle_message(
       native_widgets:,
       ..,
     ))) -> {
-      // Warn on renderer binary version mismatch (non-fatal)
-      case version != "" && version != protocol.expected_renderer_version {
-        True ->
-          platform.log_warning(
-            "plushie: renderer version mismatch (SDK expects "
-            <> protocol.expected_renderer_version
-            <> ", renderer reports "
-            <> version
-            <> ")",
-          )
-        False -> Nil
-      }
+      warn_on_renderer_version_mismatch(version)
       case proto == protocol.protocol_version {
         True ->
           case
@@ -1461,6 +1452,26 @@ fn handle_message(
       // Re-render to inject or clear the overlay in the tree
       rerender(state) |> actor.continue()
     }
+  }
+}
+
+@target(erlang)
+fn warn_on_renderer_version_mismatch(version: String) -> Nil {
+  case version, config.plushie_rust_version() {
+    "", _ -> Nil
+    _, Error(_) -> Nil
+    _, Ok(expected) ->
+      case version != expected {
+        True ->
+          platform.log_warning(
+            "plushie: renderer version mismatch (SDK expects "
+            <> expected
+            <> ", renderer reports "
+            <> version
+            <> ")",
+          )
+        False -> Nil
+      }
   }
 }
 
