@@ -30,6 +30,8 @@ export function createHandle(
     nextNonce: 0,
     timerSubs: new Map(), // key -> JS intervalId
     sendAfterTimers: new Map(), // key -> JS timeoutId
+    pendingEffects: new Map(), // requestId -> { tag, kind, timeoutId }
+    pendingEffectTags: new Map(), // tag -> requestId
     pendingCoalesce: new Map(), // key -> Gleam Event
     coalescePending: false,
     stopped: false,
@@ -162,6 +164,15 @@ export function stop(handle) {
   // Clear coalesce state
   handle.pendingCoalesce.clear();
   handle.coalescePending = false;
+
+  // Clear pending effect tracking
+  for (const [, entry] of handle.pendingEffects) {
+    if (entry.timeoutId !== null) {
+      clearTimeout(entry.timeoutId);
+    }
+  }
+  handle.pendingEffects.clear();
+  handle.pendingEffectTags.clear();
 }
 
 // -- Coalescing --------------------------------------------------------------
@@ -248,6 +259,67 @@ export function setSendAfter(handle, key, delayMs, callback) {
   }, delayMs);
 
   handle.sendAfterTimers.set(key, id);
+}
+
+// -- Effect requests --------------------------------------------------------
+
+export function startPendingEffect(
+  handle,
+  requestId,
+  tag,
+  kind,
+  timeoutMs,
+  onTimeout,
+) {
+  let timeoutId = null;
+  const fireTimeout = () => {
+    if (handle.stopped) return;
+    onTimeout();
+  };
+
+  if (globalThis.__plushieImmediateEffectTimeouts) {
+    timeoutId = null;
+  } else {
+    timeoutId = setTimeout(fireTimeout, timeoutMs);
+  }
+
+  handle.pendingEffects.set(requestId, { tag, kind, timeoutId });
+  handle.pendingEffectTags.set(tag, requestId);
+
+  if (globalThis.__plushieImmediateEffectTimeouts) {
+    fireTimeout();
+  }
+}
+
+export function cancelPendingEffectByTag(handle, tag) {
+  const requestId = handle.pendingEffectTags.get(tag);
+  if (requestId === undefined) return;
+
+  handle.pendingEffectTags.delete(tag);
+  const entry = handle.pendingEffects.get(requestId);
+  if (entry !== undefined) {
+    if (entry.timeoutId !== null) {
+      clearTimeout(entry.timeoutId);
+    }
+    handle.pendingEffects.delete(requestId);
+  }
+}
+
+export function takePendingEffect(handle, requestId) {
+  const entry = handle.pendingEffects.get(requestId);
+  if (entry === undefined) {
+    return new None();
+  }
+
+  handle.pendingEffects.delete(requestId);
+  if (handle.pendingEffectTags.get(entry.tag) === requestId) {
+    handle.pendingEffectTags.delete(entry.tag);
+  }
+  if (entry.timeoutId !== null) {
+    clearTimeout(entry.timeoutId);
+  }
+
+  return new Some([entry.tag, entry.kind]);
 }
 
 // -- Async tasks -------------------------------------------------------------

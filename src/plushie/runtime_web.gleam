@@ -29,6 +29,8 @@ import gleam/dict.{type Dict}
 @target(javascript)
 import gleam/dynamic.{type Dynamic}
 @target(javascript)
+import gleam/dynamic/decode as dyn_decode
+@target(javascript)
 import gleam/int
 @target(javascript)
 import gleam/list
@@ -44,6 +46,8 @@ import plushie/bridge_web.{type WebTransport}
 import plushie/command.{type Command}
 @target(javascript)
 import plushie/command_encode
+@target(javascript)
+import plushie/effect
 @target(javascript)
 import plushie/event.{type Event}
 @target(javascript)
@@ -208,8 +212,21 @@ pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
         }
       }
     }
+    Ok(decode.EffectResponseRaw(wire_id:, status:, payload:)) -> {
+      case do_take_pending_effect(runtime.handle, wire_id) {
+        Some(#(tag, kind)) -> {
+          let effect_event =
+            event.Effect(event.EffectEvent(
+              tag:,
+              result: decode_effect_result(kind, status, payload),
+            ))
+          handle_event(runtime.handle, do_get_app(runtime.handle), effect_event)
+        }
+        None -> Nil
+      }
+    }
     Ok(decode.EffectStubAck(..)) -> {
-      // Effect stub ack: not yet implemented on JS
+      // The web runtime does not expose effect stub registration.
       Nil
     }
     Ok(_) -> Nil
@@ -686,7 +703,28 @@ fn execute_commands(
 
     command_encode.ImageOp(op, payload) -> imgop(handle, op, payload, session)
 
-    command_encode.EffectRequest(id, _tag, kind, payload) -> {
+    command_encode.EffectRequest(id, tag, kind, payload) -> {
+      do_cancel_pending_effect_by_tag(handle, tag)
+      do_start_pending_effect(
+        handle,
+        id,
+        tag,
+        kind,
+        effect.default_timeout(kind),
+        fn() {
+          case do_take_pending_effect(handle, id) {
+            Some(#(tag, _kind)) -> {
+              let timeout_event =
+                event.Effect(event.EffectEvent(
+                  tag:,
+                  result: event.EffectTimeout,
+                ))
+              handle_event(handle, app, timeout_event)
+            }
+            None -> Nil
+          }
+        },
+      )
       let assert Ok(bytes) =
         encode.encode_effect(id, kind, payload, session, Json)
       do_send(handle, bytes)
@@ -998,3 +1036,109 @@ fn start_stream(
 /// Cancel an async/stream task.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "cancelAsync")
 fn cancel_async(handle: WebRuntimeHandle, tag: String) -> Nil
+
+@target(javascript)
+fn decode_effect_result(
+  kind: String,
+  status: String,
+  payload: Dynamic,
+) -> event.EffectResult {
+  case status {
+    "cancelled" -> event.EffectCancelled
+    "unsupported" -> event.EffectUnsupported
+    "error" -> {
+      let msg = case dyn_decode.run(payload, dyn_decode.string) {
+        Ok(s) -> s
+        Error(_) -> ""
+      }
+      event.EffectError(message: msg)
+    }
+    "ok" -> decode_effect_ok(kind, payload)
+    _ -> event.EffectError(message: "unknown effect status: " <> status)
+  }
+}
+
+@target(javascript)
+fn decode_effect_ok(kind: String, payload: Dynamic) -> event.EffectResult {
+  case kind {
+    "file_open" -> event.FileOpened(path: dyn_string_field(payload, "path"))
+    "file_open_multiple" ->
+      event.FilesOpened(paths: dyn_string_list_field(payload, "paths"))
+    "file_save" -> event.FileSaved(path: dyn_string_field(payload, "path"))
+    "directory_select" ->
+      event.DirectorySelected(path: dyn_string_field(payload, "path"))
+    "directory_select_multiple" ->
+      event.DirectoriesSelected(paths: dyn_string_list_field(payload, "paths"))
+    "clipboard_read" | "clipboard_read_primary" ->
+      event.ClipboardText(text: dyn_string_field(payload, "text"))
+    "clipboard_read_html" ->
+      event.ClipboardHtml(
+        html: dyn_string_field(payload, "html"),
+        alt_text: dyn_optional_string_field(payload, "alt_text"),
+      )
+    "clipboard_write" | "clipboard_write_html" | "clipboard_write_primary" ->
+      event.ClipboardWritten
+    "clipboard_clear" -> event.ClipboardCleared
+    "notification" -> event.NotificationShown
+    _ -> event.EffectError(message: "unknown effect kind: " <> kind)
+  }
+}
+
+@target(javascript)
+fn dyn_string_field(payload: Dynamic, key: String) -> String {
+  let decoder =
+    dyn_decode.optional_field(key, "", dyn_decode.string, dyn_decode.success)
+  case dyn_decode.run(payload, decoder) {
+    Ok(val) -> val
+    Error(_) -> ""
+  }
+}
+
+@target(javascript)
+fn dyn_optional_string_field(payload: Dynamic, key: String) -> Option(String) {
+  let decoder =
+    dyn_decode.optional_field(key, None, dyn_decode.string, fn(value) {
+      Some(value)
+    })
+  case dyn_decode.run(payload, decoder) {
+    Ok(val) -> val
+    Error(_) -> None
+  }
+}
+
+@target(javascript)
+fn dyn_string_list_field(payload: Dynamic, key: String) -> List(String) {
+  let decoder =
+    dyn_decode.optional_field(
+      key,
+      [],
+      dyn_decode.list(dyn_decode.string),
+      fn(value) { value },
+    )
+  case dyn_decode.run(payload, decoder) {
+    Ok(val) -> val
+    Error(_) -> []
+  }
+}
+
+@target(javascript)
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "startPendingEffect")
+fn do_start_pending_effect(
+  handle: WebRuntimeHandle,
+  request_id: String,
+  tag: String,
+  kind: String,
+  timeout_ms: Int,
+  on_timeout: fn() -> Nil,
+) -> Nil
+
+@target(javascript)
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "cancelPendingEffectByTag")
+fn do_cancel_pending_effect_by_tag(handle: WebRuntimeHandle, tag: String) -> Nil
+
+@target(javascript)
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "takePendingEffect")
+fn do_take_pending_effect(
+  handle: WebRuntimeHandle,
+  request_id: String,
+) -> Option(#(String, String))
