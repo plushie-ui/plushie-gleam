@@ -137,6 +137,31 @@ pub fn push(
   }
 }
 
+/// Push a new model snapshot with coalescing metadata.
+///
+/// Convenience wrapper over `push` for the snapshot style: instead of
+/// supplying apply/undo functions, the caller hands in the new model
+/// directly. `kind` is the coalesce key, and pushes of the same kind
+/// within `window_ms` milliseconds merge into a single undo entry.
+/// Canonical use: coalescing consecutive keystrokes in a text editor.
+pub fn push_with_coalesce(
+  stack: UndoStack(model),
+  value: model,
+  kind: String,
+  window_ms: Int,
+) -> UndoStack(model) {
+  let old_model = stack.current
+  let cmd =
+    UndoCommand(
+      apply: fn(_) { value },
+      undo: fn(_) { old_model },
+      label: kind,
+      coalesce_key: Some(kind),
+      coalesce_window_ms: Some(window_ms),
+    )
+  push(stack, cmd)
+}
+
 /// Undo the last command. Returns unchanged if nothing to undo.
 pub fn undo(stack: UndoStack(model)) -> UndoStack(model) {
   case stack.undo_stack {
