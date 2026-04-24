@@ -8,16 +8,7 @@
 %% Get the value following a flag in init:get_plain_arguments().
 %% Returns {ok, Value} or {error, nil}.
 get_flag_value(Flag) ->
-    FlagStr = binary_to_list(Flag),
-    Args = init:get_plain_arguments(),
-    find_flag_value(FlagStr, Args).
-
-find_flag_value(_Flag, []) ->
-    {error, nil};
-find_flag_value(Flag, [Flag, Value | _Rest]) ->
-    {ok, list_to_binary(Value)};
-find_flag_value(Flag, [_ | Rest]) ->
-    find_flag_value(Flag, Rest).
+    plushie_cli_args_ffi:get_flag_value(Flag, init:get_plain_arguments()).
 
 %% Read a line from stdin with a timeout. Returns {ok, Line} or {error, nil}.
 %% Spawns a task to avoid blocking the caller indefinitely.

@@ -70,22 +70,12 @@ ensure_http_started() ->
 
 %% Check if a flag is present in init:get_plain_arguments().
 has_flag(Flag) ->
-    FlagStr = binary_to_list(Flag),
-    lists:member(FlagStr, init:get_plain_arguments()).
+    plushie_cli_args_ffi:has_flag(Flag, init:get_plain_arguments()).
 
 %% Get the value following a flag in init:get_plain_arguments().
 %% Returns {ok, Value} or {error, nil}.
 get_flag_value(Flag) ->
-    FlagStr = binary_to_list(Flag),
-    Args = init:get_plain_arguments(),
-    find_flag_value(FlagStr, Args).
-
-find_flag_value(_Flag, []) ->
-    {error, nil};
-find_flag_value(Flag, [Flag, Value | _Rest]) ->
-    {ok, list_to_binary(Value)};
-find_flag_value(Flag, [_ | Rest]) ->
-    find_flag_value(Flag, Rest).
+    plushie_cli_args_ffi:get_flag_value(Flag, init:get_plain_arguments()).
 
 %% Create directory (and parents) if it doesn't exist.
 ensure_dir(Path) ->
