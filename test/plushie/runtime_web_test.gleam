@@ -220,6 +220,60 @@ pub fn stream_task_entry_is_deleted_when_stopped_before_sync_error_test() {
 }
 
 @target(javascript)
+pub fn queued_async_completion_is_dropped_after_tag_reuse_test() {
+  queued_async_completion_is_dropped_after_tag_reuse()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn queued_async_completion_is_dropped_after_cancel_test() {
+  queued_async_completion_is_dropped_after_cancel()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn queued_stream_emit_is_dropped_after_tag_reuse_test() {
+  queued_stream_emit_is_dropped_after_tag_reuse()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn scheduled_coalesce_flush_keeps_batch_before_deferred_dispatch_test() {
+  scheduled_coalesce_flush_keeps_batch_before_deferred_dispatch()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn queued_stream_emit_before_sync_throw_is_delivered_test() {
+  queued_stream_emit_before_sync_throw_is_delivered()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn queued_send_after_is_dropped_after_key_reuse_test() {
+  queued_send_after_is_dropped_after_key_reuse()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn dispatch_queue_serializes_reentrant_callbacks_test() {
+  dispatch_queue_serializes_reentrant_callbacks()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn defer_dispatch_enters_queue_before_later_sync_callbacks_test() {
+  defer_dispatch_enters_queue_before_later_sync_callbacks()
+  |> should.be_true
+}
+
+@target(javascript)
+pub fn dispatch_queue_drops_pending_callbacks_on_stop_test() {
+  dispatch_queue_drops_pending_callbacks_on_stop()
+  |> should.be_true
+}
+
+@target(javascript)
 pub fn main() -> Nil {
   gleeunit.main()
 }
@@ -267,3 +321,39 @@ fn async_task_cleans_up_when_cancelled_before_promise_resolve() -> Bool
 @target(javascript)
 @external(javascript, "../../plushie_test_ffi.mjs", "stream_task_cleans_up_when_stopped_during_sync_throw")
 fn stream_task_cleans_up_when_stopped_during_sync_throw() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "queued_async_completion_is_dropped_after_tag_reuse")
+fn queued_async_completion_is_dropped_after_tag_reuse() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "queued_async_completion_is_dropped_after_cancel")
+fn queued_async_completion_is_dropped_after_cancel() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "queued_stream_emit_is_dropped_after_tag_reuse")
+fn queued_stream_emit_is_dropped_after_tag_reuse() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "scheduled_coalesce_flush_keeps_batch_before_deferred_dispatch")
+fn scheduled_coalesce_flush_keeps_batch_before_deferred_dispatch() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "queued_stream_emit_before_sync_throw_is_delivered")
+fn queued_stream_emit_before_sync_throw_is_delivered() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "queued_send_after_is_dropped_after_key_reuse")
+fn queued_send_after_is_dropped_after_key_reuse() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "dispatch_queue_serializes_reentrant_callbacks")
+fn dispatch_queue_serializes_reentrant_callbacks() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "defer_dispatch_enters_queue_before_later_sync_callbacks")
+fn defer_dispatch_enters_queue_before_later_sync_callbacks() -> Bool
+
+@target(javascript)
+@external(javascript, "../../plushie_test_ffi.mjs", "dispatch_queue_drops_pending_callbacks_on_stop")
+fn dispatch_queue_drops_pending_callbacks_on_stop() -> Bool

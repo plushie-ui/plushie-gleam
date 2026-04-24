@@ -27,13 +27,18 @@ export function createHandle(
     cwRegistry: null, // Gleam Dict, canvas widget registry
     memoCache: null, // Gleam MemoCache (Dict), set from Gleam side
     asyncTasks: new Map(), // tag -> { nonce, cancel }
+    asyncTaskTokens: new Map(), // tag -> latest nonce
     nextNonce: 0,
     timerSubs: new Map(), // key -> JS intervalId
-    sendAfterTimers: new Map(), // key -> JS timeoutId
+    sendAfterTimers: new Map(), // key -> { id, token }
+    sendAfterTokens: new Map(), // key -> latest token
+    nextTimerToken: 0,
     pendingEffects: new Map(), // requestId -> { tag, kind, timeoutId }
     pendingEffectTags: new Map(), // tag -> requestId
     pendingCoalesce: new Map(), // key -> Gleam Event
     coalescePending: false,
+    dispatchQueue: [],
+    dispatchDraining: false,
     stopped: false,
     // Gleam callbacks, registered after handle creation
     dispatch: null, // fn(Event) -> Nil, goes through handle_event
@@ -42,6 +47,51 @@ export function createHandle(
     onAsyncComplete: null, // fn(String, Result(Dynamic, Dynamic)) -> Nil
     onStreamEmit: null, // fn(String, Dynamic) -> Nil
   };
+}
+
+export function enqueueDispatch(handle, callback) {
+  if (handle.stopped) return;
+
+  handle.dispatchQueue.push({ callback, ready: true });
+  drainDispatch(handle);
+}
+
+export function deferDispatch(handle, callback) {
+  if (handle.stopped) return;
+
+  const entry = { callback, ready: false };
+  handle.dispatchQueue.push(entry);
+  drainDispatch(handle);
+
+  queueMicrotask(() => {
+    if (handle.stopped) return;
+    entry.ready = true;
+    drainDispatch(handle);
+  });
+}
+
+function drainDispatch(handle) {
+  if (handle.stopped) {
+    handle.dispatchQueue.length = 0;
+    return;
+  }
+
+  if (handle.dispatchDraining) return;
+
+  handle.dispatchDraining = true;
+  try {
+    while (!handle.stopped && handle.dispatchQueue.length > 0) {
+      const next = handle.dispatchQueue[0];
+      if (!next.ready) return;
+      handle.dispatchQueue.shift();
+      next.callback();
+    }
+  } finally {
+    handle.dispatchDraining = false;
+    if (handle.stopped) {
+      handle.dispatchQueue.length = 0;
+    }
+  }
 }
 
 // -- Callback registration ---------------------------------------------------
@@ -150,20 +200,23 @@ export function stop(handle) {
   handle.timerSubs.clear();
 
   // Clear all send_after timers
-  for (const [, id] of handle.sendAfterTimers) {
-    clearTimeout(id);
+  for (const [, entry] of handle.sendAfterTimers) {
+    clearTimeout(entry.id);
   }
   handle.sendAfterTimers.clear();
+  handle.sendAfterTokens.clear();
 
   // Cancel all async tasks
   for (const [, task] of handle.asyncTasks) {
     task.cancel?.();
   }
   handle.asyncTasks.clear();
+  handle.asyncTaskTokens.clear();
 
   // Clear coalesce state
   handle.pendingCoalesce.clear();
   handle.coalescePending = false;
+  handle.dispatchQueue.length = 0;
 
   // Clear pending effect tracking
   for (const [, entry] of handle.pendingEffects) {
@@ -191,9 +244,11 @@ export function scheduleCoalesceFlush(handle) {
     handle.coalescePending = false;
     const events = [...handle.pendingCoalesce.values()];
     handle.pendingCoalesce.clear();
-    for (const event of events) {
-      handle.dispatchDirect?.(event);
-    }
+    enqueueDispatch(handle, () => {
+      for (const event of events) {
+        handle.dispatchDirect?.(event);
+      }
+    });
   });
 }
 
@@ -209,12 +264,6 @@ export function flushCoalesced(handle) {
   }
 }
 
-// -- Deferred execution ------------------------------------------------------
-
-export function defer(f) {
-  queueMicrotask(f);
-}
-
 // -- Timer subscriptions -----------------------------------------------------
 
 export function startTimerSub(handle, key, intervalMs, _tag) {
@@ -227,7 +276,9 @@ export function startTimerSub(handle, key, intervalMs, _tag) {
     if (handle.stopped) return;
     // Call the Gleam-side timer callback which constructs a
     // TimerTick event and dispatches it through handle_event.
-    handle.onTimerFired?.(_tag);
+    enqueueDispatch(handle, () => {
+      handle.onTimerFired?.(_tag);
+    });
   }, intervalMs);
 
   handle.timerSubs.set(key, id);
@@ -247,18 +298,29 @@ export function setSendAfter(handle, key, delayMs, callback) {
   // Cancel existing timer for same key
   const existing = handle.sendAfterTimers.get(key);
   if (existing !== undefined) {
-    clearTimeout(existing);
+    clearTimeout(existing.id);
   }
+
+  const token = ++handle.nextTimerToken;
+  handle.sendAfterTokens.set(key, token);
 
   const id = setTimeout(() => {
     if (handle.stopped) return;
+    const current = handle.sendAfterTimers.get(key);
+    if (!current || current.token !== token) return;
     handle.sendAfterTimers.delete(key);
     // callback is a Gleam closure that dispatches the msg
     // directly to dispatch_update (already typed as msg)
-    callback();
+    enqueueDispatch(handle, () => {
+      if (handle.sendAfterTokens.get(key) !== token) return;
+      callback();
+      if (handle.sendAfterTokens.get(key) === token) {
+        handle.sendAfterTokens.delete(key);
+      }
+    });
   }, delayMs);
 
-  handle.sendAfterTimers.set(key, id);
+  handle.sendAfterTimers.set(key, { id, token });
 }
 
 // -- Effect requests --------------------------------------------------------
@@ -274,7 +336,7 @@ export function startPendingEffect(
   let timeoutId = null;
   const fireTimeout = () => {
     if (handle.stopped) return;
-    onTimeout();
+    enqueueDispatch(handle, onTimeout);
   };
 
   if (globalThis.__plushieImmediateEffectTimeouts) {
@@ -336,6 +398,7 @@ export function startAsync(handle, tag, work) {
   };
 
   handle.asyncTasks.set(tag, { nonce, cancel });
+  handle.asyncTaskTokens.set(tag, nonce);
 
   // Run work; might return a Promise or a plain value
   try {
@@ -346,12 +409,16 @@ export function startAsync(handle, tag, work) {
       result.then(
         (value) => {
           settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
-            handle.onAsyncComplete?.(tag, new Ok(value));
+            enqueueDispatch(handle, () => {
+              notifyAsyncComplete(handle, tag, nonce, new Ok(value));
+            });
           });
         },
         (error) => {
           settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
-            handle.onAsyncComplete?.(tag, new Error(error));
+            enqueueDispatch(handle, () => {
+              notifyAsyncComplete(handle, tag, nonce, new Error(error));
+            });
           });
         },
       );
@@ -359,13 +426,17 @@ export function startAsync(handle, tag, work) {
       // Synchronous result; defer to next microtask
       queueMicrotask(() => {
         settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
-          handle.onAsyncComplete?.(tag, new Ok(result));
+          enqueueDispatch(handle, () => {
+            notifyAsyncComplete(handle, tag, nonce, new Ok(result));
+          });
         });
       });
     }
   } catch (error) {
     settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
-      handle.onAsyncComplete?.(tag, new Error(error));
+      enqueueDispatch(handle, () => {
+        notifyAsyncComplete(handle, tag, nonce, new Error(error));
+      });
     });
   }
 }
@@ -381,19 +452,25 @@ export function startStream(handle, tag, work) {
   };
 
   handle.asyncTasks.set(tag, { nonce, cancel });
+  handle.asyncTaskTokens.set(tag, nonce);
 
   const emit = (value) => {
     if (cancelled || handle.stopped) return;
     const current = handle.asyncTasks.get(tag);
     if (!current || current.nonce !== nonce) return;
-    handle.onStreamEmit?.(tag, value);
+    enqueueDispatch(handle, () => {
+      if (!isLatestAsyncTask(handle, tag, nonce)) return;
+      handle.onStreamEmit?.(tag, value);
+    });
   };
 
   try {
     work(emit);
   } catch (error) {
     settleAsyncTask(handle, tag, nonce, () => cancelled, () => {
-      handle.onAsyncComplete?.(tag, new Error(error));
+      enqueueDispatch(handle, () => {
+        notifyAsyncComplete(handle, tag, nonce, new Error(error));
+      });
     });
   }
 }
@@ -404,6 +481,7 @@ export function cancelAsync(handle, tag) {
     task.cancel();
     handle.asyncTasks.delete(tag);
   }
+  handle.asyncTaskTokens.delete(tag);
 }
 
 function settleAsyncTask(handle, tag, nonce, isCancelled, notify) {
@@ -414,4 +492,16 @@ function settleAsyncTask(handle, tag, nonce, isCancelled, notify) {
   if (isCancelled() || handle.stopped) return;
 
   notify();
+}
+
+function isLatestAsyncTask(handle, tag, nonce) {
+  return !handle.stopped && handle.asyncTaskTokens.get(tag) === nonce;
+}
+
+function notifyAsyncComplete(handle, tag, nonce, result) {
+  if (!isLatestAsyncTask(handle, tag, nonce)) return;
+  handle.onAsyncComplete?.(tag, result);
+  if (handle.asyncTaskTokens.get(tag) === nonce) {
+    handle.asyncTaskTokens.delete(tag);
+  }
 }

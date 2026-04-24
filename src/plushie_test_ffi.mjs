@@ -7,7 +7,13 @@
 import { toList } from "./gleam.mjs";
 import { setPlushieAppConstructor } from "./plushie_bridge_web_ffi.mjs";
 import {
+  cancelAsync,
   createHandle,
+  deferDispatch,
+  enqueueDispatch,
+  scheduleCoalesceFlush,
+  setSendAfter,
+  setCoalesce,
   startAsync,
   startStream,
 } from "./plushie_runtime_web_ffi.mjs";
@@ -186,4 +192,253 @@ export function stream_task_cleans_up_when_stopped_during_sync_throw() {
   });
 
   return handle.asyncTasks.size === 0 && completions === 0;
+}
+
+export function queued_async_completion_is_dropped_after_tag_reuse() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const completions = [];
+  let resolveOld = null;
+
+  handle.onAsyncComplete = (tag) => {
+    completions.push(tag);
+  };
+
+  startAsync(handle, "task", () => ({
+    then(resolve, _reject) {
+      resolveOld = resolve;
+    },
+  }));
+
+  handle.dispatchDraining = true;
+  resolveOld?.("old");
+  handle.dispatchDraining = false;
+
+  startAsync(handle, "task", () => ({
+    then(_resolve, _reject) {},
+  }));
+
+  enqueueDispatch(handle, () => {
+    completions.push("drain");
+  });
+
+  return completions.join(",") === "drain";
+}
+
+export function queued_async_completion_is_dropped_after_cancel() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const completions = [];
+  let resolveTask = null;
+
+  handle.onAsyncComplete = (tag) => {
+    completions.push(tag);
+  };
+
+  startAsync(handle, "task", () => ({
+    then(resolve, _reject) {
+      resolveTask = resolve;
+    },
+  }));
+
+  handle.dispatchDraining = true;
+  resolveTask?.("done");
+  handle.dispatchDraining = false;
+
+  cancelAsync(handle, "task");
+
+  enqueueDispatch(handle, () => {
+    completions.push("drain");
+  });
+
+  return completions.join(",") === "drain";
+}
+
+export function queued_stream_emit_is_dropped_after_tag_reuse() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const emissions = [];
+  let emitOld = null;
+
+  handle.onStreamEmit = (_tag, value) => {
+    emissions.push(value);
+  };
+
+  startStream(handle, "stream", (emit) => {
+    emitOld = emit;
+  });
+
+  handle.dispatchDraining = true;
+  emitOld?.("old");
+  handle.dispatchDraining = false;
+
+  startStream(handle, "stream", () => {});
+
+  enqueueDispatch(handle, () => {
+    emissions.push("drain");
+  });
+
+  return emissions.join(",") === "drain";
+}
+
+export function scheduled_coalesce_flush_keeps_batch_before_deferred_dispatch() {
+  const originalQueueMicrotask = globalThis.queueMicrotask;
+  const microtasks = [];
+  const handle = createHandle(null, null, null, "", null, null);
+  const order = [];
+
+  globalThis.queueMicrotask = (callback) => {
+    microtasks.push(callback);
+  };
+
+  handle.dispatchDirect = (event) => {
+    order.push(event);
+    if (event === "first") {
+      deferDispatch(handle, () => {
+        order.push("deferred");
+      });
+    }
+  };
+
+  try {
+    setCoalesce(handle, "first", "first");
+    setCoalesce(handle, "second", "second");
+    scheduleCoalesceFlush(handle);
+
+    if (order.length !== 0 || microtasks.length !== 1) return false;
+
+    microtasks.shift()();
+    if (order.join(",") !== "first,second" || microtasks.length !== 1) {
+      return false;
+    }
+
+    microtasks.shift()();
+    return order.join(",") === "first,second,deferred";
+  } finally {
+    globalThis.queueMicrotask = originalQueueMicrotask;
+  }
+}
+
+export function queued_stream_emit_before_sync_throw_is_delivered() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const events = [];
+
+  handle.onStreamEmit = (_tag, value) => {
+    events.push(`emit:${value}`);
+  };
+  handle.onAsyncComplete = (tag) => {
+    events.push(`complete:${tag}`);
+  };
+
+  handle.dispatchDraining = true;
+  startStream(handle, "stream", (emit) => {
+    emit("before");
+    throw new Error("sync failure");
+  });
+  handle.dispatchDraining = false;
+
+  enqueueDispatch(handle, () => {
+    events.push("drain");
+  });
+
+  return events.join(",") === "emit:before,complete:stream,drain";
+}
+
+export function queued_send_after_is_dropped_after_key_reuse() {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const timers = [];
+  const fired = [];
+
+  globalThis.setTimeout = (callback, _delayMs) => {
+    const timer = { callback, cleared: false };
+    timers.push(timer);
+    return timer;
+  };
+  globalThis.clearTimeout = (timer) => {
+    timer.cleared = true;
+  };
+
+  try {
+    const handle = createHandle(null, null, null, "", null, null);
+    setSendAfter(handle, "stable", 0, () => {
+      fired.push("old");
+    });
+
+    handle.dispatchDraining = true;
+    timers[0].callback();
+    handle.dispatchDraining = false;
+
+    setSendAfter(handle, "stable", 0, () => {
+      fired.push("new");
+    });
+
+    enqueueDispatch(handle, () => {
+      fired.push("drain");
+    });
+
+    return (
+      fired.join(",") === "drain" &&
+      timers.length === 2 &&
+      timers[0].cleared === false &&
+      handle.sendAfterTimers.get("stable")?.id === timers[1]
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+}
+
+export function dispatch_queue_serializes_reentrant_callbacks() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const order = [];
+
+  enqueueDispatch(handle, () => {
+    order.push("outer-start");
+    enqueueDispatch(handle, () => {
+      order.push("inner");
+    });
+    order.push("outer-end");
+  });
+
+  return order.join(",") === "outer-start,outer-end,inner";
+}
+
+export function defer_dispatch_enters_queue_before_later_sync_callbacks() {
+  const originalQueueMicrotask = globalThis.queueMicrotask;
+  const microtasks = [];
+  const handle = createHandle(null, null, null, "", null, null);
+  const order = [];
+
+  globalThis.queueMicrotask = (callback) => {
+    microtasks.push(callback);
+  };
+
+  try {
+    deferDispatch(handle, () => {
+      order.push("deferred");
+    });
+    enqueueDispatch(handle, () => {
+      order.push("sync");
+    });
+
+    if (order.length !== 0 || microtasks.length !== 1) return false;
+
+    microtasks.shift()();
+    return order.join(",") === "deferred,sync";
+  } finally {
+    globalThis.queueMicrotask = originalQueueMicrotask;
+  }
+}
+
+export function dispatch_queue_drops_pending_callbacks_on_stop() {
+  const handle = createHandle(null, null, null, "", null, null);
+  const order = [];
+
+  enqueueDispatch(handle, () => {
+    order.push("outer");
+    enqueueDispatch(handle, () => {
+      order.push("inner");
+    });
+    handle.stopped = true;
+  });
+
+  return order.join(",") === "outer" && handle.dispatchQueue.length === 0;
 }

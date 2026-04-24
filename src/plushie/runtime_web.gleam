@@ -20,7 +20,10 @@
 ////
 //// What differs is the concurrency model: instead of OTP actors and
 //// process messages, the JS runtime uses callbacks, Promises, and
-//// setTimeout/setInterval for async work.
+//// setTimeout/setInterval for async work. Those callbacks enter
+//// through the JS handle's dispatch queue, so a callback that fires
+//// while an update is running is processed after the current
+//// update/render cycle finishes.
 
 @target(javascript)
 import gleam/bit_array
@@ -178,9 +181,16 @@ pub fn start(
 /// it through the normal update cycle. Called by the bridge's
 /// on_event callback.
 pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
+  enqueue_dispatch(runtime.handle, fn() {
+    handle_bridge_event_queued(runtime.handle, json)
+  })
+}
+
+@target(javascript)
+fn handle_bridge_event_queued(handle: WebRuntimeHandle, json: String) -> Nil {
   case bit_array.from_string(json) |> decode.decode_message(Json) {
     Ok(decode.EventMessage(event)) ->
-      handle_event(runtime.handle, do_get_app(runtime.handle), event)
+      handle_event(handle, do_get_app(handle), event)
     Ok(decode.Hello(protocol: proto, ..)) -> {
       // Verify the renderer's protocol version matches what this SDK
       // was built against. On mismatch, deliver a typed
@@ -203,24 +213,20 @@ pub fn handle_bridge_event(runtime: WebRuntime(model), json: String) -> Nil {
             <> ", got "
             <> int.to_string(proto),
           )
-          handle_event(
-            runtime.handle,
-            do_get_app(runtime.handle),
-            event.Error(mismatch),
-          )
-          stop(runtime)
+          handle_event(handle, do_get_app(handle), event.Error(mismatch))
+          stop_handle(handle)
         }
       }
     }
     Ok(decode.EffectResponseRaw(wire_id:, status:, payload:)) -> {
-      case do_take_pending_effect(runtime.handle, wire_id) {
+      case do_take_pending_effect(handle, wire_id) {
         Some(#(tag, kind)) -> {
           let effect_event =
             event.Effect(event.EffectEvent(
               tag:,
               result: decode_effect_result(kind, status, payload),
             ))
-          handle_event(runtime.handle, do_get_app(runtime.handle), effect_event)
+          handle_event(handle, do_get_app(handle), effect_event)
         }
         None -> Nil
       }
@@ -252,15 +258,22 @@ pub fn get_tree(runtime: WebRuntime(model)) -> Option(Node) {
 @target(javascript)
 /// Inject an event into the update loop.
 pub fn dispatch_event(runtime: WebRuntime(model), event: Event) -> Nil {
-  handle_event(runtime.handle, do_get_app(runtime.handle), event)
+  enqueue_dispatch(runtime.handle, fn() {
+    handle_event(runtime.handle, do_get_app(runtime.handle), event)
+  })
 }
 
 @target(javascript)
 /// Stop the runtime, clearing all timers, async tasks, and
 /// closing the WASM transport to release the renderer.
 pub fn stop(runtime: WebRuntime(model)) -> Nil {
-  let transport = do_get_transport(runtime.handle)
-  do_stop(runtime.handle)
+  stop_handle(runtime.handle)
+}
+
+@target(javascript)
+fn stop_handle(handle: WebRuntimeHandle) -> Nil {
+  let transport = do_get_transport(handle)
+  do_stop(handle)
   bridge_web.close(transport)
 }
 
@@ -669,7 +682,9 @@ fn execute_commands(
         False -> {
           let msg = mapper(value)
           // Defer to next microtask to match BEAM's mailbox semantics
-          defer(fn() { dispatch_update(handle, app, msg, next_depth) })
+          defer_dispatch(handle, fn() {
+            dispatch_update(handle, app, msg, next_depth)
+          })
         }
       }
     }
@@ -997,9 +1012,14 @@ fn schedule_coalesce_flush(handle: WebRuntimeHandle) -> Nil
 fn flush_coalesced(handle: WebRuntimeHandle) -> Nil
 
 @target(javascript)
-/// Defer a function call to the next microtask.
-@external(javascript, "../plushie_runtime_web_ffi.mjs", "defer")
-fn defer(f: fn() -> Nil) -> Nil
+/// Queue a dispatch callback, draining callbacks one at a time.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "enqueueDispatch")
+fn enqueue_dispatch(handle: WebRuntimeHandle, f: fn() -> Nil) -> Nil
+
+@target(javascript)
+/// Defer a dispatch callback to the next microtask.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "deferDispatch")
+fn defer_dispatch(handle: WebRuntimeHandle, f: fn() -> Nil) -> Nil
 
 @target(javascript)
 /// Start a timer subscription (setInterval).
