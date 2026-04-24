@@ -83,8 +83,8 @@ Key invariants to be aware of:
 - **Encoding happens at build() time**: widget builders encode typed
   values to PropValue. Don't defer encoding to normalize or protocol
   encode.
-- **Window detection depth**: only root and direct children are
-  checked for window nodes.
+- **Window detection depth**: the runtime searches the full tree for
+  window nodes.
 
 ## Testing philosophy
 
