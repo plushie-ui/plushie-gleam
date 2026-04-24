@@ -67,6 +67,12 @@ ui.window("main", [window.Title("App"), window.WindowTheme(Dark)], [
 | `Ferra` | [Ferra](https://github.com/casperstorm/ferra) |
 | `SystemTheme` | Follow the operating system's light / dark preference |
 
+`theme.to_string(t)` returns the wire name for a built-in theme.
+`theme.from_string(name)` parses built-in wire names and returns
+`Error(Nil)` for unknown names or `"custom"`. For OS theme events,
+use `theme.system_theme_from_string(name)`, which accepts only
+`"light"` and `"dark"` because the renderer may also report `"none"`.
+
 ### Custom themes
 
 `theme.custom(name, palette)` creates a custom palette from seed
@@ -75,17 +81,16 @@ keys to encoded values.
 
 ```gleam
 import gleam/dict
-import plushie/node.{StringVal}
 import plushie/prop/theme
 
 let my_theme =
   theme.custom(
     "My Brand",
     dict.from_list([
-      #("primary", StringVal("#3b82f6")),
-      #("danger", StringVal("#ef4444")),
-      #("background", StringVal("#1a1a2e")),
-      #("text", StringVal("#e0e0e8")),
+      theme.primary("#3b82f6"),
+      theme.danger("#ef4444"),
+      theme.background("#1a1a2e"),
+      theme.text("#e0e0e8"),
     ]),
   )
 ```
@@ -115,11 +120,15 @@ override only what you want:
 theme.custom(
   "Nord+",
   dict.from_list([
-    #("base", StringVal("nord")),
-    #("primary", StringVal("#88c0d0")),
+    theme.base(theme.Nord),
+    theme.primary("#88c0d0"),
   ]),
 )
 ```
+
+The helper functions above return `#(String, PropValue)` entries for
+common keys. Use raw pairs for shade override keys that do not have a
+dedicated helper.
 
 ### Shade overrides
 

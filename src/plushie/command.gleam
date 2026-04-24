@@ -239,7 +239,8 @@ pub type SystemCommand {
   /// tabs. macOS-specific; no-op on other platforms.
   AllowAutomaticTabbing(enabled: Bool)
   /// Query the OS light/dark theme preference. Result arrives as a
-  /// SystemTheme event with "light", "dark", or "none".
+  /// SystemTheme event with "light", "dark", or "none". Use
+  /// theme.system_theme_from_string to convert concrete preferences.
   GetSystemTheme(tag: String)
   /// Query system information (OS, CPU, memory, graphics). Result
   /// arrives as a SystemInfo event with a map of system fields.
@@ -737,7 +738,8 @@ pub fn allow_automatic_tabbing(enabled: Bool) -> Command(msg) {
 }
 
 /// Query the OS light/dark theme preference. Result arrives as a
-/// SystemTheme event with "light", "dark", or "none".
+/// SystemTheme event with "light", "dark", or "none". Use
+/// theme.system_theme_from_string to convert concrete preferences.
 pub fn system_theme(tag: String) -> Command(msg) {
   Renderer(System(GetSystemTheme(tag:)))
 }

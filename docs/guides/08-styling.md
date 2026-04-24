@@ -50,17 +50,16 @@ to encoded hex strings:
 
 ```gleam
 import gleam/dict
-import plushie/node.{StringVal}
 import plushie/prop/theme
 
 let my_theme =
   theme.custom(
     "My Brand",
     dict.from_list([
-      #("primary", StringVal("#3b82f6")),
-      #("danger", StringVal("#ef4444")),
-      #("background", StringVal("#1a1a2e")),
-      #("text", StringVal("#e0e0e8")),
+      theme.primary("#3b82f6"),
+      theme.danger("#ef4444"),
+      theme.background("#1a1a2e"),
+      theme.text("#e0e0e8"),
     ]),
   )
 
@@ -74,11 +73,14 @@ colours you want to change:
 theme.custom(
   "Nord+",
   dict.from_list([
-    #("base", StringVal("nord")),
-    #("primary", StringVal("#88c0d0")),
+    theme.base(theme.Nord),
+    theme.primary("#88c0d0"),
   ]),
 )
 ```
+
+The helpers return palette dict entries. For less common shade override
+keys, use raw `#(String, PropValue)` pairs.
 
 For fine-grained control, the theme system supports shade overrides
 (keys like `primary_strong`, `background_weakest`, `danger_base_text`)

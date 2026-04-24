@@ -159,6 +159,11 @@ decode with `gleam/dynamic` decoders at the call site.
 | `announce_with(text, politeness)` | Announce with explicit politeness (`Polite` or `Assertive`) |
 | `announce_assertive(text)` | Shortcut for `announce_with(text, Assertive)` |
 
+`system_theme(tag)` delivers `System(SystemTheme(tag, theme))` with
+`theme` as the raw renderer string: `"light"`, `"dark"`, or `"none"`.
+Use `theme.system_theme_from_string(theme)` when you want a concrete
+`Theme` value.
+
 `announce` triggers a live-region assertion for assistive
 technology. The text is immediately spoken by the screen reader
 without requiring a visible widget. `Polite` is correct for most

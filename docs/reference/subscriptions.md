@@ -101,6 +101,10 @@ wrap the widget in `ui.pointer_area` instead.
 | `on_animation_frame()` | `System(AnimationFrame(timestamp))` |
 | `on_file_drop()` | `Window(WindowEvent(event_type: FileDropped, ...))` |
 
+`ThemeChanged(theme)` carries the renderer's raw string. Use
+`theme.system_theme_from_string(theme)` to convert `"light"` and
+`"dark"` into `Theme` values.
+
 `on_animation_frame` delivers vsync ticks for SDK-side animation
 via `plushie/animation/tween`. Renderer-side transitions
 (`transition`, `spring`, `sequence`) do not need this

@@ -256,6 +256,12 @@ its own fields:
 | `Announce` | `text: String` |
 | `RecoveryFailed` | `kind: String`, `error: String`, `renderer_exit: RendererExit` |
 
+`SystemTheme` and `ThemeChanged` keep the renderer's raw string for
+compatibility. Convert concrete OS preferences with
+`theme.system_theme_from_string(value)`, which returns `Ok(Light)` or
+`Ok(Dark)` for `"light"` and `"dark"` and `Error(Nil)` for `"none"` or
+unknown values.
+
 ### `TimerEvent`
 
 Timer tick events from `subscription.every`.

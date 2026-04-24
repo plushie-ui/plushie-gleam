@@ -354,9 +354,11 @@ pub type ModifiersEvent {
 pub type SystemEvent {
   /// Response to a GetSystemInfo query.
   SystemInfo(tag: String, value: Dynamic)
-  /// Response to a GetSystemTheme query.
+  /// Response to a GetSystemTheme query. Use
+  /// `theme.system_theme_from_string` to convert the raw renderer value.
   SystemTheme(tag: String, theme: String)
-  /// The OS theme preference changed at runtime.
+  /// The OS theme preference changed at runtime. Use
+  /// `theme.system_theme_from_string` to convert the raw renderer value.
   ThemeChanged(theme: String)
   /// An animation frame tick (monotonic ms).
   AnimationFrame(timestamp: Int)
