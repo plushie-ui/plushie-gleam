@@ -1,9 +1,10 @@
 //// Telemetry event emission.
 ////
-//// On BEAM, wraps the Erlang `telemetry` library. Event names
-//// are lists of strings converted to atom lists for the underlying
-//// `:telemetry.execute/3` call. On JavaScript, all functions are
-//// no-ops (events are silently discarded).
+//// On BEAM, wraps the Erlang `telemetry` library. Event names,
+//// measurements, and metadata are accepted only when their names are
+//// known to the SDK. Unknown events are discarded, and unknown
+//// measurement or metadata keys are omitted. On JavaScript, all
+//// functions are no-ops (events are silently discarded).
 ////
 //// ## Usage
 ////
@@ -26,10 +27,14 @@ import plushie/platform
 
 /// Emit a telemetry event.
 ///
-/// - `event_name`: list of strings identifying the event (converted
-///   to atoms internally, e.g. `["plushie", "bridge", "send"]`).
-/// - `measurements`: numeric measurements (byte_size, duration, etc.).
-/// - `metadata`: contextual information (reason, format, etc.).
+/// - `event_name`: list of strings identifying a known SDK event,
+///   e.g. `["plushie", "bridge", "send"]`.
+/// - `measurements`: known numeric measurements such as byte_size or duration_ms.
+/// - `metadata`: known contextual information such as reason.
+///
+/// Unknown event names are discarded. Unknown measurement and metadata
+/// keys are omitted before the event is sent to the BEAM telemetry
+/// library.
 pub fn execute(
   event_name: List(String),
   measurements: Dict(String, Dynamic),
@@ -53,7 +58,8 @@ fn do_execute(
 /// metadata, and the config value passed here.
 ///
 /// Returns Ok(Nil) on success, Error(reason) if the handler ID
-/// is already in use.
+/// is already in use or the event name is not a known SDK event. Unknown
+/// event names return Error(unknown_telemetry_event) on BEAM.
 pub fn attach(
   handler_id: String,
   event_name: List(String),

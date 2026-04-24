@@ -340,13 +340,18 @@ monotonic_time_ms() ->
     erlang:monotonic_time(millisecond).
 
 %% Telemetry: execute an event.
-%% Converts the event name from a list of binaries to a list of atoms,
-%% and measurements/metadata from Gleam Dict to Erlang maps with atom keys.
+%% Event names and map keys are whitelisted so untrusted strings never
+%% allocate new atoms. Unknown events are discarded because telemetry is
+%% observational. Unknown measurement and metadata keys are omitted.
 telemetry_execute(EventName, Measurements, Metadata) ->
-    AtomName = [binary_to_atom(N, utf8) || N <- EventName],
-    AtomMeasurements = gleam_dict_to_atom_map(Measurements),
-    AtomMetadata = gleam_dict_to_atom_map(Metadata),
-    telemetry:execute(AtomName, AtomMeasurements, AtomMetadata),
+    case telemetry_event_atoms(EventName) of
+        {ok, AtomName} ->
+            AtomMeasurements = gleam_dict_to_atom_map(Measurements),
+            AtomMetadata = gleam_dict_to_atom_map(Metadata),
+            telemetry:execute(AtomName, AtomMeasurements, AtomMetadata);
+        error ->
+            nil
+    end,
     nil.
 
 telemetry_handler(Event, Measurements, Metadata, HandlerId) ->
@@ -365,13 +370,17 @@ telemetry_handler(Event, Measurements, Metadata, HandlerId) ->
 %% Store it in persistent_term and attach a module function so
 %% telemetry doesn't log warnings about local handlers.
 telemetry_attach(HandlerId, EventName, Handler, _Config) ->
-    AtomName = [binary_to_atom(N, utf8) || N <- EventName],
-    persistent_term:put({plushie_telemetry_handler, HandlerId}, Handler),
-    case telemetry:attach(HandlerId, AtomName, fun ?MODULE:telemetry_handler/4, HandlerId) of
-        ok -> {ok, nil};
-        {error, Reason} ->
-            persistent_term:erase({plushie_telemetry_handler, HandlerId}),
-            {error, Reason}
+    case telemetry_event_atoms(EventName) of
+        {ok, AtomName} ->
+            persistent_term:put({plushie_telemetry_handler, HandlerId}, Handler),
+            case telemetry:attach(HandlerId, AtomName, fun ?MODULE:telemetry_handler/4, HandlerId) of
+                ok -> {ok, nil};
+                {error, Reason} ->
+                    persistent_term:erase({plushie_telemetry_handler, HandlerId}),
+                    {error, Reason}
+            end;
+        error ->
+            {error, unknown_telemetry_event}
     end.
 
 %% Telemetry: detach a handler.
@@ -386,9 +395,67 @@ telemetry_duration_measurement(DurationMs) ->
 %% Convert a Gleam Dict (with binary keys) to an Erlang map with atom keys.
 gleam_dict_to_atom_map(Dict) ->
     maps:fold(fun(K, V, Acc) ->
-        AtomKey = binary_to_atom(K, utf8),
-        Acc#{AtomKey => V}
+        case telemetry_key_atom(K) of
+            {ok, AtomKey} -> Acc#{AtomKey => V};
+            error -> Acc
+        end
     end, #{}, Dict).
+
+telemetry_event_atoms([<<"plushie">>, <<"bridge">>, <<"send">>]) ->
+    {ok, [plushie, bridge, send]};
+telemetry_event_atoms([<<"plushie">>, <<"bridge">>, <<"receive">>]) ->
+    {ok, [plushie, bridge, 'receive']};
+telemetry_event_atoms([<<"plushie">>, <<"bridge">>, <<"restart">>]) ->
+    {ok, [plushie, bridge, restart]};
+telemetry_event_atoms([<<"plushie">>, <<"bridge">>, <<"decode_error">>]) ->
+    {ok, [plushie, bridge, decode_error]};
+telemetry_event_atoms([<<"plushie">>, <<"diff">>]) ->
+    {ok, [plushie, diff]};
+telemetry_event_atoms([<<"plushie">>, <<"diff">>, <<"complete">>]) ->
+    {ok, [plushie, diff, complete]};
+telemetry_event_atoms([<<"plushie">>, <<"diff">>, <<"start">>]) ->
+    {ok, [plushie, diff, start]};
+telemetry_event_atoms([<<"plushie">>, <<"diff">>, <<"stop">>]) ->
+    {ok, [plushie, diff, stop]};
+telemetry_event_atoms([<<"plushie">>, <<"view">>]) ->
+    {ok, [plushie, view]};
+telemetry_event_atoms([<<"plushie">>, <<"view">>, <<"start">>]) ->
+    {ok, [plushie, view, start]};
+telemetry_event_atoms([<<"plushie">>, <<"view">>, <<"stop">>]) ->
+    {ok, [plushie, view, stop]};
+telemetry_event_atoms([<<"plushie">>, <<"normalize">>]) ->
+    {ok, [plushie, normalize]};
+telemetry_event_atoms([<<"plushie">>, <<"normalize">>, <<"start">>]) ->
+    {ok, [plushie, normalize, start]};
+telemetry_event_atoms([<<"plushie">>, <<"normalize">>, <<"stop">>]) ->
+    {ok, [plushie, normalize, stop]};
+telemetry_event_atoms([<<"plushie">>, <<"update">>]) ->
+    {ok, [plushie, update]};
+telemetry_event_atoms([<<"plushie">>, <<"update">>, <<"start">>]) ->
+    {ok, [plushie, update, start]};
+telemetry_event_atoms([<<"plushie">>, <<"update">>, <<"stop">>]) ->
+    {ok, [plushie, update, stop]};
+telemetry_event_atoms([<<"plushie">>, <<"test">>, <<"noop">>]) ->
+    {ok, [plushie, test, noop]};
+telemetry_event_atoms([<<"plushie">>, <<"test">>, <<"ping">>]) ->
+    {ok, [plushie, test, ping]};
+telemetry_event_atoms([<<"plushie">>, <<"test">>, <<"detach_check">>]) ->
+    {ok, [plushie, test, detach_check]};
+telemetry_event_atoms([<<"plushie">>, <<"test">>, <<"meta">>]) ->
+    {ok, [plushie, test, meta]};
+telemetry_event_atoms([<<"plushie">>, <<"test">>, <<"dup">>]) ->
+    {ok, [plushie, test, dup]};
+telemetry_event_atoms(_) ->
+    error.
+
+telemetry_key_atom(<<"byte_size">>) -> {ok, byte_size};
+telemetry_key_atom(<<"duration_ms">>) -> {ok, duration_ms};
+telemetry_key_atom(<<"nodes">>) -> {ok, nodes};
+telemetry_key_atom(<<"ops">>) -> {ok, ops};
+telemetry_key_atom(<<"op_count">>) -> {ok, op_count};
+telemetry_key_atom(<<"count">>) -> {ok, count};
+telemetry_key_atom(<<"reason">>) -> {ok, reason};
+telemetry_key_atom(_) -> error.
 
 %% Convert an Erlang map with atom keys to a Gleam-compatible map with binary keys.
 atom_map_to_gleam_dict(Map) ->
