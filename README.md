@@ -155,26 +155,26 @@ interchangeable backends:
 ```gleam
 import gleeunit/should
 import gleam/option
-import plushie/testing as test
+import plushie/testing
 import plushie/testing/element
 
 pub fn add_and_complete_a_todo_test() {
-  let session = test.start(todo_app)
-  let session = test.type_text(session, "new_todo", "Buy milk")
-  let session = test.submit(session, "new_todo")
+  let session = testing.start(todo_app)
+  let session = testing.type_text(session, "new_todo", "Buy milk")
+  let session = testing.submit(session, "new_todo")
 
-  let assert option.Some(el) = test.find(session, "todo_count")
+  let assert option.Some(el) = testing.find(session, "todo_count")
   let assert option.Some(txt) = element.text(el)
   should.equal(txt, "1 item")
-  should.be_true(option.is_some(test.find(session, "todo:1")))
+  should.be_true(option.is_some(testing.find(session, "todo:1")))
 
-  let session = test.toggle(session, "todo:1")
-  let session = test.click(session, "filter_completed")
+  let session = testing.toggle(session, "todo:1")
+  let session = testing.click(session, "filter_completed")
 
-  let assert option.Some(el) = test.find(session, "todo_count")
+  let assert option.Some(el) = testing.find(session, "todo_count")
   let assert option.Some(txt) = element.text(el)
   should.equal(txt, "0 items")
-  should.be_true(option.is_none(test.find(session, "todo:1")))
+  should.be_true(option.is_none(testing.find(session, "todo:1")))
 }
 ```
 
