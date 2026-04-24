@@ -108,6 +108,8 @@ Here is what each piece does:
   (`window.Title(...)`, etc.), and the third is the list of child
   widgets. Every `view` returns a list of windows; the empty list
   renders nothing.
+- The `-> List(Node)` annotation on `view` is optional. Gleam can
+  infer the return type.
 - `ui.text_` displays a read-only string. The trailing underscore
   marks the no-options form. `ui.text` takes a third argument for
   typed options.

@@ -9,9 +9,9 @@
 //// Timer subscriptions have a tag that appears in the TimerTick event,
 //// giving each timer a stable identity.
 ////
-//// Renderer subscriptions have no user-facing tag (the tag was
-//// management-only and never appeared in delivered events). Their
-//// identity is derived from (kind, window_id).
+//// Renderer subscriptions use a tag for internal management only; this
+//// tag never appears in delivered events. Their identity is derived from
+//// (kind, window_id).
 ////
 //// Subscriptions can be scoped to a specific window using `set_window`
 //// or `for_window`. Window-scoped subscriptions only receive events
