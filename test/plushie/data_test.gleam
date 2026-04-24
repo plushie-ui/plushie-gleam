@@ -156,7 +156,6 @@ pub fn query_group_by_city_test() {
     data.query(sample_people(), [
       Group(fn(p: Person) { p.city }),
     ])
-  // All 5 people, grouped by city
   should.equal(result.total, 5)
 
   let london = dict.get(result.groups, "London")
@@ -184,18 +183,31 @@ pub fn query_group_with_pagination_test() {
       Page(1),
       PageSize(3),
     ])
-  // Only the first 3 entries are grouped (pagination happens before grouping)
+
   should.equal(list.length(result.entries), 3)
-  // Groups are built from paginated entries only
-  let group_count = dict.size(result.groups)
-  should.be_true(group_count > 0)
+  let entry_names = list.map(result.entries, fn(p: Person) { p.name })
+  should.equal(entry_names, ["Alice", "Bob", "Charlie"])
+
+  let london = dict.get(result.groups, "London")
+  should.be_ok(london)
+  let assert Ok(london_people) = london
+  let london_names = list.map(london_people, fn(p: Person) { p.name })
+  should.equal(london_names, ["Alice", "Charlie"])
+
+  let paris = dict.get(result.groups, "Paris")
+  should.be_ok(paris)
+  let assert Ok(paris_people) = paris
+  let paris_names = list.map(paris_people, fn(p: Person) { p.name })
+  should.equal(paris_names, ["Bob", "Eve"])
+
+  let berlin = dict.get(result.groups, "Berlin")
+  should.be_ok(berlin)
+  let assert Ok(berlin_people) = berlin
+  let berlin_names = list.map(berlin_people, fn(p: Person) { p.name })
+  should.equal(berlin_names, ["Diana"])
 }
 
 import gleam/list
-
-// ---------------------------------------------------------------------------
-// Multi-column sort (tiebreaking)
-// ---------------------------------------------------------------------------
 
 pub fn query_multi_column_sort_test() {
   let people = [

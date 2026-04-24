@@ -1,8 +1,9 @@
-//// Data query pipeline for filtering, searching, sorting, and
+//// Data query pipeline for filtering, searching, sorting, grouping, and
 //// paginating in-memory record collections.
 ////
-//// Each pipeline step (filter, search, sort, page) creates an
-//// intermediate copy of the data list. For very large datasets,
+//// Filtering, search, sorting, and pagination each create an
+//// intermediate copy of the data list. Grouping collects from the
+//// filtered, searched, sorted records before pagination. For very large datasets,
 //// consider combining operations or using a different data structure.
 ////
 //// Apply a chain of query options to transform a list:
@@ -43,7 +44,9 @@ pub type SortDirection {
   Desc
 }
 
-/// Query options applied in order: filter -> search -> sort -> paginate.
+/// Query options applied in order: filter -> search -> sort -> group -> paginate.
+/// Groups and total use the filtered, searched, sorted records before pagination.
+/// Entries use the same records after pagination.
 /// Repeated Filter and Search opts compose in list order.
 pub type QueryOpt(a) {
   /// Keep only records matching the predicate.
@@ -58,7 +61,7 @@ pub type QueryOpt(a) {
   Page(Int)
   /// Items per page (default 25).
   PageSize(Int)
-  /// Group paginated results by a key extractor.
+  /// Group records by a key extractor before pagination is applied.
   Group(fn(a) -> String)
 }
 
@@ -70,7 +73,7 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
   let page = find_page(opts)
   let page_size = find_page_size(opts)
 
-  // Apply pipeline: filter -> search -> sort -> paginate
+  // Apply pipeline: filter -> search -> sort -> group -> paginate
   let result = apply_filters(records, filters)
   let result = apply_searches(result, searches)
   // Apply all sort specs in order for multi-column tiebreaking
@@ -79,7 +82,6 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
     specs -> list.sort(result, fn(a, b) { compare_multi(a, b, specs) })
   }
   let total = list.length(result)
-  let result = paginate(result, page, page_size)
   let groups = case find_group(opts) {
     Some(group_fn) ->
       list.fold(result, dict.new(), fn(acc, item) {
@@ -92,7 +94,8 @@ pub fn query(records: List(a), opts: List(QueryOpt(a))) -> QueryResult(a) {
       })
     None -> dict.new()
   }
-  QueryResult(entries: result, total:, page:, page_size:, groups:)
+  let entries = paginate(result, page, page_size)
+  QueryResult(entries:, total:, page:, page_size:, groups:)
 }
 
 fn apply_filters(records: List(a), filters: List(fn(a) -> Bool)) -> List(a) {
