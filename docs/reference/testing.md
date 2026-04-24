@@ -49,6 +49,9 @@ gleam test                                  # default: mock
 PLUSHIE_TEST_BACKEND=headless gleam test    # software rendering
 ```
 
+Set `PLUSHIE_TEST_TIMEOUT` to a positive integer to scale test
+infrastructure waits on slower machines or loaded CI runners.
+
 | Backend | Process | Rendering | Screenshots | Effects |
 |---|---|---|---|---|
 | `mock` | `plushie-renderer --mock` (pooled) | Protocol only | Hash only | Stubs only |

@@ -52,6 +52,8 @@ import plushie/renderer_env
 @target(erlang)
 import plushie/renderer_port
 @target(erlang)
+import plushie/testing/timeout
+@target(erlang)
 import plushie/transport/framing
 
 // ---------------------------------------------------------------------------
@@ -199,7 +201,9 @@ type PoolState {
 @target(erlang)
 /// Start a session pool.
 pub fn start(config: PoolConfig) -> Result(PoolSubject, actor.StartError) {
-  actor.new_with_initialiser(10_000, fn(subject) { init_pool(subject, config) })
+  actor.new_with_initialiser(timeout.scale(10_000), fn(subject) {
+    init_pool(subject, config)
+  })
   |> actor.on_message(handle_message)
   |> actor.start
   |> result.map(fn(started) { started.data })
@@ -209,7 +213,11 @@ pub fn start(config: PoolConfig) -> Result(PoolSubject, actor.StartError) {
 /// Register a new session. Returns the session ID.
 pub fn register(pool: PoolSubject) -> String {
   let caller_pid = get_caller_pid()
-  case process.call(pool, 10_000, fn(reply) { Register(reply:, caller_pid:) }) {
+  case
+    process.call(pool, timeout.scale(10_000), fn(reply) {
+      Register(reply:, caller_pid:)
+    })
+  {
     Registered(session_id:) -> session_id
     AlreadyRegistered(session_id:) -> session_id
     PoolFull(max:) ->
@@ -225,7 +233,9 @@ pub fn register(pool: PoolSubject) -> String {
 /// Unregister a session.
 pub fn unregister(pool: PoolSubject, session_id: String) -> Nil {
   case
-    process.call(pool, 10_000, fn(reply) { Unregister(session_id:, reply:) })
+    process.call(pool, timeout.scale(10_000), fn(reply) {
+      Unregister(session_id:, reply:)
+    })
   {
     Unregistered -> Nil
     UnregisterError(_) -> Nil
@@ -242,7 +252,7 @@ pub fn send_message(
   response_type: String,
 ) -> Result(Dynamic, String) {
   case
-    process.call(pool, 30_000, fn(reply) {
+    process.call(pool, timeout.scale(30_000), fn(reply) {
       SendSync(session_id:, msg:, response_type:, reply:)
     })
   {
@@ -270,7 +280,7 @@ pub fn send_interact(
   session_id: String,
   msg: Dict(String, node.PropValue),
 ) -> String {
-  process.call(pool, 10_000, fn(reply) {
+  process.call(pool, timeout.scale(10_000), fn(reply) {
     SendInteract(session_id:, msg:, reply:)
   })
 }

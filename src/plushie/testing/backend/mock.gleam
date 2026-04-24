@@ -46,6 +46,8 @@ import plushie/testing/session.{type TestSession}
 @target(erlang)
 import plushie/testing/session_pool.{type PoolSubject}
 @target(erlang)
+import plushie/testing/timeout
+@target(erlang)
 import plushie/tree
 
 @target(erlang)
@@ -372,7 +374,7 @@ fn interact_loop(
   pool_ref: PoolSubject,
   session_id: String,
 ) -> TestSession(model) {
-  case receive_interact_message(5000) {
+  case receive_interact_message(timeout.scale(5000)) {
     InteractStep(events) -> {
       let new_sess =
         apply_events_and_snapshot(sess, events, pool_ref, session_id)

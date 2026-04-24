@@ -24,6 +24,7 @@ import plushie
 import plushie/app.{type App}
 import plushie/event.{type Event}
 import plushie/node.{type Node}
+import plushie/testing/timeout
 
 /// A running test app instance, parameterized over the model type
 /// for fully typed state queries.
@@ -72,12 +73,12 @@ pub fn start(
       process.new_selector()
       |> process.select(stop_signal)
       |> process.select_specific_monitor(caller_monitor, fn(_down) { Nil })
-    let _ = process.selector_receive(selector, 60_000)
+    let _ = process.selector_receive(selector, timeout.scale(60_000))
     plushie.stop(instance)
   })
 
   let assert Ok(#(instance, stop_signal)) =
-    process.receive(instance_reply, 10_000)
+    process.receive(instance_reply, timeout.scale(10_000))
   TestApp(instance:, stop_signal:)
 }
 
@@ -170,7 +171,7 @@ pub fn await(
   condition: fn(model) -> Bool,
   timeout_ms: Int,
 ) -> Result(model, Nil) {
-  let deadline = monotonic_time_ms() + timeout_ms
+  let deadline = monotonic_time_ms() + timeout.scale(timeout_ms)
   poll(rt, condition, deadline)
 }
 

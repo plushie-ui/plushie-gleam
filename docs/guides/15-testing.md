@@ -253,6 +253,9 @@ gleam test                                  # default: mock
 PLUSHIE_TEST_BACKEND=headless gleam test    # software rendering
 ```
 
+Set `PLUSHIE_TEST_TIMEOUT` to a positive integer to scale test
+infrastructure waits on slower machines or loaded CI runners.
+
 The windowed backend needs a display server. On a headless host,
 run behind a weston socket:
 

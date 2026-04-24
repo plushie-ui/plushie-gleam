@@ -440,6 +440,7 @@ covers both. If preflight passes, CI passes.
 | `PLUSHIE_SOCKET` | Default socket address for `plushie/connect` |
 | `PLUSHIE_TOKEN` | Fallback authentication token for `plushie/connect`; sent to the renderer as a digest |
 | `PLUSHIE_TEST_BACKEND` | Selects the test backend: `mock` (default), `headless`, or `windowed` |
+| `PLUSHIE_TEST_TIMEOUT` | Positive integer multiplier for test infrastructure timeouts |
 | `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` | Required for the windowed test backend on a headless host with a weston socket |
 | `RUST_LOG` | Passed through to the renderer for tracing-based logging |
 

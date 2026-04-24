@@ -73,6 +73,8 @@ import plushie/testing/event_decoder
 @target(erlang)
 import plushie/testing/screenshot.{type Screenshot, Screenshot}
 @target(erlang)
+import plushie/testing/timeout
+@target(erlang)
 import plushie/testing/tree_hash.{type TreeHash, TreeHash}
 @target(erlang)
 import plushie/transport/framing
@@ -189,7 +191,7 @@ pub fn start(
   app: App(model, Event),
   config: RendererConfig,
 ) -> Result(Subject(RendererMessage), actor.StartError) {
-  actor.new_with_initialiser(10_000, fn(subject) {
+  actor.new_with_initialiser(timeout.scale(10_000), fn(subject) {
     init_renderer(subject, app, config)
   })
   |> actor.on_message(handle_message)
@@ -213,7 +215,9 @@ pub fn find(
   selector: String,
 ) -> Option(Element) {
   case
-    process.call(subject, 10_000, fn(reply) { CallFind(selector:, reply:) })
+    process.call(subject, timeout.scale(10_000), fn(reply) {
+      CallFind(selector:, reply:)
+    })
   {
     ReplyElement(el) -> el
     _ -> None
@@ -286,7 +290,9 @@ pub fn slide(
 @target(erlang)
 /// Get the current model (returned as Dynamic; caller casts).
 pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
-  case process.call(subject, 10_000, fn(reply) { CallModel(reply:) }) {
+  case
+    process.call(subject, timeout.scale(10_000), fn(reply) { CallModel(reply:) })
+  {
     ReplyModel(m) -> m
     _ -> dynamic.nil()
   }
@@ -295,7 +301,9 @@ pub fn model(subject: Subject(RendererMessage)) -> Dynamic {
 @target(erlang)
 /// Get the raw tree from the renderer.
 pub fn get_tree(subject: Subject(RendererMessage)) -> Option(Dynamic) {
-  case process.call(subject, 10_000, fn(reply) { CallTree(reply:) }) {
+  case
+    process.call(subject, timeout.scale(10_000), fn(reply) { CallTree(reply:) })
+  {
     ReplyTree(t) -> t
     _ -> None
   }
@@ -308,7 +316,9 @@ pub fn get_tree_hash(
   name: String,
 ) -> TreeHash {
   case
-    process.call(subject, 30_000, fn(reply) { CallTreeHash(name:, reply:) })
+    process.call(subject, timeout.scale(30_000), fn(reply) {
+      CallTreeHash(name:, reply:)
+    })
   {
     ReplyTreeHash(th) -> th
     _ -> TreeHash(name:, hash: "")
@@ -322,7 +332,9 @@ pub fn get_screenshot(
   name: String,
 ) -> Screenshot {
   case
-    process.call(subject, 30_000, fn(reply) { CallScreenshot(name:, reply:) })
+    process.call(subject, timeout.scale(30_000), fn(reply) {
+      CallScreenshot(name:, reply:)
+    })
   {
     ReplyScreenshot(s) -> s
     _ -> screenshot.empty(name)
@@ -332,7 +344,9 @@ pub fn get_screenshot(
 @target(erlang)
 /// Reset the session to initial state.
 pub fn reset(subject: Subject(RendererMessage)) -> Nil {
-  case process.call(subject, 10_000, fn(reply) { CallReset(reply:) }) {
+  case
+    process.call(subject, timeout.scale(10_000), fn(reply) { CallReset(reply:) })
+  {
     _ -> Nil
   }
 }
@@ -495,7 +509,7 @@ fn interact(
   payload: Dict(String, String),
 ) -> Nil {
   case
-    process.call(subject, 10_000, fn(reply) {
+    process.call(subject, timeout.scale(10_000), fn(reply) {
       CallInteract(action:, selector:, payload:, reply:)
     })
   {

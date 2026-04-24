@@ -19,7 +19,8 @@ built-or-downloaded renderer binary.
 | `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout for source builds. |
 | `PLUSHIE_SOCKET` | Socket address for `plushie/connect` (Unix path, `:port`, or `host:port`). |
 | `PLUSHIE_TOKEN` | Fallback auth token for socket transport. Sent to the renderer as a digest. |
-| `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default) or `headless`. |
+| `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default), `headless`, or `windowed`. |
+| `PLUSHIE_TEST_TIMEOUT` | Positive integer multiplier for test infrastructure timeouts. Invalid values use `1`. |
 | `PLUSHIE_UPDATE_SCREENSHOTS` | When set to `1`, updates screenshot golden files instead of comparing. |
 | `PLUSHIE_UPDATE_SNAPSHOTS` | When set to `1`, updates tree-hash and JSON snapshot golden files instead of comparing. |
 | `RUST_LOG` | Renderer log verbosity. Forwarded to the renderer process if set in the parent environment; the SDK defaults it to `error` otherwise. |
