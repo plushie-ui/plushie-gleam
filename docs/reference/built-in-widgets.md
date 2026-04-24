@@ -651,6 +651,20 @@ Module `plushie/prop/shaping`. Used by: `text`, `rich_text`,
 | `Advanced` | Full Unicode shaping (ligatures, RTL, complex scripts) |
 | `Auto` | Let the renderer decide based on content |
 
+### Text direction
+
+Module `plushie/prop/text_direction`. Used by: `text`,
+`text_input`, `text_editor`.
+
+| Value | Meaning |
+|---|---|
+| `Auto` | Let the renderer use its default direction handling |
+| `Ltr` | Treat logical text layout and movement as left-to-right |
+| `Rtl` | Treat logical text layout and movement as right-to-left |
+
+Placeholder text uses the same direction hint as the input or editor
+value.
+
 ### Wrapping
 
 Module `plushie/prop/wrapping`. Used by: `text`, `rich_text`.

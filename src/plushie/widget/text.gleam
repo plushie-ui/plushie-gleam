@@ -12,6 +12,7 @@ import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/shaping.{type Shaping}
 import plushie/prop/style_map.{type StyleMap}
+import plushie/prop/text_direction.{type TextDirection}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
 
@@ -44,6 +45,7 @@ pub opaque type Text {
     align_y: Option(Alignment),
     wrapping: Option(Wrapping),
     ellipsis: Option(String),
+    text_direction: Option(TextDirection),
     shaping: Option(Shaping),
     style: Option(TextStyle),
     a11y: Option(A11y),
@@ -66,6 +68,7 @@ pub fn new(id: String, content: String) -> Text {
     align_y: None,
     wrapping: None,
     ellipsis: None,
+    text_direction: None,
     shaping: None,
     style: None,
     a11y: None,
@@ -123,6 +126,11 @@ pub fn ellipsis(text: Text, e: String) -> Text {
   Text(..text, ellipsis: option.Some(e))
 }
 
+/// Set the text direction used by logical text alignment.
+pub fn text_direction(text: Text, direction: TextDirection) -> Text {
+  Text(..text, text_direction: option.Some(direction))
+}
+
 /// Set the text shaping strategy.
 pub fn shaping(text: Text, s: Shaping) -> Text {
   Text(..text, shaping: option.Some(s))
@@ -168,6 +176,7 @@ pub type Opt {
   AlignY(Alignment)
   Wrapping(Wrapping)
   Ellipsis(String)
+  TextDirection(TextDirection)
   Shaping(Shaping)
   Style(TextStyle)
   A11y(A11y)
@@ -187,6 +196,7 @@ pub fn with_opts(text: Text, opts: List(Opt)) -> Text {
       AlignY(a) -> align_y(t, a)
       Wrapping(w) -> wrapping(t, w)
       Ellipsis(e) -> ellipsis(t, e)
+      TextDirection(d) -> text_direction(t, d)
       Shaping(s) -> shaping(t, s)
       Style(s) -> style(t, s)
       A11y(a) -> a11y(t, a)
@@ -225,6 +235,11 @@ pub fn build(text: Text) -> Node {
     |> build.put_optional("align_y", text.align_y, alignment.to_prop_value)
     |> build.put_optional("wrapping", text.wrapping, wrapping.to_prop_value)
     |> build.put_optional_string("ellipsis", text.ellipsis)
+    |> build.put_optional(
+      "text_direction",
+      text.text_direction,
+      text_direction.to_prop_value,
+    )
     |> build.put_optional("shaping", text.shaping, shaping.to_prop_value)
     |> build.put_optional("style", text.style, style_to_prop_value)
     |> build.apply_default_a11y(text.a11y, "label", option.Some("content"))

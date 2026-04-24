@@ -4,6 +4,7 @@ import plushie/node.{BoolVal, FloatVal, StringVal}
 import plushie/prop/alignment
 import plushie/prop/length
 import plushie/prop/padding
+import plushie/prop/text_direction
 import plushie/tree
 import plushie/ui
 import plushie/widget/button
@@ -11,6 +12,7 @@ import plushie/widget/column
 import plushie/widget/container
 import plushie/widget/row
 import plushie/widget/text
+import plushie/widget/text_editor
 import plushie/widget/text_input
 import plushie/widget/window
 
@@ -49,10 +51,16 @@ pub fn text_underscore_creates_text_node_test() {
 }
 
 pub fn text_with_attrs_test() {
-  let node = ui.text("lbl", "Hello", [text.Size(24.0)])
+  let node =
+    ui.text("lbl", "Hello", [
+      text.Size(24.0),
+      text.TextDirection(text_direction.Rtl),
+    ])
 
   assert dict.get(node.props, "content") == Ok(StringVal("Hello"))
   assert dict.get(node.props, "size") == Ok(FloatVal(24.0))
+  assert dict.get(node.props, "text_direction")
+    == Ok(text_direction.to_prop_value(text_direction.Rtl))
 }
 
 pub fn button_underscore_creates_button_node_test() {
@@ -77,12 +85,28 @@ pub fn text_input_creates_text_input_node_test() {
   let node =
     ui.text_input("email", "user@example.com", [
       text_input.Placeholder("Email"),
+      text_input.TextDirection(text_direction.Ltr),
     ])
 
   assert node.id == "email"
   assert node.kind == "text_input"
   assert dict.get(node.props, "value") == Ok(StringVal("user@example.com"))
   assert dict.get(node.props, "placeholder") == Ok(StringVal("Email"))
+  assert dict.get(node.props, "text_direction")
+    == Ok(text_direction.to_prop_value(text_direction.Ltr))
+}
+
+pub fn text_editor_creates_text_editor_node_test() {
+  let node =
+    ui.text_editor("notes", "hello", [
+      text_editor.TextDirection(text_direction.Rtl),
+    ])
+
+  assert node.id == "notes"
+  assert node.kind == "text_editor"
+  assert dict.get(node.props, "content") == Ok(StringVal("hello"))
+  assert dict.get(node.props, "text_direction")
+    == Ok(text_direction.to_prop_value(text_direction.Rtl))
 }
 
 pub fn checkbox_creates_checkbox_node_test() {

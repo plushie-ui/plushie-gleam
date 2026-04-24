@@ -7,6 +7,7 @@ import plushie/prop/font
 import plushie/prop/length
 import plushie/prop/line_height
 import plushie/prop/padding
+import plushie/prop/text_direction
 import plushie/widget/text_input
 
 pub fn new_builds_minimal_text_input_test() {
@@ -64,6 +65,16 @@ pub fn align_x_sets_alignment_prop_test() {
 
   assert dict.get(node.props, "align_x")
     == Ok(alignment.to_prop_value(alignment.Center))
+}
+
+pub fn text_direction_sets_text_direction_prop_test() {
+  let node =
+    text_input.new("in", "")
+    |> text_input.text_direction(text_direction.Rtl)
+    |> text_input.build()
+
+  assert dict.get(node.props, "text_direction")
+    == Ok(text_direction.to_prop_value(text_direction.Rtl))
 }
 
 pub fn on_submit_sets_bool_prop_test() {
@@ -136,6 +147,7 @@ pub fn omitted_optionals_are_absent_test() {
   assert dict.get(node.props, "style") == Error(Nil)
   assert dict.get(node.props, "width") == Error(Nil)
   assert dict.get(node.props, "icon") == Error(Nil)
+  assert dict.get(node.props, "text_direction") == Error(Nil)
   assert dict.get(node.props, "placeholder_color") == Error(Nil)
   assert dict.get(node.props, "selection_color") == Error(Nil)
 }

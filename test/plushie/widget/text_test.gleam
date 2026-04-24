@@ -4,6 +4,7 @@ import plushie/prop/alignment
 import plushie/prop/color
 import plushie/prop/font
 import plushie/prop/length
+import plushie/prop/text_direction
 import plushie/widget/text
 
 pub fn new_builds_minimal_text_test() {
@@ -69,10 +70,21 @@ pub fn alignment_test() {
     == Ok(alignment.to_prop_value(alignment.Top))
 }
 
+pub fn text_direction_sets_text_direction_prop_test() {
+  let node =
+    text.new("lbl", "Hi")
+    |> text.text_direction(text_direction.Rtl)
+    |> text.build()
+
+  assert dict.get(node.props, "text_direction")
+    == Ok(text_direction.to_prop_value(text_direction.Rtl))
+}
+
 pub fn omitted_optionals_are_absent_test() {
   let node = text.new("lbl", "Hi") |> text.build()
 
   assert dict.get(node.props, "size") == Error(Nil)
   assert dict.get(node.props, "color") == Error(Nil)
   assert dict.get(node.props, "font") == Error(Nil)
+  assert dict.get(node.props, "text_direction") == Error(Nil)
 }

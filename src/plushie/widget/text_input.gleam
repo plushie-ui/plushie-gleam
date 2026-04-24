@@ -14,6 +14,7 @@ import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
 import plushie/prop/padding.{type Padding}
+import plushie/prop/text_direction.{type TextDirection}
 import plushie/prop/validation_state.{type ValidationState}
 import plushie/widget/build
 
@@ -51,6 +52,7 @@ pub opaque type TextInput {
     font: Option(Font),
     line_height: Option(LineHeight),
     align_x: Option(Alignment),
+    text_direction: Option(TextDirection),
     icon: Option(TextInputIcon),
     on_submit: Option(Bool),
     on_paste: Option(Bool),
@@ -77,6 +79,7 @@ pub fn new(id: String, value: String) -> TextInput {
     font: None,
     line_height: None,
     align_x: None,
+    text_direction: None,
     icon: None,
     on_submit: None,
     on_paste: None,
@@ -124,6 +127,13 @@ pub fn line_height(input: TextInput, lh: LineHeight) -> TextInput {
 /// Set the horizontal alignment.
 pub fn align_x(input: TextInput, a: Alignment) -> TextInput {
   TextInput(..input, align_x: option.Some(a))
+}
+
+/// Set the text direction used by logical text layout.
+///
+/// Placeholder text uses the same direction hint as the input value.
+pub fn text_direction(input: TextInput, direction: TextDirection) -> TextInput {
+  TextInput(..input, text_direction: option.Some(direction))
 }
 
 /// Set an icon inside the input field.
@@ -191,6 +201,7 @@ pub type Opt {
   Font(Font)
   LineHeight(LineHeight)
   AlignX(Alignment)
+  TextDirection(TextDirection)
   Icon(TextInputIcon)
   OnSubmit(Bool)
   OnPaste(Bool)
@@ -215,6 +226,7 @@ pub fn with_opts(input: TextInput, opts: List(Opt)) -> TextInput {
       Font(f) -> font(i, f)
       LineHeight(h) -> line_height(i, h)
       AlignX(a) -> align_x(i, a)
+      TextDirection(d) -> text_direction(i, d)
       Icon(ic) -> icon(i, ic)
       OnSubmit(v) -> on_submit(i, v)
       OnPaste(v) -> on_paste(i, v)
@@ -246,6 +258,11 @@ pub fn build(input: TextInput) -> Node {
       line_height.to_prop_value,
     )
     |> build.put_optional("align_x", input.align_x, alignment.to_prop_value)
+    |> build.put_optional(
+      "text_direction",
+      input.text_direction,
+      text_direction.to_prop_value,
+    )
     |> build.put_optional("icon", input.icon, icon_to_prop_value)
     |> build.put_optional_bool("on_submit", input.on_submit)
     |> build.put_optional_bool("on_paste", input.on_paste)

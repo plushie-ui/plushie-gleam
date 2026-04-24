@@ -10,6 +10,7 @@ import plushie/prop/font.{type Font}
 import plushie/prop/input_purpose.{type InputPurpose}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
+import plushie/prop/text_direction.{type TextDirection}
 import plushie/prop/validation_state.{type ValidationState}
 import plushie/prop/wrapping.{type Wrapping}
 import plushie/widget/build
@@ -28,6 +29,7 @@ pub opaque type TextEditor {
     size: Option(Float),
     line_height: Option(LineHeight),
     wrapping: Option(Wrapping),
+    text_direction: Option(TextDirection),
     input_purpose: Option(InputPurpose),
     highlight_syntax: Option(String),
     highlight_theme: Option(String),
@@ -56,6 +58,7 @@ pub fn new(id: String, content: String) -> TextEditor {
     size: None,
     line_height: None,
     wrapping: None,
+    text_direction: None,
     input_purpose: None,
     highlight_syntax: None,
     highlight_theme: None,
@@ -122,6 +125,13 @@ pub fn wrapping(te: TextEditor, w: Wrapping) -> TextEditor {
   TextEditor(..te, wrapping: option.Some(w))
 }
 
+/// Set the text direction used by logical editor operations.
+///
+/// Placeholder text uses the same direction hint as the editor content.
+pub fn text_direction(te: TextEditor, direction: TextDirection) -> TextEditor {
+  TextEditor(..te, text_direction: option.Some(direction))
+}
+
 /// Set the input purpose hint.
 pub fn input_purpose(te: TextEditor, p: InputPurpose) -> TextEditor {
   TextEditor(..te, input_purpose: option.Some(p))
@@ -185,6 +195,7 @@ pub type Opt {
   Size(Float)
   LineHeight(LineHeight)
   Wrapping(Wrapping)
+  TextDirection(TextDirection)
   InputPurpose(InputPurpose)
   HighlightSyntax(String)
   HighlightTheme(String)
@@ -211,6 +222,7 @@ pub fn with_opts(te: TextEditor, opts: List(Opt)) -> TextEditor {
       Size(s) -> size(t, s)
       LineHeight(h) -> line_height(t, h)
       Wrapping(w) -> wrapping(t, w)
+      TextDirection(d) -> text_direction(t, d)
       InputPurpose(p) -> input_purpose(t, p)
       HighlightSyntax(lang) -> highlight_syntax(t, lang)
       HighlightTheme(theme) -> highlight_theme(t, theme)
@@ -244,6 +256,11 @@ pub fn build(te: TextEditor) -> Node {
       line_height.to_prop_value,
     )
     |> build.put_optional("wrapping", te.wrapping, wrapping.to_prop_value)
+    |> build.put_optional(
+      "text_direction",
+      te.text_direction,
+      text_direction.to_prop_value,
+    )
     |> build.put_optional(
       "input_purpose",
       te.input_purpose,
