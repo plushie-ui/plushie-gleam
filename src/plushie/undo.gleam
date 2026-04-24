@@ -71,20 +71,20 @@ pub fn new(model: model) -> UndoStack(model) {
 /// The max_size must be a positive integer.
 pub fn new_with_max_size(model: model, max_size: Int) -> UndoStack(model) {
   case max_size > 0 {
-    True -> Nil
+    True ->
+      UndoStack(
+        current: model,
+        undo_stack: [],
+        redo_stack: [],
+        max_size:,
+        undo_size: 0,
+      )
     False ->
       panic as {
         "undo max_size must be a positive integer, got "
         <> int.to_string(max_size)
       }
   }
-  UndoStack(
-    current: model,
-    undo_stack: [],
-    redo_stack: [],
-    max_size:,
-    undo_size: 0,
-  )
 }
 
 /// Push a command: execute it, push to undo stack, clear redo stack.
@@ -195,8 +195,6 @@ pub fn undo_history(stack: UndoStack(model)) -> List(String) {
 pub fn redo_history(stack: UndoStack(model)) -> List(String) {
   list.map(stack.redo_stack, fn(e) { e.label })
 }
-
-// -- Private -----------------------------------------------------------------
 
 /// Check if the new command can be coalesced with the top of the undo stack.
 /// Returns Some(merged_entry) if coalescing applies, None otherwise.

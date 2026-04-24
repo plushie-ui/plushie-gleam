@@ -104,7 +104,7 @@ pub fn range_select(sel: Selection, id: String) -> Selection {
     None -> select(sel, id, False)
     Some(anchor) -> {
       let range_items = items_between(sel.order, anchor, id)
-      Selection(..sel, selected: set.from_list(range_items))
+      Selection(..sel, selected: set.from_list(range_items), anchor: Some(id))
     }
   }
 }

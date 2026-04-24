@@ -1,5 +1,6 @@
 import gleam/option.{None, Some}
 import gleeunit/should
+import plushie/platform
 import plushie/undo.{type UndoCommand, UndoCommand}
 
 fn increment_cmd() -> UndoCommand(Int) {
@@ -27,6 +28,22 @@ pub fn new_creates_stack_with_initial_model_test() {
   should.equal(undo.current(stack), 0)
   should.equal(undo.can_undo(stack), False)
   should.equal(undo.can_redo(stack), False)
+}
+
+pub fn new_with_max_size_keeps_custom_limit_test() {
+  let stack =
+    undo.new_with_max_size(0, 2)
+    |> undo.push(add_cmd(1))
+    |> undo.push(add_cmd(2))
+    |> undo.push(add_cmd(4))
+  should.equal(undo.current(stack), 7)
+  should.equal(undo.undo_history(stack), ["add", "add"])
+  should.equal(undo.current(undo.undo(undo.undo(stack))), 1)
+}
+
+pub fn new_with_max_size_rejects_invalid_limit_test() {
+  let result = platform.try_call(fn() { undo.new_with_max_size(0, 0) })
+  should.be_error(result)
 }
 
 pub fn apply_executes_command_test() {
@@ -112,8 +129,6 @@ pub fn redo_history_labels_test() {
     |> undo.undo()
   should.equal(undo.redo_history(stack), ["increment", "add"])
 }
-
-// -- Coalescing tests --------------------------------------------------------
 
 pub fn coalesce_merges_within_window_test() {
   // Two commands with the same coalesce key within the window merge

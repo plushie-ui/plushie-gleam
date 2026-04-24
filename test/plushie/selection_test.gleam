@@ -95,6 +95,20 @@ pub fn range_select_reverse_direction_test() {
   should.equal(selection.is_selected(sel, "d"), True)
 }
 
+pub fn second_range_select_uses_previous_target_as_anchor_test() {
+  let order = ["a", "b", "c", "d", "e"]
+  let sel =
+    selection.new_with_order(Range, order)
+    |> selection.select("b", False)
+    |> selection.range_select("d")
+    |> selection.range_select("e")
+  should.equal(selection.is_selected(sel, "b"), False)
+  should.equal(selection.is_selected(sel, "c"), False)
+  should.equal(selection.is_selected(sel, "d"), True)
+  should.equal(selection.is_selected(sel, "e"), True)
+  should.equal(set.size(selection.selected(sel)), 2)
+}
+
 pub fn range_select_no_anchor_selects_single_test() {
   let order = ["a", "b", "c"]
   let sel =
