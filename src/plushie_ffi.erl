@@ -570,9 +570,7 @@ stop_file_watcher(Pid) ->
 %% Compute SHA-256 hash and return as lowercase hex binary.
 sha256_hex(Data) ->
     Hash = crypto:hash(sha256, Data),
-    list_to_binary(string:lowercase(binary_to_list(
-        << <<(integer_to_binary(B, 16))/binary>> || <<B:4>> <= Hash >>
-    ))).
+    list_to_binary([io_lib:format("~2.16.0b", [B]) || <<B>> <= Hash]).
 
 %% CRC32 of binary data.
 crc32(Data) ->

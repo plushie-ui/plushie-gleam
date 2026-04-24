@@ -1,4 +1,6 @@
+import gleam/bit_array
 import gleam/list
+import gleam/string
 import gleeunit/should
 import plushie/platform
 
@@ -49,6 +51,17 @@ pub fn set_and_get_env_round_trips_test() {
   platform.get_env("PLUSHIE_TEST_FFI_VAR")
   |> should.equal(Ok("hello"))
   platform.unset_env("PLUSHIE_TEST_FFI_VAR")
+}
+
+pub fn sha256_hex_returns_lowercase_known_vector_test() {
+  let hash = platform.sha256_hex(bit_array.from_string("abc"))
+
+  should.equal(
+    hash,
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+  )
+  should.equal(string.length(hash), 64)
+  should.equal(hash, string.lowercase(hash))
 }
 
 @target(erlang)
