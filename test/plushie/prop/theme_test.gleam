@@ -1,4 +1,6 @@
 import gleam/dict
+import gleam/dynamic/decode as dyn_decode
+import gleam/erlang/atom
 import gleeunit/should
 import plushie/node.{DictVal, StringVal}
 import plushie/platform
@@ -113,6 +115,28 @@ pub fn base_rejects_non_concrete_themes_test() {
 
   platform.try_call(fn() { theme.base(theme.custom("Nested", dict.new())) })
   |> should.be_error
+}
+
+pub fn custom_rejects_unknown_keys_with_clear_message_test() {
+  let result =
+    platform.try_call(fn() {
+      theme.custom(
+        "Bad Theme",
+        dict.from_list([#("primarry", StringVal("#7aa2f7"))]),
+      )
+    })
+
+  case result {
+    Error(reason) ->
+      dyn_decode.run(
+        reason,
+        dyn_decode.at([atom.create("message")], dyn_decode.string),
+      )
+      |> should.equal(Ok(
+        "unknown theme key \"primarry\". Accepted keys: base, name, core color seeds, and shade overrides.",
+      ))
+    Ok(_) -> should.fail()
+  }
 }
 
 pub fn from_string_parses_built_in_themes_test() {

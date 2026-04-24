@@ -10,6 +10,8 @@ import gleam/list
 import gleam/set.{type Set}
 import plushie/node.{type PropValue, DictVal, StringVal}
 
+const accepted_custom_theme_keys = "base, name, core color seeds, and shade overrides"
+
 pub type Theme {
   Light
   Dark
@@ -101,8 +103,9 @@ fn validate_custom_keys(palette: Dict(String, PropValue)) -> Nil {
         panic as {
           "unknown theme key \""
           <> key
-          <> "\". Valid keys: background, text, primary, success, danger, warning, "
-          <> "and shade overrides like primary_strong, background_weakest, etc."
+          <> "\". Accepted keys: "
+          <> accepted_custom_theme_keys
+          <> "."
         }
     }
   })
