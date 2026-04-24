@@ -438,7 +438,7 @@ covers both. If preflight passes, CI passes.
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary. Errors if set but missing |
 | `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout. Switches builds to source mode, pins `cargo-plushie` to the checkout, and enables WASM builds |
 | `PLUSHIE_SOCKET` | Default socket address for `plushie/connect` |
-| `PLUSHIE_TOKEN` | Default authentication token for `plushie/connect` |
+| `PLUSHIE_TOKEN` | Fallback authentication token for `plushie/connect`; sent to the renderer as a digest |
 | `PLUSHIE_TEST_BACKEND` | Selects the test backend: `mock` (default), `headless`, or `windowed` |
 | `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` | Required for the windowed test backend on a headless host with a weston socket |
 | `RUST_LOG` | Passed through to the renderer for tracing-based logging |

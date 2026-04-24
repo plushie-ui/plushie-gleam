@@ -111,8 +111,8 @@ pub type StartOpts {
     /// When True, starts a file watcher that recompiles on source
     /// changes and triggers a force re-render without losing state.
     dev: Bool,
-    /// Authentication token for socket transport. Sent in the
-    /// settings message for renderer verification. Default: None.
+    /// Authentication token for socket transport. Sent to the renderer
+    /// as a digest in the settings message. Default: None.
     token: Option(String),
   )
 }

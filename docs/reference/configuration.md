@@ -18,7 +18,7 @@ built-or-downloaded renderer binary.
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary. Overrides all other binary resolution. |
 | `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout for source builds. |
 | `PLUSHIE_SOCKET` | Socket address for `plushie/connect` (Unix path, `:port`, or `host:port`). |
-| `PLUSHIE_TOKEN` | Auth token for socket transport. |
+| `PLUSHIE_TOKEN` | Fallback auth token for socket transport. Sent to the renderer as a digest. |
 | `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default) or `headless`. |
 | `PLUSHIE_UPDATE_SCREENSHOTS` | When set to `1`, updates screenshot golden files instead of comparing. |
 | `PLUSHIE_UPDATE_SNAPSHOTS` | When set to `1`, updates tree-hash and JSON snapshot golden files instead of comparing. |
@@ -74,9 +74,10 @@ Common values:
 - `plushie=warn` - warnings only
 
 The renderer environment is scrubbed by default: only a canonical
-whitelist (display, locale, font, accessibility, `PLUSHIE_*`) is
-forwarded. Everything else is explicitly unset to prevent leaking
-secrets from the parent shell. See `plushie/renderer_env`.
+whitelist (display, locale, font, accessibility, and explicit
+Plushie-owned toggles) is forwarded. Everything else is explicitly
+unset to prevent leaking secrets from the parent shell. See
+`plushie/renderer_env`.
 
 ## Project config (gleam.toml)
 
@@ -178,7 +179,7 @@ record is `plushie.StartOpts`:
 | `renderer_args` | `List(String)` | `[]` | Extra CLI arguments prepended to the renderer command. Only applies in `Spawn` transport. |
 | `transport` | `Transport` | `Spawn` | Transport mode (`Spawn`, `Stdio`, or `Iostream(adapter)`). See [transport modes](#transport-modes). |
 | `dev` | `Bool` | `False` | Enable the dev server: watch `src/`, recompile on change, hot-reload BEAM modules, and trigger a force re-render. App model state is preserved. |
-| `token` | `Option(String)` | `None` | Authentication token for socket transport. Sent in the settings message for renderer verification. |
+| `token` | `Option(String)` | `None` | Authentication token for socket transport. Sent to the renderer as a digest in the settings message. |
 
 Start an app with default options and a resolved binary:
 

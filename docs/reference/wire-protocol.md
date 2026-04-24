@@ -107,7 +107,7 @@ The SDK and renderer follow a fixed sequence:
 1. The SDK sends `settings` first.
    `protocol.encode_settings/4` serializes the app's
    `Settings` record plus the pinned protocol version, an
-   optional auth token, and any `required_widgets`. The
+   optional auth token digest, and any `required_widgets`. The
    bridge writes this as the first wire message.
 2. The renderer peeks the first byte of stdin and locks in
    the codec.

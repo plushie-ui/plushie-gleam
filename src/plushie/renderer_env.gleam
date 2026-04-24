@@ -8,8 +8,8 @@
 ////
 //// The whitelist matches the canonical list shared across every host
 //// SDK: exact entries for display/rendering/locale/accessibility/font
-//// vars, prefix entries for families (`LC_`, `MESA_`, ...), and the
-//// `PLUSHIE_` prefix for plushie-reserved debug toggles.
+//// vars, prefix entries for families (`LC_`, `MESA_`, ...), and
+//// explicit Plushie-owned toggles that the renderer needs.
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
@@ -48,15 +48,13 @@ const allowed_exact = [
   "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_DATA_HOME", "PATH", "LD_LIBRARY_PATH",
   "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LANG", "LANGUAGE",
   "DBUS_SESSION_BUS_ADDRESS", "GTK_MODULES", "NO_AT_BRIDGE", "WGPU_BACKEND",
-  "RUST_LOG", "RUST_BACKTRACE", "HOME", "USER",
+  "RUST_LOG", "RUST_BACKTRACE", "HOME", "USER", "PLUSHIE_NO_CATCH_UNWIND",
 ]
 
 /// Prefixes: any variable starting with one of these is forwarded.
-/// `PLUSHIE_` catches plushie-reserved debug toggles without per-var
-/// maintenance (e.g. `PLUSHIE_NO_CATCH_UNWIND`).
 const allowed_prefixes = [
   "LC_", "MESA_", "LIBGL_", "__GLX_", "VK_", "GALLIUM_", "AT_SPI_",
-  "FONTCONFIG_", "PLUSHIE_",
+  "FONTCONFIG_",
 ]
 
 /// Returns True if `key` is on the canonical whitelist.

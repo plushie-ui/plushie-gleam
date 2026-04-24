@@ -315,6 +315,25 @@ pub fn encode_settings_with_empty_required_widgets_omits_key_test() {
   assert !string.contains(s, "\"required_widgets\"")
 }
 
+pub fn encode_settings_with_token_sends_digest_not_plaintext_test() {
+  let settings = app.default_settings()
+  let assert Ok(bytes) =
+    encode.encode_settings(
+      settings,
+      "",
+      protocol.Json,
+      option.Some("secret-token"),
+    )
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"token_sha256\"")
+  assert string.contains(
+    s,
+    "930bbdc51b6aed5c2a5678fd6e28dee7a05e8a4b643cfc0b4427c3efb86c0d94",
+  )
+  assert !string.contains(s, "\"token\"")
+  assert !string.contains(s, "secret-token")
+}
+
 // --- encode_snapshot ---------------------------------------------------------
 
 pub fn encode_snapshot_wraps_tree_test() {

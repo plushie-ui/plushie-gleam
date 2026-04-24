@@ -19,9 +19,8 @@ pub fn allows_prefix_canonical_vars_test() {
   should.equal(renderer_env.is_allowed("AT_SPI_BUS_ADDRESS"), True)
 }
 
-pub fn allows_plushie_prefix_test() {
+pub fn allows_explicit_plushie_vars_test() {
   should.equal(renderer_env.is_allowed("PLUSHIE_NO_CATCH_UNWIND"), True)
-  should.equal(renderer_env.is_allowed("PLUSHIE_DEBUG_FOO"), True)
 }
 
 pub fn rejects_secrets_and_unrelated_vars_test() {
@@ -30,6 +29,9 @@ pub fn rejects_secrets_and_unrelated_vars_test() {
   should.equal(renderer_env.is_allowed("DATABASE_URL"), False)
   should.equal(renderer_env.is_allowed("SSH_AUTH_SOCK"), False)
   should.equal(renderer_env.is_allowed("SECRET_KEY_BASE"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_TOKEN"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_API_KEY"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_DEBUG_FOO"), False)
   // Dropped-from-old-broader-list entries: these are no longer allowed.
   should.equal(renderer_env.is_allowed("DRI_PRIME"), False)
   should.equal(renderer_env.is_allowed("SHELL"), False)

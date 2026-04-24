@@ -258,7 +258,13 @@ pub fn encode_settings(
     False -> settings_fields
   }
   let settings_fields = case token {
-    option.Some(t) -> [#("token", StringVal(t)), ..settings_fields]
+    option.Some(t) -> [
+      #(
+        "token_sha256",
+        StringVal(platform.sha256_hex(bit_array.from_string(t))),
+      ),
+      ..settings_fields
+    ]
     option.None -> settings_fields
   }
   let settings_fields = case dict.is_empty(settings.widget_config) {
