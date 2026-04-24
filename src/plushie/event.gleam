@@ -1,9 +1,11 @@
-//// Event types for the plushie wire protocol.
+//// Typed events emitted by the Plushie runtime.
 ////
-//// Events are delivered to the app's `update` function from the
-//// renderer. The top-level `Event` type categorizes events into
-//// families (Widget, Key, Window, etc.), each wrapping a dedicated
-//// sub-type with typed fields.
+//// The renderer sends raw protocol messages, and the SDK decodes
+//// them into this public `Event` API before your app sees them. In a
+//// simple app these events are passed to `update`; custom-message
+//// apps can map them through `on_event` first. The top-level `Event`
+//// type categorizes events into families (Widget, Key, Window, etc.),
+//// each wrapping a dedicated sub-type with typed fields.
 ////
 //// ```gleam
 //// case event {
