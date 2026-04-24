@@ -460,6 +460,34 @@ pub fn decode_unknown_family_falls_through_json_test() {
   }
 }
 
+pub fn decode_colon_custom_family_falls_through_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"star_rating:select\",\"id\":\"main#stars\",\"value\":5}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Widget(event.CustomWidget(
+      kind:,
+      target: EventTarget(id:, scope:, ..),
+      ..,
+    )) -> {
+      should.equal(kind, "star_rating:select")
+      should.equal(id, "stars")
+      should.equal(scope, ["main"])
+    }
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_invalid_custom_family_rejects_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"../../clipboard_read\",\"id\":\"main#widget_x\",\"value\":42}"
+  let data = bit_array.from_string(json)
+  let assert Error(protocol.UnknownEventFamily("../../clipboard_read")) =
+    decode.decode_message(data, protocol.Json)
+}
+
 // ---------------------------------------------------------------------------
 // Unknown message type
 // ---------------------------------------------------------------------------

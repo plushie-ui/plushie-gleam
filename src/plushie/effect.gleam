@@ -186,6 +186,26 @@ pub fn default_timeout(kind: String) -> Int {
   }
 }
 
+/// Returns whether an effect kind is part of the platform effect API.
+pub fn is_supported_kind(kind: String) -> Bool {
+  case kind {
+    "file_open" -> True
+    "file_open_multiple" -> True
+    "file_save" -> True
+    "directory_select" -> True
+    "directory_select_multiple" -> True
+    "clipboard_read" -> True
+    "clipboard_write" -> True
+    "clipboard_read_html" -> True
+    "clipboard_write_html" -> True
+    "clipboard_clear" -> True
+    "clipboard_read_primary" -> True
+    "clipboard_write_primary" -> True
+    "notification" -> True
+    _ -> False
+  }
+}
+
 // -- Internal helpers --------------------------------------------------------
 
 fn make_effect(

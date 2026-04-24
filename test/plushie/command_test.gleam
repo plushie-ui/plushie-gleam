@@ -1,4 +1,6 @@
+import gleam/dict
 import plushie/command
+import plushie/command_encode
 
 pub fn none_returns_none_variant_test() {
   assert command.none() == command.None
@@ -22,6 +24,20 @@ pub fn focus_canvas_element_via_scoped_path_test() {
 
 pub fn focus_next_test() {
   assert command.focus_next() == command.Renderer(command.FocusNext)
+}
+
+pub fn native_command_with_invalid_op_classifies_as_noop_test() {
+  let cmd = command.native_command("g1", "../../clipboard_read", dict.new())
+  assert command_encode.classify(cmd) == command_encode.NoOp
+}
+
+pub fn widget_batch_with_invalid_op_classifies_as_noop_test() {
+  let cmd =
+    command.widget_batch([
+      #("g1", "set_value", dict.new()),
+      #("g2", "../../clipboard_read", dict.new()),
+    ])
+  assert command_encode.classify(cmd) == command_encode.NoOp
 }
 
 pub fn focus_previous_test() {

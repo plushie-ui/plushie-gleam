@@ -382,6 +382,9 @@ pub fn dispatch_event(instance: Instance(_), event: Event) -> Nil {
 /// returns the given response immediately without executing the
 /// real effect. Used for testing (controlled effect responses)
 /// and scripting (no user interaction required).
+/// The kind must be one of the platform effect kinds from
+/// `plushie/effect`, such as `"file_open"`, `"clipboard_read"`,
+/// or `"notification"`.
 ///
 /// The response value is returned as-is in an EffectOk result.
 /// To simulate cancellation, use `dispatch_event` with an
@@ -409,7 +412,8 @@ pub fn register_effect_stub(
 /// Blocks until the renderer confirms the stub is removed.
 /// Subsequent effects of this kind will be handled normally by
 /// the renderer (or return EffectUnsupported if the backend
-/// doesn't support it).
+/// doesn't support it). The kind must be one of the platform
+/// effect kinds from `plushie/effect`.
 pub fn unregister_effect_stub(
   instance: Instance(_),
   kind: String,

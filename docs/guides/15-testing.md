@@ -203,6 +203,8 @@ Effects (file dialogs, clipboard, notifications) open real OS
 dialogs by default. For tests, register a stub that returns a
 controlled response instead. Stubs register by effect **kind**, not
 tag, so one stub handles every effect of that kind until removed.
+The kind must be one of the platform effects from `plushie/effect`,
+such as `file_open`, `clipboard_read`, or `notification`.
 
 Stubs are available from the integration harness (below). To test
 the pad's import flow, for instance:

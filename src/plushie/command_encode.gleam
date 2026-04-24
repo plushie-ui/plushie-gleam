@@ -8,6 +8,7 @@
 import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
+import gleam/list
 import gleam/option
 import plushie/command.{type Command}
 import plushie/node.{
@@ -189,8 +190,15 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
     command.Effect(id:, tag:, kind:, payload:) ->
       EffectRequest(id, tag, kind, payload)
     command.NativeCommand(node_id:, op:, payload:) ->
-      Command(node_id, op, payload)
-    command.NativeCommands(commands:) -> CommandBatch(commands)
+      case command.is_valid_native_op(op) {
+        True -> Command(node_id, op, payload)
+        False -> NoOp
+      }
+    command.NativeCommands(commands:) ->
+      case list.all(commands, fn(cmd) { command.is_valid_native_op(cmd.1) }) {
+        True -> CommandBatch(commands)
+        False -> NoOp
+      }
     command.AdvanceFrame(timestamp:) -> AdvanceFrame(timestamp)
   }
 }

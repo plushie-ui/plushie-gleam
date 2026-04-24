@@ -180,31 +180,38 @@ pub fn build_container(
 /// The command is sent via the wire protocol's unified `command`
 /// message type and delivered to the Rust widget by node ID.
 pub fn command(
-  _def: NativeDef,
+  def: NativeDef,
   node_id: String,
   op: String,
   payload: List(#(String, PropValue)),
 ) -> Command(msg) {
-  command.Renderer(command.NativeCommand(
-    node_id:,
-    op:,
-    payload: dict.from_list(payload),
-  ))
+  case has_command(def, op) {
+    True ->
+      command.Renderer(command.NativeCommand(
+        node_id:,
+        op:,
+        payload: dict.from_list(payload),
+      ))
+    False -> command.none()
+  }
 }
 
 /// Create a batch of native widget commands.
 pub fn commands(
-  _def: NativeDef,
+  def: NativeDef,
   cmds: List(#(String, String, List(#(String, PropValue)))),
 ) -> Command(msg) {
-  command.Renderer(
-    command.NativeCommands(
-      commands: list.map(cmds, fn(cmd) {
-        let #(node_id, op, payload) = cmd
-        #(node_id, op, dict.from_list(payload))
-      }),
-    ),
-  )
+  case list.all(cmds, fn(cmd) { has_command(def, cmd.1) }) {
+    False -> command.none()
+    True -> {
+      let commands =
+        list.map(cmds, fn(cmd) {
+          let #(node_id, op, payload) = cmd
+          #(node_id, op, dict.from_list(payload))
+        })
+      command.Renderer(command.NativeCommands(commands: commands))
+    }
+  }
 }
 
 /// Get the prop definition names from a native widget definition.
@@ -215,6 +222,11 @@ pub fn prop_names(def: NativeDef) -> List(String) {
 /// Get the command definition names from a native widget definition.
 pub fn command_names(def: NativeDef) -> List(String) {
   list.map(def.commands, fn(cmd) { cmd.name })
+}
+
+fn has_command(def: NativeDef, op: String) -> Bool {
+  command.is_valid_native_op(op)
+  && list.any(def.commands, fn(cmd) { cmd.name == op })
 }
 
 /// Reserved property names that must not be used in native widget definitions.
@@ -239,6 +251,7 @@ const builtin_widget_types = [
 /// - `kind` must be non-empty
 /// - No duplicate prop names
 /// - No reserved prop names (id, type, children, a11y)
+/// - Command names must be safe native operation names
 pub fn validate(def: NativeDef) -> Result(Nil, List(String)) {
   let names = list.map(def.props, prop_def_name)
   let kind_errors = case def.kind {
@@ -259,8 +272,21 @@ pub fn validate(def: NativeDef) -> Result(Nil, List(String)) {
         False -> Error(Nil)
       }
     })
+  let command_name_errors =
+    list.filter_map(def.commands, fn(cmd) {
+      case command.is_valid_native_op(cmd.name) {
+        True -> Error(Nil)
+        False -> Ok("command name \"" <> cmd.name <> "\" is invalid")
+      }
+    })
   let all_errors =
-    list.flatten([kind_errors, shadow_errors, duplicate_errors, reserved_errors])
+    list.flatten([
+      kind_errors,
+      shadow_errors,
+      duplicate_errors,
+      reserved_errors,
+      command_name_errors,
+    ])
   case all_errors {
     [] -> Ok(Nil)
     errors -> Error(errors)

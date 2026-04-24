@@ -57,6 +57,11 @@ pub fn command_creates_native_widget_command_test() {
   }
 }
 
+pub fn command_with_unknown_op_returns_none_test() {
+  let cmd = native_widget.command(gauge_def, "g1", "delete_everything", [])
+  should.equal(cmd, command.None)
+}
+
 pub fn prop_names_returns_all_prop_names_test() {
   let names = native_widget.prop_names(gauge_def)
   should.equal(names, ["value", "min", "max", "color"])
@@ -79,6 +84,15 @@ pub fn commands_creates_batch_test() {
     }
     _ -> should.fail()
   }
+}
+
+pub fn commands_with_unknown_op_returns_none_test() {
+  let cmd =
+    native_widget.commands(gauge_def, [
+      #("g1", "set_value", [#("value", FloatVal(10.0))]),
+      #("g2", "delete_everything", []),
+    ])
+  should.equal(cmd, command.None)
 }
 
 import gleam/list
@@ -134,6 +148,24 @@ pub fn validate_reserved_names_test() {
   let assert Error(errors) = native_widget.validate(def)
   should.be_true(list.contains(errors, "prop name \"id\" is reserved"))
   should.be_true(list.contains(errors, "prop name \"type\" is reserved"))
+}
+
+pub fn validate_invalid_command_names_test() {
+  let def =
+    native_widget.NativeDef(
+      kind: "widget",
+      rust_crate: "native/x",
+      rust_constructor: "x::new()",
+      props: [],
+      commands: [
+        native_widget.CommandDef("../../clipboard_read", []),
+      ],
+    )
+  let assert Error(errors) = native_widget.validate(def)
+  should.be_true(list.contains(
+    errors,
+    "command name \"../../clipboard_read\" is invalid",
+  ))
 }
 
 pub fn validate_multiple_errors_test() {

@@ -365,6 +365,11 @@ decode with the standard `gleam/dynamic/decode` helpers. See the
 [Events reference](../reference/events.md) for the full `CustomWidget`
 pattern-matching cookbook.
 
+Custom event kinds accepted from the renderer must start with a
+lowercase ASCII letter and may contain lowercase ASCII letters,
+digits, `_`, or `:`. Examples: `change`, `canvas_scroll`,
+`star_rating:select`.
+
 ## Widget-scoped subscriptions
 
 A widget can declare its own subscriptions through `WidgetDef.subscriptions`.
@@ -492,7 +497,9 @@ registered type), points at the Rust crate, lists props for validation,
 and lists any commands the renderer-side widget accepts. Use
 `native_widget.build(def, id, props)` to create a node and
 `native_widget.command(def, node_id, op, payload)` to send a command
-to a specific instance.
+to a specific instance. Operations must be listed in `def.commands`;
+unknown operations do not send anything, and a batch with any unknown
+operation is dropped as a whole.
 
 The Rust crate implements the `PlushieWidget` trait. The crate's own
 `Cargo.toml` declares the widget under

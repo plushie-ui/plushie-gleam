@@ -163,6 +163,11 @@ case event {
 }
 ```
 
+Custom event kinds accepted from the renderer must start with a
+lowercase ASCII letter and may contain lowercase ASCII letters,
+digits, `_`, or `:`. Examples: `change`, `canvas_scroll`,
+`star_rating:select`.
+
 Cross-link: see the [Events reference](events.md) for the full
 `CustomWidget` variant and pattern-matching cookbook.
 
@@ -265,7 +270,9 @@ module (`length.to_prop_value`, `color.to_prop_value`, etc.).
 single command. `native_widget.commands(def, cmds)` builds a
 batch. Both route through the wire protocol's unified
 `NativeCommand` / `NativeCommands` path and reach the Rust widget
-keyed by node ID.
+keyed by node ID. Operations must be declared in `def.commands`.
+If a single operation is not declared, no command is sent. If any
+operation in a batch is not declared, the whole batch is dropped.
 
 ### Validation
 
@@ -273,6 +280,7 @@ keyed by node ID.
 `Error(errors)` listing:
 
 - Empty `kind`
+- Command names that are not safe operation names
 - `kind` shadowing a built-in widget type
 - Duplicate prop names
 - Prop names using reserved keys

@@ -10,7 +10,9 @@ import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
 import gleam/int
+import gleam/list
 import gleam/option.{type Option}
+import gleam/string
 import plushie/node.{type PropValue}
 
 pub type Command(msg) {
@@ -769,7 +771,10 @@ pub fn load_font(family: String, data: BitArray) -> Command(msg) {
 }
 
 /// Send a command directly to a native widget, bypassing the
-/// normal tree diff/patch cycle.
+/// normal tree diff/patch cycle. Operation names must start with
+/// lowercase ASCII and may contain lowercase ASCII, digits, `_`, or `:`.
+/// Prefer `native_widget.command` when you have a `NativeDef`; it also
+/// checks the operation against the widget's declared commands.
 pub fn native_command(
   node_id: String,
   op: String,
@@ -779,9 +784,38 @@ pub fn native_command(
 }
 
 /// Send a batch of native widget commands processed in one cycle.
-/// Each tuple is `#(node_id, op, payload)`.
+/// Each tuple is `#(node_id, op, payload)`. The same operation-name
+/// rule as `native_command` applies. A batch with any invalid operation
+/// is dropped by the encoder.
 pub fn widget_batch(
   commands: List(#(String, String, Dict(String, PropValue))),
 ) -> Command(msg) {
   Renderer(NativeCommands(commands:))
 }
+
+/// Returns whether a native widget operation name is safe for the wire
+/// protocol. Widget-specific allowlists live in `native_widget.NativeDef`.
+pub fn is_valid_native_op(op: String) -> Bool {
+  case string.to_graphemes(op) {
+    [] -> False
+    [first, ..rest] ->
+      is_native_op_start(first) && list.all(rest, is_native_op_rest)
+  }
+}
+
+fn is_native_op_start(char: String) -> Bool {
+  list.contains(lowercase_ascii_letters, char)
+}
+
+fn is_native_op_rest(char: String) -> Bool {
+  is_native_op_start(char)
+  || list.contains(ascii_digits, char)
+  || list.contains(["_", ":"], char)
+}
+
+const lowercase_ascii_letters = [
+  "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
+  "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+]
+
+const ascii_digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]

@@ -283,7 +283,13 @@ Effect stubs are the only sanctioned mock mechanism. They operate
 at the renderer level, not by bypassing the wire protocol, so the
 full encode / decode path is still exercised. A stub registers by
 effect **kind** (not tag) and applies to every effect of that
-kind until unregistered.
+kind until unregistered. Stub kinds are limited to the platform
+effects exposed by `plushie/effect`: `file_open`,
+`file_open_multiple`, `file_save`, `directory_select`,
+`directory_select_multiple`, `clipboard_read`, `clipboard_write`,
+`clipboard_read_html`, `clipboard_write_html`, `clipboard_clear`,
+`clipboard_read_primary`, `clipboard_write_primary`, and
+`notification`.
 
 From the integration harness:
 

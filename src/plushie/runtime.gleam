@@ -1375,65 +1375,79 @@ fn handle_message(
     }
 
     RegisterEffectStub(kind:, response:, reply:) -> {
-      case dict.has_key(state.effects.stub_acks, kind) {
-        True -> {
-          // Another register/unregister for this kind is already pending.
-          // Reply immediately so the caller doesn't hang.
-          platform.log_warning(
-            "plushie: register_effect_stub rejected: "
-            <> kind
-            <> " already has a pending ack",
-          )
-          process.send(reply, Error("stub_ack_pending"))
+      case effect.is_supported_kind(kind) {
+        False -> {
+          process.send(reply, Error("invalid_effect_stub_kind"))
           actor.continue(state)
         }
-        False -> {
-          send_transient(
-            state.bridge,
-            encode.encode_register_effect_stub(
-              kind,
-              response,
-              state.opts.session,
-              state.opts.format,
-            ),
-          )
-          let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
-          LoopState(
-            ..state,
-            effects: EffectTracker(..state.effects, stub_acks: new_acks),
-          )
-          |> actor.continue()
-        }
+        True ->
+          case dict.has_key(state.effects.stub_acks, kind) {
+            True -> {
+              // Another register/unregister for this kind is already pending.
+              // Reply immediately so the caller doesn't hang.
+              platform.log_warning(
+                "plushie: register_effect_stub rejected: "
+                <> kind
+                <> " already has a pending ack",
+              )
+              process.send(reply, Error("stub_ack_pending"))
+              actor.continue(state)
+            }
+            False -> {
+              send_transient(
+                state.bridge,
+                encode.encode_register_effect_stub(
+                  kind,
+                  response,
+                  state.opts.session,
+                  state.opts.format,
+                ),
+              )
+              let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
+              LoopState(
+                ..state,
+                effects: EffectTracker(..state.effects, stub_acks: new_acks),
+              )
+              |> actor.continue()
+            }
+          }
       }
     }
 
     UnregisterEffectStub(kind:, reply:) -> {
-      case dict.has_key(state.effects.stub_acks, kind) {
-        True -> {
-          platform.log_warning(
-            "plushie: unregister_effect_stub rejected: "
-            <> kind
-            <> " already has a pending ack",
-          )
-          process.send(reply, Error("stub_ack_pending"))
+      case effect.is_supported_kind(kind) {
+        False -> {
+          process.send(reply, Error("invalid_effect_stub_kind"))
           actor.continue(state)
         }
-        False -> {
-          send_transient(
-            state.bridge,
-            encode.encode_unregister_effect_stub(
-              kind,
-              state.opts.session,
-              state.opts.format,
-            ),
-          )
-          let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
-          LoopState(
-            ..state,
-            effects: EffectTracker(..state.effects, stub_acks: new_acks),
-          )
-          |> actor.continue()
-        }
+        True ->
+          case dict.has_key(state.effects.stub_acks, kind) {
+            True -> {
+              platform.log_warning(
+                "plushie: unregister_effect_stub rejected: "
+                <> kind
+                <> " already has a pending ack",
+              )
+              process.send(reply, Error("stub_ack_pending"))
+              actor.continue(state)
+            }
+            False -> {
+              send_transient(
+                state.bridge,
+                encode.encode_unregister_effect_stub(
+                  kind,
+                  state.opts.session,
+                  state.opts.format,
+                ),
+              )
+              let new_acks = dict.insert(state.effects.stub_acks, kind, reply)
+              LoopState(
+                ..state,
+                effects: EffectTracker(..state.effects, stub_acks: new_acks),
+              )
+              |> actor.continue()
+            }
+          }
       }
     }
 

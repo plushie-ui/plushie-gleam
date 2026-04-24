@@ -674,10 +674,38 @@ fn decode_event(
     // Prop validation warnings
     "prop_validation" -> decode_prop_validation(map)
 
-    // Unknown family: wrap in CustomWidget catch-all
-    _ -> decode_generic_widget_event(map, family)
+    _ ->
+      case is_valid_custom_event_family(family) {
+        True -> decode_generic_widget_event(map, family)
+        False -> Error(protocol.UnknownEventFamily(family))
+      }
   }
 }
+
+fn is_valid_custom_event_family(family: String) -> Bool {
+  case string.to_graphemes(family) {
+    [] -> False
+    [first, ..rest] ->
+      is_family_name_start(first) && list.all(rest, is_family_name_rest)
+  }
+}
+
+fn is_family_name_start(char: String) -> Bool {
+  list.contains(lowercase_ascii_letters, char)
+}
+
+fn is_family_name_rest(char: String) -> Bool {
+  is_family_name_start(char)
+  || list.contains(ascii_digits, char)
+  || list.contains(["_", ":"], char)
+}
+
+const lowercase_ascii_letters = [
+  "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
+  "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+]
+
+const ascii_digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 // ---------------------------------------------------------------------------
 // Modifier parsing

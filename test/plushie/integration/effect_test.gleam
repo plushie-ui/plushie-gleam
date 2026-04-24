@@ -7,6 +7,7 @@
 //// command -> bridge -> renderer -> stub response -> bridge -> runtime -> update.
 
 import gleam/dict
+import gleeunit/should
 import plushie/app.{type App}
 import plushie/command
 import plushie/effect
@@ -97,6 +98,27 @@ pub fn stubbed_effect_returns_controlled_response_test() -> Nil {
   support.stop(rt)
   let assert Ok(_) = result
   Nil
+}
+
+pub fn invalid_effect_stub_kind_is_rejected_test() -> Nil {
+  let rt = support.start(effect_app(), [])
+  let result =
+    support.register_effect_stub(
+      rt,
+      "clipboard_read/../file_open",
+      StringVal(""),
+    )
+  support.stop(rt)
+
+  should.equal(result, Error("invalid_effect_stub_kind"))
+}
+
+pub fn invalid_effect_stub_unregister_kind_is_rejected_test() -> Nil {
+  let rt = support.start(effect_app(), [])
+  let result = support.unregister_effect_stub(rt, "clipboard_read/../file_open")
+  support.stop(rt)
+
+  should.equal(result, Error("invalid_effect_stub_kind"))
 }
 
 /// After unregistering a stub, the renderer no longer returns the
