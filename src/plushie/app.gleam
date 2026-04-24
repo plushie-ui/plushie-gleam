@@ -182,7 +182,7 @@ pub fn application_with_opts(
 }
 
 /// Set the subscribe callback (returns subscriptions based on model).
-pub fn with_subscriptions(
+pub fn with_subscribe(
   app: App(model, msg),
   subscribe: fn(model) -> List(Subscription),
 ) -> App(model, msg) {

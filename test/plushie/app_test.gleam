@@ -49,10 +49,10 @@ pub fn simple_has_empty_subscriptions_test() {
   should.equal(subs, [])
 }
 
-pub fn with_subscriptions_test() {
+pub fn with_subscribe_test() {
   let my_app =
     app.simple(test_init, test_update, test_view)
-    |> app.with_subscriptions(fn(_model) { [subscription.every(1000, "tick")] })
+    |> app.with_subscribe(fn(_model) { [subscription.every(1000, "tick")] })
   let subs = app.get_subscribe(my_app)(Model(0))
   should.equal(subs, [subscription.Every(interval_ms: 1000, tag: "tick")])
 }

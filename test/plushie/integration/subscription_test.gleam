@@ -46,7 +46,7 @@ fn tick_view(_model: TickModel) -> List(Node) {
 
 fn tick_app() -> App(TickModel, Event) {
   app.simple(tick_init, tick_update, tick_view)
-  |> app.with_subscriptions(fn(_model) { [subscription.every(20, "t")] })
+  |> app.with_subscribe(fn(_model) { [subscription.every(20, "t")] })
 }
 
 // -- Toggle app: timer can be turned on/off ---------------------------------
@@ -93,7 +93,7 @@ fn toggle_subscribe(model: ToggleModel) -> List(subscription.Subscription) {
 
 fn toggle_app() -> App(ToggleModel, Event) {
   app.simple(toggle_init, toggle_update, toggle_view)
-  |> app.with_subscriptions(toggle_subscribe)
+  |> app.with_subscribe(toggle_subscribe)
 }
 
 // -- Multi-timer app: two timers at different rates -------------------------
@@ -129,7 +129,7 @@ fn multi_view(_model: MultiModel) -> List(Node) {
 
 fn multi_app() -> App(MultiModel, Event) {
   app.simple(multi_init, multi_update, multi_view)
-  |> app.with_subscriptions(fn(_model) {
+  |> app.with_subscribe(fn(_model) {
     [subscription.every(15, "fast"), subscription.every(50, "slow")]
   })
 }

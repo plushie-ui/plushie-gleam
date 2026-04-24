@@ -578,7 +578,7 @@ fn coerce_bool(a: Dynamic) -> Bool
 
 pub fn app() {
   app.simple(init, update, view)
-  |> app.with_subscriptions(subscribe)
+  |> app.with_subscribe(subscribe)
 }
 
 @target(erlang)

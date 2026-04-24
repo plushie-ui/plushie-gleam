@@ -32,7 +32,7 @@ Optional callbacks are added with chainable setters:
 
 | Setter | Purpose |
 |---|---|
-| `app.with_subscriptions(app, subscribe)` | `fn(model) -> List(Subscription)` |
+| `app.with_subscribe(app, subscribe)` | `fn(model) -> List(Subscription)` |
 | `app.with_settings(app, settings)` | `fn() -> app.Settings` |
 | `app.with_window_config(app, window_config)` | `fn(model) -> Dict(String, PropValue)` |
 | `app.with_on_renderer_exit(app, handler)` | `fn(model, RendererExit) -> model` |

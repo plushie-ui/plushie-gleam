@@ -263,12 +263,12 @@ pub fn app_behaviour_simple_constructor_test() {
   Nil
 }
 
-pub fn app_behaviour_pipeline_with_subscriptions_test() {
+pub fn app_behaviour_pipeline_with_subscribe_test() {
   let _app =
     app.simple(init_simple, update, fn(_model: Model) {
       [ui.window("main", [window.Title("App")], [])]
     })
-    |> app.with_subscriptions(subscribe)
+    |> app.with_subscribe(subscribe)
     |> app.with_settings(settings)
   Nil
 }
