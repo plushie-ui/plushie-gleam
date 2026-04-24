@@ -10,7 +10,7 @@
 //// import plushie/connect
 ////
 //// pub fn main() {
-////   connect.main(my_app.app())
+////   connect.run(my_app.app(), connect.default_opts())
 //// }
 //// ```
 ////
