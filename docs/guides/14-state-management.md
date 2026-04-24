@@ -68,16 +68,21 @@ undo.push(stack, undo.UndoCommand(
 ```
 
 Commands with the same `coalesce_key` that arrive within the window
-merge into one undo entry. One undo reverses the entire burst. The
-merged entry preserves the original undo function so reverting always
-lands on the pre-burst value.
+merge into one undo entry. One undo reverses the entire burst, and redo
+reapplies the merged commands in the original order.
+
+Treat the `UndoStack` as the source of truth for undoable state. The
+stack is opaque, so normal Gleam code cannot edit its current value
+directly. If you keep a cached field beside the stack for rendering,
+update that field from `undo.current` after every `push`, `undo`, and
+`redo`; do not edit the cached field independently.
 
 ### Applying it: editor undo / redo
 
 Track editor changes with an `UndoStack(String)` that holds the source
 text. Add `undo: undo.UndoStack(String)` to the model, initialize it
-with `undo.new("")`, and keep the raw `source` field in sync so the
-view does not have to read from the stack on every render:
+with `undo.new("")`, and keep the raw `source` field as a cache of
+`undo.current(model.undo)`:
 
 ```gleam
 import gleam/option.{Some}
@@ -88,7 +93,7 @@ import plushie/undo
 fn update(model: Model, event: Event) -> #(Model, Command(Event)) {
   case event {
     Widget(Input(target: EventTarget(id: "editor", ..), value: new_source)) -> {
-      let previous = model.source
+      let previous = undo.current(model.undo)
       let stack =
         undo.push(model.undo, undo.UndoCommand(
           apply: fn(_) { new_source },
@@ -97,7 +102,10 @@ fn update(model: Model, event: Event) -> #(Model, Command(Event)) {
           coalesce_key: Some("typing"),
           coalesce_window_ms: Some(500),
         ))
-      #(Model(..model, source: new_source, undo: stack, dirty: True), command.none())
+      #(
+        Model(..model, source: undo.current(stack), undo: stack, dirty: True),
+        command.none(),
+      )
     }
     _ -> #(model, command.none())
   }

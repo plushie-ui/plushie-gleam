@@ -3,6 +3,10 @@ import gleeunit/should
 import plushie/platform
 import plushie/undo.{type UndoCommand, UndoCommand}
 
+pub type EditState {
+  EditState(title: String, body: String)
+}
+
 fn increment_cmd() -> UndoCommand(Int) {
   UndoCommand(
     apply: fn(n) { n + 1 },
@@ -131,7 +135,6 @@ pub fn redo_history_labels_test() {
 }
 
 pub fn coalesce_merges_within_window_test() {
-  // Two commands with the same coalesce key within the window merge
   let cmd1 =
     UndoCommand(
       apply: fn(n) { n + 1 },
@@ -152,13 +155,55 @@ pub fn coalesce_merges_within_window_test() {
     undo.new(0)
     |> undo.push(cmd1)
     |> undo.push(cmd2)
-  // Should have been merged: 0 + 1 + 10 = 11
   should.equal(undo.current(stack), 11)
-  // Only one entry on the undo stack (merged)
   should.equal(undo.undo_history(stack), ["type"])
-  // Undo should reverse both: 11 -> undo cmd2 (11-10=1) -> undo cmd1 (1-1=0)
   let stack = undo.undo(stack)
   should.equal(undo.current(stack), 0)
+}
+
+pub fn coalesced_relative_commands_undo_and_redo_in_order_test() {
+  let double =
+    UndoCommand(
+      apply: fn(n) { n * 2 },
+      undo: fn(n) { n / 2 },
+      label: "transform",
+      coalesce_key: Some("transform"),
+      coalesce_window_ms: Some(5000),
+    )
+  let add_three =
+    UndoCommand(
+      apply: fn(n) { n + 3 },
+      undo: fn(n) { n - 3 },
+      label: "transform",
+      coalesce_key: Some("transform"),
+      coalesce_window_ms: Some(5000),
+    )
+  let stack =
+    undo.new(4)
+    |> undo.push(double)
+    |> undo.push(add_three)
+  should.equal(undo.current(stack), 11)
+  should.equal(undo.undo_history(stack), ["transform"])
+  let stack = undo.undo(stack)
+  should.equal(undo.current(stack), 4)
+  let stack = undo.redo(stack)
+  should.equal(undo.current(stack), 11)
+}
+
+pub fn coalesced_snapshot_commands_undo_and_redo_final_value_test() {
+  let initial = EditState(title: "Note", body: "")
+  let first = EditState(title: "Note", body: "h")
+  let second = EditState(title: "Note", body: "hi")
+  let stack =
+    undo.new(initial)
+    |> undo.push_with_coalesce(first, "body", 5000)
+    |> undo.push_with_coalesce(second, "body", 5000)
+  should.equal(undo.current(stack), second)
+  should.equal(undo.undo_history(stack), ["body"])
+  let stack = undo.undo(stack)
+  should.equal(undo.current(stack), initial)
+  let stack = undo.redo(stack)
+  should.equal(undo.current(stack), second)
 }
 
 pub fn coalesce_different_keys_no_merge_test() {
@@ -182,17 +227,14 @@ pub fn coalesce_different_keys_no_merge_test() {
     undo.new(0)
     |> undo.push(cmd1)
     |> undo.push(cmd2)
-  // Different keys: no merge, two entries
   should.equal(undo.undo_history(stack), ["b", "a"])
 }
 
 pub fn coalesce_none_key_no_merge_test() {
-  // Commands without coalesce_key should never merge
   let stack =
     undo.new(0)
     |> undo.push(increment_cmd())
     |> undo.push(increment_cmd())
   should.equal(undo.current(stack), 2)
-  // Two separate entries
   should.equal(undo.undo_history(stack), ["increment", "increment"])
 }

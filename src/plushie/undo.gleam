@@ -12,8 +12,16 @@
 ////
 //// Commands with the same `coalesce_key` that arrive within
 //// `coalesce_window_ms` of each other are merged into a single undo
-//// entry. The merged entry keeps the original undo function (so one undo
-//// reverses all coalesced changes) and composes the apply functions.
+//// entry. The merged entry composes apply functions in push order and
+//// undo functions in reverse order, so one undo reverses all coalesced
+//// changes and redo reapplies them in the same order.
+////
+//// Treat `UndoStack` as the source of truth for the value it wraps.
+//// For normal Gleam values the stack is opaque and cannot be edited
+//// directly, so all undoable changes should flow through `push`,
+//// `undo`, and `redo`. If an app keeps a cached copy beside the stack
+//// for view convenience, update that copy from `current` after every
+//// stack operation and never edit it independently.
 
 import gleam/int
 import gleam/list
@@ -91,7 +99,9 @@ pub fn new_with_max_size(model: model, max_size: Int) -> UndoStack(model) {
 ///
 /// If the command carries a `coalesce_key` that matches the top of the
 /// undo stack and the time delta is within `coalesce_window_ms`, the
-/// entry is merged rather than pushed.
+/// entry is merged rather than pushed. The merged entry reapplies
+/// coalesced commands in their original order and undoes them in
+/// reverse order.
 ///
 /// When the undo stack exceeds `max_size`, the oldest entries are dropped.
 pub fn push(

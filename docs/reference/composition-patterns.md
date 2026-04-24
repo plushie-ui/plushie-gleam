@@ -841,6 +841,11 @@ for `select`, `deselect`, `range_select`, and `clear`.
 within the coalesce window merge into a single step, so a run of
 keystrokes becomes one Ctrl+Z target.
 
+The `UndoStack` is the source of truth for the value it wraps. Keep any
+rendering cache in sync from `undo.current`, and send every undoable
+change through `undo.push` so coalesced redo can replay commands in the
+same order they were first applied.
+
 ```gleam
 import gleam/option.{Some}
 import plushie/event.{
