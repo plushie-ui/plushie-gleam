@@ -36,6 +36,7 @@ follow snake_case; Gleam builder setters use snake_case, and the
 | `ui.scrollable` | `plushie/widget/scrollable` | Scrollable viewport around child content |
 | `ui.stack` | `plushie/widget/stack` | Layers children on top of each other (z-axis) |
 | `ui.grid` | `plushie/widget/grid` | Fixed-column or fluid grid layout |
+| `ui.pane_grid` | `plushie/widget/pane_grid` | Resizable tiled pane layout |
 | `ui.keyed_column` | `plushie/widget/keyed_column` | Vertical layout with ID-based diffing for dynamic lists |
 | `ui.responsive` | `plushie/widget/responsive` | Emits resize events for adaptive layouts |
 | `ui.pin` | `plushie/widget/pin` | Positions child at absolute coordinates |
