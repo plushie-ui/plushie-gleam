@@ -2,8 +2,26 @@
 
 ## Guides
 
-Sequential chapters that build on each other. The guides are
-pending a rewrite.
+Sequential chapters that build on each other. Start here if you're
+new to Plushie.
+
+1. [Introduction](guides/01-introduction.md) - what Plushie is and how it works
+2. [Getting Started](guides/02-getting-started.md) - installation, binary setup, first run
+3. [Your First App](guides/03-your-first-app.md) - building the Plushie Pad layout
+4. [The Development Loop](guides/04-the-development-loop.md) - hot reload, runtime Erlang compilation, inspecting a running app
+5. [Events](guides/05-events.md) - widget events, keyboard, pointer, pattern matching
+6. [Lists and Inputs](guides/06-lists-and-inputs.md) - dynamic lists, text inputs, forms, scoped IDs
+7. [Layout](guides/07-layout.md) - rows, columns, containers, sizing, alignment
+8. [Styling](guides/08-styling.md) - themes, colors, fonts, per-widget style overrides
+9. [Animation and Transitions](guides/09-animation.md) - transitions, springs, tweens, easing
+10. [Subscriptions](guides/10-subscriptions.md) - timers, global key events, window events
+11. [Async and Effects](guides/11-async-and-effects.md) - async tasks, streams, platform effects
+12. [Canvas](guides/12-canvas.md) - shapes, layers, transforms, interactive elements
+13. [Custom Widgets](guides/13-custom-widgets.md) - composing widgets, canvas widgets, native Rust widgets
+14. [State Management](guides/14-state-management.md) - routing, undo/redo, selection, data pipelines
+15. [Testing](guides/15-testing.md) - test framework, backends, selectors, screenshots
+16. [Shared State](guides/16-shared-state.md) - multi-renderer apps over stdio or sockets
+17. [WASM Deployment](guides/17-wasm-deployment.md) - compiling a Plushie app for the browser
 
 ## Reference
 
