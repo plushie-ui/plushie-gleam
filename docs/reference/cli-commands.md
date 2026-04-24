@@ -366,6 +366,10 @@ normalizes the tree, converts it to a `PropValue`, and prints it
 as JSON to stdout. No renderer binary is needed; everything runs
 in Gleam.
 
+If inspect cannot produce JSON, it prints a concise error to stderr
+with the failed phase (`app init`, `app view`, `tree normalization`,
+or `JSON encoding`) and exits nonzero.
+
 ## plushie/script
 
 Library helper that runs `.plushie` automation scripts

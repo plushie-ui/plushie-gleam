@@ -20,30 +20,91 @@
 import gleam/dynamic
 import gleam/io
 import gleam/json
+import gleam/result
+import gleam/string
 import plushie/app.{type App}
 import plushie/event.{type Event}
+import plushie/platform
 import plushie/protocol/encode
 import plushie/tree
+
+pub opaque type InspectError {
+  InspectError(phase: InspectPhase, reason: dynamic.Dynamic)
+}
+
+type InspectPhase {
+  AppInit
+  AppView
+  TreeNormalization
+  JsonEncoding
+}
 
 /// Inspect a plushie app's initial view tree.
 ///
 /// Calls init with a nil argument, renders the view, normalizes
 /// the tree, converts it to a PropValue, and prints as JSON.
 pub fn run(app: App(model, Event)) -> Nil {
+  case to_json(app) {
+    Ok(json_string) -> io.println(json_string)
+    Error(err) -> {
+      io.println_error(error_message(err))
+      halt(1)
+    }
+  }
+}
+
+/// Render a plushie app's initial view tree as JSON.
+///
+/// This is the testable form of `run`, returning inspect-specific
+/// failures instead of printing to stderr and halting the VM.
+pub fn to_json(app: App(model, Event)) -> Result(String, InspectError) {
   let init_fn = app.get_init(app)
   let view_fn = app.get_view(app)
 
-  // Initialize the app with nil opts
-  let #(model, _commands) = init_fn(dynamic.nil())
+  use #(model, _commands) <- result.try(
+    try_phase(AppInit, fn() { init_fn(dynamic.nil()) }),
+  )
 
-  let raw_tree = tree.view_list_to_tree(view_fn(model))
-  let normalized = tree.normalize(raw_tree)
+  use raw_tree <- result.try(
+    try_phase(AppView, fn() { tree.view_list_to_tree(view_fn(model)) }),
+  )
 
-  // Convert to PropValue and encode as JSON
-  let prop_value = encode.node_to_prop_value(normalized)
-  let json_string =
-    encode.prop_value_to_json(prop_value)
+  use normalized <- result.try(
+    try_phase(TreeNormalization, fn() { tree.normalize(raw_tree) }),
+  )
+
+  try_phase(JsonEncoding, fn() {
+    encode.node_to_prop_value(normalized)
+    |> encode.prop_value_to_json
     |> json.to_string
-
-  io.println(json_string)
+  })
 }
+
+pub fn error_message(err: InspectError) -> String {
+  "plushie inspect failed during "
+  <> phase_name(err.phase)
+  <> ": "
+  <> string.inspect(err.reason)
+}
+
+fn try_phase(
+  phase: InspectPhase,
+  work: fn() -> value,
+) -> Result(value, InspectError) {
+  case platform.try_call(work) {
+    Ok(value) -> Ok(value)
+    Error(reason) -> Error(InspectError(phase:, reason:))
+  }
+}
+
+fn phase_name(phase: InspectPhase) -> String {
+  case phase {
+    AppInit -> "app init"
+    AppView -> "app view"
+    TreeNormalization -> "tree normalization"
+    JsonEncoding -> "JSON encoding"
+  }
+}
+
+@external(erlang, "erlang", "halt")
+fn halt(status: Int) -> Nil
