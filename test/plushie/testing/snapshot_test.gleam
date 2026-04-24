@@ -5,8 +5,6 @@ import gleeunit/should
 import plushie/node
 import plushie/testing/snapshot
 
-// -- node_to_json tests -------------------------------------------------------
-
 pub fn node_to_json_simple_node_test() {
   let tree = node.new("btn", "button")
   let json_str = snapshot.node_to_json(tree) |> json.to_string()
@@ -69,7 +67,19 @@ pub fn assert_tree_snapshot_creates_golden_file_test() {
   cleanup_dir(dir)
 }
 
-// -- Helpers ------------------------------------------------------------------
+pub fn assert_tree_snapshot_matches_different_json_whitespace_test() {
+  let tree = node.new("whitespace", "button")
+  let dir = "test/tmp_snapshots"
+  let path = dir <> "/snap_whitespace_test.json"
+  mkdir_p(dir)
+  write_file_atomic(
+    path,
+    "{\n  \"children\": [],\n  \"id\": \"whitespace\",\n  \"kind\": \"button\",\n  \"props\": {}\n}\n",
+  )
+
+  snapshot.assert_tree_snapshot(tree, "snap_whitespace_test", dir)
+  cleanup_dir(dir)
+}
 
 fn find_index(haystack: String, needle: String) -> Result(Int, Nil) {
   case string.split_once(haystack, needle) {
@@ -80,3 +90,9 @@ fn find_index(haystack: String, needle: String) -> Result(Int, Nil) {
 
 @external(erlang, "plushie_test_cleanup_ffi", "cleanup_dir")
 fn cleanup_dir(path: String) -> Nil
+
+@external(erlang, "plushie_snapshot_ffi", "mkdir_p")
+fn mkdir_p(path: String) -> Nil
+
+@external(erlang, "plushie_snapshot_ffi", "write_file_atomic")
+fn write_file_atomic(path: String, content: String) -> Nil

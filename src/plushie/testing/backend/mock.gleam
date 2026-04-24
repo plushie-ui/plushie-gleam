@@ -271,7 +271,7 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
   )
 }
 
-// -- Internal -----------------------------------------------------------------
+// Internal
 
 @target(erlang)
 fn start_pooled(app: App(model, Event), pool: PoolSubject) -> TestSession(model) {
@@ -380,7 +380,8 @@ fn interact_loop(
     }
     InteractResponse(events) ->
       apply_events_and_snapshot(sess, events, pool_ref, session_id)
-    InteractTimeout -> sess
+    InteractTimeout ->
+      panic as "interact loop timed out waiting for the renderer response"
   }
 }
 
@@ -421,7 +422,7 @@ fn apply_events_and_snapshot(
   new_sess
 }
 
-// -- Selector encoding --------------------------------------------------------
+// Selector encoding
 
 @target(erlang)
 /// Resolve a local ID (e.g. "count") to its full scoped path
@@ -480,7 +481,7 @@ fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
   }
 }
 
-// -- Tree helpers -------------------------------------------------------------
+// Tree helpers
 
 @target(erlang)
 fn read_toggle_state(sess: TestSession(model), id: String) -> Bool {
@@ -529,7 +530,7 @@ fn tree_to_prop_value(nd: Node) -> node.PropValue {
   )
 }
 
-// -- Find response decoding ---------------------------------------------------
+// Find response decoding
 
 @target(erlang)
 fn decode_find_data(raw: Dynamic) -> Option(element.Element) {
@@ -629,7 +630,7 @@ fn is_nil_or_empty(data: Dynamic) -> Bool {
   }
 }
 
-// -- Dynamic helpers ----------------------------------------------------------
+// Dynamic helpers
 
 @target(erlang)
 fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
@@ -649,7 +650,7 @@ fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
   }
 }
 
-// -- FFI for process dictionary (pool session) --------------------------------
+// FFI for process dictionary (pool session)
 
 @target(erlang)
 @external(erlang, "plushie_test_pooled_ffi", "put_pool_session")

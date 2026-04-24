@@ -7,6 +7,8 @@
 //// Set PLUSHIE_UPDATE_SNAPSHOTS=1 to force-update golden files.
 
 import gleam/dict
+import gleam/dynamic.{type Dynamic}
+import gleam/dynamic/decode as dyn_decode
 import gleam/json
 import gleam/list
 import gleam/string
@@ -27,18 +29,18 @@ pub fn assert_tree_snapshot(tree: Node, name: String, path: String) -> Nil {
   case file_exists(golden_path), update_mode {
     True, False -> {
       let assert Ok(stored) = read_file(golden_path)
-      let stored_trimmed = string.trim(stored)
-      let current_trimmed = string.trim(json_str)
-      case stored_trimmed == current_trimmed {
+      let stored_json = parse_snapshot_json("Stored", stored, golden_path)
+      let current_json = parse_snapshot_json("Current", json_str, golden_path)
+      case stored_json == current_json {
         True -> Nil
         False ->
           panic as {
             "Snapshot mismatch for \""
             <> name
             <> "\".\n\nStored:\n"
-            <> string.slice(stored_trimmed, 0, 500)
+            <> excerpt(stored)
             <> "\n\nCurrent:\n"
-            <> string.slice(current_trimmed, 0, 500)
+            <> excerpt(json_str)
             <> "\n\nRun with PLUSHIE_UPDATE_SNAPSHOTS=1 to update.\nGolden file: "
             <> golden_path
           }
@@ -70,6 +72,32 @@ pub fn node_to_json(tree: Node) -> json.Json {
   ])
 }
 
+fn parse_snapshot_json(
+  label: String,
+  content: String,
+  golden_path: String,
+) -> Dynamic {
+  case json.parse(content, dyn_decode.dynamic) {
+    Ok(parsed) -> parsed
+    Error(_) ->
+      panic as {
+        label
+        <> " snapshot JSON is invalid.\n\n"
+        <> label
+        <> " excerpt:\n"
+        <> excerpt(content)
+        <> "\n\nGolden file: "
+        <> golden_path
+      }
+  }
+}
+
+fn excerpt(content: String) -> String {
+  content
+  |> string.trim()
+  |> string.slice(0, 500)
+}
+
 fn prop_value_to_json(pv: PropValue) -> json.Json {
   case pv {
     node.StringVal(s) -> json.string(s)
@@ -90,8 +118,6 @@ fn prop_value_to_json(pv: PropValue) -> json.Json {
     }
   }
 }
-
-// -- File system helpers (Erlang FFI) ----------------------------------------
 
 @external(erlang, "plushie_snapshot_ffi", "file_exists")
 fn file_exists(path: String) -> Bool
