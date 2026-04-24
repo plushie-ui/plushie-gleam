@@ -164,7 +164,13 @@ fn build_bin(
     }
   }
 
-  install_binary_from_spec(spec_dir, bin_name, release, bin_file_override)
+  install_binary_from_spec(
+    spec_dir,
+    bin_name,
+    release,
+    bin_file_override,
+    verbose,
+  )
 }
 
 @target(erlang)
@@ -275,6 +281,7 @@ fn install_binary_from_spec(
   bin_name: String,
   release: Bool,
   bin_file_override: Result(String, Nil),
+  verbose: Bool,
 ) -> Nil {
   // cargo-plushie generates its workspace at
   // {spec_dir}/target/plushie-renderer/ and cargo builds into
@@ -288,7 +295,7 @@ fn install_binary_from_spec(
 
   case file_exists(src) {
     False -> {
-      io.println_error("Build succeeded but binary not found at " <> src)
+      io.println_error(missing_binary_message(src, verbose))
       halt(1)
     }
     True -> Nil
@@ -335,6 +342,17 @@ fn install_binary_from_spec(
   }
 
   io.println("Installed to " <> dest)
+}
+
+@target(erlang)
+pub fn missing_binary_message(path: String, verbose: Bool) -> String {
+  let guidance = case verbose {
+    True -> "Check the cargo-plushie output above for compilation issues."
+    False ->
+      "Rerun the build with `--verbose`, for example `gleam run -m plushie/build -- --verbose`, and check the cargo-plushie output for compilation issues."
+  }
+
+  "Build succeeded but binary not found at " <> path <> "\n" <> guidance
 }
 
 @target(erlang)
