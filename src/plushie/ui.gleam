@@ -42,6 +42,7 @@ import plushie/widget/stack
 import plushie/widget/svg
 import plushie/widget/table
 import plushie/widget/text
+import plushie/widget/text_editor
 import plushie/widget/text_input
 import plushie/widget/themer
 import plushie/widget/toggler
@@ -152,6 +153,17 @@ pub fn text_input(id: String, val: String, opts: List(text_input.Opt)) -> Node {
   text_input.new(id, val)
   |> text_input.with_opts(opts)
   |> text_input.build()
+}
+
+/// Create a multi-line text editor widget with the given content.
+pub fn text_editor(
+  id: String,
+  content: String,
+  opts: List(text_editor.Opt),
+) -> Node {
+  text_editor.new(id, content)
+  |> text_editor.with_opts(opts)
+  |> text_editor.build()
 }
 
 /// Create a checkbox widget with the given label and checked state.
