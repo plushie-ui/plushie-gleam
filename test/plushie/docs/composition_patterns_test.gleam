@@ -1,7 +1,7 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None}
 import gleam/set.{type Set}
 import gleam/string
 import gleeunit/should
@@ -45,8 +45,8 @@ fn tab_update(model: TabModel, event: Event) {
   }
 }
 
-fn tab_view(model: TabModel) -> Option(Node) {
-  Some(
+fn tab_view(model: TabModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Tab Demo")], [
       ui.column("tabs_layout", [column.Width(Fill)], [
         ui.row(
@@ -70,7 +70,7 @@ fn tab_view(model: TabModel) -> Option(Node) {
         ),
       ]),
     ]),
-  )
+  ]
 }
 
 pub fn tab_bar_init_test() {
@@ -96,7 +96,7 @@ pub fn tab_bar_click_changes_active_tab_test() {
 }
 
 pub fn tab_bar_view_has_three_tab_buttons_test() {
-  let assert Some(tree) = tab_view(TabModel(active_tab: "overview"))
+  let assert [tree] = tab_view(TabModel(active_tab: "overview"))
   let assert [column] = tree.children
   let assert [row, _rule, _content] = column.children
   should.equal(list.length(row.children), 3)
@@ -105,7 +105,7 @@ pub fn tab_bar_view_has_three_tab_buttons_test() {
 }
 
 pub fn tab_bar_view_content_reflects_active_tab_test() {
-  let assert Some(tree) = tab_view(TabModel(active_tab: "details"))
+  let assert [tree] = tab_view(TabModel(active_tab: "details"))
   let assert [column] = tree.children
   let assert [_, _, content] = column.children
   let assert [text_node] = content.children
@@ -143,8 +143,8 @@ fn sidebar_update(model: SidebarModel, event: Event) {
   }
 }
 
-fn sidebar_view(model: SidebarModel) -> Option(Node) {
-  Some(
+fn sidebar_view(model: SidebarModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Sidebar Demo")], [
       ui.row("layout", [row.Width(Fill), row.Height(Fill)], [
         ui.container(
@@ -166,7 +166,7 @@ fn sidebar_view(model: SidebarModel) -> Option(Node) {
         ]),
       ]),
     ]),
-  )
+  ]
 }
 
 pub fn sidebar_init_test() {
@@ -192,7 +192,7 @@ pub fn sidebar_click_changes_page_test() {
 }
 
 pub fn sidebar_view_has_nav_items_test() {
-  let assert Some(tree) = sidebar_view(SidebarModel(page: "inbox"))
+  let assert [tree] = sidebar_view(SidebarModel(page: "inbox"))
   let assert [row] = tree.children
   let assert [sidebar_container, main_container] = row.children
   should.equal(sidebar_container.id, "sidebar")
@@ -203,7 +203,7 @@ pub fn sidebar_view_has_nav_items_test() {
 }
 
 pub fn sidebar_view_shows_page_title_test() {
-  let assert Some(tree) = sidebar_view(SidebarModel(page: "drafts"))
+  let assert [tree] = sidebar_view(SidebarModel(page: "drafts"))
   let assert [row] = tree.children
   let assert [_, main_container] = row.children
   let assert [title] = main_container.children
@@ -240,7 +240,7 @@ fn modal_update(model: ModalModel, event: Event) {
   }
 }
 
-fn modal_view(model: ModalModel) -> Option(Node) {
+fn modal_view(model: ModalModel) -> List(Node) {
   let main_content =
     ui.container("main", [container.Width(Fill), container.Height(Fill)], [
       ui.column(
@@ -295,14 +295,14 @@ fn modal_view(model: ModalModel) -> Option(Node) {
     False -> []
   }
 
-  Some(
+  [
     ui.window("main", [window.Title("Modal Demo")], [
       ui.stack("modal_stack", [stack.Width(Fill), stack.Height(Fill)], [
         main_content,
         ..modal_layer
       ]),
     ]),
-  )
+  ]
 }
 
 pub fn modal_init_test() {
@@ -365,7 +365,7 @@ pub fn modal_cancel_test() {
 }
 
 pub fn modal_view_no_overlay_when_closed_test() {
-  let assert Some(tree) =
+  let assert [tree] =
     modal_view(ModalModel(show_modal: False, confirmed: False))
   let assert [stack] = tree.children
   // Only the main_content child, no overlay
@@ -373,8 +373,7 @@ pub fn modal_view_no_overlay_when_closed_test() {
 }
 
 pub fn modal_view_has_overlay_when_open_test() {
-  let assert Some(tree) =
-    modal_view(ModalModel(show_modal: True, confirmed: False))
+  let assert [tree] = modal_view(ModalModel(show_modal: True, confirmed: False))
   let assert [stack] = tree.children
   // main_content + overlay
   should.equal(list.length(stack.children), 2)
@@ -386,8 +385,7 @@ pub fn modal_view_has_overlay_when_open_test() {
 }
 
 pub fn modal_view_shows_confirmed_message_test() {
-  let assert Some(tree) =
-    modal_view(ModalModel(show_modal: False, confirmed: True))
+  let assert [tree] = modal_view(ModalModel(show_modal: False, confirmed: True))
   let assert [stack] = tree.children
   let assert [main] = stack.children
   let assert [main_col] = main.children
@@ -446,8 +444,8 @@ type SplitModel {
   SplitModel(left_width: Float)
 }
 
-fn split_view(model: SplitModel) -> Option(Node) {
-  Some(
+fn split_view(model: SplitModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Split Panel Demo")], [
       ui.row("split", [row.Width(Fill), row.Height(Fill)], [
         ui.container(
@@ -476,11 +474,11 @@ fn split_view(model: SplitModel) -> Option(Node) {
         ),
       ]),
     ]),
-  )
+  ]
 }
 
 pub fn split_panel_has_three_sections_test() {
-  let assert Some(tree) = split_view(SplitModel(left_width: 300.0))
+  let assert [tree] = split_view(SplitModel(left_width: 300.0))
   let assert [row] = tree.children
   should.equal(list.length(row.children), 3)
 

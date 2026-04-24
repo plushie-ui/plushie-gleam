@@ -63,32 +63,26 @@ Available effects:
 
 ## Multi-window
 
-Return a root node whose direct children are windows:
+Return the top-level windows as a list. The runtime opens, closes, and
+updates windows based on what is in the list on each render:
 
 ```gleam
-import gleam/option.{Some}
-import plushie/node
 import plushie/ui
 import plushie/widget/window
 
 fn view(model: Model) {
-  Some(
-    node.empty_container()
-    |> node.with_children(
-      case model.detached {
-        True -> [
-          ui.window("main", [window.Title("My App")], [main_content(model)]),
-          ui.window("detail", [
-            window.Title("Detail"),
-            window.ExitOnCloseRequest(False),
-          ], [detail_content(model)]),
-        ]
-        False -> [
-          ui.window("main", [window.Title("My App")], [main_content(model)]),
-        ]
-      },
-    )
-  )
+  case model.detached {
+    True -> [
+      ui.window("main", [window.Title("My App")], [main_content(model)]),
+      ui.window("detail", [
+        window.Title("Detail"),
+        window.ExitOnCloseRequest(False),
+      ], [detail_content(model)]),
+    ]
+    False -> [
+      ui.window("main", [window.Title("My App")], [main_content(model)]),
+    ]
+  }
 }
 ```
 

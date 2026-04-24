@@ -7,7 +7,7 @@ import gleam/int
 @target(erlang)
 import gleam/io
 import gleam/list
-import gleam/option.{type Option, Some}
+import gleam/option
 import gleam/string
 @target(erlang)
 import plushie
@@ -114,8 +114,8 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
   [subscription.on_key_press()]
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Keyboard Shortcuts")], [
       ui.column(
         "content",
@@ -145,7 +145,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 pub fn app() {

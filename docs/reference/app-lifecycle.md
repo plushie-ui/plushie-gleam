@@ -19,7 +19,13 @@ let my_app = app.simple(init, update, view)
 |---|---|---|
 | `init` | `fn(Dynamic) -> model` | yes |
 | `update` | `fn(model, Event) -> model` | yes |
-| `view` | `fn(model) -> Node` | yes |
+| `view` | `fn(model) -> List(Node)` | yes |
+
+`view` returns a list of top-level `window` nodes. An empty list renders
+an empty tree, a single-element list renders that window, and multiple
+entries render peer windows on native targets. The WASM target
+(`plushie_web`) supports only a single window; extra windows are logged
+as `MultipleTopLevelWindows` and collapsed.
 
 `update` can return `model` or `#(model, Command(Event))`.
 

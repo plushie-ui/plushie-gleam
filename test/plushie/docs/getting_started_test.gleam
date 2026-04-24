@@ -1,6 +1,5 @@
 import gleam/dict
 import gleam/int
-import gleam/option.{type Option, Some}
 import plushie/command
 import plushie/event.{type Event, Click, EventTarget, Widget}
 import plushie/node.{type Node, FloatVal, StringVal}
@@ -35,8 +34,8 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column(
         "content",
@@ -52,7 +51,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -117,7 +116,7 @@ pub fn getting_started_counter_unknown_event_test() {
 
 pub fn getting_started_counter_view_test() {
   let #(model, _) = init()
-  let assert Some(tree) = view(model)
+  let assert [tree] = view(model)
   assert tree.kind == "window"
   assert tree.id == "main"
   assert dict.get(tree.props, "title") == Ok(StringVal("Counter"))
@@ -166,7 +165,7 @@ pub fn getting_started_counter_view_after_increments_test() {
         )),
       ),
     )
-  let assert Some(tree) = view(model)
+  let assert [tree] = view(model)
   let assert [column] = tree.children
   let assert [text_node, _] = column.children
   assert dict.get(text_node.props, "content") == Ok(StringVal("Count: 2"))

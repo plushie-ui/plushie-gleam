@@ -309,8 +309,10 @@ fn render_and_sync(
   let model = do_get_model(handle)
   let session = do_get_session(handle)
 
-  case platform.try_call(fn() { view_or_empty(view_fn(model)) }) {
-    Ok(raw_tree) -> {
+  case platform.try_call(fn() { view_fn(model) }) {
+    Ok(windows) -> {
+      warn_on_multiple_top_level_windows(windows)
+      let raw_tree = tree.view_list_to_tree(windows)
       let registry = do_get_cw_registry(handle)
       let memo_cache = do_get_memo_cache(handle)
       let old_tree = do_get_tree(handle)
@@ -377,10 +379,21 @@ fn try_normalize_view(
 }
 
 @target(javascript)
-fn view_or_empty(view_opt: Option(Node)) -> Node {
-  case view_opt {
-    Some(node) -> node
-    None -> node.empty_container()
+/// The web runtime targets WASM, which has no OS-level multi-window
+/// capability. If the app's view lists more than one top-level window,
+/// log a warning once per render and proceed; the runtime still wraps
+/// the list into a synthetic root so the protocol op sequence stays
+/// uniform. A future virtual-window fallback (tab bar, stack switcher)
+/// can replace the warning when that scope opens up.
+fn warn_on_multiple_top_level_windows(windows: List(Node)) -> Nil {
+  case windows {
+    [_, _, ..] ->
+      platform.log_warning(
+        "plushie: view returned multiple top-level windows; WASM targets"
+        <> " render only a single window, so peer windows will be collapsed."
+        <> " See MultipleTopLevelWindows diagnostic.",
+      )
+    _ -> Nil
   }
 }
 

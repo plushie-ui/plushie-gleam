@@ -10,7 +10,6 @@ import gleam/int
 @target(erlang)
 import gleam/io
 import gleam/list
-import gleam/option.{type Option, Some}
 import gleam/string
 @target(erlang)
 import plushie
@@ -123,8 +122,8 @@ fn add_todo(model: Model) {
 
 // -- View ---------------------------------------------------------------------
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Todos")], [
       ui.column(
         "app",
@@ -152,7 +151,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 fn filtered(model: Model) -> List(Todo) {

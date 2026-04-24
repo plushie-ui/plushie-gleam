@@ -12,7 +12,6 @@ import gleam/dynamic/decode as dyn_decode
 import gleam/erlang/process
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, Some}
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event, EventTarget}
@@ -55,12 +54,12 @@ fn send_after_update(
   }
 }
 
-fn send_after_view(_model: SendAfterModel) -> Option(Node) {
-  Some(
+fn send_after_view(_model: SendAfterModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("SendAfter Test")], [
       ui.text_("hi", "hello"),
     ]),
-  )
+  ]
 }
 
 fn send_after_app() -> App(SendAfterModel, Event) {
@@ -94,10 +93,8 @@ fn async_update(
   }
 }
 
-fn async_view(_model: AsyncModel) -> Option(Node) {
-  Some(
-    ui.window("main", [window.Title("Async Test")], [ui.button_("go", "Go")]),
-  )
+fn async_view(_model: AsyncModel) -> List(Node) {
+  [ui.window("main", [window.Title("Async Test")], [ui.button_("go", "Go")])]
 }
 
 fn async_app() -> App(AsyncModel, Event) {
@@ -143,10 +140,8 @@ fn batch_update(
   }
 }
 
-fn batch_view(_model: BatchModel) -> Option(Node) {
-  Some(
-    ui.window("main", [window.Title("Batch Test")], [ui.text_("hi", "hello")]),
-  )
+fn batch_view(_model: BatchModel) -> List(Node) {
+  [ui.window("main", [window.Title("Batch Test")], [ui.text_("hi", "hello")])]
 }
 
 fn batch_app() -> App(BatchModel, Event) {
@@ -195,10 +190,8 @@ fn stream_update(
   }
 }
 
-fn stream_view(_model: StreamModel) -> Option(Node) {
-  Some(
-    ui.window("main", [window.Title("Stream Test")], [ui.button_("go", "Go")]),
-  )
+fn stream_view(_model: StreamModel) -> List(Node) {
+  [ui.window("main", [window.Title("Stream Test")], [ui.button_("go", "Go")])]
 }
 
 fn stream_app() -> App(StreamModel, Event) {
@@ -230,15 +223,15 @@ fn error_update(
   }
 }
 
-fn error_view(_model: ErrorModel) -> Option(Node) {
-  Some(
+fn error_view(_model: ErrorModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Error Test")], [
       ui.column("root", [], [
         ui.button_("crash", "Crash"),
         ui.button_("inc", "Inc"),
       ]),
     ]),
-  )
+  ]
 }
 
 fn error_app() -> App(ErrorModel, Event) {
@@ -270,18 +263,17 @@ fn view_crash_update(
   }
 }
 
-fn view_crash_view(model: ViewCrashModel) -> Option(Node) {
+fn view_crash_view(model: ViewCrashModel) -> List(Node) {
   case model.crash_view {
     True -> panic as "intentional view crash"
-    False ->
-      Some(
-        ui.window("main", [window.Title("View Crash Test")], [
-          ui.column("root", [], [
-            ui.button_("crash_view", "Crash View"),
-            ui.button_("fix_view", "Fix View"),
-          ]),
+    False -> [
+      ui.window("main", [window.Title("View Crash Test")], [
+        ui.column("root", [], [
+          ui.button_("crash_view", "Crash View"),
+          ui.button_("fix_view", "Fix View"),
         ]),
-      )
+      ]),
+    ]
   }
 }
 
@@ -333,12 +325,12 @@ fn done_update(
   }
 }
 
-fn done_view(_model: DoneModel) -> Option(Node) {
-  Some(
+fn done_view(_model: DoneModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Done Test")], [
       ui.text_("label", "done"),
     ]),
-  )
+  ]
 }
 
 fn done_app() -> App(DoneModel, Event) {
@@ -381,12 +373,12 @@ fn loop_update(
   }
 }
 
-fn loop_view(_model: LoopModel) -> Option(Node) {
-  Some(
+fn loop_view(_model: LoopModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Dispatch Loop Test")], [
       ui.text_("label", "looping"),
     ]),
-  )
+  ]
 }
 
 fn loop_app() -> App(LoopModel, Event) {

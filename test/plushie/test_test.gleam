@@ -1,5 +1,5 @@
 import gleam/int
-import gleam/option.{type Option, Some}
+import gleam/option
 import gleeunit/should
 import plushie/app
 import plushie/command
@@ -38,8 +38,8 @@ fn counter_update(model: CounterModel, event: Event) {
   }
 }
 
-fn counter_view(model: CounterModel) -> Option(Node) {
-  Some(
+fn counter_view(model: CounterModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter Test")], [
       ui.column("root", [column.Padding(padding.all(16.0))], [
         ui.text_("label", "Count: " <> int.to_string(model.count)),
@@ -47,7 +47,7 @@ fn counter_view(model: CounterModel) -> Option(Node) {
         ui.button_("dec", "-"),
       ]),
     ]),
-  )
+  ]
 }
 
 fn counter_app() {
@@ -196,14 +196,14 @@ fn scoped_update(model: ScopedModel, event: Event) {
   }
 }
 
-fn scoped_view(_model: ScopedModel) -> Option(Node) {
-  Some(
+fn scoped_view(_model: ScopedModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Scoped Test")], [
       ui.container("panel", [], [
         ui.container("form", [], [ui.button_("save", "Save")]),
       ]),
     ]),
-  )
+  ]
 }
 
 fn scoped_app() {
@@ -290,21 +290,21 @@ fn todo_update(model: TodoModel, event: Event) {
   }
 }
 
-fn todo_view(model: TodoModel) -> Option(Node) {
+fn todo_view(model: TodoModel) -> List(Node) {
   let item_nodes =
     list_index_map(model.items, fn(item, idx) {
       let id_str = "toggle-" <> int.to_string(idx)
       ui.checkbox(id_str, item.text, item.done, [])
     })
 
-  Some(
+  [
     ui.window("main", [window.Title("Todo Test")], [
       ui.column("root", [], [
         ui.text_input("input", model.input, []),
         ..item_nodes
       ]),
     ]),
-  )
+  ]
 }
 
 fn todo_app() {
@@ -380,12 +380,12 @@ fn cmd_update(model: CmdModel, event: Event) {
   }
 }
 
-fn cmd_view(model: CmdModel) -> Option(Node) {
-  Some(
+fn cmd_view(model: CmdModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Command Test")], [
       ui.text_("label", model.value),
     ]),
-  )
+  ]
 }
 
 fn cmd_app() {

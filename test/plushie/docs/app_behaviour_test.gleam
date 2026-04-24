@@ -258,7 +258,7 @@ pub fn app_behaviour_window_close_command_test() {
 pub fn app_behaviour_simple_constructor_test() {
   let _app =
     app.simple(init_simple, update, fn(_model: Model) {
-      option.Some(ui.window("main", [window.Title("App")], []))
+      [ui.window("main", [window.Title("App")], [])]
     })
   Nil
 }
@@ -266,7 +266,7 @@ pub fn app_behaviour_simple_constructor_test() {
 pub fn app_behaviour_pipeline_with_subscriptions_test() {
   let _app =
     app.simple(init_simple, update, fn(_model: Model) {
-      option.Some(ui.window("main", [window.Title("App")], []))
+      [ui.window("main", [window.Title("App")], [])]
     })
     |> app.with_subscriptions(subscribe)
     |> app.with_settings(settings)

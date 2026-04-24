@@ -1,6 +1,5 @@
 import gleam/dict
 import gleam/int
-import gleam/option.{type Option, Some}
 import gleeunit/should
 import plushie/command
 import plushie/event.{type Event, Click, EventTarget, Widget}
@@ -35,8 +34,8 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column(
         "content",
@@ -50,7 +49,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -114,7 +113,7 @@ pub fn readme_counter_unknown_event_test() {
 }
 
 pub fn readme_counter_view_structure_test() {
-  let assert Some(tree) = view(Model(count: 0))
+  let assert [tree] = view(Model(count: 0))
 
   should.equal(tree.kind, "window")
   should.equal(tree.id, "main")
@@ -137,7 +136,7 @@ pub fn readme_counter_view_structure_test() {
 }
 
 pub fn readme_counter_view_after_increment_test() {
-  let assert Some(tree) = view(Model(count: 3))
+  let assert [tree] = view(Model(count: 3))
   let assert [column] = tree.children
   let assert [text_node, _] = column.children
   should.equal(dict.get(text_node.props, "content"), Ok(StringVal("Count: 3")))

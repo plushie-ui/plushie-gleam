@@ -1,7 +1,6 @@
 import gleam/dict
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, Some}
 import gleam/string
 import plushie/command
 import plushie/event.{
@@ -187,8 +186,8 @@ fn step3_view(model: Model) -> Node {
 
 // -- Step 6: full view --------------------------------------------------------
 
-fn full_view(model: Model) -> Option(Node) {
-  Some(
+fn full_view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Todos")], [
       ui.column(
         "app",
@@ -216,7 +215,7 @@ fn full_view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -519,7 +518,7 @@ pub fn tutorial_step6_filtered_helper_test() {
 
 pub fn tutorial_step6_view_has_filter_buttons_test() {
   let #(model, _) = init()
-  let assert Some(tree) = full_view(model)
+  let assert [tree] = full_view(model)
   let assert [col] = tree.children
   let assert [_title, _input, filters, _list] = col.children
   assert filters.kind == "row"
@@ -542,7 +541,7 @@ pub fn tutorial_step6_view_filters_todos_test() {
       filter: Active,
       next_id: 3,
     )
-  let assert Some(tree) = full_view(model)
+  let assert [tree] = full_view(model)
   let assert [col] = tree.children
   let assert [_title, _input, _filters, list_col] = col.children
   let assert [row] = list_col.children

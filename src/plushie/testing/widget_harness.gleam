@@ -25,7 +25,6 @@
 //// `events` to inspect what the widget produced.
 
 import gleam/list
-import gleam/option
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event}
@@ -76,7 +75,7 @@ pub fn harness(
   app.simple(
     fn() { #(HarnessModel(events: []), command.none()) },
     harness_update,
-    fn(_model) { option.Some(harness_view(widget_node)) },
+    fn(_model) { [harness_view(widget_node)] },
   )
 }
 

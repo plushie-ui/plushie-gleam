@@ -16,24 +16,26 @@ import plushie/widget/window
 fn view(model: Model) {
   let tabs = ["overview", "details", "settings"]
 
-  ui.window("main", [window.Title("Tabs")], [
-    ui.column("tabs_layout", [], [
-      ui.row("tab_row", [], list.map(tabs, fn(tab) {
-        ui.button("tab:" <> tab, string.capitalise(tab), [
-          button.Style(case model.active_tab == tab {
-            True -> button.Primary
-            False -> button.TextStyle
-          }),
-        ])
-      })),
-      ui.rule("tab_rule", []),
-      case model.active_tab {
-        "overview" -> overview_content(model)
-        "details" -> details_content(model)
-        _ -> settings_content(model)
-      },
+  [
+    ui.window("main", [window.Title("Tabs")], [
+      ui.column("tabs_layout", [], [
+        ui.row("tab_row", [], list.map(tabs, fn(tab) {
+          ui.button("tab:" <> tab, string.capitalise(tab), [
+            button.Style(case model.active_tab == tab {
+              True -> button.Primary
+              False -> button.TextStyle
+            }),
+          ])
+        })),
+        ui.rule("tab_rule", []),
+        case model.active_tab {
+          "overview" -> overview_content(model)
+          "details" -> details_content(model)
+          _ -> settings_content(model)
+        },
+      ]),
     ]),
-  ])
+  ]
 }
 ```
 
@@ -103,28 +105,22 @@ with `pin` at cursor coordinates.
 
 ```gleam
 import gleam/option
-import plushie/node
 import plushie/ui
 import plushie/widget/window
 
 fn view(model: Model) {
-  option.Some(
-    node.empty_container()
-    |> node.with_children(
-      case model.detached_id {
-        option.Some(id) -> [
-          ui.window("main", [window.Title("Items")], [item_list(model)]),
-          ui.window("detail:" <> id, [
-            window.Title("Detail"),
-            window.ExitOnCloseRequest(False),
-          ], [detail_view(model, id)]),
-        ]
-        option.None -> [
-          ui.window("main", [window.Title("Items")], [item_list(model)]),
-        ]
-      },
-    )
-  )
+  case model.detached_id {
+    option.Some(id) -> [
+      ui.window("main", [window.Title("Items")], [item_list(model)]),
+      ui.window("detail:" <> id, [
+        window.Title("Detail"),
+        window.ExitOnCloseRequest(False),
+      ], [detail_view(model, id)]),
+    ]
+    option.None -> [
+      ui.window("main", [window.Title("Items")], [item_list(model)]),
+    ]
+  }
 }
 ```
 

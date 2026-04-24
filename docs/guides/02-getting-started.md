@@ -59,7 +59,6 @@ Create `src/hello.gleam`:
 import plushie/app
 import plushie/command
 import plushie/gui
-import gleam/option.{type Option, Some}
 import plushie/ui
 import plushie/event.{type Event}
 import plushie/node.{type Node}
@@ -85,12 +84,12 @@ fn update(model: Model, _event: Event) {
   #(model, command.none())
 }
 
-fn view(_model: Model) -> Option(Node) {
-  Some(
+fn view(_model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Hello")], [
       ui.text_("greeting", "Hello from Plushie"),
     ]),
-  )
+  ]
 }
 ```
 
@@ -124,7 +123,6 @@ import plushie/app
 import plushie/command
 import plushie/gui
 import gleam/int
-import gleam/option.{type Option, Some}
 import plushie/ui
 import plushie/event.{type Event, Click, EventTarget, Widget}
 import plushie/node.{type Node}
@@ -160,8 +158,8 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column(
         "content",
@@ -177,7 +175,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 ```
 

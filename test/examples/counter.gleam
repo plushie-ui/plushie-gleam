@@ -3,7 +3,6 @@
 import gleam/int
 @target(erlang)
 import gleam/io
-import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 import plushie/app
@@ -38,8 +37,8 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column(
         "content",
@@ -53,7 +52,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 pub fn app() {

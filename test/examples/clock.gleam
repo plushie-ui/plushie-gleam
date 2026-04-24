@@ -9,7 +9,6 @@
 import gleam/int
 @target(erlang)
 import gleam/io
-import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 @target(erlang)
@@ -61,10 +60,10 @@ fn update(model: Model, event: Event) {
 }
 
 @target(erlang)
-fn view(model: Model) -> Option(Node) {
+fn view(model: Model) -> List(Node) {
   let assert Ok(muted) = color.from_hex("#888888")
 
-  Some(
+  [
     ui.window("main", [window.Title("Clock")], [
       ui.column(
         "content",
@@ -83,7 +82,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 @target(erlang)

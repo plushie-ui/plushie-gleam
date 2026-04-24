@@ -40,8 +40,8 @@ fn counter_update(model: CounterModel, event: Event) {
   }
 }
 
-fn counter_view(model: CounterModel) -> option.Option(Node) {
-  option.Some(
+fn counter_view(model: CounterModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column("content", [column.Spacing(8.0)], [
         ui.text("count", int.to_string(model.count), []),
@@ -49,7 +49,7 @@ fn counter_view(model: CounterModel) -> option.Option(Node) {
         ui.button_("decrement", "-"),
       ]),
     ]),
-  )
+  ]
 }
 
 fn counter_app() {
@@ -98,8 +98,8 @@ fn todo_update(model: TodoModel, event: Event) {
   }
 }
 
-fn todo_view(model: TodoModel) -> option.Option(Node) {
-  option.Some(
+fn todo_view(model: TodoModel) -> List(Node) {
+  [
     ui.window("main", [], [
       ui.column("layout", [column.Spacing(8.0)], [
         ui.text_input("todo_input", model.input, []),
@@ -107,7 +107,7 @@ fn todo_view(model: TodoModel) -> option.Option(Node) {
         ui.text("todo_count", int.to_string(list.length(model.todos)), []),
       ]),
     ]),
-  )
+  ]
 }
 
 fn todo_app() {
@@ -165,7 +165,7 @@ pub fn testing_doc_submitting_todo_returns_focus_command_test() {
 
 pub fn testing_doc_view_shows_todo_count_test() {
   let model = TodoModel(todos: [Todo(text: "Buy milk", done: False)], input: "")
-  let assert option.Some(view_tree) = todo_view(model)
+  let assert [view_tree] = todo_view(model)
   let assert option.Some(counter) = tree.find(view_tree, "todo_count")
   let assert Ok(StringVal(content)) = dict.get(counter.props, "content")
   should.equal(content, "1")
@@ -186,14 +186,14 @@ pub fn testing_doc_init_returns_valid_initial_state_test() {
 // ============================================================================
 
 pub fn testing_doc_tree_find_test() {
-  let assert option.Some(view_tree) = counter_view(CounterModel(count: 0))
+  let assert [view_tree] = counter_view(CounterModel(count: 0))
   should.be_true(option.is_some(tree.find(view_tree, "increment")))
   should.be_true(tree.exists(view_tree, "increment"))
   should.be_true(tree.exists(view_tree, "count"))
 }
 
 pub fn testing_doc_tree_ids_test() {
-  let assert option.Some(view_tree) = counter_view(CounterModel(count: 0))
+  let assert [view_tree] = counter_view(CounterModel(count: 0))
   let all_ids = tree.ids(view_tree)
   should.be_true(list.contains(all_ids, "increment"))
   should.be_true(list.contains(all_ids, "decrement"))
@@ -201,7 +201,7 @@ pub fn testing_doc_tree_ids_test() {
 }
 
 pub fn testing_doc_tree_find_all_test() {
-  let assert option.Some(view_tree) = counter_view(CounterModel(count: 0))
+  let assert [view_tree] = counter_view(CounterModel(count: 0))
   let buttons = tree.find_all(view_tree, fn(node) { node.kind == "button" })
   should.equal(list.length(buttons), 2)
 }

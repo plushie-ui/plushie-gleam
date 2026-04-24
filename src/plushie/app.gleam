@@ -69,16 +69,16 @@ pub fn default_settings() -> Settings {
 
 /// Application definition bundling all callbacks.
 ///
-/// `view` returns `Option(Node)` so apps can return `None` to
-/// render an empty tree (loading, transition, or error screens
-/// where the app has nothing to display yet). Matches the other
-/// host SDKs where this nullable-view convention has been
-/// normalized.
+/// `view` returns a list of top-level `window` nodes. An empty list
+/// renders an empty tree (loading, transition, or error screens where
+/// the app has nothing to display yet). A single-element list renders
+/// that window; a multi-element list renders peer windows. Matches the
+/// shape used by the Elixir, Python, TypeScript, and Ruby SDKs.
 pub opaque type App(model, msg) {
   App(
     init: fn(Dynamic) -> #(model, Command(msg)),
     update: fn(model, msg) -> #(model, Command(msg)),
-    view: fn(model) -> Option(Node),
+    view: fn(model) -> List(Node),
     subscribe: fn(model) -> List(Subscription),
     settings: fn() -> Settings,
     window_config: fn(model) -> Dict(String, PropValue),
@@ -92,12 +92,13 @@ pub opaque type App(model, msg) {
 /// The init function ignores the Dynamic app_opts argument. Use
 /// `simple_with_opts` if you need to receive app_opts.
 ///
-/// `view(model)` must return either a `window(...)` node or a root
-/// node whose direct children are all `window(...)` nodes.
+/// `view(model)` returns a list of top-level `window(...)` nodes.
+/// Return `[]` for an empty tree, `[window(...)]` for a single window,
+/// or `[a, b, ...]` for peer windows.
 pub fn simple(
   init: fn() -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
-  view: fn(model) -> Option(Node),
+  view: fn(model) -> List(Node),
 ) -> App(model, Event) {
   App(
     init: fn(_opts) { init() },
@@ -113,12 +114,13 @@ pub fn simple(
 
 /// Create a simple app with app_opts passed to init.
 ///
-/// `view(model)` must return either a `window(...)` node or a root
-/// node whose direct children are all `window(...)` nodes.
+/// `view(model)` returns a list of top-level `window(...)` nodes.
+/// Return `[]` for an empty tree, `[window(...)]` for a single window,
+/// or `[a, b, ...]` for peer windows.
 pub fn simple_with_opts(
   init: fn(Dynamic) -> #(model, Command(Event)),
   update: fn(model, Event) -> #(model, Command(Event)),
-  view: fn(model) -> Option(Node),
+  view: fn(model) -> List(Node),
 ) -> App(model, Event) {
   App(
     init:,
@@ -135,12 +137,13 @@ pub fn simple_with_opts(
 /// Create an app with a custom message type.
 /// The `on_event` function maps wire Events to the app's msg type.
 ///
-/// `view(model)` must return either a `window(...)` node or a root
-/// node whose direct children are all `window(...)` nodes.
+/// `view(model)` returns a list of top-level `window(...)` nodes.
+/// Return `[]` for an empty tree, `[window(...)]` for a single window,
+/// or `[a, b, ...]` for peer windows.
 pub fn application(
   init: fn() -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
-  view: fn(model) -> Option(Node),
+  view: fn(model) -> List(Node),
   on_event: fn(Event) -> msg,
 ) -> App(model, msg) {
   App(
@@ -157,12 +160,13 @@ pub fn application(
 
 /// Create an app with a custom message type and app_opts passed to init.
 ///
-/// `view(model)` must return either a `window(...)` node or a root
-/// node whose direct children are all `window(...)` nodes.
+/// `view(model)` returns a list of top-level `window(...)` nodes.
+/// Return `[]` for an empty tree, `[window(...)]` for a single window,
+/// or `[a, b, ...]` for peer windows.
 pub fn application_with_opts(
   init: fn(Dynamic) -> #(model, Command(msg)),
   update: fn(model, msg) -> #(model, Command(msg)),
-  view: fn(model) -> Option(Node),
+  view: fn(model) -> List(Node),
   on_event: fn(Event) -> msg,
 ) -> App(model, msg) {
   App(
@@ -225,9 +229,10 @@ pub fn get_update(
 }
 
 /// Returns the app's view function, called after every update to produce
-/// the UI tree. A `None` return renders an empty tree so apps can use
-/// nil for transition, loading, or error screens.
-pub fn get_view(app: App(model, msg)) -> fn(model) -> Option(Node) {
+/// the list of top-level windows. An empty list renders an empty tree,
+/// a single-element list renders that window, and a multi-element list
+/// renders peer windows.
+pub fn get_view(app: App(model, msg)) -> fn(model) -> List(Node) {
   app.view
 }
 

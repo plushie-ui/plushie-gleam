@@ -6,7 +6,7 @@
 //// renderer. In mock mode, window ops are accepted by the protocol
 //// but no real windows are created.
 
-import gleam/option.{type Option, Some}
+import gleam/option
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event, EventTarget}
@@ -40,23 +40,22 @@ fn window_update(
   }
 }
 
-fn window_view(model: WindowModel) -> Option(Node) {
-  Some(case model.show_secondary {
-    False ->
+fn window_view(model: WindowModel) -> List(Node) {
+  case model.show_secondary {
+    False -> [
       ui.window("main", [window.Title("Main Window")], [
         ui.button_("toggle", "Open Secondary"),
-      ])
-    True ->
-      node.new("root", "container")
-      |> node.with_children([
-        ui.window("main", [window.Title("Main Window")], [
-          ui.button_("toggle", "Close Secondary"),
-        ]),
-        ui.window("secondary", [window.Title("Secondary")], [
-          ui.text_("info", "Second window"),
-        ]),
-      ])
-  })
+      ]),
+    ]
+    True -> [
+      ui.window("main", [window.Title("Main Window")], [
+        ui.button_("toggle", "Close Secondary"),
+      ]),
+      ui.window("secondary", [window.Title("Secondary")], [
+        ui.text_("info", "Second window"),
+      ]),
+    ]
+  }
 }
 
 fn window_app() -> App(WindowModel, Event) {

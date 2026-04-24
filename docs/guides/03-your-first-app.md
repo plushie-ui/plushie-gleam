@@ -41,7 +41,6 @@ keeping simple cases compact.
 Here is a split-pane layout with an editor and preview:
 
 ```gleam
-import gleam/option.{Some}
 import plushie/node.{type Node}
 import plushie/ui
 import plushie/widget/window
@@ -52,8 +51,8 @@ import plushie/widget/text_editor
 import plushie/prop/length.{Fill, FillPortion}
 import plushie/prop/padding
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("My App")], [
       ui.column("layout", [column.Width(Fill), column.Height(Fill)], [
         ui.row("split", [row.Width(Fill), row.Height(Fill)], [
@@ -74,7 +73,7 @@ fn view(model: Model) -> Option(Node) {
         ]),
       ]),
     ]),
-  )
+  ]
 }
 ```
 

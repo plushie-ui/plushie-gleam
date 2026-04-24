@@ -19,7 +19,6 @@ SDKs are also available for
 <!-- test: readme_counter_init_test, readme_counter_view_structure_test -- keep this code block in sync with the test -->
 ```gleam
 import gleam/int
-import gleam/option.{type Option, Some}
 import plushie/app
 import plushie/gui
 import plushie/command
@@ -49,8 +48,8 @@ fn update(model: Model, event: Event) {
   }
 }
 
-fn view(model: Model) -> Option(Node) {
-  Some(
+fn view(model: Model) -> List(Node) {
+  [
     ui.window("main", [window.Title("Counter")], [
       ui.column(
         "content",
@@ -64,7 +63,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 pub fn main() {

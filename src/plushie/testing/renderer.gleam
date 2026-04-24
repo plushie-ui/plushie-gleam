@@ -552,10 +552,7 @@ fn init_renderer(
   let #(model, _events) =
     command_processor.process_commands(app, init_model, init_commands, None)
   let view_fn = app.get_view(app)
-  let initial_raw = case view_fn(model) {
-    Some(n) -> n
-    None -> node.empty_container()
-  }
+  let initial_raw = tree.view_list_to_tree(view_fn(model))
   let initial_tree = initial_raw |> tree.normalize()
 
   // Send initial snapshot
@@ -781,10 +778,7 @@ fn handle_reset(
       None,
     )
   let view_fn = app.get_view(state.app)
-  let raw_tree = case view_fn(model) {
-    Some(n) -> n
-    None -> node.empty_container()
-  }
+  let raw_tree = tree.view_list_to_tree(view_fn(model))
   let new_tree = raw_tree |> tree.normalize()
 
   // Send fresh snapshot
@@ -1019,10 +1013,7 @@ fn run_update(state: RendererState(model), event: Event) -> RendererState(model)
   let #(model, _events) =
     command_processor.process_commands(state.app, new_model, commands, None)
   let view_fn = app.get_view(state.app)
-  let raw_tree = case view_fn(model) {
-    Some(n) -> n
-    None -> node.empty_container()
-  }
+  let raw_tree = tree.view_list_to_tree(view_fn(model))
   let new_tree = raw_tree |> tree.normalize()
 
   let assert Ok(snapshot_data) =

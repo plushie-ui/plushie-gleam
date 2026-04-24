@@ -14,7 +14,6 @@ import gleam/float
 import gleam/int
 @target(erlang)
 import gleam/io
-import gleam/option.{type Option, Some}
 @target(erlang)
 import plushie
 @target(erlang)
@@ -170,13 +169,13 @@ fn float_abs(x: Float) -> Float {
 // -- View ---------------------------------------------------------------------
 
 @target(erlang)
-fn view(model: Model) -> Option(Node) {
+fn view(model: Model) -> List(Node) {
   let hex = hsv_to_hex(model.hue, model.saturation, model.value)
   let h_int = float.round(model.hue)
   let s_pct = float.round(model.saturation *. 100.0)
   let v_pct = float.round(model.value *. 100.0)
 
-  Some(
+  [
     ui.window("color_picker", [window.Title("Color Picker")], [
       ui.column(
         "content",
@@ -235,7 +234,7 @@ fn view(model: Model) -> Option(Node) {
         ],
       ),
     ]),
-  )
+  ]
 }
 
 // -- Helpers ------------------------------------------------------------------

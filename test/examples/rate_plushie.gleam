@@ -16,7 +16,6 @@ import gleam/dynamic.{type Dynamic}
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, Some}
 import gleam/string
 @target(erlang)
 import plushie
@@ -306,7 +305,7 @@ fn subscribe(_model: Model) -> List(subscription.Subscription) {
 
 // -- View ---------------------------------------------------------------------
 
-fn view(model: Model) -> Option(Node) {
+fn view(model: Model) -> List(Node) {
   let p = case model.dark_mode {
     True -> 1.0
     False -> 0.0
@@ -323,7 +322,7 @@ fn view(model: Model) -> Option(Node) {
       ]),
     )
 
-  Some(
+  [
     ui.window("main", [window.Title("Rate Plushie")], [
       themer.new("page-theme", page_theme)
       |> themer.extend([
@@ -368,7 +367,7 @@ fn view(model: Model) -> Option(Node) {
       ])
       |> themer.build(),
     ]),
-  )
+  ]
 }
 
 // -- View: rating card --------------------------------------------------------

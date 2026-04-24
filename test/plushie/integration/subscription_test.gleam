@@ -6,7 +6,6 @@
 //// and the model reflects the accumulated state.
 
 import gleam/erlang/process
-import gleam/option.{type Option, Some}
 import plushie/app.{type App}
 import plushie/command
 import plushie/event.{type Event, EventTarget, Timer, TimerEvent}
@@ -41,10 +40,8 @@ fn tick_update(
   }
 }
 
-fn tick_view(_model: TickModel) -> Option(Node) {
-  Some(
-    ui.window("main", [window.Title("Tick Test")], [ui.text_("hi", "hello")]),
-  )
+fn tick_view(_model: TickModel) -> List(Node) {
+  [ui.window("main", [window.Title("Tick Test")], [ui.text_("hi", "hello")])]
 }
 
 fn tick_app() -> App(TickModel, Event) {
@@ -79,12 +76,12 @@ fn toggle_update(
   }
 }
 
-fn toggle_view(_model: ToggleModel) -> Option(Node) {
-  Some(
+fn toggle_view(_model: ToggleModel) -> List(Node) {
+  [
     ui.window("main", [window.Title("Toggle Test")], [
       ui.button_("stop", "Stop"),
     ]),
-  )
+  ]
 }
 
 fn toggle_subscribe(model: ToggleModel) -> List(subscription.Subscription) {
@@ -126,10 +123,8 @@ fn multi_update(
   }
 }
 
-fn multi_view(_model: MultiModel) -> Option(Node) {
-  Some(
-    ui.window("main", [window.Title("Multi Test")], [ui.text_("hi", "hello")]),
-  )
+fn multi_view(_model: MultiModel) -> List(Node) {
+  [ui.window("main", [window.Title("Multi Test")], [ui.text_("hi", "hello")])]
 }
 
 fn multi_app() -> App(MultiModel, Event) {

@@ -33,30 +33,28 @@ ui.window("main", [window.Title("My App"), window.Theme(theme.Dark)], [...])
 
 ### Multi-window
 
-Return a root node whose direct children are windows:
+`view` returns a list of top-level window nodes. The runtime opens,
+closes, and updates windows based on what is in the list on each render.
+
+On native targets any number of peer windows is supported. On the WASM
+target (`plushie_web`), the platform has no OS-level multi-window
+capability; the runtime logs a `MultipleTopLevelWindows` diagnostic and
+collapses the list. Design multi-window apps around native transports.
 
 ```gleam
-import gleam/option.{Some}
-import plushie/node
-
 fn view(model: Model) {
-  Some(
-    node.empty_container()
-    |> node.with_children(
-      case model.show_settings {
-        True -> [
-          ui.window("main", [window.Title("App")], [main_content(model)]),
-          ui.window("settings", [
-            window.Title("Settings"),
-            window.ExitOnCloseRequest(False),
-          ], [settings_content(model)]),
-        ]
-        False -> [
-          ui.window("main", [window.Title("App")], [main_content(model)]),
-        ]
-      },
-    )
-  )
+  case model.show_settings {
+    True -> [
+      ui.window("main", [window.Title("App")], [main_content(model)]),
+      ui.window("settings", [
+        window.Title("Settings"),
+        window.ExitOnCloseRequest(False),
+      ], [settings_content(model)]),
+    ]
+    False -> [
+      ui.window("main", [window.Title("App")], [main_content(model)]),
+    ]
+  }
 }
 ```
 

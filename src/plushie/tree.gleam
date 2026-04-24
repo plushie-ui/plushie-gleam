@@ -114,6 +114,23 @@ pub fn normalize(node: Node) -> Node {
   post_normalize(normalized)
 }
 
+/// Collapse a list of top-level window nodes into a single tree root.
+///
+/// `[]` becomes an empty container (loading, transition, error screens).
+/// `[single]` promotes the single window to the root directly. Multiple
+/// entries wrap under a synthetic `root` container so the diff and
+/// normalize pipeline can treat the tree uniformly. Mirrors the
+/// Elixir runtime's internal wrapping at `plushie-elixir/lib/plushie/tree.ex`.
+pub fn view_list_to_tree(windows: List(Node)) -> Node {
+  case windows {
+    [] -> node.empty_container()
+    [single] -> single
+    _ ->
+      node.new("root", "container")
+      |> node.with_children(windows)
+  }
+}
+
 /// Normalize a top-level app view and enforce explicit windows.
 ///
 /// Accepts the previous render cycle's memo cache and returns the
@@ -121,9 +138,10 @@ pub fn normalize(node: Node) -> Node {
 /// and detected window IDs. The registry and windows are collected
 /// during normalization itself, eliminating separate tree walks.
 ///
-/// A view must return either:
-/// - a single `window` node
-/// - a root node whose direct children are all `window` nodes
+/// The runtime wraps the list-of-windows returned by `view` into a
+/// single tree root before calling this function, so the root here is
+/// either a `window` node, a synthetic `container` holding only
+/// `window` children, or an empty `container` representing `[]`.
 pub fn normalize_view(
   node: Node,
   registry: widget.Registry,
@@ -133,19 +151,15 @@ pub fn normalize_view(
 
   case result.tree.kind {
     "window" -> Ok(result)
-    _ -> {
-      let direct_windows =
-        !list.is_empty(result.tree.children)
-        && list.all(result.tree.children, fn(child) { child.kind == "window" })
-
-      case direct_windows {
+    "container" ->
+      case
+        list.all(result.tree.children, fn(child) { child.kind == "window" })
+      {
         True -> Ok(result)
         False ->
-          Error(
-            "view must return a window node or a root node whose direct children are window nodes",
-          )
+          Error("view must return a list of window nodes at the top level")
       }
-    }
+    _ -> Error("view must return a list of window nodes at the top level")
   }
 }
 
