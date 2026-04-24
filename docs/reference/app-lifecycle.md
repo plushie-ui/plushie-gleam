@@ -312,7 +312,7 @@ The runtime exposes synchronous queries on a running
 | `plushie.get_focused(instance)` | `Result(Option(String), Nil)` | ID of the focused widget |
 | `plushie.get_health(instance)` | `Result(runtime.HealthStatus, Nil)` | Error counters and view desync flag |
 | `plushie.is_view_desynced(instance)` | `Result(Bool, Nil)` | `True` when consecutive view errors are non-zero |
-| `plushie.get_prop_warnings(instance)` | `Result(List(runtime.PropWarning), Nil)` | Accumulated prop validation warnings, cleared after retrieval |
+| `plushie.get_prop_warnings(instance)` | `Result(List(runtime.PropWarning), Nil)` | Accumulated prop validation warnings, cleared after retrieval, preserved across renderer restarts |
 | `plushie.dispatch_event(instance, event)` | `Nil` | Inject an event into the runtime's message loop |
 | `plushie.await_async(instance, tag, timeout)` | `Result(Nil, Nil)` | Block until the tagged async task completes |
 | `plushie.wait(instance)` | `Nil` | Block until the supervisor exits |
@@ -320,6 +320,12 @@ The runtime exposes synchronous queries on a running
 
 `HealthStatus` fields: `errors`, `consecutive_view_errors`,
 `prop_warning_count`, `view_desynced`.
+
+Prop validation warnings are SDK issues, not renderer process health
+issues. A renderer restart resets `errors` and
+`consecutive_view_errors`, but it does not clear accumulated prop
+warnings. Call `get_prop_warnings` to drain them once they have been
+inspected.
 
 `dispatch_event` bypasses the bridge and the renderer: the event
 enters the widget handler chain and reaches `update` as if it

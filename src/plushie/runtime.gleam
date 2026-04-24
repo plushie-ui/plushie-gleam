@@ -1046,6 +1046,8 @@ fn handle_message(
           error_state: ErrorState(
             errors: 0,
             consecutive_view_errors: 0,
+            // Prop warnings describe SDK-generated props. Keep them
+            // across renderer restarts until get_prop_warnings drains them.
             prop_warnings: state.error_state.prop_warnings,
           ),
         )

@@ -432,7 +432,8 @@ pub fn unregister_effect_stub(
 ///
 /// Returns a list of PropWarning records for each node that had
 /// validation issues since the last query. Warnings are cleared
-/// after retrieval.
+/// after retrieval. Renderer restarts do not clear these warnings:
+/// they describe SDK-generated props, not renderer process health.
 pub fn get_prop_warnings(
   instance: Instance(_),
 ) -> Result(List(runtime.PropWarning), Nil) {
