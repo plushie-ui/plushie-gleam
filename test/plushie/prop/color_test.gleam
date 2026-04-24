@@ -88,3 +88,44 @@ pub fn from_rgba_float_full_opaque_test() {
 pub fn to_prop_value_test() {
   should.equal(color.to_prop_value(color.blue), StringVal("#0000ff"))
 }
+
+pub fn contrast_ratio_black_on_white_test() {
+  should.equal(color.contrast_ratio(color.black, color.white), 21.0)
+  should.equal(color.contrast_ratio(color.white, color.black), 21.0)
+}
+
+pub fn contrast_ratio_same_color_test() {
+  should.equal(color.contrast_ratio(color.white, color.white), 1.0)
+}
+
+pub fn contrast_ratio_ignores_alpha_test() {
+  let assert Ok(transparent_black) = color.from_hex("#00000000")
+
+  should.equal(
+    color.contrast_ratio(transparent_black, color.white),
+    color.contrast_ratio(color.black, color.white),
+  )
+}
+
+pub fn meets_wcag_aa_and_aaa_thresholds_test() {
+  let assert Ok(aa_normal) = color.from_hex("#767676")
+  let assert Ok(aa_large_only) = color.from_hex("#949494")
+
+  should.be_true(color.meets_aa(aa_normal, color.white))
+  should.be_false(color.meets_aaa(aa_normal, color.white))
+
+  should.be_true(color.meets_aa_large(aa_large_only, color.white))
+  should.be_false(color.meets_aa(aa_large_only, color.white))
+  should.be_true(color.meets_aaa_large(aa_normal, color.white))
+}
+
+pub fn is_accessible_is_aa_normal_alias_test() {
+  let assert Ok(aa_normal) = color.from_hex("#767676")
+  let assert Ok(aa_large_only) = color.from_hex("#949494")
+
+  should.equal(
+    color.is_accessible(aa_normal, color.white),
+    color.meets_aa(aa_normal, color.white),
+  )
+  should.be_false(color.is_accessible(aa_large_only, color.white))
+}

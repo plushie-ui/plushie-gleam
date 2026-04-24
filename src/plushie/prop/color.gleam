@@ -9,6 +9,7 @@ import gleam/list
 import gleam/result
 import gleam/string
 import plushie/node.{type PropValue, StringVal}
+import plushie/platform
 
 pub opaque type Color {
   Color(hex: String)
@@ -165,6 +166,100 @@ pub fn to_hex(color: Color) -> String {
 /// Encode to wire-format PropValue (hex string).
 pub fn to_prop_value(color: Color) -> PropValue {
   StringVal(color.hex)
+}
+
+/// Calculate the WCAG contrast ratio between two colours.
+///
+/// Alpha channels are ignored. Contrast depends on the final composited
+/// colour, so callers should pass colours that already account for any
+/// blending with the real background.
+pub fn contrast_ratio(foreground: Color, background: Color) -> Float {
+  let foreground_luminance = relative_luminance(foreground)
+  let background_luminance = relative_luminance(background)
+  let lighter = float.max(foreground_luminance, background_luminance)
+  let darker = float.min(foreground_luminance, background_luminance)
+
+  { lighter +. 0.05 } /. { darker +. 0.05 }
+}
+
+/// True when the colour pair meets WCAG AA contrast for normal text.
+pub fn meets_aa(foreground: Color, background: Color) -> Bool {
+  contrast_ratio(foreground, background) >=. 4.5
+}
+
+/// True when the colour pair meets WCAG AA contrast for large text.
+pub fn meets_aa_large(foreground: Color, background: Color) -> Bool {
+  contrast_ratio(foreground, background) >=. 3.0
+}
+
+/// True when the colour pair meets WCAG AAA contrast for normal text.
+pub fn meets_aaa(foreground: Color, background: Color) -> Bool {
+  contrast_ratio(foreground, background) >=. 7.0
+}
+
+/// True when the colour pair meets WCAG AAA contrast for large text.
+pub fn meets_aaa_large(foreground: Color, background: Color) -> Bool {
+  contrast_ratio(foreground, background) >=. 4.5
+}
+
+/// Alias for `meets_aa`, the normal text WCAG AA threshold.
+pub fn is_accessible(foreground: Color, background: Color) -> Bool {
+  meets_aa(foreground, background)
+}
+
+fn relative_luminance(color: Color) -> Float {
+  let #(red, green, blue) = rgb_channels(color)
+
+  0.2126
+  *. srgb_channel(red)
+  +. 0.7152
+  *. srgb_channel(green)
+  +. 0.0722
+  *. srgb_channel(blue)
+}
+
+fn srgb_channel(channel: Int) -> Float {
+  let value = int.to_float(channel) /. 255.0
+  case value <=. 0.04045 {
+    True -> value /. 12.92
+    False -> platform.math_pow({ value +. 0.055 } /. 1.055, 2.4)
+  }
+}
+
+fn rgb_channels(color: Color) -> #(Int, Int, Int) {
+  case string.to_graphemes(color.hex) {
+    [_, r1, r2, g1, g2, b1, b2, ..] -> #(
+      hex_pair_to_int(r1, r2),
+      hex_pair_to_int(g1, g2),
+      hex_pair_to_int(b1, b2),
+    )
+    _ -> #(0, 0, 0)
+  }
+}
+
+fn hex_pair_to_int(high: String, low: String) -> Int {
+  hex_value(high) * 16 + hex_value(low)
+}
+
+fn hex_value(digit: String) -> Int {
+  case digit {
+    "0" -> 0
+    "1" -> 1
+    "2" -> 2
+    "3" -> 3
+    "4" -> 4
+    "5" -> 5
+    "6" -> 6
+    "7" -> 7
+    "8" -> 8
+    "9" -> 9
+    "a" -> 10
+    "b" -> 11
+    "c" -> 12
+    "d" -> 13
+    "e" -> 14
+    _ -> 15
+  }
 }
 
 // --- Named colors ------------------------------------------------------------

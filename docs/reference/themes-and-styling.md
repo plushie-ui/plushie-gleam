@@ -29,6 +29,21 @@ All constructors normalise to a canonical lowercase hex string
 Invalid hex input returns `Error(Nil)`. Integer constructors clamp
 channels to 0-255 and alpha to 0.0-1.0 before assembling.
 
+Colour contrast helpers use the WCAG relative luminance formula for
+sRGB:
+
+| Helper | Purpose |
+|---|---|
+| `color.contrast_ratio(foreground, background)` | Returns the WCAG contrast ratio |
+| `color.meets_aa(foreground, background)` | Normal text, 4.5:1 |
+| `color.meets_aa_large(foreground, background)` | Large text, 3.0:1 |
+| `color.meets_aaa(foreground, background)` | Normal text, 7.0:1 |
+| `color.meets_aaa_large(foreground, background)` | Large text, 4.5:1 |
+| `color.is_accessible(foreground, background)` | Alias for normal text AA |
+
+Alpha channels are ignored by these helpers. If a colour is translucent,
+pass the composited foreground or background colour.
+
 ## Theme
 
 `plushie/prop/theme`
