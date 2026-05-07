@@ -105,8 +105,8 @@ When the renderer exits non-zero, the bridge:
    `handle_renderer_exit`.
 2. Drops queued rebuildable messages; queues transient
    messages.
-3. Schedules `RestartPort` after a backoff delay (100ms base,
-   exponential, 5s cap, capped consecutive failures).
+3. Schedules `RestartPort` after a bounded exponential backoff
+   delay (capped consecutive failures).
 4. On successful reopen, notifies the runtime with
    `RendererRestarted`. Runtime re-sends settings, a fresh
    snapshot of the view, subscriptions, and window state.
