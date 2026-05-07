@@ -1045,15 +1045,10 @@ fn decode_window_opened(
   use window_id <- result.try(get_string(data, "window_id"))
   use width <- result.try(get_float(data, "width"))
   use height <- result.try(get_float(data, "height"))
-  // Position may be at top level x/y or nested under a "position" key.
-  // When absent/null, use None.
-  let #(px, py) = case dict.get(data, "position") {
-    Ok(PMap(pos)) -> #(
-      get_optional_float(pos, "x"),
-      get_optional_float(pos, "y"),
-    )
-    _ -> #(get_optional_float(data, "x"), get_optional_float(data, "y"))
-  }
+  // Position lives at top level alongside width/height, mirroring
+  // window_moved and window_resized. When absent/null, use None.
+  let px = get_optional_float(data, "x")
+  let py = get_optional_float(data, "y")
   let scale_factor = get_float_or(data, "scale_factor", 1.0)
   Ok(
     EventMessage(

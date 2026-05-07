@@ -907,26 +907,6 @@ pub fn decode_window_opened_no_position_json_test() {
   }
 }
 
-pub fn decode_window_opened_nested_position_json_test() {
-  let json =
-    "{\"type\":\"event\",\"family\":\"window_opened\",\"value\":{\"window_id\":\"w\",\"width\":400.0,\"height\":300.0,\"position\":{\"x\":10.0,\"y\":20.0}}}"
-  let data = bit_array.from_string(json)
-  let assert Ok(decode.EventMessage(evt)) =
-    decode.decode_message(data, protocol.Json)
-  case evt {
-    event.Window(event.WindowEvent(
-      event_type: event.Opened,
-      x: position_x,
-      y: position_y,
-      ..,
-    )) -> {
-      should.equal(position_x, Some(10.0))
-      should.equal(position_y, Some(20.0))
-    }
-    _ -> should.fail()
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Unified pointer events (widget-scoped press/double_click)
 // ---------------------------------------------------------------------------
