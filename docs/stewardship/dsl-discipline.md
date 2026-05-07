@@ -122,9 +122,8 @@ Runtime validation that the SDK relies on:
 - `transport/framing` rejects oversized frames with
   `BufferOverflow`.
 - `widget/build` (and per-widget `build`) enforces the
-  encoding-at-build-time invariant: prop values reach the
-  tree already encoded; deferred encoding is forbidden (see
-  CLAUDE.md notes).
+  encoding-at-build-time invariant: prop values reach the tree
+  already encoded; deferred encoding is forbidden.
 
 ## Generated docs are what users read
 

@@ -53,8 +53,10 @@ shape and readability is preserved or improved:
   (`Dict` over list-scan; `Set` for membership tests; `BitArray`
   for wire bytes).
 - Encoding prop values inside `widget/*.build()` once instead of
-  re-encoding in normalize or protocol-encode (this is also the
-  invariant; see CLAUDE.md notes on the encoding boundary).
+  re-encoding in normalize or protocol-encode. This is the
+  encoding-at-build-time invariant: by the time a node enters the
+  tree its prop values are already in wire form, and deferred
+  encoding is forbidden.
 - Avoiding a clearly unnecessary allocation, copy, or `list`
   pass that another function on the same data already did.
 - Localized refactors where the optimized form is also the

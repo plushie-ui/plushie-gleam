@@ -158,8 +158,10 @@ Wire IDs use the canonical format `window#scope/path/id`:
 
 Events on the runtime side carry split fields via
 `EventTarget`: `id` (local), `scope` (reversed ancestor
-chain, immediate parent first), `window_id` (window). This
-shape is what user pattern matching operates on:
+chain, immediate parent first, with `window_id` appended as
+the last element), `window_id` (window). User pattern matching
+usually only cares about the head of the scope (the immediate
+parent), so the trailing `window_id` does not get in the way:
 
 ```gleam
 case event {
@@ -170,10 +172,11 @@ case event {
 ```
 
 Commands use forward-order path strings; helper functions in
-`plushie/command` build the canonical form. Auto-ID
-containers (no explicit ID) do not create a scope. Window
-nodes do not create a scope; they are the window component
-of the wire ID. `"/"` is forbidden in user-provided IDs.
+`plushie/command` build the canonical form. Auto-ID containers
+(no explicit ID) do not create a scope. Window nodes do not
+create a scope; they are the window component of the wire ID.
+Both `"/"` and `"#"` are forbidden in user-provided IDs (`/`
+is the scope separator; `#` is the window separator).
 
 ## What these invariants buy
 
