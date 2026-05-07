@@ -340,9 +340,8 @@ fn classify_image(cmd: command.ImageCommand) -> WireOp(msg) {
       ])
     command.DeleteImage(handle:) ->
       ImageOp("delete_image", [#("handle", StringVal(handle))])
-    command.ListImages(tag:) ->
-      WidgetOp("list_images", [#("tag", StringVal(tag))])
-    command.ClearImages -> WidgetOp("clear_images", [])
+    command.ListImages(tag:) -> ImageOp("list", [#("tag", StringVal(tag))])
+    command.ClearImages -> ImageOp("clear", [])
   }
 }
 

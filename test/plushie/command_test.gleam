@@ -1,6 +1,7 @@
 import gleam/dict
 import plushie/command
 import plushie/command_encode
+import plushie/node.{StringVal}
 
 pub fn none_returns_none_variant_test() {
   assert command.none() == command.None
@@ -165,6 +166,20 @@ pub fn delete_image_test() {
 pub fn clear_images_test() {
   assert command.clear_images()
     == command.Renderer(command.Image(command.ClearImages))
+}
+
+pub fn list_images_classifies_to_image_op_test() {
+  // The renderer accepts list/clear under the typed image_op channel
+  // (`{type: image_op, op: list, payload: {tag}}`), not the generic
+  // widget_op envelope. Pin the wire shape so this stays in sync
+  // across SDKs.
+  assert command_encode.classify(command.list_images("results"))
+    == command_encode.ImageOp("list", [#("tag", StringVal("results"))])
+}
+
+pub fn clear_images_classifies_to_image_op_test() {
+  assert command_encode.classify(command.clear_images())
+    == command_encode.ImageOp("clear", [])
 }
 
 pub fn tree_hash_test() {
