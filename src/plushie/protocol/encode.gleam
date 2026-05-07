@@ -243,7 +243,10 @@ pub fn encode_settings(
     ]
   }
   let settings_fields = case settings.default_font {
-    option.Some(font) -> [#("default_font", font), ..settings_fields]
+    option.Some(font) -> [
+      #("default_font", normalize_default_font(font)),
+      ..settings_fields
+    ]
     option.None -> settings_fields
   }
   let settings_fields = case settings.default_event_rate {
@@ -283,6 +286,20 @@ pub fn encode_settings(
   }
   let fields = [#("settings", DictVal(dict.from_list(settings_fields)))]
   serialize(message("settings", session, fields), format)
+}
+
+// The renderer reads `default_font` strictly as an object with at
+// least a `family` key; a bare string is silently dropped and the
+// renderer falls back to the platform default font. The shorthand
+// `Font` variants (`DefaultFont`, `Monospace`) encode to
+// `StringVal(...)`, so wrap any bare string back into the canonical
+// `{family: ...}` shape.
+fn normalize_default_font(font: PropValue) -> PropValue {
+  case font {
+    StringVal(family) ->
+      DictVal(dict.from_list([#("family", StringVal(family))]))
+    other -> other
+  }
 }
 
 /// Encode a full tree snapshot.

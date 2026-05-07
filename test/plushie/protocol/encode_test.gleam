@@ -275,6 +275,40 @@ pub fn encode_settings_with_fonts_includes_fonts_test() {
   assert string.contains(s, "\"Inter\"")
 }
 
+pub fn encode_settings_default_font_string_wraps_in_family_object_test() {
+  // The renderer reads default_font as an object and looks for the
+  // `family` key. A bare string is silently dropped, so the encoder
+  // wraps any string into the canonical family-object shape.
+  let settings =
+    app.Settings(
+      ..app.default_settings(),
+      default_font: option.Some(StringVal("monospace")),
+    )
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"default_font\":{\"family\":\"monospace\"}")
+}
+
+pub fn encode_settings_default_font_dict_passes_through_test() {
+  // Custom-font objects (already in the canonical shape) are
+  // forwarded unchanged.
+  let font =
+    DictVal(
+      dict.from_list([
+        #("family", StringVal("Inter")),
+        #("weight", StringVal("bold")),
+      ]),
+    )
+  let settings =
+    app.Settings(..app.default_settings(), default_font: option.Some(font))
+  let assert Ok(bytes) =
+    encode.encode_settings(settings, "", protocol.Json, option.None)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"family\":\"Inter\"")
+  assert string.contains(s, "\"weight\":\"bold\"")
+}
+
 pub fn encode_settings_msgpack_has_nested_settings_test() {
   let settings = app.default_settings()
   let assert Ok(bytes) =
