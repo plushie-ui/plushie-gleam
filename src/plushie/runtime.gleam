@@ -2422,6 +2422,11 @@ fn execute_commands(
       state
     }
 
+    command_encode.LoadFontMessage(family, data) -> {
+      send_load_font(state.bridge, family, data, state.opts)
+      state
+    }
+
     command_encode.EffectRequest(id, tag, kind, payload) -> {
       // One effect per tag: cancel any existing effect with the same tag
       let state = cancel_pending_effect_by_tag(state, tag)
@@ -2690,6 +2695,19 @@ fn send_image_op(
       opts.session,
       opts.format,
     ),
+  )
+}
+
+@target(erlang)
+fn send_load_font(
+  bridge: Subject(BridgeMessage),
+  family: String,
+  data: BitArray,
+  opts: RuntimeOpts,
+) -> Nil {
+  send_transient(
+    bridge,
+    encode.encode_load_font(family, data, opts.session, opts.format),
   )
 }
 

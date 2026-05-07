@@ -53,6 +53,10 @@ pub type WireOp(msg) {
   SystemQuery(op: String, tag: String)
   /// Image operation (create, update, delete).
   ImageOp(op: String, payload: List(#(String, PropValue)))
+  /// Load a custom font family for use in subsequent renders.
+  /// Wire format: {type: "load_font", family, data}, where `data` is a
+  /// base64 string in JSON and a native binary in MessagePack.
+  LoadFontMessage(family: String, data: BitArray)
   /// Platform effect request (file dialog, clipboard, notification).
   EffectRequest(
     id: String,
@@ -143,11 +147,7 @@ fn classify_renderer(cmd: command.RendererCommand) -> WireOp(msg) {
       WidgetOp("tree_hash", [#("tag", StringVal(tag))])
     command.FindFocused(tag:) ->
       WidgetOp("find_focused", [#("tag", StringVal(tag))])
-    command.LoadFont(family:, data:) ->
-      WidgetOp("load_font", [
-        #("family", StringVal(family)),
-        #("data", StringVal(bit_array.base64_encode(data, True))),
-      ])
+    command.LoadFont(family:, data:) -> LoadFontMessage(family:, data:)
 
     // -- Pane grid commands (widget-targeted) --
     command.PaneSplit(pane_grid_id:, pane_id:, axis:, new_pane_id:) ->

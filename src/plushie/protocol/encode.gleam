@@ -365,6 +365,21 @@ pub fn encode_widget_op(
   serialize(message("widget_op", session, fields), format)
 }
 
+/// Encode a load_font message.
+///
+/// `data` carries the font bytes. JSON encodes them as a base64 string;
+/// MessagePack encodes them as a native binary value. `BinaryVal` handles
+/// both representations.
+pub fn encode_load_font(
+  family: String,
+  data: BitArray,
+  session: String,
+  format: Format,
+) -> Result(BitArray, EncodeError) {
+  let fields = [#("family", StringVal(family)), #("data", BinaryVal(data))]
+  serialize(message("load_font", session, fields), format)
+}
+
 /// Encode a subscribe message to start an event source.
 pub fn encode_subscribe(
   kind: String,

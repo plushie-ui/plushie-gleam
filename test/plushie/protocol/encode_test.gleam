@@ -508,6 +508,44 @@ pub fn encode_widget_op_test() {
   assert string.contains(s, "\"email_input\"")
 }
 
+// --- encode_load_font --------------------------------------------------------
+
+pub fn encode_load_font_json_test() {
+  let bytes_data = <<"font-bytes":utf8>>
+  let assert Ok(bytes) =
+    encode.encode_load_font("Inter", bytes_data, "", protocol.Json)
+  let assert Ok(s) = bit_array.to_string(bytes)
+  assert string.contains(s, "\"type\":\"load_font\"")
+  assert string.contains(s, "\"family\":\"Inter\"")
+  // JSON path: data is base64-encoded.
+  assert string.contains(
+    s,
+    "\"data\":\"" <> bit_array.base64_encode(bytes_data, True) <> "\"",
+  )
+}
+
+pub fn encode_load_font_msgpack_test() {
+  let bytes_data = <<"font-bytes":utf8>>
+  let assert Ok(bytes) =
+    encode.encode_load_font("Inter", bytes_data, "", protocol.Msgpack)
+  // Decoding the msgpack envelope should yield a binary value, not a string.
+  let assert Ok(value) = glepack.unpack_exact(bytes)
+  case value {
+    data.Map(entries) -> {
+      let lookup = fn(key: String) -> data.Value {
+        case dict.get(entries, data.String(key)) {
+          Ok(v) -> v
+          Error(_) -> panic as { "missing key " <> key }
+        }
+      }
+      should.equal(lookup("type"), data.String("load_font"))
+      should.equal(lookup("family"), data.String("Inter"))
+      should.equal(lookup("data"), data.Binary(bytes_data))
+    }
+    _ -> should.fail()
+  }
+}
+
 // --- encode_window_op --------------------------------------------------------
 
 pub fn encode_window_op_test() {

@@ -731,6 +731,12 @@ fn execute_commands(
 
     command_encode.ImageOp(op, payload) -> imgop(handle, op, payload, session)
 
+    command_encode.LoadFontMessage(family, data) -> {
+      let assert Ok(bytes) =
+        encode.encode_load_font(family, data, session, Json)
+      do_send(handle, bytes)
+    }
+
     command_encode.EffectRequest(id, tag, kind, payload) -> {
       do_cancel_pending_effect_by_tag(handle, tag)
       do_start_pending_effect(
