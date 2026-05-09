@@ -20,6 +20,13 @@
 //// bridge_web.close(transport)
 //// ```
 
+// Unconditional public type required because the package publisher rejects
+// modules with no cross-target public definitions. All meaningful API below
+// requires @target(javascript).
+pub type JsBridgeTarget {
+  JsBridgeTarget
+}
+
 @target(javascript)
 /// Opaque handle to a WASM transport instance.
 ///

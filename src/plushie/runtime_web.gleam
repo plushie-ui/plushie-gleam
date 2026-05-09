@@ -74,6 +74,13 @@ import plushie/widget
 
 // -- Types ------------------------------------------------------------------
 
+// Unconditional public type required because the package publisher rejects
+// modules with no cross-target public definitions. All meaningful API below
+// requires @target(javascript).
+pub type JsRuntimeTarget {
+  JsRuntimeTarget
+}
+
 @target(javascript)
 /// Opaque handle to a running JS runtime.
 ///

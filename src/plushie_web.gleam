@@ -46,7 +46,6 @@
 
 @target(javascript)
 import gleam/bit_array
-@target(javascript)
 import gleam/dynamic
 @target(javascript)
 import gleam/option.{type Option, None}
@@ -65,7 +64,6 @@ import plushie/protocol/encode
 @target(javascript)
 import plushie/runtime_web.{type WebRuntime}
 
-@target(javascript)
 /// Options for starting a plushie web application.
 pub type WebStartOpts {
   WebStartOpts(
@@ -76,7 +74,6 @@ pub type WebStartOpts {
   )
 }
 
-@target(javascript)
 /// Default start options for the web target.
 pub fn default_start_opts() -> WebStartOpts {
   WebStartOpts(session: "", app_opts: dynamic.nil())
@@ -92,14 +89,12 @@ pub opaque type WebInstance(model) {
   WebInstance(runtime: WebRuntime(model))
 }
 
-@target(javascript)
 /// Errors that can occur when starting a web application.
 pub type WebStartError {
   /// The WASM renderer failed to initialize.
   WasmInitFailed(reason: String)
 }
 
-@target(javascript)
 /// Format a start error as a human-readable string.
 pub fn start_error_to_string(err: WebStartError) -> String {
   case err {
