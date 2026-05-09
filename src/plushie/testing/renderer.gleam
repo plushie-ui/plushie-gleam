@@ -59,6 +59,8 @@ import plushie/node.{type Node, StringVal}
 @target(erlang)
 import plushie/protocol
 @target(erlang)
+import plushie/protocol/decode as proto_decode
+@target(erlang)
 import plushie/protocol/encode as proto_encode
 @target(erlang)
 import plushie/renderer_env
@@ -68,8 +70,6 @@ import plushie/renderer_port
 import plushie/testing/command_processor
 @target(erlang)
 import plushie/testing/element.{type Element}
-@target(erlang)
-import plushie/testing/event_decoder
 @target(erlang)
 import plushie/testing/screenshot.{type Screenshot, Screenshot}
 @target(erlang)
@@ -910,11 +910,12 @@ fn dispatch_raw(
     // Handshake: nothing to do in test mode
     "hello" -> state
 
-    // Wire events (from production flow, not from interact)
+    // Wire events: route through the production decoder.
     "event" -> {
-      let family = dyn_string_field(raw, "family", "")
-      let id = dyn_string_field(raw, "id", "")
-      dispatch_wire_event(state, family, id, raw)
+      case proto_decode.decode_from_dynamic(raw) {
+        Ok(proto_decode.EventMessage(event)) -> run_update(state, event)
+        _ -> state
+      }
     }
 
     // Responses correlated to pending requests
@@ -988,34 +989,16 @@ fn handle_response(
 // ---------------------------------------------------------------------------
 
 @target(erlang)
-fn dispatch_wire_event(
-  state: RendererState(model),
-  family: String,
-  id: String,
-  raw: Dynamic,
-) -> RendererState(model) {
-  case family {
-    "" -> state
-    _ -> {
-      let event_dict = dyn_to_string_dict(raw)
-      case event_decoder.decode_test_event(family, id, event_dict) {
-        Ok(event) -> run_update(state, event)
-        Error(_) -> state
-      }
-    }
-  }
-}
-
-@target(erlang)
 fn dispatch_interact_events(
   state: RendererState(model),
   raw: Dynamic,
 ) -> RendererState(model) {
   let events = dyn_list_field(raw, "events")
   list.fold(events, state, fn(acc, event_data) {
-    let family = dyn_string_field(event_data, "family", "")
-    let id = dyn_string_field(event_data, "id", "")
-    dispatch_wire_event(acc, family, id, event_data)
+    case proto_decode.decode_from_dynamic(event_data) {
+      Ok(proto_decode.EventMessage(event)) -> run_update(acc, event)
+      _ -> acc
+    }
   })
 }
 
@@ -1218,16 +1201,6 @@ fn dyn_field(data: Dynamic, key: String) -> Result(Dynamic, Nil) {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.dynamic)) {
     Ok(val) -> Ok(val)
     Error(_) -> Error(Nil)
-  }
-}
-
-@target(erlang)
-fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
-  case
-    dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
-  {
-    Ok(d) -> d
-    Error(_) -> dict.new()
   }
 }
 

@@ -100,6 +100,20 @@ pub fn decode_message(
   dispatch(map)
 }
 
+/// Decode an already-deserialized Dynamic value into an InboundMessage.
+///
+/// For use by test infrastructure that has already deserialized from wire
+/// format for multiplexing purposes but still needs to route through the
+/// production decoder rather than a parallel implementation.
+pub fn decode_from_dynamic(
+  data: Dynamic,
+) -> Result(InboundMessage, protocol.DecodeError) {
+  case dynamic_to_prop(data) {
+    PMap(map) -> dispatch(map)
+    _ -> Error(protocol.DeserializationFailed("expected map"))
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Deserialization: wire bytes to Dict(String, PropValue)
 // ---------------------------------------------------------------------------

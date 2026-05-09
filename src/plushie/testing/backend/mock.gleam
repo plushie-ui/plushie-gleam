@@ -38,9 +38,9 @@ import plushie/event.{type Event}
 @target(erlang)
 import plushie/node.{type Node, BoolVal, StringVal}
 @target(erlang)
-import plushie/testing/backend.{type TestBackend, TestBackend}
+import plushie/protocol/decode as proto_decode
 @target(erlang)
-import plushie/testing/event_decoder
+import plushie/testing/backend.{type TestBackend, TestBackend}
 @target(erlang)
 import plushie/testing/session.{type TestSession}
 @target(erlang)
@@ -401,17 +401,9 @@ fn apply_events_and_snapshot(
 ) -> TestSession(model) {
   let new_sess =
     list.fold(events, sess, fn(acc, event_data) {
-      let family = dyn_string_field(event_data, "family", "")
-      let id = dyn_string_field(event_data, "id", "")
-      case family {
-        "" -> acc
-        _ -> {
-          let event_dict = dyn_to_string_dict(event_data)
-          case event_decoder.decode_test_event(family, id, event_dict) {
-            Ok(event) -> session.send_event(acc, event)
-            Error(_) -> acc
-          }
-        }
+      case proto_decode.decode_from_dynamic(event_data) {
+        Ok(proto_decode.EventMessage(event)) -> session.send_event(acc, event)
+        _ -> acc
       }
     })
 
@@ -639,16 +631,6 @@ fn dyn_string_field(data: Dynamic, key: String, default: String) -> String {
   case dyn_decode.run(data, dyn_decode.at([key], dyn_decode.string)) {
     Ok(s) -> s
     Error(_) -> default
-  }
-}
-
-@target(erlang)
-fn dyn_to_string_dict(data: Dynamic) -> Dict(String, Dynamic) {
-  case
-    dyn_decode.run(data, dyn_decode.dict(dyn_decode.string, dyn_decode.dynamic))
-  {
-    Ok(d) -> d
-    Error(_) -> dict.new()
   }
 }
 
