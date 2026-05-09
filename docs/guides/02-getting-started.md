@@ -20,7 +20,7 @@ Open `gleam.toml` and add `plushie_gleam` under `[dependencies]`:
 ```toml
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
-plushie_gleam = ">= 0.5.0 and < 1.0.0"
+plushie_gleam = ">= 0.6.0 and < 1.0.0"
 ```
 
 Pin the range tightly pre-1.0. The API may change between minor

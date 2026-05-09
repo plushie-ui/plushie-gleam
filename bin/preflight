@@ -84,11 +84,20 @@ run_step "gleam build"
 # JS target: check that source modules compile. Test files may
 # have BEAM-only code (process.sleep, plushie.start, etc.) so we
 # only fail if errors come from src/ files.
+#
+# Extract absolute file paths from Gleam diagnostic lines instead of
+# matching the box-drawing character (┌─), which is multi-byte UTF-8
+# and unreliable in non-UTF-8 locales. Also filter /packages/ so that
+# warnings in third-party deps on fresh compiles do not trip the check.
 echo -e "${cyan}==> ${reset}gleam build --target=javascript (source only)"
 js_output=$(gleam build --target=javascript 2>&1 || true)
-js_src_errors=$(echo "$js_output" | grep '^ *┌─' | grep -v '/test/' || true)
+js_src_errors=$(echo "$js_output" \
+    | grep -oE '/[^ ]+\.gleam:[0-9]+:[0-9]+' \
+    | grep -v '/test/' \
+    | grep -v '/packages/' \
+    || true)
 if [ -n "$js_src_errors" ]; then
-    echo "$js_output" | grep -v '/test/'
+    echo "$js_output" | grep -v '/test/' | grep -v '/packages/'
     echo -e "${red}    FAIL${reset}"
     exit 1
 else

@@ -90,7 +90,7 @@ SDK expects.
 ```toml
 name = "my_app"
 version = "0.1.0"
-plushie_rust_version = "0.6.1"
+plushie_rust_version = "0.7.0"
 
 [plushie]
 artifacts = ["bin", "wasm"]

@@ -1,6 +1,6 @@
 name = "plushie_gleam"
-version = "0.5.0"
-plushie_rust_version = "0.6.1"
+version = "0.6.0"
+plushie_rust_version = "0.7.1"
 
 description = "Native desktop GUI framework for Gleam, powered by Iced"
 licences = ["MIT"]
