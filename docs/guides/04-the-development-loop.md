@@ -11,9 +11,10 @@ debugging skill.
 
 ## Hot reload
 
-Chapter 2 introduced `dev: True` on `GuiOpts`. Bake it into the
-pad's entry point so every `gleam run` during development watches
-`src/` and reloads on save:
+Chapter 2 introduced `dev: True` on `GuiOpts` and the `file_system`
+dependency it requires. Bake `dev: True` into the pad's entry point
+so every `gleam run` during development watches `src/` and reloads
+on save:
 
 ```gleam
 import plushie/gui

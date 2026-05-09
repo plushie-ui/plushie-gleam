@@ -6,14 +6,18 @@
 //// application state.
 ////
 //// Started automatically when `dev: True` is set in StartOpts.
-//// Requires the `file_system` Erlang package.
+////
+//// Requires the `file_system` Hex package (an Elixir library) as a
+//// project dependency, and Elixir installed in your environment.
+//// Without it, the dev server starts but file watching is disabled
+//// and a warning is logged. See the Getting Started guide for setup.
 
 @target(erlang)
 import gleam/dynamic.{type Dynamic}
 @target(erlang)
 import gleam/erlang/process.{type Subject}
 @target(erlang)
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 @target(erlang)
 import gleam/otp/actor
 @target(erlang)
@@ -53,7 +57,7 @@ pub opaque type DevMessage {
 type DevState {
   DevState(
     runtime: Subject(runtime.RuntimeMessage),
-    watcher: Dynamic,
+    watcher: Option(Dynamic),
     debounce_pending: Bool,
     last_mtimes: List(#(Dynamic, Dynamic)),
     self: Subject(DevMessage),
@@ -66,9 +70,6 @@ type DevState {
 /// Start the dev server actor, watching src/ for changes.
 pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
   let _result = start_actor(runtime)
-  platform.log_info(
-    "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
-  )
   Nil
 }
 
@@ -79,15 +80,7 @@ pub fn start(runtime: Subject(runtime.RuntimeMessage)) -> Nil {
 pub fn start_supervised(
   runtime: Subject(runtime.RuntimeMessage),
 ) -> Result(actor.Started(Subject(DevMessage)), actor.StartError) {
-  case start_actor(runtime) {
-    Ok(started) -> {
-      platform.log_info(
-        "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
-      )
-      Ok(started)
-    }
-    Error(err) -> Error(err)
-  }
+  start_actor(runtime)
 }
 
 @target(erlang)
@@ -97,9 +90,20 @@ fn start_actor(
   // Snapshot initial BEAM mtimes
   let initial_mtimes = list_beam_files(build_dir)
 
-  // Start file watcher
-  let watcher = start_file_watcher(default_watch_dirs)
-  file_watcher_subscribe(watcher)
+  // Start file watcher; degrade gracefully if file_system is not installed
+  let watcher = case start_file_watcher(default_watch_dirs) {
+    Ok(pid) -> {
+      file_watcher_subscribe(pid)
+      platform.log_info(
+        "plushie dev: watching " <> string.join(default_watch_dirs, ", "),
+      )
+      Some(pid)
+    }
+    Error(reason) -> {
+      platform.log_warning("plushie dev: " <> reason)
+      None
+    }
+  }
 
   actor.new_with_initialiser(5000, fn(self: Subject(DevMessage)) {
     let initial_state =
@@ -111,12 +115,12 @@ fn start_actor(
         self:,
       )
 
-    // Set up a selector that receives both our own messages
-    // and raw file events from the watcher process
-    let selector =
-      process.new_selector()
-      |> process.select(self)
-      |> process.select_other(fn(msg) { RawFileEvent(msg) })
+    // Receive typed messages; add raw file events only when watching
+    let selector = process.new_selector() |> process.select(self)
+    let selector = case watcher {
+      Some(_) -> selector |> process.select_other(fn(msg) { RawFileEvent(msg) })
+      None -> selector
+    }
 
     actor.initialised(initial_state)
     |> actor.selecting(selector)
@@ -213,7 +217,10 @@ fn handle_message(
     }
 
     Shutdown -> {
-      stop_file_watcher(state.watcher)
+      case state.watcher {
+        Some(pid) -> stop_file_watcher(pid)
+        None -> Nil
+      }
       platform.log_info("plushie dev: stopped")
       actor.stop()
     }
@@ -270,8 +277,9 @@ fn list_beam_files(dir: String) -> List(#(Dynamic, Dynamic))
 
 @target(erlang)
 /// Start a file_system watcher on the given directories.
+/// Returns an error if the file_system package is not installed.
 @external(erlang, "plushie_ffi", "start_file_watcher")
-fn start_file_watcher(dirs: List(String)) -> Dynamic
+fn start_file_watcher(dirs: List(String)) -> Result(Dynamic, String)
 
 @target(erlang)
 /// Subscribe the calling process to file events from the watcher.

@@ -335,6 +335,11 @@ without going through the wire.
 
 ## Dev mode and hot reload
 
+Hot reload requires the `file_system` Hex package and Elixir installed.
+Add `file_system = ">= 1.0.0 and < 2.0.0"` to `[dependencies]` in
+`gleam.toml` and run `gleam deps download`. Without it, the dev server
+starts but logs a warning and watches nothing.
+
 Setting `StartOpts.dev: True` adds a `DevServer` child to the
 supervision tree. The dev server watches `src/` for `.gleam`
 changes, runs `gleam build` as a subprocess, hot-loads changed

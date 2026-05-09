@@ -737,8 +737,8 @@ families, and interaction semantics.
 - gleam_stdlib, gleam_erlang, gleam_otp, gleam_json
 - glepack (MessagePack codec, Gleam-native)
 - telemetry (erlang :telemetry for observability)
-- file_system (file watcher for dev server hot reload)
 - gleeunit (test, dev only)
+- file_system (dev only - Elixir library; add to your project's [dependencies] and install Elixir to enable hot reload)
 
 ## Reference SDK
 

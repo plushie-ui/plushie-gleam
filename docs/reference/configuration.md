@@ -179,7 +179,7 @@ record is `plushie.StartOpts`:
 | `required_native_widgets` | `List(String)` | `[]` | Native widget type names expected in the renderer. Merged with `Settings.required_widgets` on the wire. |
 | `renderer_args` | `List(String)` | `[]` | Extra CLI arguments prepended to the renderer command. Only applies in `Spawn` transport. |
 | `transport` | `Transport` | `Spawn` | Transport mode (`Spawn`, `Stdio`, or `Iostream(adapter)`). See [transport modes](#transport-modes). |
-| `dev` | `Bool` | `False` | Enable the dev server: watch `src/`, recompile on change, hot-reload BEAM modules, and trigger a force re-render. App model state is preserved. |
+| `dev` | `Bool` | `False` | Enable the dev server: watch `src/`, recompile on change, hot-reload BEAM modules, and trigger a force re-render. App model state is preserved. Requires `file_system` dep and Elixir; see [Dev mode and hot reload](app-lifecycle.html#dev-mode-and-hot-reload). |
 | `token` | `Option(String)` | `None` | Authentication token for socket transport. Sent to the renderer as a digest in the settings message. |
 
 Start an app with default options and a resolved binary:

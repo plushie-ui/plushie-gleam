@@ -110,6 +110,8 @@ pub type StartOpts {
     /// Enable dev-mode live reload. Default: False.
     /// When True, starts a file watcher that recompiles on source
     /// changes and triggers a force re-render without losing state.
+    /// Requires the `file_system` dep and Elixir installed; see
+    /// the Getting Started guide.
     dev: Bool,
     /// Authentication token for socket transport. Sent to the renderer
     /// as a digest in the settings message. Default: None.

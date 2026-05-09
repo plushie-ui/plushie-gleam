@@ -134,7 +134,7 @@ deployment and remote rendering options.
 - **Custom widgets** - compose existing widgets in pure Gleam,
   draw on the canvas, or extend with native Rust
 - **Hot reload** - edit code, see changes instantly with full
-  state preservation
+  state preservation (requires `file_system` dep and Elixir; see Getting Started)
 - **Remote rendering** - app on a server or embedded device,
   renderer on a display machine over SSH or any byte stream
 - **Multi-target** - runs on BEAM and JavaScript, same codebase

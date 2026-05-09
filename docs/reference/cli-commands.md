@@ -252,6 +252,9 @@ model is preserved across reloads; only the view tree and any
 state the renderer owns are replaced. The `debounce` field
 controls the debounce timer; the default is 100 ms.
 
+Requires the `file_system` Hex package in your `[dependencies]` and
+Elixir installed. See [Dev mode and hot reload](app-lifecycle.html#dev-mode-and-hot-reload).
+
 ### Binary resolution
 
 `plushie/gui` calls into `plushie/binary` to find the renderer.

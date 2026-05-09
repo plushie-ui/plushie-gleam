@@ -550,10 +550,18 @@ list_beam_files(Dir) ->
     end.
 
 %% Start a file_system watcher on the given list of directories.
+%% Returns {ok, Pid} or {error, Reason} if file_system is not installed.
 start_file_watcher(Dirs) ->
     DirsStr = [binary_to_list(D) || D <- Dirs],
-    {ok, Pid} = file_system:start_link(DirsStr),
-    Pid.
+    try file_system:start_link(DirsStr) of
+        {ok, Pid} -> {ok, Pid};
+        Err -> {error, iolist_to_binary(io_lib:format("file_system:start_link failed: ~p", [Err]))}
+    catch
+        error:undef ->
+            {error, <<"file_system not available. "
+                      "Add `file_system = \">= 1.0.0 and < 2.0.0\"` to [dependencies] "
+                      "in gleam.toml and install Elixir to enable hot reload.">>}
+    end.
 
 %% Subscribe the calling process to file events from the watcher.
 file_watcher_subscribe(Pid) ->

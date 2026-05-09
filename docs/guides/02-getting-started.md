@@ -258,6 +258,18 @@ chapter's work. The full testing story is covered in
 
 ## Enabling hot reload
 
+Hot reload requires the `file_system` Hex package and Elixir installed.
+Add to your `gleam.toml`:
+
+```toml
+[dependencies]
+file_system = ">= 1.0.0 and < 2.0.0"
+```
+
+Then run `gleam deps download`. Elixir must be installed so Gleam can
+compile the `file_system` package (`sudo apt install elixir` or see
+[elixir-lang.org/install](https://elixir-lang.org/install.html)).
+
 During development you want changes reflected without restarting the
 app. Set `dev: True` on `GuiOpts`:
 
