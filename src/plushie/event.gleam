@@ -134,9 +134,8 @@ pub type WidgetEvent {
     finger: Option(Int),
     modifiers: Modifiers,
     captured: Bool,
-    /// Present on touch release events when the release happened
-    /// outside the widget's bounds. Absent for mouse / pen releases.
-    lost: Option(Bool),
+    /// True when a touch release happened outside the widget's bounds.
+    lost: Bool,
   )
   /// A pointer moved.
   Move(

@@ -26,8 +26,8 @@ import glepack/error as glepack_error
 import plushie/event.{
   type Event, type EventTarget, type KeyLocation, type Modifiers,
   type MouseButton, type PointerType, BackButton, EventTarget, ForwardButton,
-  LeftButton, LeftSide, Line, MiddleButton, Mouse, Numpad, OtherButton, Pixel,
-  RightButton, RightSide, Standard, Touch,
+  LeftButton, LeftSide, Line, MiddleButton, Mouse, Numpad, Pixel, RightButton,
+  RightSide, Standard, Touch,
 }
 import plushie/prop/pointer
 import plushie/protocol
@@ -345,13 +345,6 @@ fn get_bool_or(map: Dict(String, PropValue), key: String, default: Bool) -> Bool
   case dict.get(map, key) {
     Ok(PBool(b)) -> b
     _ -> default
-  }
-}
-
-fn get_optional_bool(map: Dict(String, PropValue), key: String) -> Option(Bool) {
-  case dict.get(map, key) {
-    Ok(PBool(b)) -> Some(b)
-    _ -> None
   }
 }
 
@@ -745,14 +738,19 @@ fn parse_key_location(loc: String) -> KeyLocation {
   }
 }
 
-fn parse_mouse_button(value: String) -> MouseButton {
+fn parse_mouse_button(
+  value: String,
+) -> Result(MouseButton, protocol.DecodeError) {
   case value {
-    "left" -> LeftButton
-    "right" -> RightButton
-    "middle" -> MiddleButton
-    "back" -> BackButton
-    "forward" -> ForwardButton
-    other -> OtherButton(other)
+    "left" -> Ok(LeftButton)
+    "right" -> Ok(RightButton)
+    "middle" -> Ok(MiddleButton)
+    "back" -> Ok(BackButton)
+    "forward" -> Ok(ForwardButton)
+    other ->
+      Error(protocol.MalformedEvent(
+        "unknown pointer button \"" <> other <> "\"",
+      ))
   }
 }
 
@@ -1208,10 +1206,45 @@ fn decode_modifiers_from_data(data: Dict(String, PropValue)) -> Modifiers {
   )
 }
 
-fn decode_pointer_type_from_data(data: Dict(String, PropValue)) -> PointerType {
+fn decode_pointer_type_from_data(
+  data: Dict(String, PropValue),
+) -> Result(PointerType, protocol.DecodeError) {
   case dict.get(data, "pointer") {
-    Ok(PString(s)) -> pointer.parse_pointer(s)
-    _ -> Mouse
+    Ok(PString(s)) ->
+      case pointer.parse_pointer(s) {
+        Ok(pointer) -> Ok(pointer)
+        Error(_) ->
+          Error(protocol.MalformedEvent("unknown pointer kind \"" <> s <> "\""))
+      }
+    Ok(_) -> Error(protocol.MalformedEvent("expected string for \"pointer\""))
+    Error(_) -> Ok(Mouse)
+  }
+}
+
+fn decode_button_from_data(
+  data: Dict(String, PropValue),
+) -> Result(MouseButton, protocol.DecodeError) {
+  case dict.get(data, "button") {
+    Ok(PString(s)) ->
+      case pointer.parse_button(s) {
+        Ok(button) -> Ok(button)
+        Error(_) ->
+          Error(protocol.MalformedEvent(
+            "unknown pointer button \"" <> s <> "\"",
+          ))
+      }
+    Ok(_) -> Error(protocol.MalformedEvent("expected string for \"button\""))
+    Error(_) -> Ok(LeftButton)
+  }
+}
+
+fn decode_lost_from_data(
+  data: Dict(String, PropValue),
+) -> Result(Bool, protocol.DecodeError) {
+  case dict.get(data, "lost") {
+    Ok(PBool(lost)) -> Ok(lost)
+    Ok(_) -> Error(protocol.MalformedEvent("expected bool for \"lost\""))
+    Error(_) -> Ok(False)
   }
 }
 
@@ -1228,10 +1261,8 @@ fn decode_pointer_press(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   let data = get_map(map, "value")
-  let button = case dict.get(data, "button") {
-    Ok(PString(s)) -> pointer.parse_button(s)
-    _ -> LeftButton
-  }
+  use button <- result.try(decode_button_from_data(data))
+  use pointer <- result.try(decode_pointer_type_from_data(data))
   Ok(
     EventMessage(
       event.Widget(event.Press(
@@ -1239,7 +1270,7 @@ fn decode_pointer_press(
         x: get_float_or(data, "x", 0.0),
         y: get_float_or(data, "y", 0.0),
         button:,
-        pointer: decode_pointer_type_from_data(data),
+        pointer:,
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
         captured: get_bool_or(map, "captured", False)
@@ -1254,10 +1285,9 @@ fn decode_pointer_release(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   let data = get_map(map, "value")
-  let button = case dict.get(data, "button") {
-    Ok(PString(s)) -> pointer.parse_button(s)
-    _ -> LeftButton
-  }
+  use button <- result.try(decode_button_from_data(data))
+  use pointer <- result.try(decode_pointer_type_from_data(data))
+  use lost <- result.try(decode_lost_from_data(data))
   Ok(
     EventMessage(
       event.Widget(event.Release(
@@ -1265,12 +1295,12 @@ fn decode_pointer_release(
         x: get_float_or(data, "x", 0.0),
         y: get_float_or(data, "y", 0.0),
         button:,
-        pointer: decode_pointer_type_from_data(data),
+        pointer:,
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
         captured: get_bool_or(map, "captured", False)
           || get_bool_or(data, "captured", False),
-        lost: get_optional_bool(data, "lost"),
+        lost:,
       )),
     ),
   )
@@ -1281,13 +1311,14 @@ fn decode_pointer_move(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   let data = get_map(map, "value")
+  use pointer <- result.try(decode_pointer_type_from_data(data))
   Ok(
     EventMessage(
       event.Widget(event.Move(
         target:,
         x: get_float_or(data, "x", 0.0),
         y: get_float_or(data, "y", 0.0),
-        pointer: decode_pointer_type_from_data(data),
+        pointer:,
         finger: decode_finger_from_data(data),
         modifiers: decode_modifiers_from_data(data),
         captured: get_bool_or(map, "captured", False)
@@ -1302,6 +1333,7 @@ fn decode_pointer_scroll(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   let data = get_map(map, "value")
+  use pointer <- result.try(decode_pointer_type_from_data(data))
   Ok(
     EventMessage(
       event.Widget(event.Scroll(
@@ -1310,7 +1342,7 @@ fn decode_pointer_scroll(
         y: get_float_or(data, "y", 0.0),
         delta_x: get_float_or(data, "delta_x", 0.0),
         delta_y: get_float_or(data, "delta_y", 0.0),
-        pointer: decode_pointer_type_from_data(data),
+        pointer:,
         modifiers: decode_modifiers_from_data(data),
         unit: None,
         captured: get_bool_or(map, "captured", False)
@@ -1325,13 +1357,14 @@ fn decode_pointer_double_click(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   use target <- result.try(decode_windowed_target(map))
   let data = get_map(map, "value")
+  use pointer <- result.try(decode_pointer_type_from_data(data))
   Ok(
     EventMessage(
       event.Widget(event.DoubleClick(
         target:,
         x: get_float_or(data, "x", 0.0),
         y: get_float_or(data, "y", 0.0),
-        pointer: decode_pointer_type_from_data(data),
+        pointer:,
         modifiers: decode_modifiers_from_data(data),
       )),
     ),
@@ -1445,7 +1478,7 @@ fn decode_sub_button_pressed(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
   let button_str = get_string_or(map, "value", "left")
-  let button = parse_mouse_button(button_str)
+  use button <- result.try(parse_mouse_button(button_str))
   let captured = get_bool_or(map, "captured", False)
   let target = EventTarget(window_id: wid, id: wid, scope: [], full: wid)
   Ok(
@@ -1469,7 +1502,7 @@ fn decode_sub_button_released(
 ) -> Result(InboundMessage, protocol.DecodeError) {
   let wid = get_string_or(map, "window_id", "")
   let button_str = get_string_or(map, "value", "left")
-  let button = parse_mouse_button(button_str)
+  use button <- result.try(parse_mouse_button(button_str))
   let captured = get_bool_or(map, "captured", False)
   let target = EventTarget(window_id: wid, id: wid, scope: [], full: wid)
   Ok(
@@ -1483,7 +1516,7 @@ fn decode_sub_button_released(
         finger: None,
         modifiers: event.modifiers_none(),
         captured:,
-        lost: None,
+        lost: False,
       )),
     ),
   )
@@ -1564,7 +1597,7 @@ fn decode_sub_touch_release(
         finger: Some(finger_id),
         modifiers: event.modifiers_none(),
         captured:,
-        lost: Some(lost),
+        lost:,
       )),
     ),
   )

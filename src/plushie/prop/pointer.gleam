@@ -4,29 +4,27 @@
 
 import plushie/event.{
   type MouseButton, type PointerType, BackButton, ForwardButton, LeftButton,
-  MiddleButton, Mouse, OtherButton, Pen, RightButton, Touch,
+  MiddleButton, Mouse, Pen, RightButton, Touch,
 }
 
-/// Parse a pointer type from a wire string. Defaults to Mouse for
-/// unrecognized values.
-pub fn parse_pointer(value: String) -> PointerType {
+/// Parse a pointer type from a canonical wire string.
+pub fn parse_pointer(value: String) -> Result(PointerType, Nil) {
   case value {
-    "mouse" -> Mouse
-    "touch" -> Touch
-    "pen" -> Pen
-    _ -> Mouse
+    "mouse" -> Ok(Mouse)
+    "touch" -> Ok(Touch)
+    "pen" -> Ok(Pen)
+    _ -> Error(Nil)
   }
 }
 
-/// Parse a mouse button from a wire string. Defaults to LeftButton for
-/// unrecognized values.
-pub fn parse_button(value: String) -> MouseButton {
+/// Parse a mouse button from a canonical wire string.
+pub fn parse_button(value: String) -> Result(MouseButton, Nil) {
   case value {
-    "left" -> LeftButton
-    "right" -> RightButton
-    "middle" -> MiddleButton
-    "back" -> BackButton
-    "forward" -> ForwardButton
-    _ -> OtherButton(value)
+    "left" -> Ok(LeftButton)
+    "right" -> Ok(RightButton)
+    "middle" -> Ok(MiddleButton)
+    "back" -> Ok(BackButton)
+    "forward" -> Ok(ForwardButton)
+    _ -> Error(Nil)
   }
 }

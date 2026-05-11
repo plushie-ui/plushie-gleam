@@ -931,6 +931,42 @@ pub fn decode_widget_right_press_json_test() {
   }
 }
 
+pub fn decode_widget_press_rejects_unknown_button_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"press\",\"id\":\"main#area1\",\"value\":{\"button\":\"primary\"}}"
+  let data = bit_array.from_string(json)
+  let assert Error(protocol.MalformedEvent(_)) =
+    decode.decode_message(data, protocol.Json)
+}
+
+pub fn decode_widget_move_rejects_unknown_pointer_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"move\",\"id\":\"main#area1\",\"value\":{\"pointer\":\"trackpad\"}}"
+  let data = bit_array.from_string(json)
+  let assert Error(protocol.MalformedEvent(_)) =
+    decode.decode_message(data, protocol.Json)
+}
+
+pub fn decode_widget_release_defaults_lost_false_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"release\",\"id\":\"main#area1\",\"value\":{}}"
+  let data = bit_array.from_string(json)
+  let assert Ok(decode.EventMessage(evt)) =
+    decode.decode_message(data, protocol.Json)
+  case evt {
+    event.Widget(event.Release(lost:, ..)) -> should.equal(lost, False)
+    _ -> should.fail()
+  }
+}
+
+pub fn decode_widget_release_rejects_malformed_lost_json_test() {
+  let json =
+    "{\"type\":\"event\",\"family\":\"release\",\"id\":\"main#area1\",\"value\":{\"lost\":\"false\"}}"
+  let data = bit_array.from_string(json)
+  let assert Error(protocol.MalformedEvent(_)) =
+    decode.decode_message(data, protocol.Json)
+}
+
 pub fn decode_widget_double_click_json_test() {
   let json =
     "{\"type\":\"event\",\"family\":\"double_click\",\"id\":\"main#area2\",\"value\":{}}"
