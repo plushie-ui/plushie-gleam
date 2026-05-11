@@ -13,7 +13,7 @@ pub opaque type Sensor {
     children: List(Node),
     delay: Option(Int),
     anticipate: Option(Float),
-    on_resize: Option(String),
+    on_resize: Option(Bool),
     event_rate: Option(Int),
     a11y: Option(A11y),
   )
@@ -42,9 +42,9 @@ pub fn anticipate(s: Sensor, a: Float) -> Sensor {
   Sensor(..s, anticipate: option.Some(a))
 }
 
-/// Set the resize event tag.
-pub fn on_resize(s: Sensor, tag: String) -> Sensor {
-  Sensor(..s, on_resize: option.Some(tag))
+/// Enable or disable resize events.
+pub fn on_resize(s: Sensor, enabled: Bool) -> Sensor {
+  Sensor(..s, on_resize: option.Some(enabled))
 }
 
 /// Set the event throttle rate in milliseconds.
@@ -71,7 +71,7 @@ pub fn a11y(s: Sensor, a: A11y) -> Sensor {
 pub type Opt {
   Delay(Int)
   Anticipate(Float)
-  OnResize(String)
+  OnResize(Bool)
   EventRate(Int)
   A11y(A11y)
 }
@@ -82,7 +82,7 @@ pub fn with_opts(s: Sensor, opts: List(Opt)) -> Sensor {
     case opt {
       Delay(d) -> delay(sn, d)
       Anticipate(a) -> anticipate(sn, a)
-      OnResize(tag) -> on_resize(sn, tag)
+      OnResize(enabled) -> on_resize(sn, enabled)
       EventRate(r) -> event_rate(sn, r)
       A11y(a) -> a11y(sn, a)
     }
@@ -96,7 +96,7 @@ pub fn build(s: Sensor) -> Node {
     dict.new()
     |> build.put_optional_int("delay", s.delay)
     |> build.put_optional_float("anticipate", s.anticipate)
-    |> build.put_optional_string("on_resize", s.on_resize)
+    |> build.put_optional_bool("on_resize", s.on_resize)
     |> build.put_optional_int("event_rate", s.event_rate)
     |> build.put_optional("a11y", s.a11y, a11y.to_prop_value)
   Node(id: s.id, kind: "sensor", props:, children: s.children, meta: dict.new())

@@ -491,7 +491,7 @@ observation.
 |---|---|---|
 | `Delay` | `Int` | Delay (ms) before emitting events |
 | `Anticipate` | `Float` | Distance (px) to anticipate visibility |
-| `OnResize` | `String` | Event tag for resize events |
+| `OnResize` | `Bool` | Enable resize events |
 | `EventRate` | `Int` | Max events/sec for resize |
 | `A11y` | `A11y` | Accessibility overrides |
 
