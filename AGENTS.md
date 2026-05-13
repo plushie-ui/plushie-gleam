@@ -59,10 +59,11 @@ Asymmetric. Renderer-to-host = closed and typed; host structurally
 protected (typed decoding, no opaque-blob path, effect/query
 correlation by request ID, no host-side eval, closed diagnostic
 union, no `coerce` on wire path). Host-to-renderer = broad by design
-(file paths, fonts, images, screenshots, effects, `--exec`); bounding
-it is the capability-manifest roadmap in plushie-rust. Wire = byte-
-stream agnostic; confidentiality + integrity = outer transport's job.
-Same-access out of scope. JS sandbox inherits host page/worker.
+(file paths, fonts, images, screenshots, effects, structured renderer
+exec args); bounding it is the capability-manifest roadmap in
+plushie-rust. Wire = byte-stream agnostic; confidentiality + integrity
+= outer transport's job. Same-access out of scope. JS sandbox inherits
+host page/worker.
 
 ### Resilience
 
