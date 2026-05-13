@@ -289,7 +289,7 @@ per-client binding.
 
 Gleam does not ship an SSH server helper. The practical setup is
 to let the renderer spawn the app over SSH. The renderer already
-supports this: `plushie-renderer --exec "..."` spawns a command
+supports this: renderer-parent exec spawns a command
 and treats its stdio as the wire protocol.
 
 On the server, the user's login shell (or a `ForceCommand`
@@ -302,7 +302,11 @@ exec plushie-gleam-pad stdio
 From a client:
 
 ```bash
-plushie --exec "ssh pad-server plushie-gleam-pad stdio"
+plushie \
+  --exec-bin ssh \
+  --exec-arg pad-server \
+  --exec-arg plushie-gleam-pad \
+  --exec-arg stdio
 ```
 
 The renderer runs locally, the Gleam process runs on the server,

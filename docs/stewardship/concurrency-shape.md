@@ -153,7 +153,7 @@ messages.
   for desktop apps.
 - **Stdio**: reads/writes the BEAM's own stdin/stdout. Used
   when the renderer spawns the Gleam process (`plushie-
-  renderer --exec` mode).
+  renderer-parent exec mode).
 - **Iostream(adapter)**: sends and receives via an external
   process implementing the `IoStreamMessage` protocol. Used
   for custom transports (TCP, WebSocket, SSH, etc.) where an

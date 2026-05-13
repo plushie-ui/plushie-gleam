@@ -107,8 +107,8 @@ The SDK and renderer follow a fixed sequence:
 1. The SDK sends `settings` first.
    `protocol.encode_settings/4` serializes the app's
    `Settings` record plus the pinned protocol version, an
-   optional auth token digest, and any `required_widgets`. The
-   bridge writes this as the first wire message.
+   optional `token_sha256`, and any `required_widgets`. The bridge
+   writes this as the first wire message.
 2. The renderer peeks the first byte of stdin and locks in
    the codec.
 3. The renderer validates `settings.protocol_version`.
@@ -341,7 +341,7 @@ pub type Transport {
   child-process stdin and stdout via an Erlang Port.
 - `Stdio`: the SDK process reads and writes its own stdin
   and stdout. Used when the renderer spawns the SDK process
-  (for example, `plushie-renderer --exec`).
+  (for example, renderer-parent exec).
 - `Iostream`: the SDK sends and receives wire bytes through
   a user-supplied adapter process. Used for custom
   transports (TCP sockets, SSH channels, WebSockets).

@@ -1,7 +1,7 @@
 //// Connect to an already-running plushie renderer via Unix socket or TCP.
 ////
 //// Replaces stdio mode when the renderer uses `--listen` to create a
-//// socket and either spawns this process (via `--exec`) or prints
+//// socket and either spawns this process via structured exec args or prints
 //// connection info for manual use.
 ////
 //// ## Usage

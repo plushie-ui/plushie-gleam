@@ -18,7 +18,7 @@ built-or-downloaded renderer binary.
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary. Overrides all other binary resolution. |
 | `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout for source builds. |
 | `PLUSHIE_SOCKET` | Socket address for `plushie/connect` (Unix path, `:port`, or `host:port`). |
-| `PLUSHIE_TOKEN` | Fallback auth token for socket transport. Sent to the renderer as a digest. |
+| `PLUSHIE_TOKEN` | Fallback auth token for socket transport. Sent to the renderer as `settings.token_sha256`. |
 | `PLUSHIE_TEST_BACKEND` | Test backend: `mock` (default), `headless`, or `windowed`. |
 | `PLUSHIE_TEST_TIMEOUT` | Positive integer multiplier for test infrastructure timeouts. Invalid values use `1`. |
 | `PLUSHIE_UPDATE_SCREENSHOTS` | When set to `1`, updates screenshot golden files instead of comparing. |
@@ -180,7 +180,7 @@ record is `plushie.StartOpts`:
 | `renderer_args` | `List(String)` | `[]` | Extra CLI arguments prepended to the renderer command. Only applies in `Spawn` transport. |
 | `transport` | `Transport` | `Spawn` | Transport mode (`Spawn`, `Stdio`, or `Iostream(adapter)`). See [transport modes](#transport-modes). |
 | `dev` | `Bool` | `False` | Enable the dev server: watch `src/`, recompile on change, hot-reload BEAM modules, and trigger a force re-render. App model state is preserved. Requires `file_system` dep and Elixir; see [Dev mode and hot reload](app-lifecycle.html#dev-mode-and-hot-reload). |
-| `token` | `Option(String)` | `None` | Authentication token for socket transport. Sent to the renderer as a digest in the settings message. |
+| `token` | `Option(String)` | `None` | Authentication token for socket transport. Sent to the renderer as `settings.token_sha256`. |
 
 Start an app with default options and a resolved binary:
 
@@ -234,7 +234,7 @@ to stderr to avoid corrupting the wire stream.
 
 `plushie/connect.run` connects to an already-running renderer via
 Unix socket or TCP. Used when the renderer was started with
-`--listen` and this process was spawned via `--exec` or launched
+`--listen` and this process was spawned through renderer-parent exec or launched
 manually with socket details in the environment.
 
 | Field | Type | Default | Purpose |
@@ -283,7 +283,7 @@ stale coalescable events, and fails pending effects with
 
 ### Stdio
 
-The renderer spawns the Gleam app (via `plushie-renderer --exec "..."`)
+The renderer spawns the Gleam app with structured exec args
 and communication happens over the BEAM's own stdin and stdout. The
 `binary_path` option is ignored because no subprocess is spawned
 from the Gleam side. Use `plushie/stdio.run` as the entry point.

@@ -343,6 +343,9 @@ The authentication token is resolved in order:
    form `{"token":"..."}`.
 4. No token (the renderer decides whether that is acceptable).
 
+When a token is available, the SDK sends `settings.token_sha256` in the
+Settings message. It does not send the plaintext token to the renderer.
+
 ### Address formats
 
 - Paths beginning with `/`: Unix domain socket.
@@ -445,7 +448,7 @@ covers both. If preflight passes, CI passes.
 | `PLUSHIE_BINARY_PATH` | Explicit path to the renderer binary. Errors if set but missing |
 | `PLUSHIE_RUST_SOURCE_PATH` | Path to a local plushie-rust checkout. Switches builds to source mode, pins `cargo-plushie` to the checkout, and enables WASM builds |
 | `PLUSHIE_SOCKET` | Default socket address for `plushie/connect` |
-| `PLUSHIE_TOKEN` | Fallback authentication token for `plushie/connect`; sent to the renderer as a digest |
+| `PLUSHIE_TOKEN` | Fallback authentication token for `plushie/connect`; sent as `settings.token_sha256` |
 | `PLUSHIE_TEST_BACKEND` | Selects the test backend: `mock` (default), `headless`, or `windowed` |
 | `PLUSHIE_TEST_TIMEOUT` | Positive integer multiplier for test infrastructure timeouts |
 | `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` | Required for the windowed test backend on a headless host with a weston socket |

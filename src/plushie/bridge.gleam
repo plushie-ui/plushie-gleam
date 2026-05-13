@@ -22,7 +22,7 @@
 //// - `Spawn` (default): spawns the renderer binary as a child process
 ////   using an Erlang Port.
 //// - `Stdio`: reads/writes the BEAM's own stdin/stdout. Used when the
-////   renderer spawns the Gleam process (e.g. `plushie-renderer --exec`).
+////   renderer spawns the Gleam process via structured exec args.
 //// - `Iostream`: sends and receives protocol messages via an external
 ////   process (the iostream adapter). Used for custom transports like
 ////   SSH channels, TCP sockets, or WebSockets.
