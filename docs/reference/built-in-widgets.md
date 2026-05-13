@@ -677,6 +677,18 @@ Module `plushie/prop/wrapping`. Used by: `text`, `rich_text`.
 | `Glyph` | Break at any character |
 | `WordOrGlyph` | Try word boundaries first, fall back to glyph |
 
+### Ellipsis
+
+Module `plushie/prop/ellipsis`. Used by: `text`, `rich_text`,
+`pick_list`, `combo_box`.
+
+| Value | Meaning |
+|---|---|
+| `None` | No truncation |
+| `Start` | Truncate at the start |
+| `Middle` | Truncate in the middle |
+| `End` | Truncate at the end |
+
 ### Content fit
 
 Module `plushie/prop/content_fit`. Used by: `image`, `svg`.

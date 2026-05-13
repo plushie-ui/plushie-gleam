@@ -7,6 +7,7 @@ import plushie/node.{type Node, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/alignment.{type Alignment}
 import plushie/prop/color.{type Color}
+import plushie/prop/ellipsis.{type Ellipsis}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
@@ -44,7 +45,7 @@ pub opaque type Text {
     align_x: Option(Alignment),
     align_y: Option(Alignment),
     wrapping: Option(Wrapping),
-    ellipsis: Option(String),
+    ellipsis: Option(Ellipsis),
     text_direction: Option(TextDirection),
     shaping: Option(Shaping),
     style: Option(TextStyle),
@@ -122,7 +123,7 @@ pub fn wrapping(text: Text, w: Wrapping) -> Text {
 }
 
 /// Set the text ellipsis mode.
-pub fn ellipsis(text: Text, e: String) -> Text {
+pub fn ellipsis(text: Text, e: Ellipsis) -> Text {
   Text(..text, ellipsis: option.Some(e))
 }
 
@@ -175,7 +176,7 @@ pub type Opt {
   AlignX(Alignment)
   AlignY(Alignment)
   Wrapping(Wrapping)
-  Ellipsis(String)
+  Ellipsis(Ellipsis)
   TextDirection(TextDirection)
   Shaping(Shaping)
   Style(TextStyle)
@@ -234,7 +235,7 @@ pub fn build(text: Text) -> Node {
     |> build.put_optional("align_x", text.align_x, alignment.to_prop_value)
     |> build.put_optional("align_y", text.align_y, alignment.to_prop_value)
     |> build.put_optional("wrapping", text.wrapping, wrapping.to_prop_value)
-    |> build.put_optional_string("ellipsis", text.ellipsis)
+    |> build.put_optional("ellipsis", text.ellipsis, ellipsis.to_prop_value)
     |> build.put_optional(
       "text_direction",
       text.text_direction,

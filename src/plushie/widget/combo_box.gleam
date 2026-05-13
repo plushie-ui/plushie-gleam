@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/ellipsis.{type Ellipsis}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
@@ -30,7 +31,7 @@ pub opaque type ComboBox {
     on_open: Option(Bool),
     on_close: Option(Bool),
     shaping: Option(Shaping),
-    ellipsis: Option(String),
+    ellipsis: Option(Ellipsis),
     menu_style: Option(PropValue),
     on_submit: Option(Bool),
     style: Option(String),
@@ -129,7 +130,7 @@ pub fn shaping(cb: ComboBox, s: Shaping) -> ComboBox {
 }
 
 /// Set the text ellipsis mode.
-pub fn ellipsis(cb: ComboBox, e: String) -> ComboBox {
+pub fn ellipsis(cb: ComboBox, e: Ellipsis) -> ComboBox {
   ComboBox(..cb, ellipsis: option.Some(e))
 }
 
@@ -178,7 +179,7 @@ pub type Opt {
   OnOpen(Bool)
   OnClose(Bool)
   Shaping(Shaping)
-  Ellipsis(String)
+  Ellipsis(Ellipsis)
   MenuStyle(PropValue)
   OnSubmit(Bool)
   Style(String)
@@ -236,7 +237,7 @@ pub fn build(cb: ComboBox) -> Node {
     |> build.put_optional_bool("on_open", cb.on_open)
     |> build.put_optional_bool("on_close", cb.on_close)
     |> build.put_optional("shaping", cb.shaping, shaping.to_prop_value)
-    |> build.put_optional_string("ellipsis", cb.ellipsis)
+    |> build.put_optional("ellipsis", cb.ellipsis, ellipsis.to_prop_value)
     |> build.put_optional("menu_style", cb.menu_style, fn(ms) { ms })
     |> build.put_optional_bool("on_submit", cb.on_submit)
     |> build.put_optional_string("style", cb.style)

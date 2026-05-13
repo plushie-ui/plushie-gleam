@@ -37,6 +37,7 @@ pub opaque type TextEditor {
     key_bindings: Option(List(PropValue)),
     placeholder_color: Option(Color),
     selection_color: Option(Color),
+    on_paste: Option(Bool),
     required: Option(Bool),
     validation: Option(ValidationState),
     a11y: Option(A11y),
@@ -66,6 +67,7 @@ pub fn new(id: String, content: String) -> TextEditor {
     key_bindings: None,
     placeholder_color: None,
     selection_color: None,
+    on_paste: None,
     required: None,
     validation: None,
     a11y: None,
@@ -167,6 +169,11 @@ pub fn selection_color(te: TextEditor, c: Color) -> TextEditor {
   TextEditor(..te, selection_color: option.Some(c))
 }
 
+/// Enable paste events.
+pub fn on_paste(te: TextEditor, enabled: Bool) -> TextEditor {
+  TextEditor(..te, on_paste: option.Some(enabled))
+}
+
 /// Set accessibility properties for this widget.
 pub fn a11y(te: TextEditor, a: A11y) -> TextEditor {
   TextEditor(..te, a11y: option.Some(a))
@@ -203,6 +210,7 @@ pub type Opt {
   KeyBindings(List(PropValue))
   PlaceholderColor(Color)
   SelectionColor(Color)
+  OnPaste(Bool)
   Required(Bool)
   Validation(ValidationState)
   A11y(A11y)
@@ -230,6 +238,7 @@ pub fn with_opts(te: TextEditor, opts: List(Opt)) -> TextEditor {
       KeyBindings(kb) -> key_bindings(t, kb)
       PlaceholderColor(c) -> placeholder_color(t, c)
       SelectionColor(c) -> selection_color(t, c)
+      OnPaste(v) -> on_paste(t, v)
       Required(r) -> required(t, r)
       Validation(v) -> validation(t, v)
       A11y(a) -> a11y(t, a)
@@ -282,6 +291,7 @@ pub fn build(te: TextEditor) -> Node {
       te.selection_color,
       color.to_prop_value,
     )
+    |> build.put_optional_bool("on_paste", te.on_paste)
     |> build.put_optional_bool("required", te.required)
     |> build.put_optional(
       "validation",

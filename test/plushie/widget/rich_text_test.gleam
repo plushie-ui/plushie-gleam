@@ -4,6 +4,7 @@ import gleam/option
 import plushie/node.{BoolVal, DictVal, FloatVal, ListVal, StringVal}
 import plushie/prop/border
 import plushie/prop/color
+import plushie/prop/ellipsis
 import plushie/prop/font
 import plushie/prop/length
 import plushie/prop/line_height
@@ -139,7 +140,7 @@ pub fn widget_level_props_test() {
     |> rich_text.color(color.blue)
     |> rich_text.line_height(line_height.relative(1.5))
     |> rich_text.wrapping(wrapping.Word)
-    |> rich_text.ellipsis("end")
+    |> rich_text.ellipsis(ellipsis.End)
     |> rich_text.build()
 
   assert dict.get(node.props, "width") == Ok(length.to_prop_value(length.Fill))
@@ -151,7 +152,8 @@ pub fn widget_level_props_test() {
   assert dict.get(node.props, "line_height") == Ok(FloatVal(1.5))
   assert dict.get(node.props, "wrapping")
     == Ok(wrapping.to_prop_value(wrapping.Word))
-  assert dict.get(node.props, "ellipsis") == Ok(StringVal("end"))
+  assert dict.get(node.props, "ellipsis")
+    == Ok(ellipsis.to_prop_value(ellipsis.End))
 }
 
 pub fn omitted_optionals_are_absent_test() {

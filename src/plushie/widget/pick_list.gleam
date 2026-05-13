@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{type Option, None}
 import plushie/node.{type Node, type PropValue, ListVal, Node, StringVal}
 import plushie/prop/a11y.{type A11y}
+import plushie/prop/ellipsis.{type Ellipsis}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
@@ -27,7 +28,7 @@ pub opaque type PickList {
     menu_height: Option(Float),
     shaping: Option(Shaping),
     handle: Option(PropValue),
-    ellipsis: Option(String),
+    ellipsis: Option(Ellipsis),
     menu_style: Option(PropValue),
     on_open: Option(Bool),
     on_close: Option(Bool),
@@ -114,7 +115,7 @@ pub fn handle(pl: PickList, h: PropValue) -> PickList {
 }
 
 /// Set the text ellipsis mode.
-pub fn ellipsis(pl: PickList, e: String) -> PickList {
+pub fn ellipsis(pl: PickList, e: Ellipsis) -> PickList {
   PickList(..pl, ellipsis: option.Some(e))
 }
 
@@ -164,7 +165,7 @@ pub type Opt {
   MenuHeight(Float)
   Shaping(Shaping)
   Handle(PropValue)
-  Ellipsis(String)
+  Ellipsis(Ellipsis)
   MenuStyle(PropValue)
   OnOpen(Bool)
   OnClose(Bool)
@@ -218,7 +219,7 @@ pub fn build(pl: PickList) -> Node {
     |> build.put_optional_float("menu_height", pl.menu_height)
     |> build.put_optional("shaping", pl.shaping, shaping.to_prop_value)
     |> build.put_optional("handle", pl.handle, fn(h) { h })
-    |> build.put_optional_string("ellipsis", pl.ellipsis)
+    |> build.put_optional("ellipsis", pl.ellipsis, ellipsis.to_prop_value)
     |> build.put_optional("menu_style", pl.menu_style, fn(ms) { ms })
     |> build.put_optional_bool("on_open", pl.on_open)
     |> build.put_optional_bool("on_close", pl.on_close)

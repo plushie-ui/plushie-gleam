@@ -2,6 +2,7 @@ import gleam/dict
 import plushie/node.{FloatVal, StringVal}
 import plushie/prop/alignment
 import plushie/prop/color
+import plushie/prop/ellipsis
 import plushie/prop/font
 import plushie/prop/length
 import plushie/prop/text_direction
@@ -78,6 +79,16 @@ pub fn text_direction_sets_text_direction_prop_test() {
 
   assert dict.get(node.props, "text_direction")
     == Ok(text_direction.to_prop_value(text_direction.Rtl))
+}
+
+pub fn ellipsis_sets_ellipsis_prop_test() {
+  let node =
+    text.new("lbl", "Hi")
+    |> text.ellipsis(ellipsis.Middle)
+    |> text.build()
+
+  assert dict.get(node.props, "ellipsis")
+    == Ok(ellipsis.to_prop_value(ellipsis.Middle))
 }
 
 pub fn omitted_optionals_are_absent_test() {

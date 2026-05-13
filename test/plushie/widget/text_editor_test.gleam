@@ -1,5 +1,5 @@
 import gleam/dict
-import plushie/node.{FloatVal, StringVal}
+import plushie/node.{BoolVal, FloatVal, StringVal}
 import plushie/prop/length
 import plushie/prop/text_direction
 import plushie/prop/wrapping
@@ -56,6 +56,15 @@ pub fn text_direction_sets_text_direction_prop_test() {
     == Ok(text_direction.to_prop_value(text_direction.Auto))
 }
 
+pub fn on_paste_sets_bool_prop_test() {
+  let node =
+    text_editor.new("notes", "")
+    |> text_editor.on_paste(True)
+    |> text_editor.build()
+
+  assert dict.get(node.props, "on_paste") == Ok(BoolVal(True))
+}
+
 pub fn omitted_optionals_are_absent_test() {
   let node = text_editor.new("notes", "hello") |> text_editor.build()
 
@@ -64,6 +73,7 @@ pub fn omitted_optionals_are_absent_test() {
   assert dict.get(node.props, "height") == Error(Nil)
   assert dict.get(node.props, "wrapping") == Error(Nil)
   assert dict.get(node.props, "text_direction") == Error(Nil)
+  assert dict.get(node.props, "on_paste") == Error(Nil)
 }
 
 pub fn min_and_max_height_set_float_props_test() {

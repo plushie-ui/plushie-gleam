@@ -13,6 +13,7 @@ import plushie/node.{
 import plushie/prop/a11y.{type A11y}
 import plushie/prop/border.{type Border}
 import plushie/prop/color.{type Color}
+import plushie/prop/ellipsis.{type Ellipsis}
 import plushie/prop/font.{type Font}
 import plushie/prop/length.{type Length}
 import plushie/prop/line_height.{type LineHeight}
@@ -175,7 +176,7 @@ pub opaque type RichText {
     color: Option(Color),
     line_height: Option(LineHeight),
     wrapping: Option(Wrapping),
-    ellipsis: Option(String),
+    ellipsis: Option(Ellipsis),
     a11y: Option(A11y),
   )
 }
@@ -238,7 +239,7 @@ pub fn wrapping(rt: RichText, w: Wrapping) -> RichText {
 }
 
 /// Set the text ellipsis mode.
-pub fn ellipsis(rt: RichText, e: String) -> RichText {
+pub fn ellipsis(rt: RichText, e: Ellipsis) -> RichText {
   RichText(..rt, ellipsis: Some(e))
 }
 
@@ -257,7 +258,7 @@ pub type Opt {
   Color(Color)
   LineHeight(LineHeight)
   Wrapping(Wrapping)
-  Ellipsis(String)
+  Ellipsis(Ellipsis)
   A11y(A11y)
 }
 
@@ -297,7 +298,7 @@ pub fn build(rt: RichText) -> Node {
       line_height.to_prop_value,
     )
     |> build.put_optional("wrapping", rt.wrapping, wrapping.to_prop_value)
-    |> build.put_optional_string("ellipsis", rt.ellipsis)
+    |> build.put_optional("ellipsis", rt.ellipsis, ellipsis.to_prop_value)
     |> build.apply_default_a11y(rt.a11y, "label", option.None)
   Node(id: rt.id, kind: "rich_text", props:, children: [], meta: dict.new())
 }
