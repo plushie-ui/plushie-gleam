@@ -42,8 +42,6 @@ import plushie
 @target(erlang)
 import plushie/app.{type App}
 @target(erlang)
-import plushie/event.{type Event}
-@target(erlang)
 import plushie/platform
 @target(erlang)
 import plushie/protocol
@@ -72,7 +70,7 @@ pub fn default_opts() -> ConnectOpts {
 ///
 /// Parses CLI args for socket address and token, connects via the
 /// socket adapter, and blocks until the runtime exits.
-pub fn run(app: App(model, Event), opts: ConnectOpts) -> Nil {
+pub fn run(app: App(model, msg), opts: ConnectOpts) -> Nil {
   let socket_addr = resolve_socket()
   let token = resolve_token()
 

@@ -76,13 +76,13 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% Bridge sends IoStreamBridge(bridge_subject) to our Subject.
-%% At the Erlang level this arrives as {Tag, {iostream_bridge, BridgeSubject}}.
-handle_info({Tag, {iostream_bridge, BridgeSubject}}, #{tag := Tag} = State) ->
+%% At the Erlang level this arrives as {Tag, {io_stream_bridge, BridgeSubject}}.
+handle_info({Tag, {io_stream_bridge, BridgeSubject}}, #{tag := Tag} = State) ->
     {noreply, State#{bridge := BridgeSubject}};
 
 %% Bridge sends IoStreamSend(data) to our Subject.
-%% At the Erlang level: {Tag, {iostream_send, Data}}.
-handle_info({Tag, {iostream_send, Data}}, #{tag := Tag, socket := Socket} = State) ->
+%% At the Erlang level: {Tag, {io_stream_send, Data}}.
+handle_info({Tag, {io_stream_send, Data}}, #{tag := Tag, socket := Socket} = State) ->
     case gen_tcp:send(Socket, Data) of
         ok -> {noreply, State};
         {error, _Reason} -> {stop, normal, State}
@@ -93,8 +93,8 @@ handle_info({tcp, Socket, Data}, #{socket := Socket, bridge := Bridge} = State) 
     case Bridge of
         undefined -> ok;
         _ ->
-            %% Send {BridgeTag, {iostream_data, Data}} to the bridge.
-            send_to_subject(Bridge, {iostream_data, Data})
+            %% Send {BridgeTag, {io_stream_data, Data}} to the bridge.
+            send_to_subject(Bridge, {io_stream_data, Data})
     end,
     {noreply, State};
 
@@ -102,7 +102,7 @@ handle_info({tcp, Socket, Data}, #{socket := Socket, bridge := Bridge} = State) 
 handle_info({tcp_closed, Socket}, #{socket := Socket, bridge := Bridge} = State) ->
     case Bridge of
         undefined -> ok;
-        _ -> send_to_subject(Bridge, iostream_closed)
+        _ -> send_to_subject(Bridge, io_stream_closed)
     end,
     {stop, normal, State};
 
@@ -110,7 +110,7 @@ handle_info({tcp_closed, Socket}, #{socket := Socket, bridge := Bridge} = State)
 handle_info({tcp_error, Socket, _Reason}, #{socket := Socket, bridge := Bridge} = State) ->
     case Bridge of
         undefined -> ok;
-        _ -> send_to_subject(Bridge, iostream_closed)
+        _ -> send_to_subject(Bridge, io_stream_closed)
     end,
     {stop, normal, State};
 
