@@ -11,6 +11,7 @@ or called programmatically from your app's own entry point.
 |---|---|
 | [`plushie/build`](#plushiebuild) | Build the renderer binary from a plushie-rust checkout |
 | [`plushie/download`](#plushiedownload) | Download a precompiled renderer binary |
+| [`plushie/package`](#plushiepackage) | Build a standalone package payload |
 | [`plushie/gui`](#plushiegui) | Library entry for local desktop apps |
 | [`plushie/stdio`](#plushiestdio) | Library entry for exec / remote rendering |
 | [`plushie/connect`](#plushieconnect) | Library entry for socket-based transport |
@@ -209,6 +210,63 @@ deleted and the module exits with status 1. If the checksum file
 itself cannot be fetched, the artifact is deleted and the module
 exits rather than trust an unverified binary. There is no flag to
 skip verification.
+
+## plushie/package
+
+Builds an Erlang shipment payload and `plushie-package.toml` manifest
+for the shared Rust launcher.
+
+```bash
+gleam run -m plushie/package -- \
+  --app-id dev.example.my_app \
+  --connect-module my_app@connect
+
+cargo plushie package --manifest dist/plushie-package.toml --release
+```
+
+This module owns the Gleam-specific part of standalone packaging:
+
+- Runs `gleam export erlang-shipment`.
+- Copies the shipment into `dist/payload/`.
+- Bundles the active Erlang runtime by default.
+- Places the selected renderer in the payload.
+- Writes `bin/connect`, which starts the shipment and calls the
+  configured connect module.
+- Archives the payload as `dist/payload.tar.zst`.
+- Writes `dist/plushie-package.toml` for `cargo plushie package`.
+
+The shared Rust package command remains language-agnostic. It consumes
+the manifest and embedded payload archive produced here.
+
+### Flags
+
+| Flag | Description |
+|---|---|
+| `--app-id ID` | Package app identifier. Required |
+| `--app-version VERSION` | App version. Defaults to `version` in `gleam.toml` |
+| `--connect-module MODULE` | Erlang module whose `main/0` connects the app. Required |
+| `--dist-dir DIR` | Output directory. Defaults to `dist` |
+| `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
+| `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
+| `--renderer-path PATH` | Use an existing renderer binary |
+| `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |
+
+Apps with `[plushie].native_widgets` must use
+`--renderer-kind custom`, because a stock renderer cannot include those
+widget crates. If no `--renderer-path` is supplied for a custom
+renderer, the package command delegates to `plushie/build`.
+
+### Erlang runtime
+
+By default, the package command copies the active Erlang runtime into
+the payload so the generated launcher can run on machines without
+`erl` on `PATH`. Set `PLUSHIE_BUNDLE_ERLANG=0` to skip runtime
+bundling for development proofs, or set `PLUSHIE_ERLANG_ROOT` to choose
+the runtime root explicitly.
+
+When switching between Erlang installations, run `gleam clean` before
+packaging. Gleam build artifacts are tied to the Erlang runtime that
+compiled them.
 
 ## plushie/gui
 
