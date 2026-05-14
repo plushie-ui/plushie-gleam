@@ -219,6 +219,7 @@ for the shared Rust launcher.
 ```bash
 gleam run -m plushie/package -- \
   --app-id dev.example.my_app \
+  --app-name "My App" \
   --connect-module my_app@connect
 
 cargo plushie package --manifest dist/plushie-package.toml --release
@@ -245,6 +246,7 @@ the manifest and embedded payload archive produced here.
 | Flag | Description |
 |---|---|
 | `--app-id ID` | Package app identifier. Required |
+| `--app-name NAME` | Display app name |
 | `--app-version VERSION` | App version. Defaults to `version` in `gleam.toml` |
 | `--connect-module MODULE` | Erlang module whose `main/0` connects the app. Required |
 | `--dist-dir DIR` | Output directory. Defaults to `dist` |

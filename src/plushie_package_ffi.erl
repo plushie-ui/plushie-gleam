@@ -3,6 +3,7 @@
     package/1,
     default_icon_path/0,
     default_icons_command/2,
+    app_name_manifest_line/1,
     platform_manifest_section/1
 ]).
 -include_lib("kernel/include/file.hrl").
@@ -30,6 +31,7 @@ do_package(ProtocolVersion) ->
     RendererKind = flag("--renderer-kind", "stock"),
     RendererSource = flag("--renderer-source", default_renderer_source(RendererKind)),
     AppId = required_flag("--app-id"),
+    AppName = optional_flag("--app-name"),
     AppVersion = flag("--app-version", root_string("version", "0.1.0")),
     ConnectModule = required_flag("--connect-module"),
     Target = package_target(),
@@ -52,6 +54,7 @@ do_package(ProtocolVersion) ->
     PayloadSize = file_size(ArchivePath),
     Manifest = render_manifest(#{
         app_id => AppId,
+        app_name => AppName,
         app_version => AppVersion,
         target => Target,
         host_sdk_version => HostSdkVersion,
@@ -366,6 +369,7 @@ render_manifest(Values) ->
     [
         "schema_version = 1\n",
         "app_id = \"", maps:get(app_id, Values), "\"\n",
+        app_name_manifest_line(maps:get(app_name, Values, error)),
         "app_version = \"", maps:get(app_version, Values), "\"\n",
         "target = \"", maps:get(target, Values), "\"\n",
         "host_sdk = \"gleam\"\n",
@@ -385,6 +389,13 @@ render_manifest(Values) ->
         "hash = \"sha256:", maps:get(payload_hash, Values), "\"\n",
         "size = ", integer_to_binary(maps:get(payload_size, Values)), "\n"
     ].
+
+app_name_manifest_line({ok, AppName}) ->
+    to_bin(["app_name = \"", toml_string_escape(AppName), "\"\n"]);
+app_name_manifest_line({error, _}) ->
+    <<>>;
+app_name_manifest_line(error) ->
+    <<>>.
 
 platform_manifest_section(IconPath) ->
     to_bin([
@@ -596,6 +607,24 @@ shell_quote(Value) ->
 
 trim(Value) ->
     to_bin(string:trim(to_list(Value))).
+
+toml_string_escape(Value) ->
+    toml_string_escape(to_bin(Value), []).
+
+toml_string_escape(<<>>, Acc) ->
+    lists:reverse(Acc);
+toml_string_escape(<<"\\", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\\\" | Acc]);
+toml_string_escape(<<"\"", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\\"" | Acc]);
+toml_string_escape(<<"\n", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\n" | Acc]);
+toml_string_escape(<<"\r", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\r" | Acc]);
+toml_string_escape(<<"\t", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\t" | Acc]);
+toml_string_escape(<<Char/utf8, Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, [<<Char/utf8>> | Acc]).
 
 to_bin(Value) when is_binary(Value) -> Value;
 to_bin(Value) when is_list(Value) -> iolist_to_binary(Value);

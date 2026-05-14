@@ -47,6 +47,21 @@ pub fn platform_manifest_section_declares_icon_test() {
   |> should.equal(True)
 }
 
+pub fn app_name_manifest_line_is_omitted_without_name_test() {
+  app_name_manifest_line(Error(Nil))
+  |> should.equal("")
+}
+
+pub fn app_name_manifest_line_declares_display_name_test() {
+  app_name_manifest_line(Ok("Test App"))
+  |> should.equal("app_name = \"Test App\"\n")
+}
+
+pub fn app_name_manifest_line_escapes_toml_string_test() {
+  app_name_manifest_line(Ok("Test \"App\""))
+  |> should.equal("app_name = \"Test \\\"App\\\"\"\n")
+}
+
 @external(erlang, "plushie_package_ffi", "default_icons_command")
 fn default_icons_command(
   source_path: Result(String, Nil),
@@ -58,3 +73,6 @@ fn default_icon_path() -> String
 
 @external(erlang, "plushie_package_ffi", "platform_manifest_section")
 fn platform_manifest_section(icon_path: String) -> String
+
+@external(erlang, "plushie_package_ffi", "app_name_manifest_line")
+fn app_name_manifest_line(app_name: Result(String, Nil)) -> String
