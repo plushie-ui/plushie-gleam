@@ -192,11 +192,7 @@ pub fn start(
   app: App(model, msg),
   opts: StartOpts,
 ) -> Result(Instance(model), StartError) {
-  // Resolve binary path
-  use binary_path <- result.try(case opts.binary_path {
-    Some(path) -> Ok(path)
-    None -> binary.find() |> result.map_error(BinaryNotFound)
-  })
+  use binary_path <- result.try(resolve_binary_path(opts))
 
   let runtime_opts =
     runtime.RuntimeOpts(
@@ -276,6 +272,19 @@ pub fn start(
     Ok(started) ->
       Ok(Instance(supervisor: started.pid, runtime: runtime_subject))
     Error(err) -> Error(SupervisorStartFailed(err))
+  }
+}
+
+@target(erlang)
+fn resolve_binary_path(opts: StartOpts) -> Result(String, StartError) {
+  case opts.transport {
+    Spawn ->
+      case opts.binary_path {
+        Some(path) -> Ok(path)
+        None -> binary.find() |> result.map_error(BinaryNotFound)
+      }
+    Stdio -> Ok("")
+    Iostream(..) -> Ok("")
   }
 }
 
