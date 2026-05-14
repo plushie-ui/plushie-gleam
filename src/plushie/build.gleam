@@ -314,29 +314,35 @@ fn install_binary_from_spec(
   copy_file(src, dest)
   chmod(dest, 0o755)
 
-  // Convenience symlink bin/<bin_name> -> <dest>
-  let link_dir = "bin"
-  let relative_dest = "../" <> dest
-  let link_path = link_dir <> "/" <> bin_name
-  ensure_dir(link_dir)
-  delete_file(link_path)
-  case make_symlink(relative_dest, link_path) {
-    Ok(_) ->
-      io.println("Created symlink " <> link_path <> " -> " <> relative_dest)
-    Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
-  }
+  case bin_file_override {
+    Ok(_) -> Nil
+    Error(_) -> {
+      // Convenience symlink bin/<bin_name> -> <dest>
+      let link_dir = "bin"
+      let relative_dest = "../" <> dest
+      let link_path = link_dir <> "/" <> bin_name
+      ensure_dir(link_dir)
+      delete_file(link_path)
+      case make_symlink(relative_dest, link_path) {
+        Ok(_) ->
+          io.println("Created symlink " <> link_path <> " -> " <> relative_dest)
+        Error(_) ->
+          io.println("Warning: could not create symlink at " <> link_path)
+      }
 
-  // Standard-named symlink in the download dir so binary.gleam's
-  // lookup chain finds the custom binary under the stock name.
-  let std_name = "plushie-renderer-" <> plat <> "-" <> arch
-  let std_dest = binary.download_dir() <> "/" <> std_name
-  case dest == std_dest {
-    True -> Nil
-    False -> {
-      delete_file(std_dest)
-      case make_symlink(platform_name, std_dest) {
-        Ok(_) -> Nil
-        Error(_) -> Nil
+      // Standard-named symlink in the download dir so binary.gleam's
+      // lookup chain finds the custom binary under the stock name.
+      let std_name = "plushie-renderer-" <> plat <> "-" <> arch
+      let std_dest = binary.download_dir() <> "/" <> std_name
+      case dest == std_dest {
+        True -> Nil
+        False -> {
+          delete_file(std_dest)
+          case make_symlink(platform_name, std_dest) {
+            Ok(_) -> Nil
+            Error(_) -> Nil
+          }
+        }
       }
     }
   }
