@@ -1,5 +1,10 @@
 -module(plushie_package_ffi).
--export([package/1]).
+-export([
+    package/1,
+    default_icon_path/0,
+    default_icons_command/2,
+    platform_manifest_section/1
+]).
 -include_lib("kernel/include/file.hrl").
 
 package(ProtocolVersion) ->
@@ -40,6 +45,7 @@ do_package(ProtocolVersion) ->
     build_shipment(PayloadDir),
     maybe_copy_erlang_runtime(PayloadDir),
     write_connect_script(PayloadDir, ConnectModule),
+    IconPath = materialize_platform_icon(PayloadDir),
 
     archive_payload(PayloadDir, ArchivePath),
     PayloadHash = sha256_file(ArchivePath),
@@ -53,6 +59,7 @@ do_package(ProtocolVersion) ->
         protocol_version => ProtocolVersion,
         renderer_kind => RendererKind,
         renderer_source => RendererSource,
+        icon_path => IconPath,
         archive => ArchiveName,
         payload_hash => PayloadHash,
         payload_size => PayloadSize
@@ -235,6 +242,91 @@ write_connect_script(PayloadDir, ConnectModule) ->
     ok = file:write_file(Path, iolist_to_binary(Script)),
     make_executable(Path).
 
+materialize_platform_icon(PayloadDir) ->
+    AssetsDir = filename:join(PayloadDir, "assets"),
+    case optional_flag("--icon") of
+        {ok, IconPath} ->
+            copy_app_icon(IconPath, AssetsDir);
+        error ->
+            write_default_icons(AssetsDir),
+            default_icon_path()
+    end.
+
+copy_app_icon(IconPath, AssetsDir) ->
+    case filelib:is_regular(IconPath) of
+        true -> ok;
+        false -> fail(["Icon path is not a regular file: ", IconPath])
+    end,
+    Name = filename:basename(IconPath),
+    validate_asset_file_name(Name),
+    ok = filelib:ensure_dir(filename:join([AssetsDir, "dummy"])),
+    Dest = filename:join(AssetsDir, Name),
+    copy_path(IconPath, Dest),
+    to_bin(filename:join("assets", Name)).
+
+write_default_icons(AssetsDir) ->
+    ok = filelib:ensure_dir(filename:join([AssetsDir, "dummy"])),
+    SourcePath = getenv("PLUSHIE_RUST_SOURCE_PATH"),
+    assert_source_path(SourcePath),
+    {Command, Args} = default_icons_command(SourcePath, AssetsDir),
+    io:format("Writing default app icons...~n", []),
+    _ = run_or_fail(Command, Args),
+    ok.
+
+assert_source_path({ok, SourcePath}) ->
+    case filelib:is_regular(filename:join(SourcePath, "Cargo.toml")) of
+        true -> ok;
+        false -> fail(["PLUSHIE_RUST_SOURCE_PATH does not look like a Rust workspace: ", SourcePath])
+    end;
+assert_source_path(error) ->
+    ok.
+
+default_icons_command({ok, SourcePath}, AssetsDir) ->
+    {
+        <<"cargo">>,
+        [
+            <<"run">>,
+            <<"--manifest-path">>,
+            to_bin(filename:join(SourcePath, "Cargo.toml")),
+            <<"-p">>,
+            <<"cargo-plushie">>,
+            <<"--">>,
+            <<"default-icons">>,
+            <<"--out">>,
+            to_bin(AssetsDir)
+        ]
+    };
+default_icons_command({error, _}, AssetsDir) ->
+    default_icons_command(error, AssetsDir);
+default_icons_command(error, AssetsDir) ->
+    {
+        <<"cargo-plushie">>,
+        [
+            <<"default-icons">>,
+            <<"--out">>,
+            to_bin(AssetsDir)
+        ]
+    }.
+
+default_icon_path() ->
+    <<"assets/plushie-checkbox-512x512.png">>.
+
+validate_asset_file_name(Name0) ->
+    Name = to_bin(Name0),
+    Invalid = Name =:= <<>>
+        orelse Name =:= <<".">>
+        orelse Name =:= <<"..">>
+        orelse contains(Name, <<"\"">>)
+        orelse contains(Name, <<"\\">>)
+        orelse contains(Name, <<"/">>),
+    case Invalid of
+        true -> fail(["Icon file name is not supported in package metadata: ", Name]);
+        false -> ok
+    end.
+
+contains(Value, Pattern) ->
+    binary:match(to_bin(Value), to_bin(Pattern)) =/= nomatch.
+
 archive_payload(PayloadDir, ArchivePath) ->
     validate_payload_archive_inputs(PayloadDir),
     ok = filelib:ensure_dir(ArchivePath),
@@ -284,6 +376,7 @@ render_manifest(Values) ->
         "host_command = [\"bin/connect\"]\n",
         "working_dir = \".\"\n",
         "exec_env = []\n\n",
+        platform_manifest_section(maps:get(icon_path, Values)),
         "[renderer]\n",
         "kind = \"", maps:get(renderer_kind, Values), "\"\n",
         "source = \"", maps:get(renderer_source, Values), "\"\n\n",
@@ -292,6 +385,12 @@ render_manifest(Values) ->
         "hash = \"sha256:", maps:get(payload_hash, Values), "\"\n",
         "size = ", integer_to_binary(maps:get(payload_size, Values)), "\n"
     ].
+
+platform_manifest_section(IconPath) ->
+    to_bin([
+        "[platform]\n",
+        "icon = \"", IconPath, "\"\n\n"
+    ]).
 
 package_target() ->
     Os = case os:type() of
@@ -428,16 +527,18 @@ run_or_fail(Command, Args) ->
     end.
 
 run_command(Command, Args, Timeout) ->
-    Exe = case filename:dirname(Command) of
+    CommandString = to_list(Command),
+    Exe = case filename:dirname(CommandString) of
         "." ->
-            case os:find_executable(Command) of
-                false -> throw({package_error, ["Missing required command: ", Command]});
+            case os:find_executable(CommandString) of
+                false -> throw({package_error, ["Missing required command: ", CommandString]});
                 Found -> Found
             end;
-        _ -> Command
+        _ -> CommandString
     end,
+    ArgStrings = [to_list(Arg) || Arg <- Args],
     Port = erlang:open_port({spawn_executable, Exe}, [
-        {args, Args},
+        {args, ArgStrings},
         stream, binary, exit_status, use_stdio, stderr_to_stdout
     ]),
     collect_port_output(Port, <<>>, Timeout).

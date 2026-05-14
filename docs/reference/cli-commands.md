@@ -232,6 +232,8 @@ This module owns the Gleam-specific part of standalone packaging:
 - Places the selected renderer in the payload.
 - Writes `bin/connect`, which starts the shipment and calls the
   configured connect module.
+- Writes app icon assets under `dist/payload/assets/` and sets
+  `[platform].icon` in `dist/plushie-package.toml`.
 - Archives the payload as `dist/payload.tar.zst`.
 - Writes `dist/plushie-package.toml` for `cargo plushie package`.
 
@@ -246,6 +248,7 @@ the manifest and embedded payload archive produced here.
 | `--app-version VERSION` | App version. Defaults to `version` in `gleam.toml` |
 | `--connect-module MODULE` | Erlang module whose `main/0` connects the app. Required |
 | `--dist-dir DIR` | Output directory. Defaults to `dist` |
+| `--icon PATH` | App icon PNG to copy into payload assets. Defaults to Plushie's bundled icon |
 | `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
@@ -255,6 +258,15 @@ Apps with `[plushie].native_widgets` must use
 `--renderer-kind custom`, because a stock renderer cannot include those
 widget crates. If no `--renderer-path` is supplied for a custom
 renderer, the package command delegates to `plushie/build`.
+
+When `--icon` is omitted, the command invokes `cargo-plushie
+default-icons --out <payload-assets-dir>` before the payload archive is
+created and uses `assets/plushie-checkbox-512x512.png` as the manifest
+icon path. With `PLUSHIE_RUST_SOURCE_PATH` set, it invokes the tool
+from that checkout with `cargo run --manifest-path
+$PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie -- default-icons
+...`. With `--icon`, the provided file is copied into payload assets
+and referenced with a payload-relative path.
 
 ### Erlang runtime
 
