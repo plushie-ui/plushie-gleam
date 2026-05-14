@@ -210,7 +210,7 @@ erlang_root() ->
     end.
 
 find_runtime_dir(Root, Pattern) ->
-    case filelib:wildcard(filename:join(Root, Pattern)) of
+    case filelib:wildcard(filename:join(to_list(Root), to_list(Pattern))) of
         [] -> fail(["Erlang runtime is missing ", Pattern, " under ", Root]);
         Dirs -> lists:last(lists:sort(Dirs))
     end.
