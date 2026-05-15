@@ -251,9 +251,10 @@ This module owns the Gleam-specific part of standalone packaging:
 - Writes `dist/plushie-package.toml` for `cargo plushie package`.
 
 The shared Rust package command remains language-agnostic. It consumes
-the manifest and embedded payload archive produced here. The package
-command prints the final `bin/plushie package portable --manifest ...`
-handoff after writing the manifest.
+the manifest and embedded payload archive produced here. By default,
+the package command prints the final
+`bin/plushie package portable --manifest ...` handoff after writing the
+manifest. Pass `--portable` to run that final step immediately.
 
 ### Flags
 
@@ -266,6 +267,8 @@ handoff after writing the manifest.
 | `--dist-dir DIR` | Output directory. Defaults to `dist` |
 | `--icon PATH` | App icon PNG to copy into payload assets. Defaults to Plushie's bundled icon |
 | `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
+| `--portable` | Run `bin/plushie package portable --manifest <manifest>` after writing the manifest |
+| `--portable-out PATH` | Pass `--out PATH` to the portable package command when `--portable` is set |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
 | `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |

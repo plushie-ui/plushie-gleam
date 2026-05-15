@@ -5,6 +5,8 @@
     default_icons_command/2,
     app_name_manifest_line/1,
     platform_manifest_section/1,
+    portable_handoff_text/1,
+    portable_package_command/2,
     package_config_text/0,
     parse_package_config_text/1,
     package_tools_check/2
@@ -87,7 +89,29 @@ package_payload(ProtocolVersion) ->
 
     io:format("Wrote ~s~n", [ArchivePath]),
     io:format("Wrote ~s~n", [ManifestPath]),
-    io:format("Build portable launcher with:~n  bin/plushie package portable --manifest ~s~n", [ManifestPath]).
+    finish_portable_package(ManifestPath).
+
+finish_portable_package(ManifestPath) ->
+    case has_flag("--portable") of
+        true ->
+            {Command, Args} = portable_package_command(ManifestPath, optional_flag("--portable-out")),
+            _ = run_or_fail(Command, Args),
+            ok;
+        false ->
+            io:format("~s", [portable_handoff_text(ManifestPath)])
+    end.
+
+portable_handoff_text(ManifestPath) ->
+    to_bin(["Build portable launcher with:\n  ", filename:join(["bin", tool_name()]), " package portable --manifest ", ManifestPath, "\n"]).
+
+portable_package_command(ManifestPath, PortableOut) ->
+    Base = [<<"package">>, <<"portable">>, <<"--manifest">>, to_bin(ManifestPath)],
+    Args = case PortableOut of
+        {ok, OutPath} -> Base ++ [<<"--out">>, to_bin(OutPath)];
+        {error, _} -> Base;
+        error -> Base
+    end,
+    {to_bin(filename:join(["bin", tool_name()])), Args}.
 
 package_start_config() ->
     case optional_flag("--package-config") of

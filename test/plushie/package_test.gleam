@@ -93,11 +93,53 @@ pub fn package_config_parser_reads_start_settings_test() {
 }
 
 pub fn package_tools_check_requires_tool_and_launcher_test() {
-  package_tools_check("/tmp/plushie-missing-tool", "/tmp/plushie-missing-launcher")
+  package_tools_check(
+    "/tmp/plushie-missing-tool",
+    "/tmp/plushie-missing-launcher",
+  )
   |> should.be_error
 
   package_tools_check("/bin/sh", "/bin/sh")
   |> should.equal(Ok(Nil))
+}
+
+pub fn portable_handoff_text_keeps_default_manual_step_test() {
+  portable_handoff_text("dist/plushie-package.toml")
+  |> should.equal(
+    "Build portable launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml\n",
+  )
+}
+
+pub fn portable_package_command_uses_structured_args_test() {
+  let #(command, args) =
+    portable_package_command("dist/plushie-package.toml", Error(Nil))
+
+  command
+  |> should.equal("bin/plushie")
+  args
+  |> should.equal([
+    "package",
+    "portable",
+    "--manifest",
+    "dist/plushie-package.toml",
+  ])
+}
+
+pub fn portable_package_command_passes_out_path_test() {
+  let #(command, args) =
+    portable_package_command("dist/plushie-package.toml", Ok("dist/app"))
+
+  command
+  |> should.equal("bin/plushie")
+  args
+  |> should.equal([
+    "package",
+    "portable",
+    "--manifest",
+    "dist/plushie-package.toml",
+    "--out",
+    "dist/app",
+  ])
 }
 
 pub fn package_config_parser_rejects_unsafe_start_settings_test() {
@@ -134,6 +176,15 @@ fn default_icon_path() -> String
 @external(erlang, "plushie_package_ffi", "platform_manifest_section")
 fn platform_manifest_section(icon_path: String) -> String
 
+@external(erlang, "plushie_package_ffi", "portable_handoff_text")
+fn portable_handoff_text(manifest_path: String) -> String
+
+@external(erlang, "plushie_package_ffi", "portable_package_command")
+fn portable_package_command(
+  manifest_path: String,
+  portable_out: Result(String, Nil),
+) -> #(String, List(String))
+
 @external(erlang, "plushie_package_ffi", "app_name_manifest_line")
 fn app_name_manifest_line(app_name: Result(String, Nil)) -> String
 
@@ -146,4 +197,7 @@ fn parse_package_config_text(
 ) -> Result(#(String, List(String), List(String)), String)
 
 @external(erlang, "plushie_package_ffi", "package_tools_check")
-fn package_tools_check(tool: String, launcher: String) -> Result(Nil, List(String))
+fn package_tools_check(
+  tool: String,
+  launcher: String,
+) -> Result(Nil, List(String))
