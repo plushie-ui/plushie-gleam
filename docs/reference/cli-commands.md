@@ -210,6 +210,17 @@ itself cannot be fetched, the artifact is deleted and the module
 exits rather than trust an unverified binary. There is no flag to
 skip verification.
 
+### Release mirrors
+
+By default downloads come from GitHub releases. Set
+`PLUSHIE_RELEASE_BASE_URL` to verify the same flow against another
+release mirror. The mirror must expose assets as
+`BASE/vVERSION/ARTIFACT` with checksum sidecars at
+`BASE/vVERSION/ARTIFACT.sha256`.
+
+Remote mirrors must use HTTPS. `file://` mirrors and loopback HTTP are
+for local release verification before assets are uploaded.
+
 ## plushie/package
 
 Builds an Erlang shipment payload and `plushie-package.toml` manifest
