@@ -92,6 +92,14 @@ pub fn package_config_parser_reads_start_settings_test() {
   )
 }
 
+pub fn package_tools_check_requires_tool_and_launcher_test() {
+  package_tools_check("/tmp/plushie-missing-tool", "/tmp/plushie-missing-launcher")
+  |> should.be_error
+
+  package_tools_check("/bin/sh", "/bin/sh")
+  |> should.equal(Ok(Nil))
+}
+
 pub fn package_config_parser_rejects_unsafe_start_settings_test() {
   parse_package_config_text(
     "config_version = 1\n\n[start]\nworking_dir = \"../app\"\ncommand = [\"bin/connect\"]\nforward_env = []\n",
@@ -136,3 +144,6 @@ fn package_config_text() -> String
 fn parse_package_config_text(
   text: String,
 ) -> Result(#(String, List(String), List(String)), String)
+
+@external(erlang, "plushie_package_ffi", "package_tools_check")
+fn package_tools_check(tool: String, launcher: String) -> Result(Nil, List(String))

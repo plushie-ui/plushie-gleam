@@ -6,7 +6,8 @@
     app_name_manifest_line/1,
     platform_manifest_section/1,
     package_config_text/0,
-    parse_package_config_text/1
+    parse_package_config_text/1,
+    package_tools_check/2
 ]).
 -include_lib("kernel/include/file.hrl").
 
@@ -300,9 +301,11 @@ install_renderer(<<"custom">>, RendererPath) ->
             io:format("Building custom renderer...~n", []),
             run_or_fail("gleam", Args)
     end,
+    ensure_package_tools_available(),
     make_executable(RendererPath);
 install_renderer(<<"stock">>, RendererPath) ->
     Renderer = resolve_stock_renderer(),
+    ensure_package_tools_available(),
     copy_executable(Renderer, RendererPath);
 install_renderer(Kind, _RendererPath) ->
     fail(["Unsupported renderer kind: ", Kind]).
@@ -357,10 +360,42 @@ resolve_stock_renderer_without_env() ->
 sync_stock_renderer() ->
     run_or_fail("gleam", ["run", "-m", "plushie/download"]),
     Renderer = filename:join(["bin", "plushie-renderer"]),
-    Launcher = filename:join(["bin", "plushie-launcher"]),
-    case {filelib:is_regular(Renderer), filelib:is_regular(Launcher)} of
-        {true, true} -> Renderer;
-        _ -> fail(["bin/plushie tools sync did not install ", Renderer, " and ", Launcher])
+    ensure_package_tools_available(),
+    ensure_managed_renderer_available(Renderer),
+    Renderer.
+
+ensure_package_tools_available() ->
+    Tool = filename:join(["bin", tool_name()]),
+    Launcher = filename:join(["bin", launcher_name()]),
+    case package_tools_check(Tool, Launcher) of
+        {ok, nil} -> ok;
+        {error, Missing} ->
+            fail(["Portable packaging requires the managed Plushie tool set. Missing: ", lists:join(", ", Missing), ". Run `gleam run -m plushie/download`."])
+    end.
+
+ensure_managed_renderer_available(Renderer) ->
+    case filelib:is_regular(Renderer) of
+        true -> ok;
+        false -> fail(["Managed renderer is missing: ", Renderer])
+    end.
+
+package_tools_check(Tool, Launcher) ->
+    Missing = [Path || Path <- [Tool, Launcher], not filelib:is_regular(Path)],
+    case Missing of
+        [] -> {ok, nil};
+        _ -> {error, Missing}
+    end.
+
+tool_name() ->
+    executable_name("plushie").
+
+launcher_name() ->
+    executable_name("plushie-launcher").
+
+executable_name(Name) ->
+    case os:type() of
+        {win32, _} -> Name ++ ".exe";
+        _ -> Name
     end.
 
 build_stock_renderer(SourcePath) ->
