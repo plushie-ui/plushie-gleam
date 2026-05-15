@@ -19,11 +19,29 @@ download_binary(Url, MaxRedirects) ->
 
 run_tool(Path, Args) ->
     Program = binary_to_list(Path),
-    ArgList = [binary_to_list(Arg) || Arg <- Args],
-    Port = open_port({spawn_executable, Program},
-                     [binary, exit_status, use_stdio, stderr_to_stdout,
-                      {args, ArgList}]),
-    collect_tool_output(Port, []).
+    case resolve_program(Program) of
+        {ok, Resolved} ->
+            ArgList = [binary_to_list(Arg) || Arg <- Args],
+            Port = open_port({spawn_executable, Resolved},
+                             [binary, exit_status, use_stdio, stderr_to_stdout,
+                              {args, ArgList}]),
+            collect_tool_output(Port, []);
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+resolve_program(Program) ->
+    case filename:dirname(Program) of
+        "." ->
+            case os:find_executable(Program) of
+                false ->
+                    {error, list_to_binary("executable not found: " ++ Program)};
+                Resolved ->
+                    {ok, Resolved}
+            end;
+        _ ->
+            {ok, Program}
+    end.
 
 collect_tool_output(Port, Acc) ->
     receive

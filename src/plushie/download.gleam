@@ -29,7 +29,7 @@ import plushie/config
 import plushie/platform
 
 @target(erlang)
-const base_url = "https://github.com/plushie-ui/plushie-renderer/releases/download"
+const base_url = "https://github.com/plushie-ui/plushie-rust/releases/download"
 
 @target(erlang)
 const wasm_archive = "plushie-renderer-wasm.tar.gz"
@@ -137,13 +137,13 @@ fn download_renderer_direct(
 
 @target(erlang)
 fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
-  let tool_path = download_tool(rust_version, force)
+  let #(tool_path, prefix_args) = resolve_tool(rust_version, force)
   let args = case force {
     True -> ["tools", "sync", "--required-version", rust_version, "--force"]
     False -> ["tools", "sync", "--required-version", rust_version]
   }
 
-  case run_tool(tool_path, args) {
+  case run_tool(tool_path, list.append(prefix_args, args)) {
     Ok(output) -> {
       case output == "" {
         True -> Nil
@@ -160,6 +160,25 @@ fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
       io.println_error("Renderer sync failed: " <> reason)
       halt(1)
     }
+  }
+}
+
+@target(erlang)
+fn resolve_tool(rust_version: String, force: Bool) -> #(String, List(String)) {
+  case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
+    Ok(source_path) -> #("cargo", [
+      "run",
+      "--manifest-path",
+      source_path <> "/Cargo.toml",
+      "-p",
+      "cargo-plushie",
+      "--bin",
+      "plushie",
+      "--release",
+      "--quiet",
+      "--",
+    ])
+    Error(_) -> #(download_tool(rust_version, force), [])
   }
 }
 
