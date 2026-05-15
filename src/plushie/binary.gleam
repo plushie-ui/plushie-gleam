@@ -83,6 +83,14 @@ pub fn download_name() -> String {
   }
 }
 
+/// Returns the stable project-local reusable launcher filename.
+pub fn launcher_name() -> String {
+  case platform.platform_string() {
+    "windows" -> "plushie-launcher.exe"
+    _ -> "plushie-launcher"
+  }
+}
+
 /// Returns the binary name for a custom build with native widgets.
 ///
 /// When native widgets are configured, the binary is named

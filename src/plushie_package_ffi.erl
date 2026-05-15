@@ -350,12 +350,17 @@ resolve_stock_renderer_without_env() ->
                 {ok, SourcePath} ->
                     build_stock_renderer(SourcePath);
                 error ->
-                    case find_executable("plushie-renderer") of
-                        {ok, Path} -> Path;
-                        error ->
-                            fail("No renderer binary found. Set PLUSHIE_BINARY_PATH, set PLUSHIE_RUST_SOURCE_PATH, or put plushie-renderer on PATH.")
-                    end
+                    sync_stock_renderer()
             end
+    end.
+
+sync_stock_renderer() ->
+    run_or_fail("gleam", ["run", "-m", "plushie/download"]),
+    Renderer = filename:join(["bin", "plushie-renderer"]),
+    Launcher = filename:join(["bin", "plushie-launcher"]),
+    case {filelib:is_regular(Renderer), filelib:is_regular(Launcher)} of
+        {true, true} -> Renderer;
+        _ -> fail(["bin/plushie tools sync did not install ", Renderer, " and ", Launcher])
     end.
 
 build_stock_renderer(SourcePath) ->
