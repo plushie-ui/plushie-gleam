@@ -14,7 +14,6 @@
 
 %% Download a URL following redirects. Returns {ok, Body} or {error, Reason}.
 download_binary(Url, MaxRedirects) ->
-    ensure_http_started(),
     do_download(binary_to_list(Url), MaxRedirects).
 
 run_tool(Path, Args) ->
@@ -61,7 +60,22 @@ collect_tool_output(Port, Acc) ->
 
 do_download(_Url, 0) ->
     {error, <<"too many redirects">>};
+do_download("file://" ++ _ = Url, _RedirectsLeft) ->
+    case file_url_path(Url) of
+        {ok, Path} ->
+            case file:read_file(Path) of
+                {ok, Body} ->
+                    {ok, Body};
+                {error, Reason} ->
+                    {error, list_to_binary(
+                        "could not read file URL " ++ Path ++ ": " ++
+                        file:format_error(Reason))}
+            end;
+        {error, Reason} ->
+            {error, Reason}
+    end;
 do_download(Url, RedirectsLeft) ->
+    ensure_http_started(),
     Headers = [{"user-agent", "plushie-gleam-download"}],
     SslOpts = ssl_opts(),
     case httpc:request(get, {Url, Headers},
@@ -85,6 +99,13 @@ do_download(Url, RedirectsLeft) ->
         {error, Reason} ->
             {error, list_to_binary(io_lib:format("~p", [Reason]))}
     end.
+
+file_url_path("file://localhost/" ++ Rest) ->
+    {ok, "/" ++ Rest};
+file_url_path("file:///" ++ Rest) ->
+    {ok, "/" ++ Rest};
+file_url_path(Url) ->
+    {error, list_to_binary("unsupported file URL: " ++ Url)}.
 
 ssl_opts() ->
     try

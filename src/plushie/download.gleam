@@ -32,6 +32,9 @@ import plushie/platform
 const base_url = "https://github.com/plushie-ui/plushie-rust/releases/download"
 
 @target(erlang)
+const base_url_env = "PLUSHIE_RELEASE_BASE_URL"
+
+@target(erlang)
 const wasm_archive = "plushie-renderer-wasm.tar.gz"
 
 @target(erlang)
@@ -286,7 +289,66 @@ fn download_wasm(
 
 @target(erlang)
 pub fn release_url(rust_version: String, artifact: String) -> String {
-  base_url <> "/v" <> rust_version <> "/" <> artifact
+  release_base_url() <> "/v" <> rust_version <> "/" <> artifact
+}
+
+@target(erlang)
+pub fn release_base_url() -> String {
+  let url = case platform.get_env(base_url_env) {
+    Ok(url) -> trim_trailing_slashes(url)
+    Error(_) -> base_url
+  }
+
+  case is_supported_release_base_url(url) {
+    True -> url
+    False -> {
+      io.println_error(
+        base_url_env <> " must use https://, file://, or loopback http://",
+      )
+      halt(1)
+      base_url
+    }
+  }
+}
+
+@target(erlang)
+fn trim_trailing_slashes(value: String) -> String {
+  let trimmed = string.trim(value)
+  case string.ends_with(trimmed, "/") {
+    True -> trim_trailing_slashes(string.drop_end(trimmed, 1))
+    False -> trimmed
+  }
+}
+
+@target(erlang)
+fn is_supported_release_base_url(value: String) -> Bool {
+  value != ""
+  && {
+    string.starts_with(value, "https://")
+    || string.starts_with(value, "file://")
+    || is_loopback_http_url(value)
+  }
+}
+
+@target(erlang)
+fn is_loopback_http_url(value: String) -> Bool {
+  http_host_matches(value, "localhost")
+  || http_host_matches(value, "127.0.0.1")
+  || http_host_matches(value, "[::1]")
+}
+
+@target(erlang)
+fn http_host_matches(value: String, host: String) -> Bool {
+  let prefix = "http://" <> host
+  case string.starts_with(value, prefix) {
+    False -> False
+    True -> {
+      let rest = string.drop_start(value, string.length(prefix))
+      rest == ""
+      || string.starts_with(rest, ":")
+      || string.starts_with(rest, "/")
+    }
+  }
 }
 
 @target(erlang)
