@@ -47,6 +47,28 @@ pub fn platform_manifest_section_declares_icon_test() {
   |> should.equal(True)
 }
 
+pub fn manifest_string_fields_escape_toml_strings_test() {
+  let text = manifest_escape_probe("value \"quoted\"")
+
+  text
+  |> string.contains("value \\\"quoted\\\"")
+  |> should.equal(True)
+  text
+  |> string.contains("value \"quoted\"")
+  |> should.equal(False)
+  text
+  |> string.contains("archive = \"value \\\"quoted\\\"\"")
+  |> should.equal(True)
+}
+
+pub fn manifest_string_fields_escape_toml_controls_test() {
+  let text = manifest_escape_probe("nul \u{0}")
+
+  text
+  |> string.contains("nul \\u0000")
+  |> should.equal(True)
+}
+
 pub fn app_name_manifest_line_is_omitted_without_name_test() {
   app_name_manifest_line(Error(Nil))
   |> should.equal("")
@@ -175,6 +197,9 @@ fn default_icon_path() -> String
 
 @external(erlang, "plushie_package_ffi", "platform_manifest_section")
 fn platform_manifest_section(icon_path: String) -> String
+
+@external(erlang, "plushie_package_ffi", "manifest_escape_probe")
+fn manifest_escape_probe(value: String) -> String
 
 @external(erlang, "plushie_package_ffi", "portable_handoff_text")
 fn portable_handoff_text(manifest_path: String) -> String

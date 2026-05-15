@@ -5,6 +5,7 @@
     default_icons_command/2,
     app_name_manifest_line/1,
     platform_manifest_section/1,
+    manifest_escape_probe/1,
     portable_handoff_text/1,
     portable_package_command/2,
     package_config_text/0,
@@ -669,6 +670,12 @@ archive_payload(PayloadDir, ArchivePath) ->
             run_or_fail(Tar, ["-C", PayloadDir, "--sort=name", "--mtime=UTC 1970-01-01", "--owner=0", "--group=0", "--numeric-owner", "--zstd", "-cf", ArchivePath, "."]);
         false ->
             require_command("zstd"),
+            case os:type() of
+                {win32, _} ->
+                    fail("tar does not support --zstd and the fallback archive pipeline requires a Unix shell. Install GNU tar with --zstd support for Windows package assembly.");
+                _ ->
+                    ok
+            end,
             Command = shell_quote(Tar) ++ " -C " ++ shell_quote(PayloadDir) ++ " --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - . | zstd -q -o " ++ shell_quote(ArchivePath),
             run_or_fail("sh", ["-c", Command])
     end.
@@ -738,13 +745,13 @@ render_manifest(Values) ->
     StartConfig = maps:get(start_config, Values),
     [
         "schema_version = 1\n",
-        "app_id = \"", maps:get(app_id, Values), "\"\n",
+        "app_id = \"", toml_string_escape(maps:get(app_id, Values)), "\"\n",
         app_name_manifest_line(maps:get(app_name, Values, error)),
-        "app_version = \"", maps:get(app_version, Values), "\"\n",
-        "target = \"", maps:get(target, Values), "\"\n",
+        "app_version = \"", toml_string_escape(maps:get(app_version, Values)), "\"\n",
+        "target = \"", toml_string_escape(maps:get(target, Values)), "\"\n",
         "host_sdk = \"gleam\"\n",
-        "host_sdk_version = \"", maps:get(host_sdk_version, Values), "\"\n",
-        "plushie_rust_version = \"", maps:get(plushie_rust_version, Values), "\"\n",
+        "host_sdk_version = \"", toml_string_escape(maps:get(host_sdk_version, Values)), "\"\n",
+        "plushie_rust_version = \"", toml_string_escape(maps:get(plushie_rust_version, Values)), "\"\n",
         "protocol_version = ", integer_to_binary(maps:get(protocol_version, Values)), "\n",
         "\n[start]\n",
         "working_dir = \"", toml_string_escape(maps:get(working_dir, StartConfig)), "\"\n",
@@ -753,10 +760,10 @@ render_manifest(Values) ->
         platform_manifest_section(maps:get(icon_path, Values)),
         "[renderer]\n",
         "path = \"bin/plushie-renderer\"\n",
-        "kind = \"", maps:get(renderer_kind, Values), "\"\n",
-        "source = \"", maps:get(renderer_source, Values), "\"\n\n",
+        "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n",
+        "source = \"", toml_string_escape(maps:get(renderer_source, Values)), "\"\n\n",
         "[payload]\n",
-        "archive = \"", maps:get(archive, Values), "\"\n",
+        "archive = \"", toml_string_escape(maps:get(archive, Values)), "\"\n",
         "hash = \"sha256:", maps:get(payload_hash, Values), "\"\n",
         "size = ", integer_to_binary(maps:get(payload_size, Values)), "\n"
     ].
@@ -771,8 +778,30 @@ app_name_manifest_line(error) ->
 platform_manifest_section(IconPath) ->
     to_bin([
         "[platform]\n",
-        "icon = \"", IconPath, "\"\n\n"
+        "icon = \"", toml_string_escape(IconPath), "\"\n\n"
     ]).
+
+manifest_escape_probe(Value) ->
+    to_bin(render_manifest(#{
+        app_id => Value,
+        app_name => error,
+        app_version => Value,
+        target => Value,
+        host_sdk_version => Value,
+        plushie_rust_version => Value,
+        protocol_version => 1,
+        start_config => #{
+            working_dir => ".",
+            command => ["bin/connect"],
+            forward_env => []
+        },
+        icon_path => Value,
+        renderer_kind => Value,
+        renderer_source => Value,
+        archive => Value,
+        payload_hash => "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        payload_size => 1
+    })).
 
 default_forward_env() ->
     [
@@ -1012,6 +1041,14 @@ toml_string_escape(<<"\r", Rest/binary>>, Acc) ->
     toml_string_escape(Rest, ["\\r" | Acc]);
 toml_string_escape(<<"\t", Rest/binary>>, Acc) ->
     toml_string_escape(Rest, ["\\t" | Acc]);
+toml_string_escape(<<"\b", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\b" | Acc]);
+toml_string_escape(<<"\f", Rest/binary>>, Acc) ->
+    toml_string_escape(Rest, ["\\f" | Acc]);
+toml_string_escape(<<Char, Rest/binary>>, Acc) when Char < 16 ->
+    toml_string_escape(Rest, [io_lib:format("\\u000~.16B", [Char]) | Acc]);
+toml_string_escape(<<Char, Rest/binary>>, Acc) when Char < 32 ->
+    toml_string_escape(Rest, [io_lib:format("\\u00~2.16.0B", [Char]) | Acc]);
 toml_string_escape(<<Char/utf8, Rest/binary>>, Acc) ->
     toml_string_escape(Rest, [<<Char/utf8>> | Acc]).
 
