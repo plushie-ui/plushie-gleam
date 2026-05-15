@@ -135,6 +135,14 @@ pub fn package_tools_check_requires_managed_tool_set_test() {
   |> should.equal(Ok(Nil))
 }
 
+pub fn portable_tools_check_does_not_require_stock_renderer_test() {
+  portable_tools_check("/bin/sh", "/bin/sh")
+  |> should.equal(Ok(Nil))
+
+  portable_tools_check("/bin/sh", "/tmp/plushie-missing-launcher")
+  |> should.equal(Error(["/tmp/plushie-missing-launcher"]))
+}
+
 pub fn package_target_rejects_windows_until_wrapper_exists_test() {
   package_target_supported("windows-x86_64")
   |> should.be_error
@@ -269,6 +277,12 @@ fn parse_package_config_text(
 fn package_tools_check(
   tool: String,
   renderer: String,
+  launcher: String,
+) -> Result(Nil, List(String))
+
+@external(erlang, "plushie_package_ffi", "portable_tools_check")
+fn portable_tools_check(
+  tool: String,
   launcher: String,
 ) -> Result(Nil, List(String))
 

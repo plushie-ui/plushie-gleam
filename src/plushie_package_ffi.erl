@@ -11,6 +11,7 @@
     package_config_text/0,
     parse_package_config_text/1,
     package_tools_check/3,
+    portable_tools_check/2,
     package_target_supported/1
 ]).
 -export([portable_handoff_text/2]).
@@ -357,11 +358,11 @@ install_renderer(<<"custom">>, RendererPath) ->
             io:format("Building custom renderer...~n", []),
             run_or_fail("gleam", Args)
     end,
-    ensure_package_tools_available(),
+    ensure_portable_tools_available(),
     make_executable(RendererPath);
 install_renderer(<<"stock">>, RendererPath) ->
     Renderer = resolve_stock_renderer(),
-    ensure_package_tools_available(),
+    ensure_portable_tools_available(),
     copy_executable(Renderer, RendererPath);
 install_renderer(Kind, _RendererPath) ->
     fail(["Unsupported renderer kind: ", Kind]).
@@ -406,8 +407,8 @@ resolve_stock_renderer_without_env() ->
             ShipmentRenderer;
         false ->
             case getenv("PLUSHIE_RUST_SOURCE_PATH") of
-                {ok, SourcePath} ->
-                    build_stock_renderer(SourcePath);
+                {ok, _SourcePath} ->
+                    sync_stock_renderer();
                 error ->
                     sync_stock_renderer()
             end
@@ -428,8 +429,24 @@ ensure_package_tools_available() ->
             fail(["Portable packaging requires the managed Plushie tool set. Missing: ", lists:join(", ", Missing), ". Run `gleam run -m plushie/download`."])
     end.
 
+ensure_portable_tools_available() ->
+    Tool = filename:join(["bin", tool_name()]),
+    Launcher = filename:join(["bin", launcher_name()]),
+    case portable_tools_check(Tool, Launcher) of
+        {ok, nil} -> ok;
+        {error, Missing} ->
+            fail(["Portable packaging requires the managed Plushie tool set. Missing: ", lists:join(", ", Missing), ". Run `gleam run -m plushie/download`."])
+    end.
+
 package_tools_check(Tool, Renderer, Launcher) ->
     Missing = [Path || Path <- [Tool, Renderer, Launcher], not filelib:is_regular(Path)],
+    case Missing of
+        [] -> {ok, nil};
+        _ -> {error, Missing}
+    end.
+
+portable_tools_check(Tool, Launcher) ->
+    Missing = [Path || Path <- [Tool, Launcher], not filelib:is_regular(Path)],
     case Missing of
         [] -> {ok, nil};
         _ -> {error, Missing}
@@ -446,26 +463,6 @@ executable_name(Name) ->
         {win32, _} -> Name ++ ".exe";
         _ -> Name
     end.
-
-build_stock_renderer(SourcePath) ->
-    case filelib:is_regular(filename:join(SourcePath, "Cargo.toml")) of
-        true -> ok;
-        false -> fail(["PLUSHIE_RUST_SOURCE_PATH does not look like a Rust workspace: ", SourcePath])
-    end,
-    require_command("cargo"),
-    TargetDir = filename:absname(filename:join(["build", "plushie-package-target"])),
-    io:format("Building plushie-renderer from ~s~n", [SourcePath]),
-    run_or_fail("cargo", [
-        "build",
-        "--release",
-        "-p",
-        "plushie-renderer",
-        "--manifest-path",
-        filename:join(SourcePath, "Cargo.toml"),
-        "--target-dir",
-        TargetDir
-    ]),
-    filename:join([TargetDir, "release", "plushie-renderer"]).
 
 build_shipment(PayloadDir) ->
     io:format("Building Erlang shipment...~n", []),

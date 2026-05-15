@@ -291,6 +291,11 @@ Apps with `[plushie].native_widgets` must use
 widget crates. If no `--renderer-path` is supplied for a custom
 renderer, the package command delegates to `plushie/build`.
 
+When `PLUSHIE_RUST_SOURCE_PATH` is set for stock renderer packaging,
+the package command uses the same managed native-tool sync path as
+`plushie/download`, so `bin/plushie`, `bin/plushie-renderer`, and
+`bin/plushie-launcher` are prepared together from the checkout.
+
 When `--icon` is omitted, the command invokes `bin/plushie
 default-icons --out <payload-assets-dir>` before the payload archive is
 created and uses `assets/plushie-checkbox-512x512.png` as the manifest
