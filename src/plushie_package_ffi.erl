@@ -10,7 +10,8 @@
     portable_package_command/3,
     package_config_text/0,
     parse_package_config_text/1,
-    package_tools_check/2
+    package_tools_check/2,
+    package_target_supported/1
 ]).
 -export([portable_handoff_text/2]).
 -include_lib("kernel/include/file.hrl").
@@ -52,6 +53,7 @@ package_payload(ProtocolVersion) ->
     AppVersion = flag("--app-version", root_string("version", "0.1.0")),
     ConnectModule = required_flag("--connect-module"),
     Target = package_target(),
+    assert_package_target_supported(Target),
     HostSdkVersion = host_sdk_version(),
     PlushieRustVersion = plushie_rust_version(),
     StartConfig = package_start_config(),
@@ -588,6 +590,25 @@ write_connect_script(PayloadDir, ConnectModule) ->
     ],
     ok = file:write_file(Path, iolist_to_binary(Script)),
     make_executable(Path).
+
+package_target_supported(Target) ->
+    try
+        assert_package_target_supported(Target),
+        {ok, nil}
+    catch
+        throw:{package_error, Reason} -> {error, Reason}
+    end.
+
+assert_package_target_supported(<<"windows-", _/binary>> = Target) ->
+    fail([
+        "Windows standalone packaging is not supported by the Gleam SDK yet. ",
+        "The current package flow writes a Unix bin/connect wrapper. ",
+        "Add a Windows-specific host command before producing ",
+        Target,
+        " packages."
+    ]);
+assert_package_target_supported(_) ->
+    ok.
 
 materialize_platform_icon(PayloadDir) ->
     AssetsDir = filename:join(PayloadDir, "assets"),

@@ -125,6 +125,14 @@ pub fn package_tools_check_requires_tool_and_launcher_test() {
   |> should.equal(Ok(Nil))
 }
 
+pub fn package_target_rejects_windows_until_wrapper_exists_test() {
+  package_target_supported("windows-x86_64")
+  |> should.be_error
+
+  package_target_supported("linux-x86_64")
+  |> should.equal(Ok(Nil))
+}
+
 pub fn portable_handoff_text_keeps_default_manual_step_test() {
   portable_handoff_text("dist/plushie-package.toml", False)
   |> should.equal(
@@ -252,3 +260,6 @@ fn package_tools_check(
   tool: String,
   launcher: String,
 ) -> Result(Nil, List(String))
+
+@external(erlang, "plushie_package_ffi", "package_target_supported")
+fn package_target_supported(target: String) -> Result(Nil, List(String))
