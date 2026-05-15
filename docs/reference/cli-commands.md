@@ -234,7 +234,7 @@ gleam run -m plushie/package -- \
   --app-name "My App" \
   --connect-module my_app@connect
 
-cargo plushie package portable --manifest dist/plushie-package.toml --release
+bin/plushie package portable --manifest dist/plushie-package.toml
 ```
 
 This module owns the Gleam-specific part of standalone packaging:
@@ -252,7 +252,7 @@ This module owns the Gleam-specific part of standalone packaging:
 
 The shared Rust package command remains language-agnostic. It consumes
 the manifest and embedded payload archive produced here. The package
-command prints the final `cargo plushie package portable --manifest ... --release`
+command prints the final `bin/plushie package portable --manifest ...`
 handoff after writing the manifest.
 
 ### Flags
@@ -290,7 +290,7 @@ and referenced with a payload-relative path.
 ### Erlang runtime
 
 By default, the package command copies the active Erlang runtime into
-the payload so the generated launcher can run on machines without
+the payload so the portable launcher can run on machines without
 `erl` on `PATH`. Runtime roots are OS and architecture specific, so
 release builds should run on matching target runners until
 cross-target runtime downloads are proven.

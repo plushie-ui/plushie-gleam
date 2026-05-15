@@ -86,7 +86,7 @@ package_payload(ProtocolVersion) ->
 
     io:format("Wrote ~s~n", [ArchivePath]),
     io:format("Wrote ~s~n", [ManifestPath]),
-    io:format("Build portable launcher with:~n  cargo plushie package portable --manifest ~s --release~n", [ManifestPath]).
+    io:format("Build portable launcher with:~n  bin/plushie package portable --manifest ~s~n", [ManifestPath]).
 
 package_start_config() ->
     case optional_flag("--package-config") of
