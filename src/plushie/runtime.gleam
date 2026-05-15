@@ -326,6 +326,7 @@ type LoopState(model, msg) {
     error_state: ErrorState,
     dev_overlay: Option(String),
     dispatch_depth: Int,
+    package_ready_written: Bool,
   )
 }
 
@@ -452,6 +453,7 @@ fn init_runtime(
       ),
       dev_overlay: None,
       dispatch_depth: 0,
+      package_ready_written: False,
     )
 
   // Execute init commands (threads full state for PID tracking)
@@ -618,7 +620,7 @@ fn handle_message(
             )
           {
             [] -> {
-              actor.continue(state)
+              actor.continue(mark_package_ready(state))
             }
             missing -> {
               platform.log_error(
@@ -1492,6 +1494,32 @@ fn warn_on_renderer_version_mismatch(version: String) -> Nil {
       }
   }
 }
+
+@target(erlang)
+fn mark_package_ready(state: LoopState(model, msg)) -> LoopState(model, msg) {
+  case state.package_ready_written {
+    True -> state
+    False -> {
+      case platform.get_env("PLUSHIE_PACKAGE_READY_FILE") {
+        Ok(path) -> {
+          case write_file_atomic(path, "ready\n") {
+            Ok(_) -> Nil
+            Error(reason) ->
+              platform.log_warning(
+                "plushie: could not write package readiness file: " <> reason,
+              )
+          }
+          LoopState(..state, package_ready_written: True)
+        }
+        Error(_) -> state
+      }
+    }
+  }
+}
+
+@target(erlang)
+@external(erlang, "plushie_ffi", "write_file_atomic")
+fn write_file_atomic(path: String, content: String) -> Result(Nil, String)
 
 @external(erlang, "erlang", "monotonic_time")
 fn erlang_monotonic_time() -> Int

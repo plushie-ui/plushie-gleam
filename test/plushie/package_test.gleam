@@ -107,6 +107,11 @@ pub fn package_config_parser_rejects_unsafe_start_settings_test() {
     "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = [\"PLUSHIE_BINARY_PATH\"]\n",
   )
   |> should.be_error
+
+  parse_package_config_text(
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = [\"PLUSHIE_PACKAGE_READY_FILE\"]\n",
+  )
+  |> should.be_error
 }
 
 @external(erlang, "plushie_package_ffi", "default_icons_command")

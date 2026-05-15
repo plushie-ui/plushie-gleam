@@ -40,6 +40,7 @@
     start_file_watcher/1,
     file_watcher_subscribe/1,
     stop_file_watcher/1,
+    write_file_atomic/2,
     sha256_hex/1,
     crc32/1,
     zlib_compress/1,
@@ -574,6 +575,30 @@ stop_file_watcher(Pid) ->
     catch _:_ -> ok
     end,
     nil.
+
+write_file_atomic(Path, Content) ->
+    PathStr = binary_to_list(Path),
+    ok = filelib:ensure_dir(PathStr),
+    TmpPath = PathStr ++ ".tmp." ++ integer_to_list(erlang:unique_integer([positive])),
+    case file:write_file(TmpPath, Content) of
+        ok ->
+            case file:rename(TmpPath, PathStr) of
+                ok -> {ok, nil};
+                {error, eexist} ->
+                    _ = file:delete(PathStr),
+                    case file:rename(TmpPath, PathStr) of
+                        ok -> {ok, nil};
+                        {error, RetryReason} ->
+                            _ = file:delete(TmpPath),
+                            {error, list_to_binary(file:format_error(RetryReason))}
+                    end;
+                {error, Reason} ->
+                    _ = file:delete(TmpPath),
+                    {error, list_to_binary(file:format_error(Reason))}
+            end;
+        {error, Reason} ->
+            {error, list_to_binary(file:format_error(Reason))}
+    end.
 
 %% Compute SHA-256 hash and return as lowercase hex binary.
 sha256_hex(Data) ->

@@ -283,6 +283,7 @@ validate_forward_env(Name) ->
         {_, _, {_, _}, _} -> fail("Package config start.forward_env contains invalid environment name");
         {_, _, _, <<"PLUSHIE_BINARY_PATH">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
         {_, _, _, <<"PLUSHIE_PACKAGE_DIR">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
+        {_, _, _, <<"PLUSHIE_PACKAGE_READY_FILE">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
         _ -> ok
     end.
 
