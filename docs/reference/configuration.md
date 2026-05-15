@@ -36,10 +36,7 @@ deployments where the binary ships alongside the release.
 When unset, `plushie/binary` searches candidate paths in order:
 
 ```
-build/plushie/bin/plushie-renderer-{platform}-{arch}
-build/plushie/bin/plushie-renderer
-priv/bin/plushie-renderer-{platform}-{arch}
-priv/bin/plushie-renderer
+bin/plushie-renderer
 _build/dev/plushie-renderer/target/release/plushie-renderer
 _build/prod/plushie-renderer/target/release/plushie-renderer
 ./plushie-renderer

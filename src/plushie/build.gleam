@@ -301,51 +301,14 @@ fn install_binary_from_spec(
     True -> Nil
   }
 
-  let plat = platform.platform_string()
-  let arch = platform.arch_string()
-  let platform_name = bin_name <> "-" <> plat <> "-" <> arch
-
   let dest = case bin_file_override {
     Ok(path) -> path
-    Error(_) -> binary.download_dir() <> "/" <> platform_name
+    Error(_) -> binary.download_dir() <> "/" <> binary.download_name()
   }
   let dest_dir = dirname(dest)
   ensure_dir(dest_dir)
   copy_file(src, dest)
   chmod(dest, 0o755)
-
-  case bin_file_override {
-    Ok(_) -> Nil
-    Error(_) -> {
-      // Convenience symlink bin/<bin_name> -> <dest>
-      let link_dir = "bin"
-      let relative_dest = "../" <> dest
-      let link_path = link_dir <> "/" <> bin_name
-      ensure_dir(link_dir)
-      delete_file(link_path)
-      case make_symlink(relative_dest, link_path) {
-        Ok(_) ->
-          io.println("Created symlink " <> link_path <> " -> " <> relative_dest)
-        Error(_) ->
-          io.println("Warning: could not create symlink at " <> link_path)
-      }
-
-      // Standard-named symlink in the download dir so binary.gleam's
-      // lookup chain finds the custom binary under the stock name.
-      let std_name = "plushie-renderer-" <> plat <> "-" <> arch
-      let std_dest = binary.download_dir() <> "/" <> std_name
-      case dest == std_dest {
-        True -> Nil
-        False -> {
-          delete_file(std_dest)
-          case make_symlink(platform_name, std_dest) {
-            Ok(_) -> Nil
-            Error(_) -> Nil
-          }
-        }
-      }
-    }
-  }
 
   io.println("Installed to " <> dest)
 }
@@ -707,14 +670,6 @@ fn chmod(path: String, mode: Int) -> Nil
 @target(erlang)
 @external(erlang, "plushie_build_ffi", "dir_exists")
 fn dir_exists(path: String) -> Bool
-
-@target(erlang)
-@external(erlang, "plushie_build_ffi", "delete_file")
-fn delete_file(path: String) -> Nil
-
-@target(erlang)
-@external(erlang, "plushie_build_ffi", "make_symlink")
-fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
 @target(erlang)
 @external(erlang, "plushie_build_ffi", "parse_int")

@@ -246,10 +246,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 
 - **Binary location**: downloaded and built binaries now install
-  to `build/plushie/bin/` instead of `priv/bin/`. A `bin/plushie`
-  symlink is created pointing to the installed artifact. The old
-  `priv/bin/` location is still checked as a fallback for backward
-  compatibility.
+  to `bin/plushie-renderer` instead of `priv/bin/`.
 - **Renderer binary renamed**: all references updated from
   `plushie` to `plushie-renderer`. Download URLs now point to
   `plushie-ui/plushie-renderer` releases. Rust crate references

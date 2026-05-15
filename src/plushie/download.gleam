@@ -11,9 +11,8 @@
 //// gleam run -m plushie/download -- --wasm-dir PATH  # custom WASM dest
 //// ```
 ////
-//// Downloads the binary to build/plushie/bin/ and/or WASM files to
-//// priv/wasm/ with SHA256 verification. Creates a bin/plushie symlink
-//// pointing to the downloaded artifact. Skips if already present
+//// Downloads the binary to bin/plushie-renderer and/or WASM files to
+//// priv/wasm/ with SHA256 verification. Skips if already present
 //// unless --force.
 
 @target(erlang)
@@ -75,11 +74,15 @@ fn download_bin(
 ) -> Nil {
   let platform = platform.platform_string()
   let arch = platform.arch_string()
-  let name = "plushie-renderer-" <> platform <> "-" <> arch
+  let ext = case platform {
+    "windows" -> ".exe"
+    _ -> ""
+  }
+  let name = "plushie-renderer-" <> platform <> "-" <> arch <> ext
   let url = release_url(rust_version, name)
   let dest_path = case bin_file_override {
     Ok(path) -> path
-    Error(_) -> binary.download_dir() <> "/" <> name
+    Error(_) -> binary.download_dir() <> "/" <> binary.download_name()
   }
   let dest_dir = dirname(dest_path)
 
@@ -100,7 +103,6 @@ fn download_bin(
           write_file(dest_path, body)
           chmod(dest_path, 0o755)
           verify_checksum(dest_path, url <> ".sha256")
-          create_bin_symlink(dest_path)
           io.println("Installed native binary to " <> dest_path)
         }
         Error(reason) -> {
@@ -178,20 +180,6 @@ fn download_wasm(
         }
       }
     }
-  }
-}
-
-@target(erlang)
-fn create_bin_symlink(target_path: String) -> Nil {
-  let link_dir = "bin"
-  let link_path = link_dir <> "/plushie-renderer"
-  ensure_dir(link_dir)
-  // Remove existing symlink/file before creating
-  delete_file(link_path)
-  case make_symlink(target_path, link_path) {
-    Ok(_) ->
-      io.println("Created symlink " <> link_path <> " -> " <> target_path)
-    Error(_) -> io.println("Warning: could not create symlink at " <> link_path)
   }
 }
 
@@ -342,10 +330,6 @@ fn read_file(path: String) -> BitArray {
   let assert Ok(data) = do_read_file(path)
   data
 }
-
-@target(erlang)
-@external(erlang, "plushie_download_ffi", "make_symlink")
-fn make_symlink(target: String, link: String) -> Result(Nil, String)
 
 @target(erlang)
 @external(erlang, "erlang", "halt")

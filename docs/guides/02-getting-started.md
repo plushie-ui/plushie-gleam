@@ -42,7 +42,7 @@ platform input. Download the precompiled binary:
 gleam run -m plushie/download
 ```
 
-The binary lands under `build/plushie/bin/` and the SDK resolves it
+The binary lands under `bin/` and the SDK resolves it
 automatically at runtime. The download is pinned to the
 `plushie_rust_version` key in `gleam.toml`, so the binary and the SDK
 always match.

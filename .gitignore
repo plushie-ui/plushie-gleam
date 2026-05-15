@@ -4,5 +4,5 @@
 /priv/
 /_build/
 /bin/plushie-renderer
-/bin/*-renderer
+/bin/plushie-renderer.exe
 erl_crash.dump

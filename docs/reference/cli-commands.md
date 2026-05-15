@@ -98,8 +98,8 @@ The Gleam module writes a minimal virtual app crate that
 - `_build/plushie-renderer-spec/target/plushie-renderer/` - the
   generated Cargo workspace.
 - `_build/plushie-renderer-spec/target/plushie-renderer/target/<profile>/<bin>` -
-  the compiled binary, copied to `build/plushie/bin/` after a
-  successful build along with a `bin/<bin_name>` symlink.
+  the compiled binary, copied to `bin/plushie-renderer` after a
+  successful build.
 
 If `PLUSHIE_RUST_SOURCE_PATH` is set, `cargo-plushie` emits
 `[patch.crates-io]` redirecting plushie crates to the local
@@ -197,8 +197,7 @@ the `artifacts` key in `[plushie]`, defaulting to `bin` only.
 
 ### Destinations
 
-- Native binary: `build/plushie/bin/plushie-renderer-<platform>-<arch>`
-  by default, plus a `bin/plushie-renderer` symlink pointing at it.
+- Native binary: `bin/plushie-renderer` by default.
 - WASM tarball: extracted to `priv/wasm/` by default, producing
   `plushie_renderer_wasm.js` and `plushie_renderer_wasm_bg.wasm`.
 
@@ -222,7 +221,7 @@ gleam run -m plushie/package -- \
   --app-name "My App" \
   --connect-module my_app@connect
 
-cargo plushie package --manifest dist/plushie-package.toml --release
+cargo plushie package portable --manifest dist/plushie-package.toml --release
 ```
 
 This module owns the Gleam-specific part of standalone packaging:
@@ -240,7 +239,7 @@ This module owns the Gleam-specific part of standalone packaging:
 
 The shared Rust package command remains language-agnostic. It consumes
 the manifest and embedded payload archive produced here. The package
-command prints the final `cargo plushie package --manifest ... --release`
+command prints the final `cargo plushie package portable --manifest ... --release`
 handoff after writing the manifest.
 
 ### Flags
@@ -336,13 +335,10 @@ Resolution order:
 
 1. The `binary_path` field on `GuiOpts`, if set (explicit).
 2. `PLUSHIE_BINARY_PATH` environment variable.
-3. `build/plushie/bin/plushie-renderer-<platform>-<arch>`, then
-   `build/plushie/bin/plushie-renderer` (downloaded binary).
-4. `priv/bin/plushie-renderer-<platform>-<arch>`, then
-   `priv/bin/plushie-renderer` (legacy locations).
-5. `_build/dev/plushie-renderer/target/release/plushie-renderer`
+3. `bin/plushie-renderer` (downloaded or installed binary).
+4. `_build/dev/plushie-renderer/target/release/plushie-renderer`
    or `_build/prod/...` (custom builds).
-6. `./plushie-renderer`,
+5. `./plushie-renderer`,
    `../plushie-renderer/target/release/plushie-renderer`,
    `../plushie-renderer/target/debug/plushie-renderer`.
 

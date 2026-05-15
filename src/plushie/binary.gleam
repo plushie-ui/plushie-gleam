@@ -2,12 +2,9 @@
 ////
 //// Resolution order:
 //// 1. PLUSHIE_BINARY_PATH env var (error if set but file missing)
-//// 2. build/plushie/bin/plushie-renderer-{platform}-{arch} (downloaded binary)
-//// 3. build/plushie/bin/plushie-renderer (platform-generic fallback)
-//// 4. priv/bin/plushie-renderer-{platform}-{arch} (legacy location, backward compat)
-//// 5. priv/bin/plushie-renderer (legacy location, backward compat)
-//// 6. Custom build at _build/{env}/plushie-renderer/target/release/plushie-renderer
-//// 7. Common local paths (./plushie-renderer, ../plushie-renderer/target/release/plushie-renderer)
+//// 2. bin/plushie-renderer (downloaded or built binary)
+//// 3. Custom build at _build/{env}/plushie-renderer/target/release/plushie-renderer
+//// 4. Common local paths (./plushie-renderer, ../plushie-renderer/target/release/plushie-renderer)
 ////
 //// Returns Result(String, BinaryError) with the path on success.
 
@@ -75,7 +72,15 @@ To use an existing binary:
 /// Shared across environments (the binary is platform-specific,
 /// not env-specific).
 pub fn download_dir() -> String {
-  "build/plushie/bin"
+  "bin"
+}
+
+/// Returns the stable project-local renderer filename.
+pub fn download_name() -> String {
+  case platform.platform_string() {
+    "windows" -> "plushie-renderer.exe"
+    _ -> "plushie-renderer"
+  }
 }
 
 /// Returns the binary name for a custom build with native widgets.
@@ -95,17 +100,10 @@ pub fn build_name(project_name: Result(String, a)) -> String {
 }
 
 fn candidate_paths() -> List(String) {
-  let platform = platform.platform_string()
-  let arch = platform.arch_string()
-  let name = "plushie-renderer"
-  let platform_name = name <> "-" <> platform <> "-" <> arch
+  let name = download_name()
   [
-    // Primary: downloaded binary in build/plushie/bin/
-    download_dir() <> "/" <> platform_name,
+    // Primary: downloaded or built binary in project-root bin/
     download_dir() <> "/" <> name,
-    // Legacy: priv/bin/ (backward compat)
-    "priv/bin/" <> platform_name,
-    "priv/bin/" <> name,
     // Custom builds (plushie-renderer binary from cargo)
     "_build/dev/plushie-renderer/target/release/plushie-renderer",
     "_build/prod/plushie-renderer/target/release/plushie-renderer",
