@@ -239,7 +239,9 @@ This module owns the Gleam-specific part of standalone packaging:
 - Writes `dist/plushie-package.toml` for `cargo plushie package`.
 
 The shared Rust package command remains language-agnostic. It consumes
-the manifest and embedded payload archive produced here.
+the manifest and embedded payload archive produced here. The package
+command prints the final `cargo plushie package --manifest ... --release`
+handoff after writing the manifest.
 
 ### Flags
 

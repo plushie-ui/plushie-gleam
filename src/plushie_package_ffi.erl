@@ -23,7 +23,6 @@ package(ProtocolVersion) ->
 
 do_package(ProtocolVersion) ->
     require_command("gleam"),
-    require_command("tar"),
 
     case has_flag("--write-package-config") of
         true ->
@@ -31,6 +30,7 @@ do_package(ProtocolVersion) ->
             ok = file:write_file(Path, package_config_text()),
             io:format("Wrote ~s~n", [Path]);
         false ->
+            _ = archive_tar(),
             package_payload(ProtocolVersion)
     end.
 
@@ -81,10 +81,12 @@ package_payload(ProtocolVersion) ->
         payload_hash => PayloadHash,
         payload_size => PayloadSize
     }),
-    ok = file:write_file(filename:join(DistDir, "plushie-package.toml"), Manifest),
+    ManifestPath = filename:join(DistDir, "plushie-package.toml"),
+    ok = file:write_file(ManifestPath, Manifest),
 
     io:format("Wrote ~s~n", [ArchivePath]),
-    io:format("Wrote ~s~n", [filename:join(DistDir, "plushie-package.toml")]).
+    io:format("Wrote ~s~n", [ManifestPath]),
+    io:format("Build launcher with:~n  cargo plushie package --manifest ~s --release~n", [ManifestPath]).
 
 package_start_config() ->
     case optional_flag("--package-config") of
@@ -361,9 +363,19 @@ build_stock_renderer(SourcePath) ->
         false -> fail(["PLUSHIE_RUST_SOURCE_PATH does not look like a Rust workspace: ", SourcePath])
     end,
     require_command("cargo"),
+    TargetDir = filename:absname(filename:join(["build", "plushie-package-target"])),
     io:format("Building plushie-renderer from ~s~n", [SourcePath]),
-    run_or_fail("cargo", ["build", "--release", "-p", "plushie-renderer", "--manifest-path", filename:join(SourcePath, "Cargo.toml")]),
-    filename:join([SourcePath, "target", "release", "plushie-renderer"]).
+    run_or_fail("cargo", [
+        "build",
+        "--release",
+        "-p",
+        "plushie-renderer",
+        "--manifest-path",
+        filename:join(SourcePath, "Cargo.toml"),
+        "--target-dir",
+        TargetDir
+    ]),
+    filename:join([TargetDir, "release", "plushie-renderer"]).
 
 build_shipment(PayloadDir) ->
     io:format("Building Erlang shipment...~n", []),
@@ -545,12 +557,13 @@ contains(Value, Pattern) ->
 archive_payload(PayloadDir, ArchivePath) ->
     validate_payload_archive_inputs(PayloadDir),
     ok = filelib:ensure_dir(ArchivePath),
-    case tar_supports_zstd() of
+    Tar = archive_tar(),
+    case tar_supports_zstd(Tar) of
         true ->
-            run_or_fail("tar", ["-C", PayloadDir, "--sort=name", "--mtime=UTC 1970-01-01", "--owner=0", "--group=0", "--numeric-owner", "--zstd", "-cf", ArchivePath, "."]);
+            run_or_fail(Tar, ["-C", PayloadDir, "--sort=name", "--mtime=UTC 1970-01-01", "--owner=0", "--group=0", "--numeric-owner", "--zstd", "-cf", ArchivePath, "."]);
         false ->
             require_command("zstd"),
-            Command = "tar -C " ++ shell_quote(PayloadDir) ++ " --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - . | zstd -q -o " ++ shell_quote(ArchivePath),
+            Command = shell_quote(Tar) ++ " -C " ++ shell_quote(PayloadDir) ++ " --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - . | zstd -q -o " ++ shell_quote(ArchivePath),
             run_or_fail("sh", ["-c", Command])
     end.
 
@@ -571,8 +584,46 @@ validate_payload_archive_inputs(PayloadDir) ->
         {error, Message} -> fail(Message)
     end.
 
-tar_supports_zstd() ->
-    case run_command("tar", ["--help"], 30000) of
+archive_tar() ->
+    case gnu_tar("tar") of
+        true ->
+            "tar";
+        false ->
+            case find_executable("gtar") of
+                {ok, Gtar} ->
+                    case gnu_tar(Gtar) of
+                        true -> Gtar;
+                        false -> fail("GNU tar or gtar is required for deterministic payload archives")
+                    end;
+                error ->
+                    fail("GNU tar or gtar is required for deterministic payload archives")
+            end
+    end.
+
+gnu_tar(Command) ->
+    case executable_command(Command) of
+        {ok, _} ->
+            case run_command(Command, ["--version"], 30000) of
+                {ok, Output} -> binary:match(Output, <<"GNU tar">>) =/= nomatch;
+                {error, _} -> false
+            end;
+        error ->
+            false
+    end.
+
+executable_command(Command) ->
+    CommandString = to_list(Command),
+    case filename:dirname(CommandString) of
+        "." -> find_executable(Command);
+        _ ->
+            case filelib:is_regular(CommandString) of
+                true -> {ok, Command};
+                false -> error
+            end
+    end.
+
+tar_supports_zstd(Tar) ->
+    case run_command(Tar, ["--help"], 30000) of
         {ok, Output} -> binary:match(Output, <<"--zstd">>) =/= nomatch;
         {error, _} -> false
     end.
