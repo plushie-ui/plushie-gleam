@@ -1,8 +1,8 @@
-//// Connect to an already-running plushie renderer via Unix socket or TCP.
+//// Run a plushie app from a standalone entry point.
 ////
-//// Replaces stdio mode when the renderer uses `--listen` to create a
-//// socket and either spawns this process via structured exec args or prints
-//// connection info for manual use.
+//// Uses an already-running renderer when a socket is provided. Otherwise
+//// starts the renderer through normal SDK binary resolution, including
+//// `PLUSHIE_BINARY_PATH`.
 ////
 //// ## Usage
 ////
@@ -14,11 +14,11 @@
 //// }
 //// ```
 ////
-//// ## Socket resolution (in order)
+//// ## Socket resolution for connect mode (in order)
 ////
 //// 1. `--socket` CLI flag
 //// 2. PLUSHIE_SOCKET environment variable
-//// 3. Error
+//// 3. No socket, start a renderer child process
 ////
 //// ## Token resolution (in order)
 ////
@@ -66,12 +66,24 @@ pub fn default_opts() -> ConnectOpts {
 }
 
 @target(erlang)
-/// Run a plushie application connected to an external renderer.
+/// Run a plushie application from a standalone entry point.
 ///
-/// Parses CLI args for socket address and token, connects via the
-/// socket adapter, and blocks until the runtime exits.
+/// When a socket is provided by CLI or `PLUSHIE_SOCKET`, connects to
+/// that renderer. Otherwise starts the renderer as a child process
+/// using normal binary resolution, including `PLUSHIE_BINARY_PATH`.
 pub fn run(app: App(model, msg), opts: ConnectOpts) -> Nil {
-  let socket_addr = resolve_socket()
+  case resolve_socket() {
+    Some(socket_addr) -> run_socket(app, opts, socket_addr)
+    None -> run_spawn(app, opts)
+  }
+}
+
+@target(erlang)
+fn run_socket(
+  app: App(model, msg),
+  opts: ConnectOpts,
+  socket_addr: String,
+) -> Nil {
   let token = resolve_token()
 
   case socket_adapter.start(socket_addr, opts.format) {
@@ -106,19 +118,35 @@ pub fn run(app: App(model, msg), opts: ConnectOpts) -> Nil {
 }
 
 @target(erlang)
-fn resolve_socket() -> String {
+fn run_spawn(app: App(model, msg), opts: ConnectOpts) -> Nil {
+  let start_opts =
+    plushie.StartOpts(
+      ..plushie.default_start_opts(),
+      format: opts.format,
+      daemon: opts.daemon,
+    )
+
+  case plushie.start(app, start_opts) {
+    Ok(instance) -> {
+      plushie.wait(instance)
+    }
+    Error(err) -> {
+      io.println_error(
+        "Failed to start plushie: " <> plushie.start_error_to_string(err),
+      )
+      halt(1)
+    }
+  }
+}
+
+@target(erlang)
+fn resolve_socket() -> Option(String) {
   case get_flag_value("--socket") {
-    Ok(addr) -> addr
+    Ok(addr) -> Some(addr)
     Error(_) ->
       case platform.get_env("PLUSHIE_SOCKET") {
-        Ok(addr) -> addr
-        Error(_) -> {
-          io.println_error(
-            "No socket address provided. Pass --socket or set PLUSHIE_SOCKET.",
-          )
-          halt(1)
-          panic as "unreachable"
-        }
+        Ok(addr) -> Some(addr)
+        Error(_) -> None
       }
   }
 }
