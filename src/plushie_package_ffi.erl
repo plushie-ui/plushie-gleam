@@ -7,11 +7,12 @@
     platform_manifest_section/1,
     manifest_escape_probe/1,
     portable_handoff_text/1,
-    portable_package_command/2,
+    portable_package_command/3,
     package_config_text/0,
     parse_package_config_text/1,
     package_tools_check/2
 ]).
+-export([portable_handoff_text/2]).
 -include_lib("kernel/include/file.hrl").
 
 package(ProtocolVersion) ->
@@ -95,22 +96,34 @@ package_payload(ProtocolVersion) ->
 finish_portable_package(ManifestPath) ->
     case has_flag("--portable") of
         true ->
-            {Command, Args} = portable_package_command(ManifestPath, optional_flag("--portable-out")),
+            {Command, Args} = portable_package_command(
+                ManifestPath,
+                optional_flag("--portable-out"),
+                has_flag("--strict-tools")
+            ),
             _ = run_or_fail(Command, Args),
             ok;
         false ->
-            io:format("~s", [portable_handoff_text(ManifestPath)])
+            io:format("~s", [portable_handoff_text(ManifestPath, has_flag("--strict-tools"))])
     end.
 
 portable_handoff_text(ManifestPath) ->
-    to_bin(["Build portable launcher with:\n  ", filename:join(["bin", tool_name()]), " package portable --manifest ", ManifestPath, "\n"]).
+    portable_handoff_text(ManifestPath, false).
 
-portable_package_command(ManifestPath, PortableOut) ->
+portable_handoff_text(ManifestPath, StrictTools) ->
+    {Command, Args} = portable_package_command(ManifestPath, error, StrictTools),
+    to_bin(["Build portable launcher with:\n  ", Command, " ", lists:join(<<" ">>, Args), "\n"]).
+
+portable_package_command(ManifestPath, PortableOut, StrictTools) ->
     Base = [<<"package">>, <<"portable">>, <<"--manifest">>, to_bin(ManifestPath)],
-    Args = case PortableOut of
+    WithOut = case PortableOut of
         {ok, OutPath} -> Base ++ [<<"--out">>, to_bin(OutPath)];
         {error, _} -> Base;
         error -> Base
+    end,
+    Args = case StrictTools of
+        true -> WithOut ++ [<<"--strict-tools">>];
+        false -> WithOut
     end,
     {to_bin(filename:join(["bin", tool_name()])), Args}.
 

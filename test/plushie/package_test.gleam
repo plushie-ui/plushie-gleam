@@ -126,15 +126,22 @@ pub fn package_tools_check_requires_tool_and_launcher_test() {
 }
 
 pub fn portable_handoff_text_keeps_default_manual_step_test() {
-  portable_handoff_text("dist/plushie-package.toml")
+  portable_handoff_text("dist/plushie-package.toml", False)
   |> should.equal(
     "Build portable launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml\n",
   )
 }
 
+pub fn portable_handoff_text_passes_strict_tools_test() {
+  portable_handoff_text("dist/plushie-package.toml", True)
+  |> should.equal(
+    "Build portable launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools\n",
+  )
+}
+
 pub fn portable_package_command_uses_structured_args_test() {
   let #(command, args) =
-    portable_package_command("dist/plushie-package.toml", Error(Nil))
+    portable_package_command("dist/plushie-package.toml", Error(Nil), False)
 
   command
   |> should.equal("bin/plushie")
@@ -149,7 +156,7 @@ pub fn portable_package_command_uses_structured_args_test() {
 
 pub fn portable_package_command_passes_out_path_test() {
   let #(command, args) =
-    portable_package_command("dist/plushie-package.toml", Ok("dist/app"))
+    portable_package_command("dist/plushie-package.toml", Ok("dist/app"), False)
 
   command
   |> should.equal("bin/plushie")
@@ -161,6 +168,24 @@ pub fn portable_package_command_passes_out_path_test() {
     "dist/plushie-package.toml",
     "--out",
     "dist/app",
+  ])
+}
+
+pub fn portable_package_command_passes_strict_tools_test() {
+  let #(command, args) =
+    portable_package_command("dist/plushie-package.toml", Ok("dist/app"), True)
+
+  command
+  |> should.equal("bin/plushie")
+  args
+  |> should.equal([
+    "package",
+    "portable",
+    "--manifest",
+    "dist/plushie-package.toml",
+    "--out",
+    "dist/app",
+    "--strict-tools",
   ])
 }
 
@@ -202,12 +227,13 @@ fn platform_manifest_section(icon_path: String) -> String
 fn manifest_escape_probe(value: String) -> String
 
 @external(erlang, "plushie_package_ffi", "portable_handoff_text")
-fn portable_handoff_text(manifest_path: String) -> String
+fn portable_handoff_text(manifest_path: String, strict_tools: Bool) -> String
 
 @external(erlang, "plushie_package_ffi", "portable_package_command")
 fn portable_package_command(
   manifest_path: String,
   portable_out: Result(String, Nil),
+  strict_tools: Bool,
 ) -> #(String, List(String))
 
 @external(erlang, "plushie_package_ffi", "app_name_manifest_line")

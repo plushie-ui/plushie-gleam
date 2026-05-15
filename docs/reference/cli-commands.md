@@ -255,6 +255,11 @@ the manifest and embedded payload archive produced here. By default,
 the package command prints the final
 `bin/plushie package portable --manifest ...` handoff after writing the
 manifest. Pass `--portable` to run that final step immediately.
+Pass `--strict-tools` with `--portable` to have the Rust package tool
+reject missing, stale, dirty, mixed, or mismatched native tools.
+Run `bin/plushie package check --manifest dist/plushie-package.toml
+--strict-tools` to check that gate before building the portable
+launcher.
 
 ### Flags
 
@@ -269,6 +274,7 @@ manifest. Pass `--portable` to run that final step immediately.
 | `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
 | `--portable` | Run `bin/plushie package portable --manifest <manifest>` after writing the manifest |
 | `--portable-out PATH` | Pass `--out PATH` to the portable package command when `--portable` is set |
+| `--strict-tools` | Pass `--strict-tools` to the portable package command when `--portable` is set |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
 | `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |
