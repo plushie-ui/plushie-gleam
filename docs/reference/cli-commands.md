@@ -234,7 +234,8 @@ gleam run -m plushie/package -- \
   --app-name "My App" \
   --connect-module my_app@connect
 
-bin/plushie package portable --manifest dist/plushie-package.toml
+bin/plushie package check --manifest dist/plushie-package.toml --strict-tools
+bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools
 ```
 
 This module owns the Gleam-specific part of standalone packaging:
@@ -256,8 +257,10 @@ the manifest and embedded payload archive produced here. By default,
 the package command prints the final
 `bin/plushie package portable --manifest ...` handoff after writing the
 manifest. Pass `--portable` to run that final step immediately.
-Pass `--strict-tools` with `--portable` to have the Rust package tool
-reject missing, stale, dirty, mixed, or mismatched native tools.
+Pass `--strict-tools` to check the managed native tool set before
+printing or running the final package command, and to have the Rust
+package tool reject missing, stale, dirty, mixed, or mismatched native
+tools during portable packaging.
 Run `bin/plushie package check --manifest dist/plushie-package.toml
 --strict-tools` to check that gate before building the portable
 launcher.
@@ -275,7 +278,7 @@ launcher.
 | `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
 | `--portable` | Run `bin/plushie package portable --manifest <manifest>` after writing the manifest |
 | `--portable-out PATH` | Pass `--out PATH` to the portable package command when `--portable` is set |
-| `--strict-tools` | Pass `--strict-tools` to the portable package command when `--portable` is set |
+| `--strict-tools` | Check the managed native tool set before handoff and pass `--strict-tools` to the portable package command |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
 | `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |
@@ -288,14 +291,14 @@ Apps with `[plushie].native_widgets` must use
 widget crates. If no `--renderer-path` is supplied for a custom
 renderer, the package command delegates to `plushie/build`.
 
-When `--icon` is omitted, the command invokes `cargo-plushie
+When `--icon` is omitted, the command invokes `bin/plushie
 default-icons --out <payload-assets-dir>` before the payload archive is
 created and uses `assets/plushie-checkbox-512x512.png` as the manifest
 icon path. With `PLUSHIE_RUST_SOURCE_PATH` set, it invokes the tool
 from that checkout with `cargo run --manifest-path
-$PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie -- default-icons
-...`. With `--icon`, the provided file is copied into payload assets
-and referenced with a payload-relative path.
+$PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie --bin plushie
+--release -- default-icons ...`. With `--icon`, the provided file is
+copied into payload assets and referenced with a payload-relative path.
 
 ### Erlang runtime
 

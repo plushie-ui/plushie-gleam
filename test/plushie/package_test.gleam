@@ -14,6 +14,9 @@ pub fn default_icons_command_uses_source_checkout_test() {
     "/src/plushie-rust/Cargo.toml",
     "-p",
     "cargo-plushie",
+    "--bin",
+    "plushie",
+    "--release",
     "--",
     "default-icons",
     "--out",
@@ -26,7 +29,7 @@ pub fn default_icons_command_uses_installed_tool_test() {
     default_icons_command(Error(Nil), "dist/payload/assets")
 
   command
-  |> should.equal("cargo-plushie")
+  |> should.equal("bin/plushie")
   args
   |> should.equal(["default-icons", "--out", "dist/payload/assets"])
 }
@@ -114,14 +117,21 @@ pub fn package_config_parser_reads_start_settings_test() {
   )
 }
 
-pub fn package_tools_check_requires_tool_and_launcher_test() {
+pub fn package_tools_check_requires_managed_tool_set_test() {
   package_tools_check(
     "/tmp/plushie-missing-tool",
+    "/tmp/plushie-missing-renderer",
     "/tmp/plushie-missing-launcher",
   )
-  |> should.be_error
+  |> should.equal(
+    Error([
+      "/tmp/plushie-missing-tool",
+      "/tmp/plushie-missing-renderer",
+      "/tmp/plushie-missing-launcher",
+    ]),
+  )
 
-  package_tools_check("/bin/sh", "/bin/sh")
+  package_tools_check("/bin/sh", "/bin/sh", "/bin/sh")
   |> should.equal(Ok(Nil))
 }
 
@@ -258,6 +268,7 @@ fn parse_package_config_text(
 @external(erlang, "plushie_package_ffi", "package_tools_check")
 fn package_tools_check(
   tool: String,
+  renderer: String,
   launcher: String,
 ) -> Result(Nil, List(String))
 

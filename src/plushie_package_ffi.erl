@@ -10,7 +10,7 @@
     portable_package_command/3,
     package_config_text/0,
     parse_package_config_text/1,
-    package_tools_check/2,
+    package_tools_check/3,
     package_target_supported/1
 ]).
 -export([portable_handoff_text/2]).
@@ -96,18 +96,34 @@ package_payload(ProtocolVersion) ->
     finish_portable_package(ManifestPath).
 
 finish_portable_package(ManifestPath) ->
+    StrictTools = has_flag("--strict-tools"),
+    maybe_verify_strict_package_tools(StrictTools),
     case has_flag("--portable") of
         true ->
             {Command, Args} = portable_package_command(
                 ManifestPath,
                 optional_flag("--portable-out"),
-                has_flag("--strict-tools")
+                StrictTools
             ),
             _ = run_or_fail(Command, Args),
             ok;
         false ->
-            io:format("~s", [portable_handoff_text(ManifestPath, has_flag("--strict-tools"))])
+            io:format("~s", [portable_handoff_text(ManifestPath, StrictTools)])
     end.
+
+maybe_verify_strict_package_tools(true) ->
+    _ = run_or_fail(
+        filename:join(["bin", tool_name()]),
+        [
+            <<"tools">>,
+            <<"check">>,
+            <<"--required-version">>,
+            to_bin(plushie_rust_version())
+        ]
+    ),
+    ok;
+maybe_verify_strict_package_tools(false) ->
+    ok.
 
 portable_handoff_text(ManifestPath) ->
     portable_handoff_text(ManifestPath, false).
@@ -399,28 +415,21 @@ resolve_stock_renderer_without_env() ->
 
 sync_stock_renderer() ->
     run_or_fail("gleam", ["run", "-m", "plushie/download"]),
-    Renderer = filename:join(["bin", "plushie-renderer"]),
     ensure_package_tools_available(),
-    ensure_managed_renderer_available(Renderer),
-    Renderer.
+    filename:join(["bin", "plushie-renderer"]).
 
 ensure_package_tools_available() ->
     Tool = filename:join(["bin", tool_name()]),
+    Renderer = filename:join(["bin", "plushie-renderer"]),
     Launcher = filename:join(["bin", launcher_name()]),
-    case package_tools_check(Tool, Launcher) of
+    case package_tools_check(Tool, Renderer, Launcher) of
         {ok, nil} -> ok;
         {error, Missing} ->
             fail(["Portable packaging requires the managed Plushie tool set. Missing: ", lists:join(", ", Missing), ". Run `gleam run -m plushie/download`."])
     end.
 
-ensure_managed_renderer_available(Renderer) ->
-    case filelib:is_regular(Renderer) of
-        true -> ok;
-        false -> fail(["Managed renderer is missing: ", Renderer])
-    end.
-
-package_tools_check(Tool, Launcher) ->
-    Missing = [Path || Path <- [Tool, Launcher], not filelib:is_regular(Path)],
+package_tools_check(Tool, Renderer, Launcher) ->
+    Missing = [Path || Path <- [Tool, Renderer, Launcher], not filelib:is_regular(Path)],
     case Missing of
         [] -> {ok, nil};
         _ -> {error, Missing}
@@ -658,6 +667,9 @@ default_icons_command({ok, SourcePath}, AssetsDir) ->
             to_bin(filename:join(SourcePath, "Cargo.toml")),
             <<"-p">>,
             <<"cargo-plushie">>,
+            <<"--bin">>,
+            <<"plushie">>,
+            <<"--release">>,
             <<"--">>,
             <<"default-icons">>,
             <<"--out">>,
@@ -668,7 +680,7 @@ default_icons_command({error, _}, AssetsDir) ->
     default_icons_command(error, AssetsDir);
 default_icons_command(error, AssetsDir) ->
     {
-        <<"cargo-plushie">>,
+        to_bin(filename:join(["bin", tool_name()])),
         [
             <<"default-icons">>,
             <<"--out">>,

@@ -152,18 +152,22 @@ fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
         True -> Nil
         False -> io.println(string.trim_end(output))
       }
+      let tool_path = binary.download_dir() <> "/" <> binary.tool_name()
       let renderer_path = binary.download_dir() <> "/" <> binary.download_name()
       let launcher_path = binary.download_dir() <> "/" <> binary.launcher_name()
       case
-        platform.file_exists(renderer_path)
+        platform.file_exists(tool_path)
+        && platform.file_exists(renderer_path)
         && platform.file_exists(launcher_path)
       {
         True -> Nil
         False -> {
           io.println_error(
             "Renderer sync failed: bin/plushie tools sync did not install "
+            <> tool_path
+            <> ", "
             <> renderer_path
-            <> " and "
+            <> ", and "
             <> launcher_path,
           )
           halt(1)

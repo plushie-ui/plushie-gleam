@@ -91,6 +91,14 @@ pub fn launcher_name() -> String {
   }
 }
 
+/// Returns the stable project-local standalone plushie tool filename.
+pub fn tool_name() -> String {
+  case platform.platform_string() {
+    "windows" -> "plushie.exe"
+    _ -> "plushie"
+  }
+}
+
 /// Returns the binary name for a custom build with native widgets.
 ///
 /// When native widgets are configured, the binary is named
