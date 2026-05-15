@@ -139,8 +139,8 @@ fn download_renderer_direct(
 fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
   let tool_path = download_tool(rust_version, force)
   let args = case force {
-    True -> ["download", "--required-version", rust_version, "--force"]
-    False -> ["download", "--required-version", rust_version]
+    True -> ["tools", "sync", "--required-version", rust_version, "--force"]
+    False -> ["tools", "sync", "--required-version", rust_version]
   }
 
   case run_tool(tool_path, args) {
