@@ -267,6 +267,9 @@ handoff after writing the manifest.
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
 | `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |
+| `--erlang-provider local|path|mise` | Runtime source. Defaults to `local`, or `path` when `--erlang-root` / `PLUSHIE_ERLANG_ROOT` is set |
+| `--erlang-root PATH` | Erlang runtime root for the `path` provider |
+| `--erlang-version VERSION` | Erlang version passed to `mise where erlang@VERSION` for the `mise` provider |
 
 Apps with `[plushie].native_widgets` must use
 `--renderer-kind custom`, because a stock renderer cannot include those
@@ -286,9 +289,23 @@ and referenced with a payload-relative path.
 
 By default, the package command copies the active Erlang runtime into
 the payload so the generated launcher can run on machines without
-`erl` on `PATH`. Set `PLUSHIE_BUNDLE_ERLANG=0` to skip runtime
-bundling for development proofs, or set `PLUSHIE_ERLANG_ROOT` to choose
-the runtime root explicitly.
+`erl` on `PATH`. Runtime roots are OS and architecture specific, so
+release builds should run on matching target runners until
+cross-target runtime downloads are proven.
+
+Runtime provider options:
+
+- `--erlang-provider local` uses the active `erl` on `PATH` and asks it
+  for `code:root_dir()`.
+- `--erlang-provider path --erlang-root PATH` copies an explicit
+  extracted Erlang runtime root.
+- `--erlang-provider mise --erlang-version VERSION` runs
+  `mise where erlang@VERSION` and copies that extracted runtime root.
+
+Environment equivalents are `PLUSHIE_ERLANG_PROVIDER`,
+`PLUSHIE_ERLANG_ROOT`, and `PLUSHIE_ERLANG_VERSION`. Set
+`PLUSHIE_BUNDLE_ERLANG=0` to skip runtime bundling for development
+proofs.
 
 When switching between Erlang installations, run `gleam clean` before
 packaging. Gleam build artifacts are tied to the Erlang runtime that

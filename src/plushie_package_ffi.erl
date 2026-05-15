@@ -433,15 +433,56 @@ copy_erlang_runtime(PayloadDir) ->
     run_or_fail(filename:join([RuntimeDir, "bin", "erl"]), ["-noshell", "-eval", "ok = application:ensure_started(crypto), halt()."]).
 
 erlang_root() ->
-    case getenv("PLUSHIE_ERLANG_ROOT") of
-        {ok, Root} -> Root;
-        error ->
+    Provider = erlang_provider(),
+    Root = erlang_root_option(),
+    Version = erlang_version_option(),
+    case Provider of
+        <<"local">> ->
             case find_executable("erl") of
                 {ok, _} ->
                     trim(run_or_fail("erl", ["-noshell", "-eval", "io:format(\"~s~n\", [code:root_dir()]), halt()."]));
                 error ->
-                    fail("No Erlang runtime found. Install Erlang, set PLUSHIE_ERLANG_ROOT, or set PLUSHIE_BUNDLE_ERLANG=0 to package without a runtime.")
+                    fail("No Erlang runtime found. Install Erlang, use --erlang-provider path with --erlang-root, use --erlang-provider mise, or set PLUSHIE_BUNDLE_ERLANG=0 to package without a runtime.")
+            end;
+        <<"path">> ->
+            case Root of
+                {ok, PathRoot} -> PathRoot;
+                error -> fail("--erlang-root is required when --erlang-provider path is used.")
+            end;
+        <<"mise">> ->
+            Spec = case Version of
+                {ok, ErlangVersion} -> <<"erlang@", ErlangVersion/binary>>;
+                error -> <<"erlang">>
+            end,
+            trim(run_or_fail("mise", ["where", Spec]));
+        Other ->
+            fail(["Unsupported Erlang runtime provider: ", Other])
+    end.
+
+erlang_provider() ->
+    case optional_flag("--erlang-provider") of
+        {ok, Provider} -> Provider;
+        error ->
+            case getenv("PLUSHIE_ERLANG_PROVIDER") of
+                {ok, Provider} -> Provider;
+                error ->
+                    case erlang_root_option() of
+                        {ok, _} -> <<"path">>;
+                        error -> <<"local">>
+                    end
             end
+    end.
+
+erlang_root_option() ->
+    case optional_flag("--erlang-root") of
+        {ok, Root} -> {ok, Root};
+        error -> getenv("PLUSHIE_ERLANG_ROOT")
+    end.
+
+erlang_version_option() ->
+    case optional_flag("--erlang-version") of
+        {ok, Version} -> {ok, Version};
+        error -> getenv("PLUSHIE_ERLANG_VERSION")
     end.
 
 find_runtime_dir(Root, Pattern) ->
