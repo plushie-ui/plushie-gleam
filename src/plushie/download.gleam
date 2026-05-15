@@ -84,6 +84,21 @@ fn download_bin(
     Ok(path) -> path
     Error(_) -> binary.download_dir() <> "/" <> binary.download_name()
   }
+
+  case bin_file_override {
+    Error(_) -> sync_renderer_with_tool(rust_version, force)
+    Ok(_) -> download_renderer_direct(rust_version, name, url, dest_path, force)
+  }
+}
+
+@target(erlang)
+fn download_renderer_direct(
+  _rust_version: String,
+  name: String,
+  url: String,
+  dest_path: String,
+  force: Bool,
+) -> Nil {
   let dest_dir = dirname(dest_path)
 
   case platform.file_exists(dest_path) && !force {
@@ -114,6 +129,71 @@ fn download_bin(
           io.println_error("To use an existing binary:")
           io.println_error("  export PLUSHIE_BINARY_PATH=/path/to/plushie")
           halt(1)
+        }
+      }
+    }
+  }
+}
+
+@target(erlang)
+fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
+  let tool_path = download_tool(rust_version, force)
+  let args = case force {
+    True -> ["download", "--required-version", rust_version, "--force"]
+    False -> ["download", "--required-version", rust_version]
+  }
+
+  case run_tool(tool_path, args) {
+    Ok(output) -> {
+      case output == "" {
+        True -> Nil
+        False -> io.println(string.trim_end(output))
+      }
+      io.println(
+        "Installed native binary to "
+        <> binary.download_dir()
+        <> "/"
+        <> binary.download_name(),
+      )
+    }
+    Error(reason) -> {
+      io.println_error("Renderer sync failed: " <> reason)
+      halt(1)
+    }
+  }
+}
+
+@target(erlang)
+fn download_tool(rust_version: String, force: Bool) -> String {
+  let platform = platform.platform_string()
+  let arch = platform.arch_string()
+  let ext = case platform {
+    "windows" -> ".exe"
+    _ -> ""
+  }
+  let name = "plushie-" <> platform <> "-" <> arch <> ext
+  let local_name = "plushie" <> ext
+  let url = release_url(rust_version, name)
+  let dest_path = binary.download_dir() <> "/" <> local_name
+
+  case platform.file_exists(dest_path) && !force {
+    True -> dest_path
+    False -> {
+      ensure_dir(binary.download_dir())
+      io.println("Downloading " <> name <> "...")
+
+      case download_binary(url, 5) {
+        Ok(body) -> {
+          write_file(dest_path, body)
+          chmod(dest_path, 0o755)
+          verify_checksum(dest_path, url <> ".sha256")
+          io.println("Installed plushie tool to " <> dest_path)
+          dest_path
+        }
+        Error(reason) -> {
+          io.println_error("Plushie tool download failed: " <> reason)
+          halt(1)
+          dest_path
         }
       }
     }
@@ -285,6 +365,10 @@ fn first_or(items: List(String), default: String) -> String {
 @target(erlang)
 @external(erlang, "plushie_download_ffi", "download_binary")
 fn download_binary(url: String, max_redirects: Int) -> Result(BitArray, String)
+
+@target(erlang)
+@external(erlang, "plushie_download_ffi", "run_tool")
+fn run_tool(path: String, args: List(String)) -> Result(String, String)
 
 @target(erlang)
 @external(erlang, "plushie_download_ffi", "has_flag")

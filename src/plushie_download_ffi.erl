@@ -1,6 +1,7 @@
 -module(plushie_download_ffi).
 -export([
     download_binary/2,
+    run_tool/2,
     has_flag/1,
     get_flag_value/1,
     ensure_dir/1,
@@ -15,6 +16,30 @@
 download_binary(Url, MaxRedirects) ->
     ensure_http_started(),
     do_download(binary_to_list(Url), MaxRedirects).
+
+run_tool(Path, Args) ->
+    Program = binary_to_list(Path),
+    ArgList = [binary_to_list(Arg) || Arg <- Args],
+    Port = open_port({spawn_executable, Program},
+                     [binary, exit_status, use_stdio, stderr_to_stdout,
+                      {args, ArgList}]),
+    collect_tool_output(Port, []).
+
+collect_tool_output(Port, Acc) ->
+    receive
+        {Port, {data, Data}} ->
+            collect_tool_output(Port, [Acc, Data]);
+        {Port, {exit_status, 0}} ->
+            {ok, iolist_to_binary(Acc)};
+        {Port, {exit_status, Status}} ->
+            Output = iolist_to_binary(Acc),
+            {error, iolist_to_binary([
+                "status ", integer_to_list(Status), ": ", Output
+            ])}
+    after 30000 ->
+        port_close(Port),
+        {error, <<"timed out">>}
+    end.
 
 do_download(_Url, 0) ->
     {error, <<"too many redirects">>};
