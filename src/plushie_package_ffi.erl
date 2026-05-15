@@ -4,7 +4,9 @@
     default_icon_path/0,
     default_icons_command/2,
     app_name_manifest_line/1,
-    platform_manifest_section/1
+    platform_manifest_section/1,
+    package_config_text/0,
+    parse_package_config_text/1
 ]).
 -include_lib("kernel/include/file.hrl").
 
@@ -23,6 +25,16 @@ do_package(ProtocolVersion) ->
     require_command("gleam"),
     require_command("tar"),
 
+    case has_flag("--write-package-config") of
+        true ->
+            Path = flag("--package-config", "plushie-package.config.toml"),
+            ok = file:write_file(Path, package_config_text()),
+            io:format("Wrote ~s~n", [Path]);
+        false ->
+            package_payload(ProtocolVersion)
+    end.
+
+package_payload(ProtocolVersion) ->
     DistDir = flag("--dist-dir", "dist"),
     PayloadDir = filename:join(DistDir, "payload"),
     ArchiveName = flag("--payload-archive", "payload.tar.zst"),
@@ -37,6 +49,7 @@ do_package(ProtocolVersion) ->
     Target = package_target(),
     HostSdkVersion = host_sdk_version(),
     PlushieRustVersion = plushie_rust_version(),
+    StartConfig = package_start_config(),
     assert_renderer_kind_matches_project(RendererKind),
 
     reset_dir(DistDir),
@@ -63,6 +76,7 @@ do_package(ProtocolVersion) ->
         renderer_kind => RendererKind,
         renderer_source => RendererSource,
         icon_path => IconPath,
+        start_config => StartConfig,
         archive => ArchiveName,
         payload_hash => PayloadHash,
         payload_size => PayloadSize
@@ -71,6 +85,204 @@ do_package(ProtocolVersion) ->
 
     io:format("Wrote ~s~n", [ArchivePath]),
     io:format("Wrote ~s~n", [filename:join(DistDir, "plushie-package.toml")]).
+
+package_start_config() ->
+    case optional_flag("--package-config") of
+        {ok, Path} ->
+            read_package_config(Path);
+        error ->
+            case filelib:is_regular("plushie-package.config.toml") of
+                true -> read_package_config("plushie-package.config.toml");
+                false -> default_start_config()
+            end
+    end.
+
+read_package_config(Path) ->
+    case file:read_file(Path) of
+        {ok, Content} -> parse_package_config_text_bang(Content);
+        {error, Reason} -> fail(["Could not read package config ", Path, ": ", io_lib:format("~p", [Reason])])
+    end.
+
+default_start_config() ->
+    #{
+        working_dir => <<".">>,
+        command => [<<"bin/connect">>],
+        forward_env => default_forward_env()
+    }.
+
+package_config_text() ->
+    Cfg = default_start_config(),
+    to_bin([
+        "# Plushie standalone package config.\n",
+        "# Commit this file and edit it when the packaged app needs a\n",
+        "# different entry point, working directory, or forwarded environment.\n\n",
+        "config_version = 1\n\n",
+        "[start]\n",
+        "# Relative to the extracted app package.\n",
+        "working_dir = \"", maps:get(working_dir, Cfg), "\"\n",
+        "# Structured argv. The first item is the packaged host executable.\n",
+        "command = ", toml_array(maps:get(command, Cfg)), "\n",
+        "# Environment variable names copied from the parent process.\n",
+        "forward_env = [\n",
+        [[<<"  \"">>, toml_string_escape(Name), <<"\",\n">>] || Name <- maps:get(forward_env, Cfg)],
+        "]\n"
+    ]).
+
+parse_package_config_text(Text) ->
+    try
+        Config = parse_package_config_text_bang(Text),
+        {ok, {
+            maps:get(working_dir, Config),
+            maps:get(command, Config),
+            maps:get(forward_env, Config)
+        }}
+    catch
+        throw:{package_error, Message} ->
+            {error, to_bin(Message)}
+    end.
+
+parse_package_config_text_bang(Text) ->
+    Content = to_bin(Text),
+    case re:run(Content, <<"(?m)^\\s*config_version\\s*=\\s*(\\d+)\\s*$">>, [{capture, [1], binary}]) of
+        {match, [<<"1">>]} -> ok;
+        {match, [Version]} -> fail(["Unsupported package config config_version ", Version]);
+        nomatch -> fail("Package config must include config_version = 1")
+    end,
+    Start = section(Content, <<"start">>),
+    Config = #{
+        working_dir => string_field(Start, <<"working_dir">>),
+        command => array_field(Start, <<"command">>),
+        forward_env => array_field(Start, <<"forward_env">>)
+    },
+    validate_start_config(Config),
+    Config.
+
+section(Text, Name) ->
+    Pattern = <<"(?ms)^\\s*\\[", Name/binary, "\\]\\s*$(.*?)(?=^\\s*\\[|\\z)">>,
+    case re:run(Text, Pattern, [{capture, [1], binary}]) of
+        {match, [Body]} -> Body;
+        nomatch -> fail(["Package config must include [", Name, "]"])
+    end.
+
+string_field(Section, Name) ->
+    Value = field_value(Section, Name),
+    case re:run(Value, <<"^\"((?:\\\\.|[^\"\\\\])*)\"$">>, [{capture, [1], binary}]) of
+        {match, [Raw]} -> unescape_toml_string(Raw);
+        nomatch -> fail(["Package config ", Name, " must be a TOML basic string"])
+    end.
+
+array_field(Section, Name) ->
+    Value = field_value(Section, Name),
+    case {binary:first(Value), binary:last(Value)} of
+        {$[, $]} ->
+            Matches = re:run(Value, <<"\"((?:\\\\.|[^\"\\\\])*)\"">>, [global, {capture, [1], binary}]),
+            validate_array_has_only_strings(Value, Name),
+            case Matches of
+                {match, Captures} -> [unescape_toml_string(Raw) || [Raw] <- Captures];
+                nomatch -> []
+            end;
+        _ ->
+            fail(["Package config ", Name, " must be an array of strings"])
+    end.
+
+validate_array_has_only_strings(Value, Name) ->
+    WithoutStrings = re:replace(Value, <<"\"(?:\\\\.|[^\"\\\\])*\"">>, <<>>, [global, {return, binary}]),
+    case re:run(WithoutStrings, <<"^[\\s,\\[\\]]*$">>) of
+        {match, _} -> ok;
+        nomatch -> fail(["Package config ", Name, " must be an array of strings"])
+    end.
+
+field_value(Section, Name) ->
+    Lines = [trim(Line) || Line <- binary:split(Section, <<"\n">>, [global])],
+    collect_field(Lines, <<Name/binary, " =">>).
+
+collect_field([], Name) ->
+    fail(["Package config [start] must include ", Name]);
+collect_field([Line | Rest], Prefix) ->
+    case Line of
+        <<>> -> collect_field(Rest, Prefix);
+        <<"#", _/binary>> -> collect_field(Rest, Prefix);
+        _ ->
+            case binary:match(Line, Prefix) of
+                {0, Size} ->
+                    Value = trim(binary:part(Line, Size, byte_size(Line) - Size)),
+                    case Value of
+                        <<"[", _/binary>> ->
+                            case binary:match(Value, <<"]">>) of
+                                nomatch -> collect_array(Rest, [Value]);
+                                _ -> Value
+                            end;
+                        _ -> Value
+                    end;
+                _ ->
+                    collect_field(Rest, Prefix)
+            end
+    end.
+
+collect_array([], _Parts) ->
+    fail("Package config array is unterminated");
+collect_array([Line | Rest], Parts) ->
+    Trimmed = trim(strip_comment(Line)),
+    Next = Parts ++ [Trimmed],
+    case binary:match(Trimmed, <<"]">>) of
+        nomatch -> collect_array(Rest, Next);
+        _ -> to_bin(lists:join(<<"\n">>, Next))
+    end.
+
+strip_comment(Line) ->
+    hd(binary:split(Line, <<"#">>)).
+
+unescape_toml_string(Value) ->
+    unescape_toml_string(Value, []).
+
+unescape_toml_string(<<>>, Acc) ->
+    to_bin(lists:reverse(Acc));
+unescape_toml_string(<<"\\n", Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<"\n">> | Acc]);
+unescape_toml_string(<<"\\r", Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<"\r">> | Acc]);
+unescape_toml_string(<<"\\t", Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<"\t">> | Acc]);
+unescape_toml_string(<<"\\\"", Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<"\"">> | Acc]);
+unescape_toml_string(<<"\\\\", Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<"\\">> | Acc]);
+unescape_toml_string(<<Char/utf8, Rest/binary>>, Acc) ->
+    unescape_toml_string(Rest, [<<Char/utf8>> | Acc]).
+
+validate_start_config(Config) ->
+    validate_payload_path(<<"start.working_dir">>, maps:get(working_dir, Config)),
+    case maps:get(command, Config) of
+        [Program | Args] ->
+            validate_payload_path(<<"start.command[0]">>, Program),
+            case lists:any(fun(Arg) -> Arg =:= <<>> end, [Program | Args]) of
+                true -> fail("Package config start.command must contain a non-empty argv");
+                false -> ok
+            end;
+        _ ->
+            fail("Package config start.command must contain a non-empty argv")
+    end,
+    lists:foreach(fun validate_forward_env/1, maps:get(forward_env, Config)),
+    ok.
+
+validate_payload_path(Name, Path) ->
+    Parts = filename:split(to_list(Path)),
+    case {Path, filename:pathtype(to_list(Path)), lists:member("..", Parts)} of
+        {<<>>, _, _} -> fail(["Package config ", Name, " must not be empty"]);
+        {_, absolute, _} -> fail(["Package config ", Name, " must be relative to the package"]);
+        {_, _, true} -> fail(["Package config ", Name, " must not contain parent traversal"]);
+        _ -> ok
+    end.
+
+validate_forward_env(Name) ->
+    case {trim(Name), binary:match(Name, <<",">>), binary:match(Name, <<"=">>), Name} of
+        {<<>>, _, _, _} -> fail("Package config start.forward_env contains invalid environment name");
+        {_, {_, _}, _, _} -> fail("Package config start.forward_env contains invalid environment name");
+        {_, _, {_, _}, _} -> fail("Package config start.forward_env contains invalid environment name");
+        {_, _, _, <<"PLUSHIE_BINARY_PATH">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
+        {_, _, _, <<"PLUSHIE_PACKAGE_DIR">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
+        _ -> ok
+    end.
 
 install_renderer(<<"custom">>, RendererPath) ->
     case optional_flag("--renderer-path") of
@@ -366,6 +578,7 @@ tar_supports_zstd() ->
     end.
 
 render_manifest(Values) ->
+    StartConfig = maps:get(start_config, Values),
     [
         "schema_version = 1\n",
         "app_id = \"", maps:get(app_id, Values), "\"\n",
@@ -377,9 +590,9 @@ render_manifest(Values) ->
         "plushie_rust_version = \"", maps:get(plushie_rust_version, Values), "\"\n",
         "protocol_version = ", integer_to_binary(maps:get(protocol_version, Values)), "\n",
         "\n[start]\n",
-        "working_dir = \".\"\n",
-        "command = [\"bin/connect\"]\n",
-        "forward_env = [\"PATH\", \"HOME\", \"LANG\", \"LC_ALL\", \"XDG_RUNTIME_DIR\", \"WAYLAND_DISPLAY\", \"DISPLAY\"]\n\n",
+        "working_dir = \"", toml_string_escape(maps:get(working_dir, StartConfig)), "\"\n",
+        "command = ", toml_array(maps:get(command, StartConfig)), "\n",
+        "forward_env = ", toml_array(maps:get(forward_env, StartConfig)), "\n\n",
         platform_manifest_section(maps:get(icon_path, Values)),
         "[renderer]\n",
         "path = \"bin/plushie-renderer\"\n",
@@ -402,6 +615,24 @@ platform_manifest_section(IconPath) ->
     to_bin([
         "[platform]\n",
         "icon = \"", IconPath, "\"\n\n"
+    ]).
+
+default_forward_env() ->
+    [
+        <<"PATH">>,
+        <<"HOME">>,
+        <<"LANG">>,
+        <<"LC_ALL">>,
+        <<"XDG_RUNTIME_DIR">>,
+        <<"WAYLAND_DISPLAY">>,
+        <<"DISPLAY">>
+    ].
+
+toml_array(Values) ->
+    to_bin([
+        "[",
+        lists:join(<<", ">>, [[<<"\"">>, toml_string_escape(Value), <<"\"">>] || Value <- Values]),
+        "]"
     ]).
 
 package_target() ->

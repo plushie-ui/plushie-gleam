@@ -62,6 +62,53 @@ pub fn app_name_manifest_line_escapes_toml_string_test() {
   |> should.equal("app_name = \"Test \\\"App\\\"\"\n")
 }
 
+pub fn package_config_text_contains_real_start_values_test() {
+  let text = package_config_text()
+
+  text
+  |> string.contains("config_version = 1")
+  |> should.equal(True)
+  text
+  |> string.contains("[start]\n")
+  |> should.equal(True)
+  text
+  |> string.contains("working_dir = \".\"")
+  |> should.equal(True)
+  text
+  |> string.contains("command = [\"bin/connect\"]")
+  |> should.equal(True)
+  text
+  |> string.contains("\"WAYLAND_DISPLAY\"")
+  |> should.equal(True)
+}
+
+pub fn package_config_parser_reads_start_settings_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \"app\"\ncommand = [\"app/bin/connect\", \"--profile\", \"release\"]\nforward_env = [\n  \"PATH\",\n  \"HOME\",\n]\n"
+
+  parse_package_config_text(text)
+  |> should.equal(
+    Ok(#("app", ["app/bin/connect", "--profile", "release"], ["PATH", "HOME"])),
+  )
+}
+
+pub fn package_config_parser_rejects_unsafe_start_settings_test() {
+  parse_package_config_text(
+    "config_version = 1\n\n[start]\nworking_dir = \"../app\"\ncommand = [\"bin/connect\"]\nforward_env = []\n",
+  )
+  |> should.be_error
+
+  parse_package_config_text(
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"/usr/bin/connect\"]\nforward_env = []\n",
+  )
+  |> should.be_error
+
+  parse_package_config_text(
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = [\"PLUSHIE_BINARY_PATH\"]\n",
+  )
+  |> should.be_error
+}
+
 @external(erlang, "plushie_package_ffi", "default_icons_command")
 fn default_icons_command(
   source_path: Result(String, Nil),
@@ -76,3 +123,11 @@ fn platform_manifest_section(icon_path: String) -> String
 
 @external(erlang, "plushie_package_ffi", "app_name_manifest_line")
 fn app_name_manifest_line(app_name: Result(String, Nil)) -> String
+
+@external(erlang, "plushie_package_ffi", "package_config_text")
+fn package_config_text() -> String
+
+@external(erlang, "plushie_package_ffi", "parse_package_config_text")
+fn parse_package_config_text(
+  text: String,
+) -> Result(#(String, List(String), List(String)), String)
