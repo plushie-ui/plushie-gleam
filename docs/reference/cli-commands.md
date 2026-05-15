@@ -167,7 +167,7 @@ default, or to `--wasm-dir` if provided.
 
 ## plushie/download
 
-Downloads a precompiled renderer binary from GitHub releases.
+Downloads the precompiled native tool set from GitHub releases.
 
 ```bash
 gleam run -m plushie/download                       # native binary (default)
@@ -178,9 +178,10 @@ gleam run -m plushie/download -- --bin-file PATH    # override native binary des
 gleam run -m plushie/download -- --wasm-dir PATH    # override WASM output directory
 ```
 
-The binary is platform-specific (OS and architecture) and
-version-matched to the SDK via `plushie_rust_version` in
-`gleam.toml`.
+The release assets are platform-specific (OS and architecture) and
+version-matched to the SDK via `plushie_rust_version` in `gleam.toml`.
+The default native path installs `bin/plushie`, then uses it to sync
+`bin/plushie-renderer` and `bin/plushie-launcher`.
 
 ### Flags
 
@@ -197,7 +198,8 @@ the `artifacts` key in `[plushie]`, defaulting to `bin` only.
 
 ### Destinations
 
-- Native binary: `bin/plushie-renderer` by default.
+- Native tool set: `bin/plushie`, `bin/plushie-renderer`, and
+  `bin/plushie-launcher` by default.
 - WASM tarball: extracted to `priv/wasm/` by default, producing
   `plushie_renderer_wasm.js` and `plushie_renderer_wasm_bg.wasm`.
 
