@@ -3,7 +3,7 @@
 //// The command exports the app with `gleam export erlang-shipment`,
 //// prepares a host-first shared-launcher payload with app icon assets, writes
 //// `plushie-package.toml`, and archives the payload for
-//// `cargo plushie package`.
+//// `bin/plushie package portable` or `bin/plushie package bundle`.
 
 @target(erlang)
 import gleam/io
