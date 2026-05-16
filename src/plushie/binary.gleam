@@ -120,9 +120,6 @@ fn candidate_paths() -> List(String) {
   [
     // Primary: downloaded or built binary in project-root bin/
     download_dir() <> "/" <> name,
-    // Custom builds (plushie-renderer binary from cargo)
-    "_build/dev/plushie-renderer/target/release/plushie-renderer",
-    "_build/prod/plushie-renderer/target/release/plushie-renderer",
     "./" <> name,
     "../plushie-renderer/target/release/" <> name,
     "../plushie-renderer/target/debug/" <> name,
