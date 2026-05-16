@@ -6,9 +6,31 @@ pub fn allows_exact_canonical_vars_test() {
   should.equal(renderer_env.is_allowed("PATH"), True)
   should.equal(renderer_env.is_allowed("HOME"), True)
   should.equal(renderer_env.is_allowed("RUST_LOG"), True)
+  should.equal(renderer_env.is_allowed("RUST_BACKTRACE"), True)
   should.equal(renderer_env.is_allowed("WGPU_BACKEND"), True)
   should.equal(renderer_env.is_allowed("XDG_RUNTIME_DIR"), True)
   should.equal(renderer_env.is_allowed("DBUS_SESSION_BUS_ADDRESS"), True)
+  should.equal(renderer_env.is_allowed("WAYLAND_DISPLAY"), True)
+  should.equal(renderer_env.is_allowed("WAYLAND_SOCKET"), True)
+  should.equal(renderer_env.is_allowed("WINIT_UNIX_BACKEND"), True)
+  should.equal(renderer_env.is_allowed("XDG_DATA_DIRS"), True)
+  should.equal(renderer_env.is_allowed("XDG_DATA_HOME"), True)
+  should.equal(renderer_env.is_allowed("LD_LIBRARY_PATH"), True)
+  should.equal(renderer_env.is_allowed("DYLD_LIBRARY_PATH"), True)
+  should.equal(renderer_env.is_allowed("DYLD_FALLBACK_LIBRARY_PATH"), True)
+  should.equal(renderer_env.is_allowed("LANG"), True)
+  should.equal(renderer_env.is_allowed("LANGUAGE"), True)
+  should.equal(renderer_env.is_allowed("GTK_MODULES"), True)
+  should.equal(renderer_env.is_allowed("NO_AT_BRIDGE"), True)
+  should.equal(renderer_env.is_allowed("USER"), True)
+}
+
+pub fn allows_windows_vars_test() {
+  should.equal(renderer_env.is_allowed("SystemRoot"), True)
+  should.equal(renderer_env.is_allowed("WINDIR"), True)
+  should.equal(renderer_env.is_allowed("PATHEXT"), True)
+  should.equal(renderer_env.is_allowed("TEMP"), True)
+  should.equal(renderer_env.is_allowed("TMP"), True)
 }
 
 pub fn allows_prefix_canonical_vars_test() {

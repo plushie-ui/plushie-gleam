@@ -44,6 +44,8 @@ pub fn default_opts() -> EnvOpts {
 
 /// Exact variable names to forward. Canonical list shared across SDKs.
 ///
+/// Mirrors plushie-rust's runner/env.rs EXACT + PLUSHIE_EXACT lists.
+///
 /// PLUSHIE_NO_CATCH_UNWIND is the only PLUSHIE_* name the renderer subprocess
 /// reads in spawn mode. All other PLUSHIE_* names are host-side configuration,
 /// launcher-set values, or secrets that must not leak across the process
@@ -51,11 +53,24 @@ pub fn default_opts() -> EnvOpts {
 /// PLUSHIE_RUST_SOURCE_PATH). This list is closed; do not add a prefix entry
 /// for PLUSHIE_ or any other broad family.
 const allowed_exact = [
+  // Display servers
   "DISPLAY", "WAYLAND_DISPLAY", "WAYLAND_SOCKET", "WINIT_UNIX_BACKEND",
-  "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_DATA_HOME", "PATH", "LD_LIBRARY_PATH",
-  "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LANG", "LANGUAGE",
-  "DBUS_SESSION_BUS_ADDRESS", "GTK_MODULES", "NO_AT_BRIDGE", "WGPU_BACKEND",
-  "RUST_LOG", "RUST_BACKTRACE", "HOME", "USER", "PLUSHIE_NO_CATCH_UNWIND",
+  "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_DATA_HOME",
+  // PATH / shared library resolution
+  "PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH",
+  // Locale
+  "LANG", "LANGUAGE",
+  // Desktop integration
+  "DBUS_SESSION_BUS_ADDRESS", "GTK_MODULES", "NO_AT_BRIDGE",
+  // Renderer + log controls
+  "WGPU_BACKEND", "RUST_LOG", "RUST_BACKTRACE",
+  // Identity
+  "HOME", "USER",
+  // Windows: required for DLL loader, child process resolution, and tempdir.
+  // Harmless on other platforms (just absent from the host env).
+  "SystemRoot", "WINDIR", "PATHEXT", "TEMP", "TMP",
+  // Plushie: closed set of names the renderer subprocess actually reads.
+  "PLUSHIE_NO_CATCH_UNWIND",
 ]
 
 /// Prefixes: any variable starting with one of these is forwarded.
