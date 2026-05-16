@@ -34,8 +34,6 @@ import gleam/string
 @target(erlang)
 import plushie/app.{type App}
 @target(erlang)
-import plushie/event.{type Event}
-@target(erlang)
 import plushie/node.{type Node, BoolVal, StringVal}
 @target(erlang)
 import plushie/protocol/decode as proto_decode
@@ -52,7 +50,7 @@ import plushie/tree
 
 @target(erlang)
 /// Create a pooled test backend.
-pub fn backend(pool: PoolSubject) -> TestBackend(model) {
+pub fn backend(pool: PoolSubject) -> TestBackend(model, msg) {
   TestBackend(
     start: fn(app) { start_pooled(app, pool) },
     stop: fn(_sess) { stop_pooled(pool) },
@@ -276,7 +274,10 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model) {
 // Internal
 
 @target(erlang)
-fn start_pooled(app: App(model, Event), pool: PoolSubject) -> TestSession(model) {
+fn start_pooled(
+  app: App(model, msg),
+  pool: PoolSubject,
+) -> TestSession(model, msg) {
   // If this test process already owns a session from an earlier test
   // (eunit runs tests within a module in one process), unregister the
   // old session first. The renderer marks sessions as "closing" after
@@ -329,12 +330,12 @@ fn require_pool_session() -> #(PoolSubject, String) {
 
 @target(erlang)
 fn do_interact(
-  sess: TestSession(model),
+  sess: TestSession(model, msg),
   _pool: PoolSubject,
   action: String,
   selector: Option(String),
   payload: Dict(String, node.PropValue),
-) -> TestSession(model) {
+) -> TestSession(model, msg) {
   let #(pool_ref, session_id) = require_pool_session()
   let current_tree = session.current_tree(sess)
   let sel = case selector {
@@ -370,10 +371,10 @@ fn do_interact(
 
 @target(erlang)
 fn interact_loop(
-  sess: TestSession(model),
+  sess: TestSession(model, msg),
   pool_ref: PoolSubject,
   session_id: String,
-) -> TestSession(model) {
+) -> TestSession(model, msg) {
   case receive_interact_message(timeout.scale(5000)) {
     InteractStep(events) -> {
       let new_sess =
@@ -394,11 +395,11 @@ fn interact_loop(
 /// in headless mode. For mock mode it is a no-op update but remains
 /// cheap and keeps behaviour uniform.
 fn apply_events_and_snapshot(
-  sess: TestSession(model),
+  sess: TestSession(model, msg),
   events: List(Dynamic),
   pool_ref: PoolSubject,
   session_id: String,
-) -> TestSession(model) {
+) -> TestSession(model, msg) {
   let new_sess =
     list.fold(events, sess, fn(acc, event_data) {
       case proto_decode.decode_from_dynamic(event_data) {
@@ -478,7 +479,7 @@ fn encode_selector(selector: String) -> Dict(String, node.PropValue) {
 // Tree helpers
 
 @target(erlang)
-fn read_toggle_state(sess: TestSession(model), id: String) -> Bool {
+fn read_toggle_state(sess: TestSession(model, msg), id: String) -> Bool {
   let current_tree = session.current_tree(sess)
   case tree.find(current_tree, id) {
     Some(nd) ->
@@ -497,7 +498,7 @@ fn read_toggle_state(sess: TestSession(model), id: String) -> Bool {
 
 @target(erlang)
 fn read_string_prop_from_tree(
-  sess: TestSession(model),
+  sess: TestSession(model, msg),
   id: String,
   key: String,
 ) -> String {

@@ -4,6 +4,11 @@
 //// reference. Each operation (send_event, click, etc.) returns a new
 //// session with updated state. No processes, no side effects: pure
 //// functional state threading.
+////
+//// The session is parameterized over both `model` and `msg`. Wire
+//// `Event` values fed to `send_event` are mapped to the app's `msg`
+//// via `app.on_event` (or the identity coercion for simple apps where
+//// `msg = Event`) before they reach the app's `update`.
 
 import gleam/dynamic.{type Dynamic}
 import gleam/option
@@ -11,58 +16,80 @@ import plushie/app.{type App}
 import plushie/command.{type Command}
 import plushie/event.{type Event}
 import plushie/node.{type Node}
+import plushie/runtime_core
 import plushie/tree
 import plushie/widget
 
 /// Immutable test session. Each operation returns a new session.
-///
-/// The `msg` type is always `Event` because the testing infrastructure
-/// only works with simple apps (or apps whose on_event maps to Event).
-pub opaque type TestSession(model) {
-  TestSession(app: App(model, Event), model: model, tree: Node)
+pub opaque type TestSession(model, msg) {
+  TestSession(
+    app: App(model, msg),
+    model: model,
+    tree: Node,
+    registry: widget.Registry,
+  )
 }
 
 /// Create a new test session from an app. Calls init, processes
 /// commands, renders and normalizes the initial view.
-pub fn start(app: App(model, Event)) -> TestSession(model) {
+pub fn start(app: App(model, msg)) -> TestSession(model, msg) {
   let init_fn = app.get_init(app)
   let #(model, commands) = init_fn(dynamic.nil())
   let model = process_commands(app, model, commands)
   let tree = render(app, model)
-  TestSession(app:, model:, tree:)
+  let registry = widget.derive_registry(tree)
+  TestSession(app:, model:, tree:, registry:)
 }
 
-/// Dispatch an event through the app's update function.
-/// Processes resulting commands and re-renders the view.
+/// Dispatch an event through the app's update function. The event
+/// first walks the custom-widget handler chain so widget `handle_event`
+/// callbacks can intercept or rewrite it (the same translation the
+/// production runtime performs). The resulting event then passes
+/// through the app's on_event mapper before reaching update.
 pub fn send_event(
-  session: TestSession(model),
+  session: TestSession(model, msg),
   event: Event,
-) -> TestSession(model) {
-  let update_fn = app.get_update(session.app)
-  let #(model, commands) = update_fn(session.model, event)
-  let model = process_commands(session.app, model, commands)
-  let tree = render(session.app, model)
-  TestSession(..session, model:, tree:)
+) -> TestSession(model, msg) {
+  let #(result, new_registry) =
+    widget.dispatch_through_widgets(session.registry, event)
+  case runtime_core.resolve_dispatch(result) {
+    option.None -> rerender(TestSession(..session, registry: new_registry))
+    option.Some(resolved) -> {
+      let msg = runtime_core.map_event(session.app, resolved)
+      let update_fn = app.get_update(session.app)
+      let #(model, commands) = update_fn(session.model, msg)
+      let model = process_commands(session.app, model, commands)
+      let tree = render(session.app, model)
+      let registry = widget.derive_registry(tree)
+      TestSession(..session, model:, tree:, registry:)
+    }
+  }
+}
+
+fn rerender(session: TestSession(model, msg)) -> TestSession(model, msg) {
+  let tree = render(session.app, session.model)
+  let registry = widget.derive_registry(tree)
+  TestSession(..session, tree:, registry:)
 }
 
 /// Return the current model.
-pub fn model(session: TestSession(model)) -> model {
+pub fn model(session: TestSession(model, msg)) -> model {
   session.model
 }
 
 /// Return the current normalized tree.
-pub fn current_tree(session: TestSession(model)) -> Node {
+pub fn current_tree(session: TestSession(model, msg)) -> Node {
   session.tree
 }
 
 /// Return the underlying app (for helpers that need access).
-pub fn get_app(session: TestSession(model)) -> App(model, Event) {
+pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
   session.app
 }
 
 // -- Internal -----------------------------------------------------------------
 
-fn render(app: App(model, Event), model: model) -> Node {
+fn render(app: App(model, msg), model: model) -> Node {
   let view_fn = app.get_view(app)
   let raw = tree.view_list_to_tree(view_fn(model))
   case
@@ -77,17 +104,17 @@ fn render(app: App(model, Event), model: model) -> Node {
 const max_command_depth = 100
 
 fn process_commands(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
-  commands: Command(Event),
+  commands: Command(msg),
 ) -> model {
   do_process(app, model, commands, 0)
 }
 
 fn do_process(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
-  cmd: Command(Event),
+  cmd: Command(msg),
   depth: Int,
 ) -> model {
   case depth > max_command_depth {
@@ -119,9 +146,9 @@ fn do_process(
 }
 
 fn batch_process(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
-  commands: List(Command(Event)),
+  commands: List(Command(msg)),
   depth: Int,
 ) -> model {
   case commands {
@@ -133,45 +160,38 @@ fn batch_process(
   }
 }
 
-/// Dispatch an async result through the app's update function.
-/// For apps with on_event, maps the Event through on_event.
-/// For simple apps (msg = Event), passes the Event directly.
+/// Dispatch an async result through the app's update function via
+/// the on_event mapper.
 fn dispatch_async_result(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
   tag: String,
   result: Result(Dynamic, Dynamic),
   depth: Int,
 ) -> model {
   let raw_event = event.Async(event.AsyncEvent(tag:, result:))
-  let msg = case app.get_on_event(app) {
-    option.Some(on_event) -> on_event(raw_event)
-    option.None -> raw_event
-  }
+  let msg = runtime_core.map_event(app, raw_event)
   let update_fn = app.get_update(app)
   let #(new_model, new_commands) = update_fn(model, msg)
   do_process(app, new_model, new_commands, depth + 1)
 }
 
 fn dispatch_stream_value(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
   tag: String,
   value: Dynamic,
   depth: Int,
 ) -> model {
   let raw_event = event.Stream(event.StreamEvent(tag:, value:))
-  let msg = case app.get_on_event(app) {
-    option.Some(on_event) -> on_event(raw_event)
-    option.None -> raw_event
-  }
+  let msg = runtime_core.map_event(app, raw_event)
   let update_fn = app.get_update(app)
   let #(new_model, new_commands) = update_fn(model, msg)
   do_process(app, new_model, new_commands, depth + 1)
 }
 
 fn drain_stream_values(
-  app: App(model, Event),
+  app: App(model, msg),
   model: model,
   tag: String,
   values: List(Dynamic),

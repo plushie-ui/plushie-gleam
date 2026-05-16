@@ -27,8 +27,6 @@ import gleam/option.{type Option, None, Some}
 @target(erlang)
 import plushie/app.{type App}
 @target(erlang)
-import plushie/event.{type Event}
-@target(erlang)
 import plushie/node
 @target(erlang)
 import plushie/platform
@@ -60,13 +58,13 @@ pub fn default_opts() -> WindowedOpts {
 
 @target(erlang)
 /// Create a windowed test backend with default options.
-pub fn backend() -> TestBackend(model) {
+pub fn backend() -> TestBackend(model, msg) {
   backend_with_opts(default_opts())
 }
 
 @target(erlang)
 /// Create a windowed test backend with custom options.
-pub fn backend_with_opts(opts: WindowedOpts) -> TestBackend(model) {
+pub fn backend_with_opts(opts: WindowedOpts) -> TestBackend(model, msg) {
   let args = case opts.format {
     protocol.Json -> ["--json"]
     protocol.Msgpack -> []
@@ -193,9 +191,9 @@ pub fn backend_with_opts(opts: WindowedOpts) -> TestBackend(model) {
 
 @target(erlang)
 fn start_windowed(
-  app: App(model, Event),
+  app: App(model, msg),
   config: renderer.RendererConfig,
-) -> TestSession(model) {
+) -> TestSession(model, msg) {
   // Require a display server
   case platform.get_env("DISPLAY"), platform.get_env("WAYLAND_DISPLAY") {
     Error(_), Error(_) ->

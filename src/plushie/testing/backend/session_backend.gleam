@@ -24,7 +24,7 @@ import plushie/testing/session
 ///
 /// All operations run in-memory without a renderer. Widget
 /// interactions are simulated by constructing events directly.
-pub fn backend() -> TestBackend(model) {
+pub fn backend() -> TestBackend(model, msg) {
   TestBackend(
     start: fn(app) { session.start(app) },
     stop: fn(_sess) { Nil },

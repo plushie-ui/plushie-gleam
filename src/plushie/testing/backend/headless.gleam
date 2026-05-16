@@ -18,8 +18,6 @@ import gleam/option.{type Option, None, Some}
 @target(erlang)
 import plushie/app.{type App}
 @target(erlang)
-import plushie/event.{type Event}
-@target(erlang)
 import plushie/node
 @target(erlang)
 import plushie/protocol
@@ -49,13 +47,13 @@ pub fn default_opts() -> HeadlessOpts {
 
 @target(erlang)
 /// Create a headless test backend with default options.
-pub fn backend() -> TestBackend(model) {
+pub fn backend() -> TestBackend(model, msg) {
   backend_with_opts(default_opts())
 }
 
 @target(erlang)
 /// Create a headless test backend with custom options.
-pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
+pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model, msg) {
   let args = case opts.format {
     protocol.Json -> ["--headless", "--json"]
     protocol.Msgpack -> ["--headless"]
@@ -179,9 +177,9 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model) {
 
 @target(erlang)
 fn start_headless(
-  app: App(model, Event),
+  app: App(model, msg),
   config: renderer.RendererConfig,
-) -> TestSession(model) {
+) -> TestSession(model, msg) {
   let assert Ok(subj) = renderer.start(app, config)
   put_renderer(subj)
   session.start(app)

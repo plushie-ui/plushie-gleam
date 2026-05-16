@@ -28,7 +28,7 @@ pub type Failure {
 /// Returns Ok(Nil) on success or Error(failures).
 pub fn run(
   script_val: Script,
-  session: TestSession(model),
+  session: TestSession(model, msg),
 ) -> Result(Nil, List(Failure)) {
   let result =
     list.index_fold(
@@ -57,9 +57,9 @@ pub fn run(
 }
 
 fn execute(
-  session: TestSession(model),
+  session: TestSession(model, msg),
   instruction: Instruction,
-) -> Result(TestSession(model), String) {
+) -> Result(TestSession(model, msg), String) {
   case instruction {
     Click(selector) -> {
       let target = resolve_event_target(session.current_tree(session), selector)

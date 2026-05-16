@@ -67,6 +67,8 @@ import plushie/renderer_env
 @target(erlang)
 import plushie/renderer_port
 @target(erlang)
+import plushie/runtime_core
+@target(erlang)
 import plushie/testing/command_processor
 @target(erlang)
 import plushie/testing/element.{type Element}
@@ -121,11 +123,11 @@ type PendingEntry {
 
 @target(erlang)
 /// Internal actor state.
-type RendererState(model) {
+type RendererState(model, msg) {
   RendererState(
     port: Port,
     format: protocol.Format,
-    app: App(model, Event),
+    app: App(model, msg),
     model: model,
     tree: Node,
     pending: Dict(String, PendingEntry),
@@ -188,7 +190,7 @@ pub type RendererReply {
 @target(erlang)
 /// Start a renderer actor with the given app and config.
 pub fn start(
-  app: App(model, Event),
+  app: App(model, msg),
   config: RendererConfig,
 ) -> Result(Subject(RendererMessage), actor.StartError) {
   actor.new_with_initialiser(timeout.scale(10_000), fn(subject) {
@@ -525,7 +527,7 @@ fn interact(
 @target(erlang)
 fn init_renderer(
   subject: Subject(RendererMessage),
-  app: App(model, Event),
+  app: App(model, msg),
   config: RendererConfig,
 ) {
   let renderer_path = case config.renderer_path {
@@ -603,9 +605,9 @@ fn init_renderer(
 
 @target(erlang)
 fn handle_message(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   msg: RendererMessage,
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   case msg {
     CallFind(selector:, reply:) -> handle_find(state, selector, reply)
     CallTree(reply:) -> handle_tree_call(state, reply)
@@ -630,10 +632,10 @@ fn handle_message(
 
 @target(erlang)
 fn handle_find(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   selector: String,
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
   let sel = encode_selector(selector, state.tree)
 
@@ -655,9 +657,9 @@ fn handle_find(
 
 @target(erlang)
 fn handle_tree_call(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
 
   let msg =
@@ -678,12 +680,12 @@ fn handle_tree_call(
 
 @target(erlang)
 fn handle_interact(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   action: String,
   selector: Option(String),
   payload: Dict(String, String),
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
   let sel = case selector {
     Some(s) -> encode_selector(s, state.tree)
@@ -714,10 +716,10 @@ fn handle_interact(
 
 @target(erlang)
 fn handle_tree_hash(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   name: String,
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
 
   let msg =
@@ -737,10 +739,10 @@ fn handle_tree_hash(
 
 @target(erlang)
 fn handle_screenshot(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   name: String,
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
 
   let fields = [
@@ -768,9 +770,9 @@ fn handle_screenshot(
 
 @target(erlang)
 fn handle_reset(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   reply: Subject(RendererReply),
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let #(req_id, state) = next_id(state)
 
   let msg =
@@ -817,9 +819,9 @@ fn handle_reset(
 
 @target(erlang)
 fn handle_port_data(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   raw: Dynamic,
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   case dyn_decode.run(raw, dyn_decode.bit_array) {
     Ok(bytes) -> {
       let new_state = dispatch_wire(state, bytes)
@@ -831,9 +833,9 @@ fn handle_port_data(
 
 @target(erlang)
 fn handle_line_data(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   line_data: renderer_port.LineData,
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   case line_data {
     renderer_port.Eol(data:) -> {
       let new_state = dispatch_wire(state, data)
@@ -847,9 +849,9 @@ fn handle_line_data(
 
 @target(erlang)
 fn handle_port_exit(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   status: Dynamic,
-) -> actor.Next(RendererState(model), RendererMessage) {
+) -> actor.Next(RendererState(model, msg), RendererMessage) {
   let exit_code = case dyn_decode.run(status, dyn_decode.int) {
     Ok(code) -> code
     Error(_) -> 1
@@ -873,9 +875,9 @@ fn handle_port_exit(
 @target(erlang)
 /// Deserialize wire bytes and dispatch based on message type.
 fn dispatch_wire(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   bytes: BitArray,
-) -> RendererState(model) {
+) -> RendererState(model, msg) {
   case deserialize_wire_message(bytes, state.format) {
     Ok(raw_map) -> dispatch_raw(state, raw_map)
     Error(_) -> state
@@ -900,9 +902,9 @@ fn deserialize_wire_message(
 @target(erlang)
 /// Route a deserialized wire message by its "type" field.
 fn dispatch_raw(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   raw: Dynamic,
-) -> RendererState(model) {
+) -> RendererState(model, msg) {
   let msg_type = dyn_string_field(raw, "type", "")
   let req_id = dyn_string_field(raw, "id", "")
 
@@ -931,11 +933,11 @@ fn dispatch_raw(
 
 @target(erlang)
 fn handle_response(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   req_id: String,
   raw: Dynamic,
   msg_type: String,
-) -> RendererState(model) {
+) -> RendererState(model, msg) {
   case dict.get(state.pending, req_id) {
     Error(_) -> state
     Ok(entry) -> {
@@ -990,9 +992,9 @@ fn handle_response(
 
 @target(erlang)
 fn dispatch_interact_events(
-  state: RendererState(model),
+  state: RendererState(model, msg),
   raw: Dynamic,
-) -> RendererState(model) {
+) -> RendererState(model, msg) {
   let events = dyn_list_field(raw, "events")
   list.fold(events, state, fn(acc, event_data) {
     case proto_decode.decode_from_dynamic(event_data) {
@@ -1004,9 +1006,13 @@ fn dispatch_interact_events(
 
 @target(erlang)
 /// Run the Elm loop: update -> process commands -> view -> snapshot.
-fn run_update(state: RendererState(model), event: Event) -> RendererState(model) {
+fn run_update(
+  state: RendererState(model, msg),
+  event: Event,
+) -> RendererState(model, msg) {
+  let msg = runtime_core.map_event(state.app, event)
   let update_fn = app.get_update(state.app)
-  let #(new_model, commands) = update_fn(state.model, event)
+  let #(new_model, commands) = update_fn(state.model, msg)
   let #(model, _events) =
     command_processor.process_commands(state.app, new_model, commands, None)
   let view_fn = app.get_view(state.app)
@@ -1081,7 +1087,9 @@ fn resolve_local_id(nd: Node, target_id: String) -> Option(String) {
 // ---------------------------------------------------------------------------
 
 @target(erlang)
-fn next_id(state: RendererState(model)) -> #(String, RendererState(model)) {
+fn next_id(
+  state: RendererState(model, msg),
+) -> #(String, RendererState(model, msg)) {
   let id = "req_" <> int.to_string(state.next_id)
   #(id, RendererState(..state, next_id: state.next_id + 1))
 }

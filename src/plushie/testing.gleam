@@ -56,8 +56,11 @@ import plushie/testing/session_pool
 ///
 /// Created by `start`, threaded through all test operations.
 /// The backend is resolved once at startup, not on every call.
-pub opaque type TestContext(model) {
-  TestContext(session: TestSession(model), backend: TestBackend(model))
+pub opaque type TestContext(model, msg) {
+  TestContext(
+    session: TestSession(model, msg),
+    backend: TestBackend(model, msg),
+  )
 }
 
 // -- Session lifecycle -------------------------------------------------------
@@ -66,120 +69,141 @@ pub opaque type TestContext(model) {
 ///
 /// On BEAM, requires the plushie-renderer binary (panics with
 /// setup instructions if not found). On JS, runs in-memory.
-pub fn start(app: App(model, Event)) -> TestContext(model) {
+pub fn start(app: App(model, msg)) -> TestContext(model, msg) {
   let be = resolve_backend()
   let session = be.start(app)
   TestContext(session:, backend: be)
 }
 
 /// Stop the test context and release resources.
-pub fn stop(ctx: TestContext(model)) -> Nil {
+pub fn stop(ctx: TestContext(model, msg)) -> Nil {
   ctx.backend.stop(ctx.session)
 }
 
 /// Return the current model.
-pub fn model(ctx: TestContext(model)) -> model {
+pub fn model(ctx: TestContext(model, msg)) -> model {
   ctx.backend.model(ctx.session)
 }
 
 /// Return the current normalized tree.
-pub fn tree(ctx: TestContext(model)) -> Node {
+pub fn tree(ctx: TestContext(model, msg)) -> Node {
   ctx.backend.tree(ctx.session)
 }
 
 /// Dispatch a raw event through the update cycle.
-pub fn send_event(ctx: TestContext(model), event: Event) -> TestContext(model) {
+pub fn send_event(
+  ctx: TestContext(model, msg),
+  event: Event,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.send_event(ctx.session, event))
 }
 
 // -- Interaction helpers -----------------------------------------------------
 
 /// Simulate a click on a widget by ID.
-pub fn click(ctx: TestContext(model), id: String) -> TestContext(model) {
+pub fn click(
+  ctx: TestContext(model, msg),
+  id: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.click(ctx.session, id))
 }
 
 /// Simulate text input on a widget by ID.
 pub fn type_text(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   text: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.type_text(ctx.session, id, text))
 }
 
 /// Simulate a checkbox/toggler toggle by ID.
-pub fn toggle(ctx: TestContext(model), id: String) -> TestContext(model) {
+pub fn toggle(
+  ctx: TestContext(model, msg),
+  id: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.toggle(ctx.session, id))
 }
 
 /// Simulate form submission on a widget by ID.
-pub fn submit(ctx: TestContext(model), id: String) -> TestContext(model) {
+pub fn submit(
+  ctx: TestContext(model, msg),
+  id: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.submit(ctx.session, id))
 }
 
 /// Simulate a slider change by ID.
 pub fn slide(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   value: Float,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.slide(ctx.session, id, value))
 }
 
 /// Simulate a key press. Key string uses PascalCase wire format
 /// (e.g., "ArrowRight", "Escape", "Tab") with optional modifier
 /// prefixes ("ctrl+s", "shift+Tab").
-pub fn press_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+pub fn press_key(
+  ctx: TestContext(model, msg),
+  key: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.press_key(ctx.session, key))
 }
 
 /// Simulate a key release.
-pub fn release_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+pub fn release_key(
+  ctx: TestContext(model, msg),
+  key: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.release_key(ctx.session, key))
 }
 
 /// Simulate a key press and release.
-pub fn type_key(ctx: TestContext(model), key: String) -> TestContext(model) {
+pub fn type_key(
+  ctx: TestContext(model, msg),
+  key: String,
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.type_key(ctx.session, key))
 }
 
 /// Simulate a mouse press on a canvas widget at (x, y) coordinates.
 pub fn canvas_press(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   x: Float,
   y: Float,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.canvas_press(ctx.session, id, x, y))
 }
 
 /// Simulate pasting text into a widget by ID.
 pub fn paste(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   text: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.paste(ctx.session, id, text))
 }
 
 /// Trigger sort on a table widget by ID and column name.
 pub fn sort(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   column: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.sort(ctx.session, id, column))
 }
 
 /// Simulate a touch press on a canvas widget at (x, y) with a finger index.
 pub fn canvas_touch_press(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   x: Float,
   y: Float,
   finger: Int,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(
     ..ctx,
     session: ctx.backend.canvas_touch_press(ctx.session, id, x, y, finger),
@@ -188,12 +212,12 @@ pub fn canvas_touch_press(
 
 /// Simulate a touch release on a canvas widget at (x, y) with a finger index.
 pub fn canvas_touch_release(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   x: Float,
   y: Float,
   finger: Int,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(
     ..ctx,
     session: ctx.backend.canvas_touch_release(ctx.session, id, x, y, finger),
@@ -202,12 +226,12 @@ pub fn canvas_touch_release(
 
 /// Simulate a touch move on a canvas widget at (x, y) with a finger index.
 pub fn canvas_touch_move(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   x: Float,
   y: Float,
   finger: Int,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(
     ..ctx,
     session: ctx.backend.canvas_touch_move(ctx.session, id, x, y, finger),
@@ -216,10 +240,10 @@ pub fn canvas_touch_move(
 
 /// Simulate selection on a widget by ID.
 pub fn select(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   id: String,
   value: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   TestContext(..ctx, session: ctx.backend.select(ctx.session, id, value))
 }
 
@@ -233,7 +257,7 @@ pub fn select(
 ///
 /// Plain IDs delegate to the backend's find function (which may
 /// query the renderer). Semantic selectors search the tree directly.
-pub fn find(ctx: TestContext(model), selector: String) -> Option(Element) {
+pub fn find(ctx: TestContext(model, msg), selector: String) -> Option(Element) {
   let parsed = backend.parse_selector(selector)
   case parsed {
     // ID selectors delegate to the backend for renderer-backed find
@@ -253,7 +277,10 @@ pub fn find(ctx: TestContext(model), selector: String) -> Option(Element) {
 /// testing.find_by(ctx, backend.ByText("Save"))
 /// testing.find_by(ctx, backend.Focused)
 /// ```
-pub fn find_by(ctx: TestContext(model), selector: Selector) -> Option(Element) {
+pub fn find_by(
+  ctx: TestContext(model, msg),
+  selector: Selector,
+) -> Option(Element) {
   let tree = ctx.backend.tree(ctx.session)
   find_in_tree(tree, selector)
 }
@@ -372,9 +399,9 @@ pub fn element_children(el: Element) -> List(Element) {
 
 /// Assert that an element with the given selector exists.
 pub fn assert_exists(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   selector: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   case find(ctx, selector) {
     option.Some(_) -> ctx
     option.None ->
@@ -386,9 +413,9 @@ pub fn assert_exists(
 
 /// Assert that no element with the given selector exists.
 pub fn assert_not_exists(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   selector: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   case find(ctx, selector) {
     option.None -> ctx
     option.Some(_) ->
@@ -400,10 +427,10 @@ pub fn assert_not_exists(
 
 /// Assert that an element's text matches the expected value.
 pub fn assert_text(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   selector: String,
   expected: String,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   case find(ctx, selector) {
     option.None ->
       panic as {
@@ -446,7 +473,7 @@ pub fn assert_text(
 /// normalized `a11y` prop so tests see what assistive technology will
 /// see. Panics if the selector doesn't match any widget.
 pub fn resolved_a11y(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   selector: String,
 ) -> dict.Dict(String, PropValue) {
   case find(ctx, selector) {
@@ -461,10 +488,10 @@ pub fn resolved_a11y(
 /// (placeholder -> description, alt -> label) compose with the
 /// author's explicit overrides.
 pub fn assert_a11y(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   selector: String,
   expected: List(#(String, PropValue)),
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   let actual = resolved_a11y(ctx, selector)
   list.each(expected, fn(pair) {
     let #(key, want) = pair
@@ -489,23 +516,23 @@ pub fn assert_a11y(
 /// backends, the renderer generates its own animation frames and this
 /// function has no effect.
 pub fn advance_frame(
-  ctx: TestContext(model),
+  ctx: TestContext(model, msg),
   timestamp: Int,
-) -> TestContext(model) {
+) -> TestContext(model, msg) {
   send_event(ctx, event.System(event.AnimationFrame(timestamp:)))
 }
 
 /// Get diagnostic events from the test context.
 /// This is a placeholder that returns an empty list; it will be
 /// expanded when runtime telemetry diagnostic interception is added.
-pub fn diagnostics(_ctx: TestContext(model)) -> List(String) {
+pub fn diagnostics(_ctx: TestContext(model, msg)) -> List(String) {
   []
 }
 
 // -- Backend resolution (target-specific) ------------------------------------
 
 @target(erlang)
-fn resolve_backend() -> TestBackend(model) {
+fn resolve_backend() -> TestBackend(model, msg) {
   case platform.get_env("PLUSHIE_TEST_BACKEND") {
     Ok("headless") -> get_or_start_pooled(session_pool.Headless)
     _ -> get_or_start_pooled(session_pool.Mock)
@@ -513,7 +540,7 @@ fn resolve_backend() -> TestBackend(model) {
 }
 
 @target(erlang)
-fn get_or_start_pooled(mode: session_pool.PoolMode) -> TestBackend(model) {
+fn get_or_start_pooled(mode: session_pool.PoolMode) -> TestBackend(model, msg) {
   case get_pool() {
     Ok(pool_subject) -> mock_backend.backend(pool_subject)
     Error(_) -> {
@@ -535,6 +562,6 @@ fn get_pool() -> Result(session_pool.PoolSubject, Nil)
 fn put_pool(pool: session_pool.PoolSubject) -> Nil
 
 @target(javascript)
-fn resolve_backend() -> TestBackend(model) {
+fn resolve_backend() -> TestBackend(model, msg) {
   session_backend.backend()
 }
