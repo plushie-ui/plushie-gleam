@@ -289,7 +289,18 @@ collect_array([Line | Rest], Parts) ->
     end.
 
 strip_comment(Line) ->
-    hd(binary:split(Line, <<"#">>)).
+    strip_comment(Line, false, <<>>).
+
+strip_comment(<<>>, _InQuote, Acc) ->
+    Acc;
+strip_comment(<<"\\\"", Rest/binary>>, true, Acc) ->
+    strip_comment(Rest, true, <<Acc/binary, "\\\"">>);
+strip_comment(<<"\"", Rest/binary>>, InQuote, Acc) ->
+    strip_comment(Rest, not InQuote, <<Acc/binary, "\"">>);
+strip_comment(<<"#", _/binary>>, false, Acc) ->
+    Acc;
+strip_comment(<<Char/utf8, Rest/binary>>, InQuote, Acc) ->
+    strip_comment(Rest, InQuote, <<Acc/binary, Char/utf8>>).
 
 unescape_toml_string(Value) ->
     unescape_toml_string(Value, []).
