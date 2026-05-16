@@ -24,7 +24,7 @@ import gleam/io
 import plushie
 import plushie/app
 import plushie/command
-import plushie/event.{type Event, Click, CustomWidget, EventTarget, Widget}
+import plushie/event.{type Event, CustomWidget, EventTarget, Widget, click_route}
 import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
@@ -91,9 +91,7 @@ fn on_event(event: Event) -> Msg {
         Ok(v) -> BrightnessChanged(v)
         Error(_) -> Ignore
       }
-    Widget(Click(target: EventTarget(id: "cut", ..))) -> CutPower
-    Widget(Click(target: EventTarget(id: "boost", ..))) -> Boost
-    _ -> Ignore
+    _ -> click_route(event, [#("cut", CutPower), #("boost", Boost)], Ignore)
   }
 }
 
