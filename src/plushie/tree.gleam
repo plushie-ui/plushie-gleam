@@ -20,6 +20,7 @@ import plushie/patch.{
   type PatchOp, InsertChild, RemoveChild, ReplaceNode, UpdateProps,
 }
 import plushie/platform
+import plushie/telemetry
 import plushie/widget
 
 /// Cache of memo-ized subtrees from the previous render cycle. Maps
@@ -306,6 +307,7 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
                 ))
                   if prev_dep == dep
                 -> {
+                  emit_widget_cache_telemetry("hit", scoped_id)
                   let new_cache =
                     dict.insert(
                       ctx.new_cache,
@@ -331,7 +333,10 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
                     ),
                   )
                 }
-                _ -> normalize_placeholder(node, scoped_id, ctx, Some(dep))
+                _ -> {
+                  emit_widget_cache_telemetry("miss", scoped_id)
+                  normalize_placeholder(node, scoped_id, ctx, Some(dep))
+                }
               }
             None -> normalize_placeholder(node, scoped_id, ctx, None)
           }
@@ -1824,4 +1829,18 @@ fn do_find_all(
 /// Return all node IDs in depth-first order.
 pub fn ids(tree: Node) -> List(String) {
   [tree.id, ..list.flat_map(tree.children, ids)]
+}
+
+// -- Telemetry helpers --------------------------------------------------------
+
+/// Emit a `["plushie", "widget_cache", outcome]` telemetry event so
+/// observers can count cache hits and misses without re-deriving them
+/// from spans. Measurements carry a count of 1; metadata carries the
+/// widget's scoped id for per-widget breakdowns.
+fn emit_widget_cache_telemetry(outcome: String, scoped_id: String) -> Nil {
+  telemetry.execute(
+    ["plushie", "widget_cache", outcome],
+    dict.from_list([#("count", dynamic.int(1))]),
+    dict.from_list([#("id", dynamic.string(scoped_id))]),
+  )
 }
