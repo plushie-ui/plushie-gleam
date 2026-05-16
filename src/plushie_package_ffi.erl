@@ -38,6 +38,7 @@ do_package(ProtocolVersion) ->
 
 package_payload(ProtocolVersion) ->
     DistDir = flag("--dist-dir", "dist"),
+    warn_if_not_gitignored(DistDir),
     PayloadDir = filename:join(DistDir, "payload"),
     RendererPath = filename:join([PayloadDir, "bin", "plushie-renderer"]),
     RendererKind = flag("--renderer-kind", "stock"),
@@ -168,6 +169,12 @@ package_config_text() ->
         "  \"WAYLAND_DISPLAY\",\n",
         "  \"DISPLAY\",\n",
         "]\n\n",
+        "# [assets]\n",
+        "# # Project-relative directory copied verbatim into the payload root\n",
+        "# # during package assembly. When this section is absent, a directory\n",
+        "# # named `package_assets/` next to this config file is used by\n",
+        "# # convention if it exists.\n",
+        "# dir = \"package_assets\"\n\n",
         "# Optional platform metadata passed through to the launcher manifest.\n",
         "# Uncomment and fill in any fields you need.\n",
         "# [platform]\n",
@@ -754,3 +761,17 @@ to_list(Value) when is_list(Value) -> Value.
 
 fail(Message) ->
     throw({package_error, to_bin(Message)}).
+
+warn_if_not_gitignored(Path) ->
+    case plushie_gitignore_ffi:status(to_bin(Path)) of
+        not_ignored ->
+            PathStr = to_list(Path),
+            io:format(standard_error,
+                "warning: ~s/ is not in .gitignore.~n"
+                "  Recommended: add the following line so generated artifacts don't end~n"
+                "  up committed:~n~n"
+                "      /~s/~n",
+                [PathStr, PathStr]);
+        _ ->
+            ok
+    end.

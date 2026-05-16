@@ -87,6 +87,22 @@ pub fn package_config_text_documents_windows_cmd_convention_test() {
   |> should.equal(True)
 }
 
+pub fn package_config_text_documents_commented_assets_block_test() {
+  let text = package_config_text()
+
+  text
+  |> string.contains("# [assets]")
+  |> should.equal(True)
+  text
+  |> string.contains("# dir = \"package_assets\"")
+  |> should.equal(True)
+  text
+  |> string.contains(
+    "# # Project-relative directory copied verbatim into the payload root",
+  )
+  |> should.equal(True)
+}
+
 pub fn package_config_text_documents_platform_fields_test() {
   let text = package_config_text()
 

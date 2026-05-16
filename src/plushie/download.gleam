@@ -26,6 +26,8 @@ import plushie/binary
 @target(erlang)
 import plushie/config
 @target(erlang)
+import plushie/gitignore_warning
+@target(erlang)
 import plushie/platform
 
 @target(erlang)
@@ -87,6 +89,8 @@ fn download_bin(
     Ok(path) -> path
     Error(_) -> binary.download_dir() <> "/" <> binary.download_name()
   }
+
+  gitignore_warning.warn_if_not_gitignored(dirname(dest_path))
 
   case bin_file_override {
     Error(_) -> sync_renderer_with_tool(rust_version, force)
@@ -264,6 +268,8 @@ fn download_wasm(
     Error(_) -> "priv/wasm"
   }
   let tarball_path = extract_dir <> "/" <> wasm_archive
+
+  gitignore_warning.warn_if_not_gitignored(extract_dir)
 
   let js_path = extract_dir <> "/plushie_renderer_wasm.js"
   let wasm_path = extract_dir <> "/plushie_renderer_wasm_bg.wasm"
