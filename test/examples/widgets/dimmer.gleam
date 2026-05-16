@@ -22,7 +22,7 @@ import plushie/event.{type Event, LeftButton, Press, Widget}
 import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/widget.{
-  type EventAction, type WidgetDef, Consumed, WidgetDef, emit_float,
+  type EventAction, type WidgetDef, Ignored, WidgetDef, emit_float,
 }
 import plushie/widget/canvas
 
@@ -57,7 +57,7 @@ fn handle_event(event: Event, state: Nil) -> #(EventAction, Nil) {
       let new_value = clamp(1.0 -. y /. height)
       #(emit_float("change", new_value), state)
     }
-    _ -> #(Consumed, state)
+    _ -> #(Ignored, state)
   }
 }
 

@@ -89,6 +89,13 @@ pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
 
 // -- Internal -----------------------------------------------------------------
 
+// Widget placeholders are re-initialized from `empty_registry()` on
+// every render, so per-widget state across cycles is recovered from
+// the tree's meta payload via `derive_registry` (in `send_event`)
+// rather than threaded through here. Sessions running entirely in
+// the pure JS path therefore see widgets reset on every render; the
+// BEAM pool backend persists state through `derive_registry` between
+// events the same way the production runtime does.
 fn render(app: App(model, msg), model: model) -> Node {
   let view_fn = app.get_view(app)
   let raw = tree.view_list_to_tree(view_fn(model))

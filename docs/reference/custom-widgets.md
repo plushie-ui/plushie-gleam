@@ -104,6 +104,11 @@ payload: `widget.decode_string(data)`, `widget.decode_float`,
 `Result(value, List(decode.DecodeError))` for the same single-value
 cases. Use them for the common `emit_*`/`decode_*` pairing.
 
+There is no `decode_none`. `emit_none` exists to signal "this kind
+of event happened, payload not relevant"; the matching receiver
+side just ignores `data`. The `kind` string carries all the
+information.
+
 ### Rendering a composite widget
 
 Build a node from a `WidgetDef` with `widget.build(def, id, props)`.
