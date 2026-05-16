@@ -35,6 +35,38 @@ constructor. Apps built with `app.simple` use `Event` as the
 message type directly; apps built with `app.application` map
 `Event` through an `on_event` function to a custom `msg` type.
 
+## Choosing between `app.simple` and `app.application`
+
+`app.simple` is the default. `update` receives `Event` values directly
+and pattern-matches on them. Use it for small apps, tutorials, and
+anywhere the event set is compact.
+
+`app.application` adds an `on_event` function that sits at the wire
+boundary and converts each `Event` to a custom `Msg` type before
+`update` sees it. The signature:
+
+```gleam
+fn on_event(event: Event) -> Msg
+```
+
+This is the only place in the app that pattern-matches on string widget
+IDs or decodes `Dynamic` payloads. Once an event crosses the boundary,
+`update` works in typed, compiler-checked `Msg` terms.
+
+Use `app.application` when:
+
+- `update` is growing into a long list of string-ID matches rather than
+  domain logic.
+- Your app uses custom canvas widgets that emit `CustomWidget` events
+  with `Dynamic` payloads you want decoded once at the boundary.
+- You want the compiler to enforce exhaustiveness on your message type
+  across all branches of `update`.
+
+A full working example is at
+[`test/examples/dimmer.gleam`](../guides/05-events.md#typed-messages-with-appapplication),
+with the `on_event` pattern shown in the
+[Events guide](../guides/05-events.md#typed-messages-with-appapplication).
+
 ## Event taxonomy
 
 | Category | Outer variant | Inner constructor(s) | Source |

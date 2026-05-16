@@ -356,6 +356,75 @@ The event log is your best teacher from here on. Every new widget you
 encounter produces events, and the log shows you their shape without
 having to check the reference.
 
+## Typed messages with `app.application`
+
+`app.simple` delivers raw `Event` values to `update`, so every arm of
+the `case` pattern-matches on string widget IDs. That is fine for small
+apps. As apps grow, string IDs leak into unrelated parts of the code and
+the event match becomes a long, hard-to-read list.
+
+`app.application` adds a single `on_event` boundary that maps wire
+`Event` values to a custom `Msg` type you define. `update` then works
+entirely in your app's vocabulary, with no string IDs in sight:
+
+```gleam
+pub type Msg {
+  BrightnessChanged(Float)
+  CutPower
+  Boost
+  Ignore
+}
+
+fn on_event(event: Event) -> Msg {
+  case event {
+    Widget(CustomWidget(kind: "change", target: EventTarget(id: "dimmer", ..), data: data, ..)) ->
+      case decode.run(data, decode.float) {
+        Ok(v) -> BrightnessChanged(v)
+        Error(_) -> Ignore
+      }
+    Widget(Click(target: EventTarget(id: "cut", ..))) -> CutPower
+    Widget(Click(target: EventTarget(id: "boost", ..))) -> Boost
+    _ -> Ignore
+  }
+}
+
+fn update(model: Model, msg: Msg) -> #(Model, Command(Msg)) {
+  case msg {
+    BrightnessChanged(v) -> #(Model(brightness: v), command.none())
+    CutPower -> #(Model(brightness: 0.0), command.none())
+    Boost -> #(Model(brightness: model.brightness +. 0.1), command.none())
+    Ignore -> #(model, command.none())
+  }
+}
+
+pub fn app() -> app.App(Model, Msg) {
+  app.application(init, update, view, on_event)
+}
+```
+
+The value proposition: `on_event` is the only place that knows widget
+IDs as strings. Once an event crosses that boundary it is a typed
+`Msg`, and the compiler checks every branch of `update` exhaustively.
+Adding a new message variant means adding one clause in `on_event` and
+one in `update`. Nothing else changes.
+
+When to reach for `app.application`:
+
+- Your app handles more than a handful of distinct event sources.
+- You want `update` to read as domain logic rather than UI wiring.
+- You use custom canvas widgets that emit `CustomWidget` events and
+  want their payloads decoded once at the boundary.
+
+`app.simple` is still the right default for tutorials, small utilities,
+and apps where the event set is stable and compact. Upgrade to
+`app.application` when the `update` function starts feeling like a
+switchboard rather than business logic.
+
+The full working example is at
+[`test/examples/dimmer.gleam`](../../test/examples/dimmer.gleam),
+paired with the canvas widget in
+[`test/examples/widgets/dimmer.gleam`](../../test/examples/widgets/dimmer.gleam).
+
 ## Try it
 
 - Add a `text_input` with `text_input.OnSubmit(True)`. Type and press
@@ -365,6 +434,10 @@ having to check the reference.
   `Widget(Select(..))`.
 - Add two buttons with the same label but different IDs. Click each and
   notice the `id` field distinguishes them.
+- Port the event log app to `app.application`. Define a `Msg` type with
+  one variant per event your app reacts to and an `Ignore` catch-all.
+  Move all the string-ID matching into `on_event` and watch `update`
+  shrink to pure model transitions.
 
 ---
 
