@@ -5,6 +5,7 @@
     default_icons_command/2,
     app_name_manifest_line/1,
     platform_manifest_section/1,
+    platform_section_from_config_text/1,
     manifest_escape_probe/1,
     portable_handoff_text/1,
     portable_package_command/3,
@@ -178,7 +179,20 @@ package_config_text() ->
         "# Environment variable names copied from the parent process.\n",
         "forward_env = [\n",
         [[<<"  \"">>, toml_string_escape(Name), <<"\",\n">>] || Name <- maps:get(forward_env, Cfg)],
-        "]\n"
+        "]\n\n",
+        "# Optional platform metadata passed through to the launcher manifest.\n",
+        "# Uncomment and fill in any fields you need.\n",
+        "# [platform]\n",
+        "# publisher = \"Example Corp\"\n",
+        "# copyright = \"Copyright 2025 Example Corp\"\n",
+        "# category = \"Utility\"\n",
+        "# description = \"A short description of your app\"\n",
+        "# bundle_id = \"dev.example.my_app\"  # macOS: defaults to app_id\n",
+        "# icon = \"assets/icon.png\"          # set via --icon flag; listed here for reference\n\n",
+        "# [platform.macos]\n",
+        "# bundle_version = \"1\"  # CFBundleVersion; defaults to app_version\n\n",
+        "# [platform.windows]\n",
+        "# install_scope = \"perUser\"  # perUser or perMachine\n"
     ]).
 
 parse_package_config_text(Text) ->
@@ -187,7 +201,8 @@ parse_package_config_text(Text) ->
         {ok, {
             maps:get(working_dir, Config),
             maps:get(command, Config),
-            maps:get(forward_env, Config)
+            maps:get(forward_env, Config),
+            maps:get(platform_config, Config)
         }}
     catch
         throw:{package_error, Message} ->
@@ -202,19 +217,52 @@ parse_package_config_text_bang(Text) ->
         nomatch -> fail("Package config must include config_version = 1")
     end,
     Start = section(Content, <<"start">>),
+    PlatformConfig = parse_platform_config(Content),
     Config = #{
         working_dir => string_field(Start, <<"working_dir">>),
         command => array_field(Start, <<"command">>),
-        forward_env => array_field(Start, <<"forward_env">>)
+        forward_env => array_field(Start, <<"forward_env">>),
+        platform_config => PlatformConfig
     },
     validate_start_config(Config),
     Config.
 
+parse_platform_config(Content) ->
+    PlatformSection = optional_section(Content, <<"platform">>),
+    MacosSection = optional_section(Content, <<"platform.macos">>),
+    WindowsSection = optional_section(Content, <<"platform.windows">>),
+    WindowsConfig = #{
+        install_scope => parse_install_scope(WindowsSection)
+    },
+    #{
+        publisher    => optional_string_field(PlatformSection, <<"publisher">>),
+        copyright    => optional_string_field(PlatformSection, <<"copyright">>),
+        category     => optional_string_field(PlatformSection, <<"category">>),
+        description  => optional_string_field(PlatformSection, <<"description">>),
+        bundle_id    => optional_string_field(PlatformSection, <<"bundle_id">>),
+        macos        => #{bundle_version => optional_string_field(MacosSection, <<"bundle_version">>)},
+        windows      => WindowsConfig
+    }.
+
+parse_install_scope(WindowsSection) ->
+    case optional_string_field(WindowsSection, <<"install_scope">>) of
+        error -> error;
+        {ok, <<"perUser">>} -> {ok, <<"perUser">>};
+        {ok, <<"perMachine">>} -> {ok, <<"perMachine">>};
+        {ok, Value} -> fail(["Package config platform.windows.install_scope must be \"perUser\" or \"perMachine\", got: ", Value])
+    end.
+
 section(Text, Name) ->
+    case optional_section(Text, Name) of
+        <<>> -> fail(["Package config must include [", Name, "]"]);
+        Body -> Body
+    end.
+
+optional_section(Text, Name) ->
     Pattern = <<"(?ms)^\\s*\\[", Name/binary, "\\]\\s*$(.*?)(?=^\\s*\\[|\\z)">>,
     case re:run(Text, Pattern, [{capture, [1], binary}]) of
         {match, [Body]} -> Body;
-        nomatch -> fail(["Package config must include [", Name, "]"])
+        nomatch -> <<>>
     end.
 
 string_field(Section, Name) ->
@@ -222,6 +270,16 @@ string_field(Section, Name) ->
     case re:run(Value, <<"^\"((?:\\\\.|[^\"\\\\])*)\"$">>, [{capture, [1], binary}]) of
         {match, [Raw]} -> unescape_toml_string(Raw);
         nomatch -> fail(["Package config ", Name, " must be a TOML basic string"])
+    end.
+
+optional_string_field(Section, Name) ->
+    case optional_field_value(Section, Name) of
+        error -> error;
+        {ok, Value} ->
+            case re:run(Value, <<"^\"((?:\\\\.|[^\"\\\\])*)\"$">>, [{capture, [1], binary}]) of
+                {match, [Raw]} -> {ok, unescape_toml_string(Raw)};
+                nomatch -> fail(["Package config ", Name, " must be a TOML basic string"])
+            end
     end.
 
 array_field(Section, Name) ->
@@ -248,6 +306,29 @@ validate_array_has_only_strings(Value, Name) ->
 field_value(Section, Name) ->
     Lines = [trim(Line) || Line <- binary:split(Section, <<"\n">>, [global])],
     collect_field(Lines, <<Name/binary, " =">>).
+
+optional_field_value(Section, Name) ->
+    Lines = [trim(Line) || Line <- binary:split(Section, <<"\n">>, [global])],
+    collect_optional_field(Lines, <<Name/binary, " =">>).
+
+collect_optional_field([], _Prefix) ->
+    error;
+collect_optional_field([Line | Rest], Prefix) ->
+    case Line of
+        <<>> -> collect_optional_field(Rest, Prefix);
+        <<"#", _/binary>> -> collect_optional_field(Rest, Prefix);
+        _ ->
+            case binary:match(Line, Prefix) of
+                {0, Size} ->
+                    Value = trim(binary:part(Line, Size, byte_size(Line) - Size)),
+                    case Value of
+                        <<>> -> collect_optional_field(Rest, Prefix);
+                        _ -> {ok, Value}
+                    end;
+                _ ->
+                    collect_optional_field(Rest, Prefix)
+            end
+    end.
 
 collect_field([], Name) ->
     fail(["Package config [start] must include ", Name]);
@@ -850,6 +931,7 @@ tar_supports_zstd(Tar) ->
 
 render_manifest(Values) ->
     StartConfig = maps:get(start_config, Values),
+    PlatformConfig = maps:get(platform_config, StartConfig, empty_platform_config()),
     [
         "schema_version = 1\n",
         "app_id = \"", toml_string_escape(maps:get(app_id, Values)), "\"\n",
@@ -864,7 +946,7 @@ render_manifest(Values) ->
         "working_dir = \"", toml_string_escape(maps:get(working_dir, StartConfig)), "\"\n",
         "command = ", toml_array(maps:get(command, StartConfig)), "\n",
         "forward_env = ", toml_array(maps:get(forward_env, StartConfig)), "\n\n",
-        platform_manifest_section(maps:get(icon_path, Values)),
+        platform_manifest_section(maps:get(icon_path, Values), PlatformConfig),
         "[renderer]\n",
         "path = \"bin/plushie-renderer\"\n",
         "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n\n",
@@ -881,13 +963,77 @@ app_name_manifest_line({error, _}) ->
 app_name_manifest_line(error) ->
     <<>>.
 
-platform_manifest_section({ok, IconPath}) ->
-    to_bin([
-        "[platform]\n",
-        "icon = \"", toml_string_escape(IconPath), "\"\n\n"
-    ]);
-platform_manifest_section({error, _}) ->
-    <<>>.
+empty_platform_config() ->
+    #{
+        publisher    => error,
+        copyright    => error,
+        category     => error,
+        description  => error,
+        bundle_id    => error,
+        macos        => #{bundle_version => error},
+        windows      => #{install_scope => error}
+    }.
+
+%% Test-facing 1-arg form: icon only, no platform config fields.
+platform_manifest_section(IconPath) ->
+    platform_manifest_section(IconPath, empty_platform_config()).
+
+%% Test-facing helper: parse config text and emit the platform section (no icon).
+platform_section_from_config_text(Text) ->
+    try
+        Config = parse_package_config_text_bang(to_bin(Text)),
+        PlatformConfig = maps:get(platform_config, Config),
+        {ok, platform_manifest_section(error, PlatformConfig)}
+    catch
+        throw:{package_error, Message} ->
+            {error, to_bin(Message)}
+    end.
+
+platform_manifest_section(IconPath, PlatformConfig) ->
+    MacosConfig = maps:get(macos, PlatformConfig, #{}),
+    WindowsConfig = maps:get(windows, PlatformConfig, #{}),
+    TopFields = [
+        optional_toml_string_field("icon", IconPath),
+        optional_toml_string_field("publisher", maps:get(publisher, PlatformConfig, error)),
+        optional_toml_string_field("copyright", maps:get(copyright, PlatformConfig, error)),
+        optional_toml_string_field("category", maps:get(category, PlatformConfig, error)),
+        optional_toml_string_field("description", maps:get(description, PlatformConfig, error)),
+        optional_toml_string_field("bundle_id", maps:get(bundle_id, PlatformConfig, error))
+    ],
+    MacosFields = [
+        optional_toml_string_field("bundle_version", maps:get(bundle_version, MacosConfig, error))
+    ],
+    WindowsFields = [
+        optional_toml_string_field("install_scope", maps:get(install_scope, WindowsConfig, error))
+    ],
+    HasTopFields = lists:any(fun(F) -> F =/= <<>> end, TopFields),
+    HasMacosFields = lists:any(fun(F) -> F =/= <<>> end, MacosFields),
+    HasWindowsFields = lists:any(fun(F) -> F =/= <<>> end, WindowsFields),
+    case {HasTopFields, HasMacosFields, HasWindowsFields} of
+        {false, false, false} ->
+            <<>>;
+        _ ->
+            PlatformHeader = case HasTopFields of
+                true -> to_bin(["[platform]\n", TopFields, "\n"]);
+                false -> <<>>
+            end,
+            MacosSection = case HasMacosFields of
+                true -> to_bin(["[platform.macos]\n", MacosFields, "\n"]);
+                false -> <<>>
+            end,
+            WindowsSection = case HasWindowsFields of
+                true -> to_bin(["[platform.windows]\n", WindowsFields, "\n"]);
+                false -> <<>>
+            end,
+            to_bin([PlatformHeader, MacosSection, WindowsSection])
+    end.
+
+optional_toml_string_field(_Key, error) ->
+    <<>>;
+optional_toml_string_field(_Key, {error, _}) ->
+    <<>>;
+optional_toml_string_field(Key, {ok, Value}) ->
+    to_bin([Key, " = \"", toml_string_escape(Value), "\"\n"]).
 
 manifest_escape_probe(Value) ->
     to_bin(render_manifest(#{
@@ -901,7 +1047,8 @@ manifest_escape_probe(Value) ->
         start_config => #{
             working_dir => ".",
             command => ["bin/connect"],
-            forward_env => []
+            forward_env => [],
+            platform_config => empty_platform_config()
         },
         icon_path => {ok, Value},
         renderer_kind => Value,

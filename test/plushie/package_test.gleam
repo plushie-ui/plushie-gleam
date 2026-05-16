@@ -129,10 +129,112 @@ pub fn package_config_parser_reads_start_settings_test() {
   let text =
     "config_version = 1\n\n[start]\nworking_dir = \"app\"\ncommand = [\"app/bin/connect\", \"--profile\", \"release\"]\nforward_env = [\n  \"PATH\",\n  \"HOME\",\n]\n"
 
-  parse_package_config_text(text)
-  |> should.equal(
-    Ok(#("app", ["app/bin/connect", "--profile", "release"], ["PATH", "HOME"])),
-  )
+  case parse_package_config_text(text) {
+    Ok(#(working_dir, command, forward_env, _platform)) -> {
+      working_dir |> should.equal("app")
+      command |> should.equal(["app/bin/connect", "--profile", "release"])
+      forward_env |> should.equal(["PATH", "HOME"])
+    }
+    Error(_) -> should.fail()
+  }
+}
+
+pub fn package_config_parser_reads_platform_fields_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform]\npublisher = \"Acme Corp\"\ncopyright = \"Copyright 2025\"\ncategory = \"Utility\"\ndescription = \"A great app\"\nbundle_id = \"dev.acme.app\"\n\n[platform.macos]\nbundle_version = \"42\"\n\n[platform.windows]\ninstall_scope = \"perUser\"\n"
+
+  platform_section_from_config_text(text)
+  |> should.be_ok
+  |> string.contains("[platform]\n")
+  |> should.equal(True)
+}
+
+pub fn package_config_parser_emits_platform_publisher_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform]\npublisher = \"Acme Corp\"\n"
+
+  let section =
+    platform_section_from_config_text(text)
+    |> should.be_ok
+
+  section
+  |> string.contains("publisher = \"Acme Corp\"")
+  |> should.equal(True)
+}
+
+pub fn package_config_parser_emits_platform_macos_bundle_version_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.macos]\nbundle_version = \"7\"\n"
+
+  let section =
+    platform_section_from_config_text(text)
+    |> should.be_ok
+
+  section
+  |> string.contains("[platform.macos]\n")
+  |> should.equal(True)
+
+  section
+  |> string.contains("bundle_version = \"7\"")
+  |> should.equal(True)
+}
+
+pub fn package_config_parser_emits_platform_windows_install_scope_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.windows]\ninstall_scope = \"perMachine\"\n"
+
+  let section =
+    platform_section_from_config_text(text)
+    |> should.be_ok
+
+  section
+  |> string.contains("[platform.windows]\n")
+  |> should.equal(True)
+
+  section
+  |> string.contains("install_scope = \"perMachine\"")
+  |> should.equal(True)
+}
+
+pub fn package_config_parser_rejects_invalid_install_scope_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.windows]\ninstall_scope = \"system\"\n"
+
+  platform_section_from_config_text(text)
+  |> should.be_error
+}
+
+pub fn package_config_parser_omits_platform_section_when_empty_test() {
+  let text =
+    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n"
+
+  platform_section_from_config_text(text)
+  |> should.be_ok
+  |> should.equal("")
+}
+
+pub fn package_config_text_documents_platform_fields_test() {
+  let text = package_config_text()
+
+  text
+  |> string.contains("[platform]")
+  |> should.equal(True)
+
+  text
+  |> string.contains("publisher")
+  |> should.equal(True)
+
+  text
+  |> string.contains("[platform.macos]")
+  |> should.equal(True)
+
+  text
+  |> string.contains("[platform.windows]")
+  |> should.equal(True)
+
+  text
+  |> string.contains("install_scope")
+  |> should.equal(True)
 }
 
 pub fn package_tools_check_requires_managed_tool_set_test() {
@@ -336,7 +438,10 @@ fn package_config_text() -> String
 @external(erlang, "plushie_package_ffi", "parse_package_config_text")
 fn parse_package_config_text(
   text: String,
-) -> Result(#(String, List(String), List(String)), String)
+) -> Result(#(String, List(String), List(String), a), String)
+
+@external(erlang, "plushie_package_ffi", "platform_section_from_config_text")
+fn platform_section_from_config_text(text: String) -> Result(String, String)
 
 @external(erlang, "plushie_package_ffi", "package_tools_check")
 fn package_tools_check(

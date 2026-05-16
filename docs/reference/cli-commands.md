@@ -301,6 +301,32 @@ $PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie --bin plushie
 --release -- default-icons ...`. With `--icon`, the provided file is
 copied into payload assets and referenced with a payload-relative path.
 
+### Package config: platform fields
+
+`plushie-package.config.toml` accepts an optional `[platform]` section
+and platform-specific sub-sections. All fields are optional and are
+passed through to `dist/plushie-package.toml` as-is:
+
+```toml
+[platform]
+publisher = "Example Corp"
+copyright = "Copyright 2025 Example Corp"
+category = "Utility"
+description = "A short description of your app"
+bundle_id = "dev.example.my_app"  # macOS: defaults to app_id if omitted
+
+[platform.macos]
+bundle_version = "1"  # CFBundleVersion; defaults to app_version if omitted
+
+[platform.windows]
+install_scope = "perUser"  # perUser or perMachine
+```
+
+`install_scope` must be exactly `perUser` or `perMachine`; any other
+value is rejected. The `--write-package-config` template includes all
+fields as commented-out examples. Fields present in the config are
+emitted to the manifest; omitted fields are not written.
+
 ### Windows targets
 
 On `windows-*` targets the SDK writes `bin/connect.cmd` instead of
