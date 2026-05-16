@@ -427,7 +427,9 @@ manifest adds:
 - `[start].working_dir` and `[start].forward_env` defaults from the
   package config.
 - A `[platform]` block if one is set in the package config.
-- An `[icon]` entry pointing at the materialised icon image.
+- A `[platform].icon` entry pointing at the materialised icon image
+  (a built-in default is written into the payload when no icon is
+  declared and none exists at `assets/default-app-icon-512.png`).
 
 The split exists so that cargo-plushie owns the cross-SDK schema
 once. Every Plushie SDK writes a partial manifest in this shape and
@@ -446,11 +448,20 @@ gleam run -m plushie/package -- --write-package-config
 The template includes all supported fields commented out:
 
 ```toml
+# Plushie standalone package config.
+# Commit this file and edit it when the packaged app needs a
+# different entry point, working directory, or forwarded environment.
+
 config_version = 1
 
 [start]
+# Relative to the extracted app package.
 working_dir = "."
+# Structured argv. The first item is the packaged host executable.
+# bin/start_host is the POSIX entry point.
+# On windows-* targets the SDK automatically uses bin/start_host.cmd.
 command = ["bin/start_host"]
+# Environment variable names copied from the parent process.
 forward_env = [
   "PATH",
   "HOME",
@@ -468,18 +479,21 @@ forward_env = [
 # # convention if it exists.
 # dir = "package_assets"
 
+# Optional platform metadata passed through to the launcher manifest.
+# Uncomment and fill in any fields you need.
 # [platform]
-# publisher = "Your Name"
-# copyright = "Copyright 2026 Your Name"
-# category = "productivity"
-# description = "Short app description"
-# bundle_id = "com.example.app"
+# publisher = "Example Corp"
+# copyright = "Copyright 2025 Example Corp"
+# category = "Utility"
+# description = "A short description of your app"
+# bundle_id = "dev.example.my_app"  # macOS: defaults to app_id
+# icon = "assets/icon.png"          # set via --icon flag; listed here for reference
 
 # [platform.macos]
-# bundle_version = "1"
+# bundle_version = "1"  # CFBundleVersion; defaults to app_version
 
 # [platform.windows]
-# install_scope = "perUser"
+# install_scope = "perUser"  # perUser or perMachine
 ```
 
 `[start].working_dir` is relative to the extracted payload root.
@@ -542,16 +556,19 @@ extraction.
 ### OS-native installers
 
 ```bash
-bin/plushie package bundle --manifest dist/plushie-package.toml --formats appimage
-bin/plushie package bundle --manifest dist/plushie-package.toml --formats dmg,app
-bin/plushie package bundle --manifest dist/plushie-package.toml --formats nsis
+bin/plushie package bundle --manifest dist/plushie-package.toml --format appimage
+bin/plushie package bundle --manifest dist/plushie-package.toml --format dmg --format app
+bin/plushie package bundle --manifest dist/plushie-package.toml --format nsis
 ```
 
-Delegates to
+`--format` is repeatable; pass it once per format. Delegates to
 [cargo-packager](https://github.com/crabnebula-dev/cargo-packager) for
-AppImage (Linux), `.app` and `.dmg` (macOS), and `.nsis` and `.wix`
-(Windows). Format availability depends on the runner: Apple formats
-need a macOS runner, Windows formats need a Windows runner.
+AppImage (Linux), `.app` and `.dmg` (macOS), and Windows installers
+produced via the `nsis` and `wix` formats. AppImage, `.app`, and
+`.dmg` are real file extensions; `nsis` and `wix` are cargo-packager
+format identifiers, not extensions (their output is `.exe` and `.msi`
+respectively). Format availability depends on the runner: Apple
+formats need a macOS runner, Windows formats need a Windows runner.
 
 Both commands default to a strict-tools check: they verify that the
 launcher, renderer, and `plushie` itself match the SDK-pinned version.
@@ -680,7 +697,7 @@ Lines to tweak for your project:
   `body` (or `body_path`) if you write release notes by hand.
 
 To also build OS-native installers, add a second matrix entry that
-calls `bin/plushie package bundle --formats <list>` instead of
+calls `bin/plushie package bundle --format <name>` (repeated per format) instead of
 `package portable`, and adjust the upload glob accordingly. Apple
 formats need a macOS runner with valid signing identities; Windows
 formats need a Windows runner with the appropriate SDKs.
@@ -721,12 +738,16 @@ hosts. The renderer starts first, binds a Unix socket, and spawns the
 host command with `PLUSHIE_SOCKET` pointing at it:
 
 ```bash
-plushie --listen \
+plushie-renderer --listen \
   --exec-bin gleam \
   --exec-arg run \
   --exec-arg -m \
   --exec-arg my_app/connect
 ```
+
+`--listen`, `--exec-bin`, and `--exec-arg` are flags on the renderer
+binary itself (`plushie-renderer`), not on the `plushie` orchestration
+tool.
 
 `plushie/connect.run` reads the socket and connects. The same module
 is what `bin/start_host` invokes in a packaged app, so driving a

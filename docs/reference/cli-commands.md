@@ -229,6 +229,12 @@ Prepares an Erlang shipment payload, writes a partial
 `plushie-package.toml`, and shells to `cargo plushie package assemble`
 to complete the package.
 
+For the full packaging story (payload layout, asset handling, runtime
+bundling, building portable artifacts and OS-native installers,
+signing, and CI), see the
+[Packaging and Distribution reference](packaging-and-distribution.md).
+This section documents the `plushie/package` module's surface only.
+
 ```bash
 gleam run -m plushie/package -- \
   --app-id dev.example.my_app \
