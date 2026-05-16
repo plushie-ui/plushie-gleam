@@ -911,9 +911,17 @@ plushie_rust_version() ->
                 {ok, SourcePath} ->
                     case root_string_file(filename:join(SourcePath, "Cargo.toml"), "version") of
                         {ok, Version} -> Version;
-                        error -> root_string("plushie_rust_version", "0.0.0")
+                        error ->
+                            case root_string_file("gleam.toml", "plushie_rust_version") of
+                                {ok, Version} -> Version;
+                                error -> fail("plushie_rust_version not found: set PLUSHIE_RUST_VERSION, add plushie_rust_version to gleam.toml, or set PLUSHIE_RUST_SOURCE_PATH to a valid checkout")
+                            end
                     end;
-                error -> root_string("plushie_rust_version", "0.0.0")
+                error ->
+                    case root_string_file("gleam.toml", "plushie_rust_version") of
+                        {ok, Version} -> Version;
+                        error -> fail("plushie_rust_version not found: set PLUSHIE_RUST_VERSION, add plushie_rust_version to gleam.toml, or set PLUSHIE_RUST_SOURCE_PATH to a valid checkout")
+                    end
             end
     end.
 
