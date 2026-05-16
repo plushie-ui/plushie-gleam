@@ -727,20 +727,41 @@ archive_payload(PayloadDir, ArchivePath) ->
     end.
 
 validate_payload_archive_inputs(PayloadDir) ->
-    case filelib:fold_files(PayloadDir, ".*", true, fun(Path, Acc) ->
-        case Acc of
-            ok ->
-                case file:read_link_info(Path) of
-                    {ok, #file_info{type = symlink}} -> {error, ["Payload contains unsupported symlink: ", relative_to(PayloadDir, Path)]};
-                    {ok, #file_info{type = device}} -> {error, ["Payload contains unsupported special file: ", relative_to(PayloadDir, Path)]};
-                    {ok, #file_info{type = other}} -> {error, ["Payload contains unsupported special file: ", relative_to(PayloadDir, Path)]};
-                    _ -> ok
-                end;
-            Error -> Error
-        end
-    end, ok) of
+    case walk_payload_dir(PayloadDir, PayloadDir) of
         ok -> ok;
         {error, Message} -> fail(Message)
+    end.
+
+walk_payload_dir(Root, Dir) ->
+    case file:list_dir(Dir) of
+        {error, Reason} ->
+            {error, ["Could not list directory: ", Dir, ": ", io_lib:format("~p", [Reason])]};
+        {ok, Names} ->
+            walk_payload_entries(Root, Dir, Names)
+    end.
+
+walk_payload_entries(_Root, _Dir, []) ->
+    ok;
+walk_payload_entries(Root, Dir, [Name | Rest]) ->
+    Path = filename:join(Dir, Name),
+    case file:read_link_info(Path) of
+        {ok, #file_info{type = symlink}} ->
+            {error, ["Payload contains unsupported symlink: ", relative_to(Root, Path)]};
+        {ok, #file_info{type = device}} ->
+            {error, ["Payload contains unsupported special file: ", relative_to(Root, Path)]};
+        {ok, #file_info{type = other}} ->
+            {error, ["Payload contains unsupported special file: ", relative_to(Root, Path)]};
+        {ok, #file_info{type = regular, links = Links}} when Links > 1 ->
+            {error, ["Payload contains hard-linked file: ", relative_to(Root, Path)]};
+        {ok, #file_info{type = regular}} ->
+            walk_payload_entries(Root, Dir, Rest);
+        {ok, #file_info{type = directory}} ->
+            case walk_payload_dir(Root, Path) of
+                ok -> walk_payload_entries(Root, Dir, Rest);
+                Error -> Error
+            end;
+        {error, Reason} ->
+            {error, ["Could not stat: ", Path, ": ", io_lib:format("~p", [Reason])]}
     end.
 
 archive_tar() ->
