@@ -185,18 +185,30 @@ fn sync_renderer_with_tool(rust_version: String, force: Bool) -> Nil {
 @target(erlang)
 fn resolve_tool(rust_version: String, force: Bool) -> #(String, List(String)) {
   case platform.get_env("PLUSHIE_RUST_SOURCE_PATH") {
-    Ok(source_path) -> #("cargo", [
-      "run",
-      "--manifest-path",
-      source_path <> "/Cargo.toml",
-      "-p",
-      "cargo-plushie",
-      "--bin",
-      "plushie",
-      "--release",
-      "--quiet",
-      "--",
-    ])
+    Ok(source_path) -> {
+      case platform.file_exists(source_path <> "/Cargo.toml") {
+        False -> {
+          io.println_error(
+            "PLUSHIE_RUST_SOURCE_PATH does not contain Cargo.toml: "
+            <> source_path,
+          )
+          halt(1)
+        }
+        True -> Nil
+      }
+      #("cargo", [
+        "run",
+        "--manifest-path",
+        source_path <> "/Cargo.toml",
+        "-p",
+        "cargo-plushie",
+        "--bin",
+        "plushie",
+        "--release",
+        "--quiet",
+        "--",
+      ])
+    }
     Error(_) -> #(download_tool(rust_version, force), [])
   }
 }
