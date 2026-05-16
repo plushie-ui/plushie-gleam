@@ -317,6 +317,7 @@ type LoopState(model, msg) {
     opts: RuntimeOpts,
     cw_registry: widget.Registry,
     memo_cache: tree.MemoCache,
+    widget_view_cache: tree.MemoCache,
     async: AsyncTracker,
     effects: EffectTracker,
     timers: Dict(String, PendingTimer),
@@ -389,12 +390,14 @@ fn init_runtime(
   let assert Ok(tree.NormalizeResult(
     tree: initial_tree,
     memo_cache: initial_memo_cache,
+    widget_view_cache: initial_widget_view_cache,
     registry: initial_cw_registry,
     windows: initial_windows,
   )) =
     try_normalize_view(
       tree.view_list_to_tree(app.get_view(app)(model)),
       widget.empty_registry(),
+      tree.empty_memo_cache(),
       tree.empty_memo_cache(),
     )
 
@@ -436,6 +439,7 @@ fn init_runtime(
       opts:,
       cw_registry: initial_cw_registry,
       memo_cache: initial_memo_cache,
+      widget_view_cache: initial_widget_view_cache,
       async: AsyncTracker(
         tasks: dict.new(),
         nonce_counter: 0,
@@ -1113,7 +1117,14 @@ fn handle_message(
         platform.try_call(fn() { tree.view_list_to_tree(view_fn(state.model)) })
       {
         Ok(t) ->
-          case try_normalize_view(t, state.cw_registry, state.memo_cache) {
+          case
+            try_normalize_view(
+              t,
+              state.cw_registry,
+              state.memo_cache,
+              state.widget_view_cache,
+            )
+          {
             Ok(result) -> Ok(result)
             Error(msg) -> {
               platform.log_error(
@@ -1160,6 +1171,7 @@ fn handle_message(
             tree.NormalizeResult(
               tree: old_tree,
               memo_cache: state.memo_cache,
+              widget_view_cache: state.widget_view_cache,
               registry: state.cw_registry,
               windows: state.windows,
             )
@@ -1195,6 +1207,7 @@ fn handle_message(
               new_tree_raw,
               state.cw_registry,
               state.memo_cache,
+              state.widget_view_cache,
             )
           {
             Ok(result) -> {
@@ -1883,6 +1896,7 @@ fn sync_after_render(
     windows: new_windows,
     cw_registry: new_cw_registry,
     memo_cache: result.memo_cache,
+    widget_view_cache: result.widget_view_cache,
     error_state: ErrorState(..state.error_state, consecutive_view_errors: 0),
     dev_overlay:,
   )
@@ -1903,7 +1917,12 @@ fn rerender(state: LoopState(model, msg)) -> LoopState(model, msg) {
     Ok(new_tree_raw) -> {
       case
         telemetry.span(["plushie", "normalize"], meta, fn() {
-          try_normalize_view(new_tree_raw, state.cw_registry, state.memo_cache)
+          try_normalize_view(
+            new_tree_raw,
+            state.cw_registry,
+            state.memo_cache,
+            state.widget_view_cache,
+          )
         })
       {
         Error(msg) -> {
@@ -2180,6 +2199,7 @@ fn dispatch_update(
                 new_tree_raw,
                 state_after_cmds.cw_registry,
                 state_after_cmds.memo_cache,
+                state_after_cmds.widget_view_cache,
               )
             })
           {
@@ -3060,6 +3080,7 @@ fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
   memo_cache: tree.MemoCache,
+  widget_view_cache: tree.MemoCache,
 ) -> Result(tree.NormalizeResult, String) {
-  tree.normalize_view(view_tree, registry, memo_cache)
+  tree.normalize_view(view_tree, registry, memo_cache, widget_view_cache)
 }

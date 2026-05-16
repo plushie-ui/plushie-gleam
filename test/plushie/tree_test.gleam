@@ -322,6 +322,7 @@ pub fn memo_cache_only_carries_active_render_nodes_test() {
       first,
       widget.empty_registry(),
       tree.empty_memo_cache(),
+      tree.empty_memo_cache(),
     )
 
   should.equal(dict.size(first_result.memo_cache), 2)
@@ -337,6 +338,7 @@ pub fn memo_cache_only_carries_active_render_nodes_test() {
       second,
       widget.empty_registry(),
       first_result.memo_cache,
+      first_result.widget_view_cache,
     )
 
   should.equal(dict.size(second_result.memo_cache), 1)

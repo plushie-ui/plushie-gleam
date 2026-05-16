@@ -28,6 +28,7 @@ pub opaque type TestSession(model, msg) {
     tree: Node,
     registry: widget.Registry,
     memo_cache: tree.MemoCache,
+    widget_view_cache: tree.MemoCache,
   )
 }
 
@@ -37,10 +38,23 @@ pub fn start(app: App(model, msg)) -> TestSession(model, msg) {
   let init_fn = app.get_init(app)
   let #(model, commands) = init_fn(dynamic.nil())
   let model = process_commands(app, model, commands)
-  let #(tree, memo_cache) =
-    render(app, model, widget.empty_registry(), tree.empty_memo_cache())
+  let #(tree, memo_cache, widget_view_cache) =
+    render(
+      app,
+      model,
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+      tree.empty_memo_cache(),
+    )
   let registry = widget.derive_registry(tree)
-  TestSession(app:, model:, tree:, registry:, memo_cache:)
+  TestSession(
+    app:,
+    model:,
+    tree:,
+    registry:,
+    memo_cache:,
+    widget_view_cache:,
+  )
 }
 
 /// Dispatch an event through the app's update function. The event
@@ -61,19 +75,38 @@ pub fn send_event(
       let update_fn = app.get_update(session.app)
       let #(model, commands) = update_fn(session.model, msg)
       let model = process_commands(session.app, model, commands)
-      let #(tree, memo_cache) =
-        render(session.app, model, new_registry, session.memo_cache)
+      let #(tree, memo_cache, widget_view_cache) =
+        render(
+          session.app,
+          model,
+          new_registry,
+          session.memo_cache,
+          session.widget_view_cache,
+        )
       let registry = widget.derive_registry(tree)
-      TestSession(..session, model:, tree:, registry:, memo_cache:)
+      TestSession(
+        ..session,
+        model:,
+        tree:,
+        registry:,
+        memo_cache:,
+        widget_view_cache:,
+      )
     }
   }
 }
 
 fn rerender(session: TestSession(model, msg)) -> TestSession(model, msg) {
-  let #(tree, memo_cache) =
-    render(session.app, session.model, session.registry, session.memo_cache)
+  let #(tree, memo_cache, widget_view_cache) =
+    render(
+      session.app,
+      session.model,
+      session.registry,
+      session.memo_cache,
+      session.widget_view_cache,
+    )
   let registry = widget.derive_registry(tree)
-  TestSession(..session, tree:, registry:, memo_cache:)
+  TestSession(..session, tree:, registry:, memo_cache:, widget_view_cache:)
 }
 
 /// Return the current model.
@@ -104,11 +137,14 @@ fn render(
   model: model,
   registry: widget.Registry,
   prev_memo_cache: tree.MemoCache,
-) -> #(Node, tree.MemoCache) {
+  prev_widget_view_cache: tree.MemoCache,
+) -> #(Node, tree.MemoCache, tree.MemoCache) {
   let view_fn = app.get_view(app)
   let raw = tree.view_list_to_tree(view_fn(model))
-  case tree.normalize_view(raw, registry, prev_memo_cache) {
-    Ok(result) -> #(result.tree, result.memo_cache)
+  case
+    tree.normalize_view(raw, registry, prev_memo_cache, prev_widget_view_cache)
+  {
+    Ok(result) -> #(result.tree, result.memo_cache, result.widget_view_cache)
     Error(message) -> panic as message
   }
 }

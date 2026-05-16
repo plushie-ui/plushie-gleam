@@ -122,9 +122,10 @@ pub fn start(
   let handle =
     create_handle(model, app, transport, session, dict.new(), set.new())
 
-  // Initialize widget registry and memo cache
+  // Initialize widget registry and the two view caches
   do_set_cw_registry(handle, widget.empty_registry())
   do_set_memo_cache(handle, tree.empty_memo_cache())
+  do_set_widget_view_cache(handle, tree.empty_memo_cache())
 
   // Register callbacks so JS timers, async completions, and
   // renderer events can call back into the Gleam update loop.
@@ -335,13 +336,17 @@ fn render_and_sync(
       let raw_tree = tree.view_list_to_tree(windows)
       let registry = do_get_cw_registry(handle)
       let memo_cache = do_get_memo_cache(handle)
+      let widget_view_cache = do_get_widget_view_cache(handle)
       let old_tree = do_get_tree(handle)
 
-      case try_normalize_view(raw_tree, registry, memo_cache) {
+      case
+        try_normalize_view(raw_tree, registry, memo_cache, widget_view_cache)
+      {
         Ok(norm_result) -> {
           let new_tree = norm_result.tree
           do_set_cw_registry(handle, norm_result.registry)
           do_set_memo_cache(handle, norm_result.memo_cache)
+          do_set_widget_view_cache(handle, norm_result.widget_view_cache)
 
           case force_snapshot || option.is_none(old_tree) {
             True -> {
@@ -394,8 +399,9 @@ fn try_normalize_view(
   view_tree: Node,
   registry: widget.Registry,
   memo_cache: tree.MemoCache,
+  widget_view_cache: tree.MemoCache,
 ) -> Result(tree.NormalizeResult, String) {
-  tree.normalize_view(view_tree, registry, memo_cache)
+  tree.normalize_view(view_tree, registry, memo_cache, widget_view_cache)
 }
 
 @target(javascript)
@@ -985,6 +991,19 @@ fn do_get_memo_cache(handle: WebRuntimeHandle) -> tree.MemoCache
 /// Set the memo cache after tree normalization.
 @external(javascript, "../plushie_runtime_web_ffi.mjs", "setMemoCache")
 fn do_set_memo_cache(handle: WebRuntimeHandle, cache: tree.MemoCache) -> Nil
+
+@target(javascript)
+/// Get the widget view cache for placeholder memoisation.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "getWidgetViewCache")
+fn do_get_widget_view_cache(handle: WebRuntimeHandle) -> tree.MemoCache
+
+@target(javascript)
+/// Set the widget view cache after tree normalization.
+@external(javascript, "../plushie_runtime_web_ffi.mjs", "setWidgetViewCache")
+fn do_set_widget_view_cache(
+  handle: WebRuntimeHandle,
+  cache: tree.MemoCache,
+) -> Nil
 
 @target(javascript)
 /// Send serialized wire bytes to the transport.

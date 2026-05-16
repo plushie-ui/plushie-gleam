@@ -48,19 +48,28 @@ pub fn empty_memo_cache() -> MemoCache {
 }
 
 /// Result of a full view normalization including accumulated state.
+///
+/// `memo_cache` holds `tree.memo` block subtrees keyed by scoped ID.
+/// `widget_view_cache` holds widget view subtrees opted into via
+/// `WidgetDef.cache_key`. The two are kept separate so that a memo
+/// block and a widget placeholder can never collide on a shared key
+/// even if they end up at the same scoped position (mirrors the
+/// shape both plushie-elixir and plushie-rust use).
 pub type NormalizeResult {
   NormalizeResult(
     tree: Node,
     memo_cache: MemoCache,
+    widget_view_cache: MemoCache,
     registry: widget.Registry,
     windows: Set(String),
   )
 }
 
 /// Internal context threaded through the normalize pipeline. Bundles
-/// the immutable environment (registry, prev_cache) and the mutable
-/// accumulators (new_cache, accumulated_registry, accumulated_windows)
-/// alongside per-recursion state (scope, window_id, depth).
+/// the immutable environment (registry, prev_cache, prev_widget_cache)
+/// and the mutable accumulators (new_cache, new_widget_cache,
+/// accumulated_registry, accumulated_windows) alongside per-recursion
+/// state (scope, window_id, depth).
 ///
 /// `accumulated_registry` collects widget registry entries as they are
 /// rendered during normalization, eliminating the need for a separate
@@ -76,14 +85,20 @@ type NormalizeCtx {
     depth: Int,
     prev_cache: MemoCache,
     new_cache: MemoCache,
+    prev_widget_cache: MemoCache,
+    new_widget_cache: MemoCache,
     accumulated_registry: widget.Registry,
     accumulated_windows: Set(String),
   )
 }
 
 /// Helper to build a fresh NormalizeCtx with the given registry and
-/// memo cache. All accumulators start empty.
-fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
+/// caches. All accumulators start empty.
+fn new_ctx(
+  registry: widget.Registry,
+  prev_cache: MemoCache,
+  prev_widget_cache: MemoCache,
+) -> NormalizeCtx {
   NormalizeCtx(
     scope: "",
     window_id: "",
@@ -91,6 +106,8 @@ fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
     depth: 0,
     prev_cache:,
     new_cache: dict.new(),
+    prev_widget_cache:,
+    new_widget_cache: dict.new(),
     accumulated_registry: widget.empty_registry(),
     accumulated_windows: set.new(),
   )
@@ -110,7 +127,7 @@ fn new_ctx(registry: widget.Registry, prev_cache: MemoCache) -> NormalizeCtx {
 ///   `auto:<kind>:<index>` and are transparent to scoping (like other
 ///   auto-IDs).
 pub fn normalize(node: Node) -> Node {
-  let ctx = new_ctx(widget.empty_registry(), dict.new())
+  let ctx = new_ctx(widget.empty_registry(), dict.new(), dict.new())
   let #(normalized, _ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   post_normalize(normalized)
 }
@@ -147,8 +164,15 @@ pub fn normalize_view(
   node: Node,
   registry: widget.Registry,
   prev_memo_cache: MemoCache,
+  prev_widget_view_cache: MemoCache,
 ) -> Result(NormalizeResult, String) {
-  let result = normalize_with_memo(node, registry, prev_memo_cache)
+  let result =
+    normalize_with_memo(
+      node,
+      registry,
+      prev_memo_cache,
+      prev_widget_view_cache,
+    )
 
   case result.tree.kind {
     "window" -> Ok(result)
@@ -164,19 +188,21 @@ pub fn normalize_view(
   }
 }
 
-/// Normalize with a widget registry and memo cache. Returns the
-/// normalized tree, new memo cache, accumulated widget registry,
-/// and detected window IDs.
+/// Normalize with a widget registry, memo cache, and widget view
+/// cache. Returns the normalized tree, both new caches, accumulated
+/// widget registry, and detected window IDs.
 pub fn normalize_with_memo(
   node: Node,
   registry: widget.Registry,
   prev_memo_cache: MemoCache,
+  prev_widget_view_cache: MemoCache,
 ) -> NormalizeResult {
-  let ctx = new_ctx(registry, prev_memo_cache)
+  let ctx = new_ctx(registry, prev_memo_cache, prev_widget_view_cache)
   let #(normalized, ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   NormalizeResult(
     tree: post_normalize(normalized),
     memo_cache: ctx.new_cache,
+    widget_view_cache: ctx.new_widget_cache,
     registry: ctx.accumulated_registry,
     windows: ctx.accumulated_windows,
   )
@@ -185,7 +211,7 @@ pub fn normalize_with_memo(
 /// Normalize with a widget registry. Widget placeholders
 /// in the tree are rendered using stored state from the registry.
 pub fn normalize_with_registry(node: Node, registry: widget.Registry) -> Node {
-  let ctx = new_ctx(registry, dict.new())
+  let ctx = new_ctx(registry, dict.new(), dict.new())
   let #(normalized, _ctx) = normalize_ctx(assign_auto_id(node, 0), ctx)
   post_normalize(normalized)
 }
@@ -298,7 +324,7 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
             )
           case cache_key {
             Some(dep) ->
-              case dict.get(ctx.prev_cache, scoped_id) {
+              case dict.get(ctx.prev_widget_cache, scoped_id) {
                 Ok(MemoCacheEntry(
                   dep: prev_dep,
                   node: cached_node,
@@ -308,9 +334,9 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
                   if prev_dep == dep
                 -> {
                   emit_widget_cache_telemetry("hit", scoped_id)
-                  let new_cache =
+                  let new_widget_cache =
                     dict.insert(
-                      ctx.new_cache,
+                      ctx.new_widget_cache,
                       scoped_id,
                       MemoCacheEntry(
                         dep:,
@@ -327,7 +353,7 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
                     cached_node,
                     NormalizeCtx(
                       ..ctx,
-                      new_cache:,
+                      new_widget_cache:,
                       accumulated_registry:,
                       accumulated_windows:,
                     ),
@@ -378,6 +404,7 @@ fn normalize_regular(
     NormalizeCtx(
       ..ctx,
       new_cache: child_ctx.new_cache,
+      new_widget_cache: child_ctx.new_widget_cache,
       accumulated_registry: child_ctx.accumulated_registry,
       accumulated_windows: child_ctx.accumulated_windows,
     ),
@@ -454,6 +481,7 @@ fn normalize_memo_child(
         NormalizeCtx(
           ..ctx,
           new_cache:,
+          new_widget_cache: child_ctx.new_widget_cache,
           accumulated_registry: child_ctx.accumulated_registry,
           accumulated_windows: child_ctx.accumulated_windows,
         ),
@@ -496,6 +524,7 @@ fn normalize_memo_fresh(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) 
         NormalizeCtx(
           ..ctx,
           new_cache: child_ctx.new_cache,
+          new_widget_cache: child_ctx.new_widget_cache,
           accumulated_registry: child_ctx.accumulated_registry,
           accumulated_windows: child_ctx.accumulated_windows,
         ),
@@ -575,15 +604,18 @@ fn normalize_placeholder(
       check_duplicate_sibling_ids(children)
       let final_node = Node(..rendered_node, props:, children:)
 
-      // Capture deltas and write to cache if the widget opted in.
-      let new_cache = case cache_key {
+      // Capture deltas and write to the widget view cache if the
+      // widget opted in. Kept separate from the memo-block cache so
+      // a memo block and a widget placeholder cannot collide on a
+      // shared key.
+      let new_widget_cache = case cache_key {
         Some(dep) -> {
           let registry_delta =
             dict.drop(child_ctx.accumulated_registry, dict.keys(pre_registry))
           let windows_delta =
             set.difference(child_ctx.accumulated_windows, pre_windows)
           dict.insert(
-            child_ctx.new_cache,
+            child_ctx.new_widget_cache,
             scoped_id,
             MemoCacheEntry(
               dep:,
@@ -593,14 +625,15 @@ fn normalize_placeholder(
             ),
           )
         }
-        None -> child_ctx.new_cache
+        None -> child_ctx.new_widget_cache
       }
 
       #(
         final_node,
         NormalizeCtx(
           ..ctx,
-          new_cache:,
+          new_cache: child_ctx.new_cache,
+          new_widget_cache:,
           accumulated_registry: child_ctx.accumulated_registry,
           accumulated_windows: child_ctx.accumulated_windows,
         ),

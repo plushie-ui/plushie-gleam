@@ -77,12 +77,22 @@ pub fn cache_hit_skips_view_test() {
 
   // First render: cold cache, view should be called once.
   let assert Ok(result1) =
-    tree.normalize_view(raw, widget.empty_registry(), tree.empty_memo_cache())
+    tree.normalize_view(
+      raw,
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+      tree.empty_memo_cache(),
+    )
   assert read_render_count() == 1
 
   // Second render with same props: cache hit, view should NOT be called again.
   let assert Ok(_result2) =
-    tree.normalize_view(raw, result1.registry, result1.memo_cache)
+    tree.normalize_view(
+      raw,
+      result1.registry,
+      result1.memo_cache,
+      result1.widget_view_cache,
+    )
   assert read_render_count() == 1
 }
 
@@ -93,12 +103,22 @@ pub fn cache_miss_on_changed_props_re_renders_test() {
   reset_render_count()
 
   let assert Ok(result1) =
-    tree.normalize_view(raw1, widget.empty_registry(), tree.empty_memo_cache())
+    tree.normalize_view(
+      raw1,
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+      tree.empty_memo_cache(),
+    )
   assert read_render_count() == 1
 
   // Different props -> different cache_key -> miss -> view runs again.
   let assert Ok(_result2) =
-    tree.normalize_view(raw2, result1.registry, result1.memo_cache)
+    tree.normalize_view(
+      raw2,
+      result1.registry,
+      result1.memo_cache,
+      result1.widget_view_cache,
+    )
   assert read_render_count() == 2
 }
 
@@ -108,12 +128,22 @@ pub fn no_cache_key_renders_every_cycle_test() {
   reset_render_count()
 
   let assert Ok(result1) =
-    tree.normalize_view(raw, widget.empty_registry(), tree.empty_memo_cache())
+    tree.normalize_view(
+      raw,
+      widget.empty_registry(),
+      tree.empty_memo_cache(),
+      tree.empty_memo_cache(),
+    )
   assert read_render_count() == 1
 
   // Same props, but no cache_key opt-in: view always runs.
   let assert Ok(_result2) =
-    tree.normalize_view(raw, result1.registry, result1.memo_cache)
+    tree.normalize_view(
+      raw,
+      result1.registry,
+      result1.memo_cache,
+      result1.widget_view_cache,
+    )
   assert read_render_count() == 2
 }
 

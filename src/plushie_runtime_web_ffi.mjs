@@ -26,6 +26,7 @@ export function createHandle(
     gleamWindows: emptyWindows, // Gleam Set(String)
     cwRegistry: null, // Gleam Dict, canvas widget registry
     memoCache: null, // Gleam MemoCache (Dict), set from Gleam side
+    widgetViewCache: null, // Gleam MemoCache (Dict) for widget views, set from Gleam side
     asyncTasks: new Map(), // tag -> { nonce, cancel }
     asyncTaskTokens: new Map(), // tag -> latest nonce
     nextNonce: 0,
@@ -166,6 +167,14 @@ export function getMemoCache(handle) {
 
 export function setMemoCache(handle, cache) {
   handle.memoCache = cache;
+}
+
+export function getWidgetViewCache(handle) {
+  return handle.widgetViewCache;
+}
+
+export function setWidgetViewCache(handle, cache) {
+  handle.widgetViewCache = cache;
 }
 
 // -- Subscriptions -----------------------------------------------------------
