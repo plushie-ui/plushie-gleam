@@ -154,14 +154,14 @@ pub fn package_target_rejects_windows_until_wrapper_exists_test() {
 pub fn portable_handoff_text_keeps_default_manual_step_test() {
   portable_handoff_text("dist/plushie-package.toml", False)
   |> should.equal(
-    "Build portable launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml\n",
+    "Build launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml\n",
   )
 }
 
 pub fn portable_handoff_text_passes_strict_tools_test() {
   portable_handoff_text("dist/plushie-package.toml", True)
   |> should.equal(
-    "Build portable launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools\n",
+    "Build launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools\n",
   )
 }
 

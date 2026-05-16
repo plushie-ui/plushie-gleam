@@ -96,18 +96,7 @@ package_payload(ProtocolVersion) ->
 finish_portable_package(ManifestPath) ->
     StrictTools = has_flag("--strict-tools"),
     maybe_verify_strict_package_tools(StrictTools),
-    case has_flag("--portable") of
-        true ->
-            {Command, Args} = portable_package_command(
-                ManifestPath,
-                optional_flag("--portable-out"),
-                StrictTools
-            ),
-            _ = run_or_fail(Command, Args),
-            ok;
-        false ->
-            io:format("~s", [portable_handoff_text(ManifestPath, StrictTools)])
-    end.
+    io:format("~s", [portable_handoff_text(ManifestPath, StrictTools)]).
 
 maybe_verify_strict_package_tools(true) ->
     _ = run_or_fail(
@@ -128,7 +117,7 @@ portable_handoff_text(ManifestPath) ->
 
 portable_handoff_text(ManifestPath, StrictTools) ->
     {Command, Args} = portable_package_command(ManifestPath, error, StrictTools),
-    to_bin(["Build portable launcher with:\n  ", Command, " ", lists:join(<<" ">>, Args), "\n"]).
+    to_bin(["Build launcher with:\n  ", Command, " ", lists:join(<<" ">>, Args), "\n"]).
 
 portable_package_command(ManifestPath, PortableOut, StrictTools) ->
     Base = [<<"package">>, <<"portable">>, <<"--manifest">>, to_bin(ManifestPath)],
@@ -358,11 +347,7 @@ install_renderer(<<"custom">>, RendererPath) ->
         {ok, Existing} ->
             copy_executable(Existing, RendererPath);
         error ->
-            Args0 = ["run", "-m", "plushie/build", "--", "--bin-file", RendererPath],
-            Args = case has_flag("--release") of
-                true -> Args0 ++ ["--release"];
-                false -> Args0
-            end,
+            Args = ["run", "-m", "plushie/build", "--", "--bin-file", RendererPath, "--release"],
             io:format("Building custom renderer...~n", []),
             run_or_fail("gleam", Args)
     end,

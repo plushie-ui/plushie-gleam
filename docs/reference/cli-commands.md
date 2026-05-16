@@ -234,8 +234,8 @@ gleam run -m plushie/package -- \
   --app-name "My App" \
   --connect-module my_app@connect
 
-bin/plushie package check --manifest dist/plushie-package.toml --strict-tools
-bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools
+# Follow the printed handoff:
+bin/plushie package portable --manifest dist/plushie-package.toml
 ```
 
 This module owns the Gleam-specific part of standalone packaging:
@@ -253,17 +253,14 @@ This module owns the Gleam-specific part of standalone packaging:
   or `bin/plushie package bundle`.
 
 The shared Rust package command remains language-agnostic. It consumes
-the manifest and embedded payload archive produced here. By default,
-the package command prints the final
-`bin/plushie package portable --manifest ...` handoff after writing the
-manifest. Pass `--portable` to run that final step immediately.
+the manifest and embedded payload archive produced here. After writing
+the manifest and archive, the command prints a "Build launcher with:"
+handoff showing the `bin/plushie package portable --manifest ...`
+command to run next.
 Pass `--strict-tools` to check the managed native tool set before
-printing or running the final package command, and to have the Rust
-package tool reject missing, stale, dirty, mixed, or mismatched native
-tools during portable packaging.
-Run `bin/plushie package check --manifest dist/plushie-package.toml
---strict-tools` to check that gate before building the portable
-launcher.
+printing the handoff, and to have the Rust package tool reject missing,
+stale, dirty, mixed, or mismatched native tools during portable
+packaging.
 
 ### Flags
 
@@ -276,12 +273,11 @@ launcher.
 | `--dist-dir DIR` | Output directory. Defaults to `dist` |
 | `--icon PATH` | App icon PNG to copy into payload assets. Defaults to Plushie's bundled icon |
 | `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
-| `--portable` | Run `bin/plushie package portable --manifest <manifest>` after writing the manifest |
-| `--portable-out PATH` | Pass `--out PATH` to the portable package command when `--portable` is set |
 | `--strict-tools` | Check the managed native tool set before handoff and pass `--strict-tools` to the portable package command |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
-| `--release` | Build a release custom renderer when `--renderer-kind custom` builds the renderer |
+| `--package-config PATH` | Path to `plushie-package.config.toml`. Defaults to `plushie-package.config.toml` if present |
+| `--write-package-config` | Write a default `plushie-package.config.toml` and exit |
 | `--erlang-provider local|path|mise` | Runtime source. Defaults to `local`, or `path` when `--erlang-root` / `PLUSHIE_ERLANG_ROOT` is set |
 | `--erlang-root PATH` | Erlang runtime root for the `path` provider |
 | `--erlang-version VERSION` | Erlang version passed to `mise where erlang@VERSION` for the `mise` provider |
