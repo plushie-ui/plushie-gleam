@@ -157,6 +157,12 @@ fn handle_event(event: Event, state: PickerState) -> #(EventAction, PickerState)
       handle_sv_key(key, mods, state)
     }
 
+    // Stateful interactive control: this widget owns its interaction
+    // surface fully (drag tracking, keyboard navigation, focus). Any
+    // event we don't explicitly recognise is consumed rather than
+    // bubbled, since surfacing partial pointer or key activity to the
+    // parent would let it react to interactions this widget already
+    // claimed.
     _ -> #(Consumed, state)
   }
 }

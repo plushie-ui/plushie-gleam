@@ -112,7 +112,11 @@ fn handle_event(event: Event, state: StarState) -> #(EventAction, StarState) {
     // Hover leave -> clear preview highlight.
     Widget(Exit(..)) -> #(UpdateState, StarState(hover: None))
 
-    // All other events consumed.
+    // Stateful interactive control: any event scoped to this widget
+    // that we don't explicitly handle is consumed rather than bubbled.
+    // A passing event would mean the renderer routed something to a
+    // star that the widget has no semantics for; surfacing it to the
+    // parent would surprise the app.
     _ -> #(Consumed, state)
   }
 }
