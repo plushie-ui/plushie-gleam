@@ -595,7 +595,7 @@ write_connect_script(PayloadDir, ConnectModule) ->
         "  echo \"No Erlang runtime found. Expected $DIR/runtime/erlang/bin/erl or erl on PATH.\" >&2\n",
         "  exit 127\n",
         "fi\n\n",
-        "exec \"$ERL\" -pa \"$DIR\"/shipment/*/ebin -eval '", ConnectModule, ":main().' -noshell -extra \"$@\"\n"
+        "exec \"$ERL\" -pa \"$DIR\"/shipment/*/ebin -eval '", ConnectModule, ":main().' -noinput -extra \"$@\"\n"
     ],
     ok = file:write_file(Path, iolist_to_binary(Script)),
     make_executable(Path).
