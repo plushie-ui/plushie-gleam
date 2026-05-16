@@ -121,6 +121,10 @@ fn candidate_paths() -> List(String) {
     // Primary: downloaded or built binary in project-root bin/
     download_dir() <> "/" <> name,
     "./" <> name,
+    // Sibling plushie-rust checkout (release first, then debug)
+    "../plushie-rust/target/release/" <> name,
+    "../plushie-rust/target/debug/" <> name,
+    // Legacy: separate plushie-renderer repo layout
     "../plushie-renderer/target/release/" <> name,
     "../plushie-renderer/target/debug/" <> name,
   ]
