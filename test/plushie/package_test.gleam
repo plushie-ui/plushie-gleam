@@ -39,44 +39,6 @@ pub fn default_icon_path_is_payload_relative_test() {
   |> should.equal("assets/default-app-icon-512.png")
 }
 
-pub fn platform_manifest_section_declares_icon_test() {
-  let section = platform_manifest_section(Ok(default_icon_path()))
-
-  section
-  |> string.contains("[platform]\n")
-  |> should.equal(True)
-  section
-  |> string.contains("icon = \"assets/default-app-icon-512.png\"")
-  |> should.equal(True)
-}
-
-pub fn platform_manifest_section_omitted_without_icon_test() {
-  platform_manifest_section(Error(Nil))
-  |> should.equal("")
-}
-
-pub fn manifest_string_fields_escape_toml_strings_test() {
-  let text = manifest_escape_probe("value \"quoted\"")
-
-  text
-  |> string.contains("value \\\"quoted\\\"")
-  |> should.equal(True)
-  text
-  |> string.contains("value \"quoted\"")
-  |> should.equal(False)
-  text
-  |> string.contains("archive = \"value \\\"quoted\\\"\"")
-  |> should.equal(True)
-}
-
-pub fn manifest_string_fields_escape_toml_controls_test() {
-  let text = manifest_escape_probe("nul \u{0}")
-
-  text
-  |> string.contains("nul \\u0000")
-  |> should.equal(True)
-}
-
 pub fn app_name_manifest_line_is_omitted_without_name_test() {
   app_name_manifest_line(Error(Nil))
   |> should.equal("")
@@ -123,94 +85,6 @@ pub fn package_config_text_documents_windows_cmd_convention_test() {
     "windows-* targets the SDK automatically uses bin/connect.cmd",
   )
   |> should.equal(True)
-}
-
-pub fn package_config_parser_reads_start_settings_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \"app\"\ncommand = [\"app/bin/connect\", \"--profile\", \"release\"]\nforward_env = [\n  \"PATH\",\n  \"HOME\",\n]\n"
-
-  case parse_package_config_text(text) {
-    Ok(#(working_dir, command, forward_env, _platform)) -> {
-      working_dir |> should.equal("app")
-      command |> should.equal(["app/bin/connect", "--profile", "release"])
-      forward_env |> should.equal(["PATH", "HOME"])
-    }
-    Error(_) -> should.fail()
-  }
-}
-
-pub fn package_config_parser_reads_platform_fields_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform]\npublisher = \"Acme Corp\"\ncopyright = \"Copyright 2025\"\ncategory = \"Utility\"\ndescription = \"A great app\"\nbundle_id = \"dev.acme.app\"\n\n[platform.macos]\nbundle_version = \"42\"\n\n[platform.windows]\ninstall_scope = \"perUser\"\n"
-
-  platform_section_from_config_text(text)
-  |> should.be_ok
-  |> string.contains("[platform]\n")
-  |> should.equal(True)
-}
-
-pub fn package_config_parser_emits_platform_publisher_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform]\npublisher = \"Acme Corp\"\n"
-
-  let section =
-    platform_section_from_config_text(text)
-    |> should.be_ok
-
-  section
-  |> string.contains("publisher = \"Acme Corp\"")
-  |> should.equal(True)
-}
-
-pub fn package_config_parser_emits_platform_macos_bundle_version_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.macos]\nbundle_version = \"7\"\n"
-
-  let section =
-    platform_section_from_config_text(text)
-    |> should.be_ok
-
-  section
-  |> string.contains("[platform.macos]\n")
-  |> should.equal(True)
-
-  section
-  |> string.contains("bundle_version = \"7\"")
-  |> should.equal(True)
-}
-
-pub fn package_config_parser_emits_platform_windows_install_scope_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.windows]\ninstall_scope = \"perMachine\"\n"
-
-  let section =
-    platform_section_from_config_text(text)
-    |> should.be_ok
-
-  section
-  |> string.contains("[platform.windows]\n")
-  |> should.equal(True)
-
-  section
-  |> string.contains("install_scope = \"perMachine\"")
-  |> should.equal(True)
-}
-
-pub fn package_config_parser_rejects_invalid_install_scope_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n\n[platform.windows]\ninstall_scope = \"system\"\n"
-
-  platform_section_from_config_text(text)
-  |> should.be_error
-}
-
-pub fn package_config_parser_omits_platform_section_when_empty_test() {
-  let text =
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = []\n"
-
-  platform_section_from_config_text(text)
-  |> should.be_ok
-  |> should.equal("")
 }
 
 pub fn package_config_text_documents_platform_fields_test() {
@@ -318,90 +192,160 @@ pub fn connect_script_posix_invokes_erl_test() {
   |> should.equal(True)
 }
 
-pub fn portable_handoff_text_keeps_default_manual_step_test() {
-  portable_handoff_text("dist/plushie-package.toml", False)
-  |> should.equal(
-    "Build launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml\n",
-  )
+pub fn partial_manifest_contains_required_fields_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Error(Nil),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
+
+  text
+  |> string.contains("schema_version = 1")
+  |> should.equal(True)
+  text
+  |> string.contains("app_id = \"dev.example.app\"")
+  |> should.equal(True)
+  text
+  |> string.contains("app_version = \"1.0.0\"")
+  |> should.equal(True)
+  text
+  |> string.contains("target = \"linux-x86_64\"")
+  |> should.equal(True)
+  text
+  |> string.contains("host_sdk = \"gleam\"")
+  |> should.equal(True)
+  text
+  |> string.contains("host_sdk_version = \"0.6.0\"")
+  |> should.equal(True)
+  text
+  |> string.contains("plushie_rust_version = \"0.7.1\"")
+  |> should.equal(True)
+  text
+  |> string.contains("protocol_version = 1")
+  |> should.equal(True)
+  text
+  |> string.contains("[start]")
+  |> should.equal(True)
+  text
+  |> string.contains("[renderer]")
+  |> should.equal(True)
+  text
+  |> string.contains("kind = \"stock\"")
+  |> should.equal(True)
 }
 
-pub fn portable_handoff_text_passes_strict_tools_test() {
-  portable_handoff_text("dist/plushie-package.toml", True)
-  |> should.equal(
-    "Build launcher with:\n  bin/plushie package portable --manifest dist/plushie-package.toml --strict-tools\n",
-  )
+pub fn partial_manifest_posix_uses_connect_command_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Error(Nil),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
+
+  text
+  |> string.contains("command = [\"bin/connect\"]")
+  |> should.equal(True)
 }
 
-pub fn portable_package_command_uses_structured_args_test() {
-  let #(command, args) =
-    portable_package_command("dist/plushie-package.toml", Error(Nil), False)
+pub fn partial_manifest_windows_uses_cmd_command_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Error(Nil),
+      "1.0.0",
+      "windows-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
 
-  command
-  |> should.equal("bin/plushie")
-  args
-  |> should.equal([
-    "package",
-    "portable",
-    "--manifest",
-    "dist/plushie-package.toml",
-  ])
+  text
+  |> string.contains("command = [\"bin/connect.cmd\"]")
+  |> should.equal(True)
 }
 
-pub fn portable_package_command_passes_out_path_test() {
-  let #(command, args) =
-    portable_package_command("dist/plushie-package.toml", Ok("dist/app"), False)
+pub fn partial_manifest_omits_payload_section_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Error(Nil),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
 
-  command
-  |> should.equal("bin/plushie")
-  args
-  |> should.equal([
-    "package",
-    "portable",
-    "--manifest",
-    "dist/plushie-package.toml",
-    "--out",
-    "dist/app",
-  ])
+  text
+  |> string.contains("[payload]")
+  |> should.equal(False)
 }
 
-pub fn portable_package_command_passes_strict_tools_test() {
-  let #(command, args) =
-    portable_package_command("dist/plushie-package.toml", Ok("dist/app"), True)
+pub fn partial_manifest_omits_app_name_when_absent_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Error(Nil),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
 
-  command
-  |> should.equal("bin/plushie")
-  args
-  |> should.equal([
-    "package",
-    "portable",
-    "--manifest",
-    "dist/plushie-package.toml",
-    "--out",
-    "dist/app",
-    "--strict-tools",
-  ])
+  text
+  |> string.contains("app_name")
+  |> should.equal(False)
 }
 
-pub fn package_config_parser_rejects_unsafe_start_settings_test() {
-  parse_package_config_text(
-    "config_version = 1\n\n[start]\nworking_dir = \"../app\"\ncommand = [\"bin/connect\"]\nforward_env = []\n",
-  )
-  |> should.be_error
+pub fn partial_manifest_includes_app_name_when_present_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app",
+      Ok("My App"),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
 
-  parse_package_config_text(
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"/usr/bin/connect\"]\nforward_env = []\n",
-  )
-  |> should.be_error
+  text
+  |> string.contains("app_name = \"My App\"")
+  |> should.equal(True)
+}
 
-  parse_package_config_text(
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = [\"PLUSHIE_BINARY_PATH\"]\n",
-  )
-  |> should.be_error
+pub fn partial_manifest_escapes_toml_strings_test() {
+  let text =
+    partial_manifest(
+      "dev.example.app \"quoted\"",
+      Error(Nil),
+      "1.0.0",
+      "linux-x86_64",
+      "0.6.0",
+      "0.7.1",
+      1,
+      "stock",
+    )
 
-  parse_package_config_text(
-    "config_version = 1\n\n[start]\nworking_dir = \".\"\ncommand = [\"bin/connect\"]\nforward_env = [\"PLUSHIE_PACKAGE_READY_FILE\"]\n",
-  )
-  |> should.be_error
+  text
+  |> string.contains("app_id = \"dev.example.app \\\"quoted\\\"\"")
+  |> should.equal(True)
 }
 
 @external(erlang, "plushie_package_ffi", "default_icons_command")
@@ -413,35 +357,11 @@ fn default_icons_command(
 @external(erlang, "plushie_package_ffi", "default_icon_path")
 fn default_icon_path() -> String
 
-@external(erlang, "plushie_package_ffi", "platform_manifest_section")
-fn platform_manifest_section(icon_path: Result(String, Nil)) -> String
-
-@external(erlang, "plushie_package_ffi", "manifest_escape_probe")
-fn manifest_escape_probe(value: String) -> String
-
-@external(erlang, "plushie_package_ffi", "portable_handoff_text")
-fn portable_handoff_text(manifest_path: String, strict_tools: Bool) -> String
-
-@external(erlang, "plushie_package_ffi", "portable_package_command")
-fn portable_package_command(
-  manifest_path: String,
-  portable_out: Result(String, Nil),
-  strict_tools: Bool,
-) -> #(String, List(String))
-
 @external(erlang, "plushie_package_ffi", "app_name_manifest_line")
 fn app_name_manifest_line(app_name: Result(String, Nil)) -> String
 
 @external(erlang, "plushie_package_ffi", "package_config_text")
 fn package_config_text() -> String
-
-@external(erlang, "plushie_package_ffi", "parse_package_config_text")
-fn parse_package_config_text(
-  text: String,
-) -> Result(#(String, List(String), List(String), a), String)
-
-@external(erlang, "plushie_package_ffi", "platform_section_from_config_text")
-fn platform_section_from_config_text(text: String) -> Result(String, String)
 
 @external(erlang, "plushie_package_ffi", "package_tools_check")
 fn package_tools_check(
@@ -461,3 +381,15 @@ fn package_target_supported(target: String) -> Result(Nil, List(String))
 
 @external(erlang, "plushie_package_ffi", "connect_script")
 fn connect_script(os: String, connect_module: String) -> #(String, String)
+
+@external(erlang, "plushie_package_ffi", "partial_manifest")
+fn partial_manifest(
+  app_id: String,
+  app_name: Result(String, Nil),
+  app_version: String,
+  target: String,
+  host_sdk_version: String,
+  plushie_rust_version: String,
+  protocol_version: Int,
+  renderer_kind: String,
+) -> String

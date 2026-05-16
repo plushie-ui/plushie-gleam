@@ -225,42 +225,31 @@ for local release verification before assets are uploaded.
 
 ## plushie/package
 
-Builds an Erlang shipment payload and `plushie-package.toml` manifest
-for the shared Rust launcher.
+Prepares an Erlang shipment payload, writes a partial
+`plushie-package.toml`, and shells to `cargo plushie package assemble`
+to complete the package.
 
 ```bash
 gleam run -m plushie/package -- \
   --app-id dev.example.my_app \
   --app-name "My App" \
   --connect-module my_app@connect
-
-# Follow the printed handoff:
-bin/plushie package portable --manifest dist/plushie-package.toml
 ```
 
 This module owns the Gleam-specific part of standalone packaging:
 
-- Runs `gleam export erlang-shipment`.
-- Copies the shipment into `dist/payload/`.
+- Runs `gleam export erlang-shipment` and copies it to `dist/payload/`.
 - Bundles the active Erlang runtime by default.
-- Places the selected renderer in the payload.
+- Places the selected renderer at `dist/payload/bin/plushie-renderer`.
 - Writes `bin/connect` (POSIX) or `bin/connect.cmd` (Windows), which
   starts the shipment and calls the configured connect module.
-- Writes app icon assets under `dist/payload/assets/` and sets
-  `[platform].icon` in `dist/plushie-package.toml`.
-- Archives the payload as `dist/payload.tar.zst`.
-- Writes `dist/plushie-package.toml` for `bin/plushie package portable`
-  or `bin/plushie package bundle`.
-
-The shared Rust package command remains language-agnostic. It consumes
-the manifest and embedded payload archive produced here. After writing
-the manifest and archive, the command prints a "Build launcher with:"
-handoff showing the `bin/plushie package portable --manifest ...`
-command to run next.
-Pass `--strict-tools` to check the managed native tool set before
-printing the handoff, and to have the Rust package tool reject missing,
-stale, dirty, mixed, or mismatched native tools during portable
-packaging.
+- Writes a partial `dist/plushie-package.toml` (schema_version, app
+  identity, target, host SDK info, start command, renderer section).
+- Shells to `bin/plushie package assemble --manifest
+  dist/plushie-package.toml --payload-dir dist/payload`, forwarding
+  `--package-config` if provided or auto-detected. cargo-plushie reads
+  the source config, archives the payload, writes the final manifest,
+  and prints any remaining handoff steps.
 
 ### Flags
 
@@ -271,13 +260,10 @@ packaging.
 | `--app-version VERSION` | App version. Defaults to `version` in `gleam.toml` |
 | `--connect-module MODULE` | Erlang module whose `main/0` connects the app. Required |
 | `--dist-dir DIR` | Output directory. Defaults to `dist` |
-| `--icon PATH` | App icon PNG to copy into payload assets. Defaults to Plushie's bundled icon |
-| `--payload-archive NAME` | Payload archive filename. Defaults to `payload.tar.zst` |
-| `--strict-tools` | Check the managed native tool set before handoff and pass `--strict-tools` to the portable package command |
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
-| `--package-config PATH` | Path to `plushie-package.config.toml`. Defaults to `plushie-package.config.toml` if present |
-| `--write-package-config` | Write a default `plushie-package.config.toml` (always uses `bin/connect`; see Windows note below) and exit |
+| `--package-config PATH` | Path to `plushie-package.config.toml`. Auto-detected if present; forwarded to `cargo plushie package assemble` |
+| `--write-package-config` | Write a default `plushie-package.config.toml` and exit |
 | `--erlang-provider local|path|mise` | Runtime source. Defaults to `local`, or `path` when `--erlang-root` / `PLUSHIE_ERLANG_ROOT` is set |
 | `--erlang-root PATH` | Erlang runtime root for the `path` provider |
 | `--erlang-version VERSION` | Erlang version passed to `mise where erlang@VERSION` for the `mise` provider |
@@ -287,57 +273,27 @@ Apps with `[plushie].native_widgets` must use
 widget crates. If no `--renderer-path` is supplied for a custom
 renderer, the package command delegates to `plushie/build`.
 
-When `PLUSHIE_RUST_SOURCE_PATH` is set for stock renderer packaging,
-the package command uses the same managed native-tool sync path as
-`plushie/download`, so `bin/plushie`, `bin/plushie-renderer`, and
-`bin/plushie-launcher` are prepared together from the checkout.
+### Package config
 
-When `--icon` is omitted, the command invokes `bin/plushie
-default-icons --out <payload-assets-dir>` before the payload archive is
-created and uses `assets/default-app-icon-512.png` as the manifest
-icon path. With `PLUSHIE_RUST_SOURCE_PATH` set, it invokes the tool
-from that checkout with `cargo run --manifest-path
-$PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie --bin plushie
---release -- default-icons ...`. With `--icon`, the provided file is
-copied into payload assets and referenced with a payload-relative path.
+`plushie-package.config.toml` is read by cargo-plushie during
+`package assemble`. It controls the start working directory, command
+overrides, forwarded environment variables, and optional platform
+metadata (publisher, icon, macOS bundle version, Windows install scope).
+Use `--write-package-config` to generate a commented template.
 
-### Package config: platform fields
-
-`plushie-package.config.toml` accepts an optional `[platform]` section
-and platform-specific sub-sections. All fields are optional and are
-passed through to `dist/plushie-package.toml` as-is:
-
-```toml
-[platform]
-publisher = "Example Corp"
-copyright = "Copyright 2025 Example Corp"
-category = "Utility"
-description = "A short description of your app"
-bundle_id = "dev.example.my_app"  # macOS: defaults to app_id if omitted
-
-[platform.macos]
-bundle_version = "1"  # CFBundleVersion; defaults to app_version if omitted
-
-[platform.windows]
-install_scope = "perUser"  # perUser or perMachine
-```
-
-`install_scope` must be exactly `perUser` or `perMachine`; any other
-value is rejected. The `--write-package-config` template includes all
-fields as commented-out examples. Fields present in the config are
-emitted to the manifest; omitted fields are not written.
+If `--package-config` is not passed and `plushie-package.config.toml`
+exists in the project root, it is forwarded automatically.
 
 ### Windows targets
 
 On `windows-*` targets the SDK writes `bin/connect.cmd` instead of
 `bin/connect`, and sets `start.command = ["bin/connect.cmd"]` in the
-manifest automatically. The `.cmd` script resolves `erl.exe` from the
-bundled runtime at `runtime\erlang\bin\erl.exe`, falling back to
-`erl.exe` on `PATH`.
+partial manifest automatically. The `.cmd` script resolves `erl.exe`
+from the bundled runtime at `runtime\erlang\bin\erl.exe`, falling back
+to `erl.exe` on `PATH`.
 
 The `--write-package-config` template always writes
 `command = ["bin/connect"]` with a comment explaining the convention.
-Edit the config file to override the entry point if needed.
 
 ### Erlang runtime
 

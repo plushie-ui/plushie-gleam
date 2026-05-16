@@ -4,19 +4,13 @@
     default_icon_path/0,
     default_icons_command/2,
     app_name_manifest_line/1,
-    platform_manifest_section/1,
-    platform_section_from_config_text/1,
-    manifest_escape_probe/1,
-    portable_handoff_text/1,
-    portable_package_command/3,
     package_config_text/0,
-    parse_package_config_text/1,
     package_tools_check/3,
     portable_tools_check/2,
     package_target_supported/1,
-    connect_script/2
+    connect_script/2,
+    partial_manifest/8
 ]).
--export([portable_handoff_text/2]).
 -include_lib("kernel/include/file.hrl").
 
 package(ProtocolVersion) ->
@@ -45,8 +39,6 @@ do_package(ProtocolVersion) ->
 package_payload(ProtocolVersion) ->
     DistDir = flag("--dist-dir", "dist"),
     PayloadDir = filename:join(DistDir, "payload"),
-    ArchiveName = flag("--payload-archive", "payload.tar.zst"),
-    ArchivePath = filename:join(DistDir, ArchiveName),
     RendererPath = filename:join([PayloadDir, "bin", "plushie-renderer"]),
     RendererKind = flag("--renderer-kind", "stock"),
     AppId = required_flag("--app-id"),
@@ -57,7 +49,7 @@ package_payload(ProtocolVersion) ->
     assert_package_target_supported(Target),
     HostSdkVersion = host_sdk_version(),
     PlushieRustVersion = plushie_rust_version(),
-    StartConfig = package_start_config(),
+    PackageConfigArg = optional_flag("--package-config"),
     assert_renderer_kind_matches_project(RendererKind),
 
     reset_dir(DistDir),
@@ -68,12 +60,9 @@ package_payload(ProtocolVersion) ->
     build_shipment(PayloadDir),
     maybe_copy_erlang_runtime(PayloadDir),
     write_connect_script(PayloadDir, ConnectModule),
-    IconPath = materialize_platform_icon(PayloadDir),
 
-    archive_payload(PayloadDir, ArchivePath),
-    PayloadHash = sha256_file(ArchivePath),
-    PayloadSize = file_size(ArchivePath),
-    Manifest = render_manifest(#{
+    StartCommand = connect_script_name(Target),
+    Manifest = partial_manifest(#{
         app_id => AppId,
         app_name => AppName,
         app_version => AppVersion,
@@ -82,88 +71,81 @@ package_payload(ProtocolVersion) ->
         plushie_rust_version => PlushieRustVersion,
         protocol_version => ProtocolVersion,
         renderer_kind => RendererKind,
-        icon_path => {ok, IconPath},
-        start_config => StartConfig,
-        archive => ArchiveName,
-        payload_hash => PayloadHash,
-        payload_size => PayloadSize
+        start_command => StartCommand
     }),
     ManifestPath = filename:join(DistDir, "plushie-package.toml"),
     ok = file:write_file(ManifestPath, Manifest),
-
-    io:format("Wrote ~s~n", [ArchivePath]),
     io:format("Wrote ~s~n", [ManifestPath]),
-    finish_portable_package(ManifestPath).
 
-finish_portable_package(ManifestPath) ->
-    StrictTools = has_flag("--strict-tools"),
-    maybe_verify_strict_package_tools(StrictTools),
-    io:format("~s", [portable_handoff_text(ManifestPath, StrictTools)]).
+    assemble_package(ManifestPath, PayloadDir, PackageConfigArg).
 
-maybe_verify_strict_package_tools(true) ->
-    _ = run_or_fail(
-        filename:join(["bin", tool_name()]),
-        [
-            <<"tools">>,
-            <<"check">>,
-            <<"--required-version">>,
-            to_bin(plushie_rust_version())
-        ]
-    ),
-    ok;
-maybe_verify_strict_package_tools(false) ->
-    ok.
-
-portable_handoff_text(ManifestPath) ->
-    portable_handoff_text(ManifestPath, false).
-
-portable_handoff_text(ManifestPath, StrictTools) ->
-    {Command, Args} = portable_package_command(ManifestPath, error, StrictTools),
-    to_bin(["Build launcher with:\n  ", Command, " ", lists:join(<<" ">>, Args), "\n"]).
-
-portable_package_command(ManifestPath, PortableOut, StrictTools) ->
-    Base = [<<"package">>, <<"portable">>, <<"--manifest">>, to_bin(ManifestPath)],
-    WithOut = case PortableOut of
-        {ok, OutPath} -> Base ++ [<<"--out">>, to_bin(OutPath)];
-        {error, _} -> Base;
-        error -> Base
-    end,
-    Args = case StrictTools of
-        true -> WithOut ++ [<<"--strict-tools">>];
-        false -> WithOut
-    end,
-    {to_bin(filename:join(["bin", tool_name()])), Args}.
-
-package_start_config() ->
-    case optional_flag("--package-config") of
-        {ok, Path} ->
-            read_package_config(Path);
+assemble_package(ManifestPath, PayloadDir, PackageConfigArg) ->
+    Tool = to_bin(filename:join(["bin", tool_name()])),
+    BaseArgs = [
+        <<"package">>,
+        <<"assemble">>,
+        <<"--manifest">>,
+        to_bin(ManifestPath),
+        <<"--payload-dir">>,
+        to_bin(PayloadDir)
+    ],
+    Args = case PackageConfigArg of
+        {ok, ConfigPath} -> BaseArgs ++ [<<"--package-config">>, to_bin(ConfigPath)];
         error ->
             case filelib:is_regular("plushie-package.config.toml") of
-                true -> read_package_config("plushie-package.config.toml");
-                false -> default_start_config()
+                true -> BaseArgs ++ [<<"--package-config">>, <<"plushie-package.config.toml">>];
+                false -> BaseArgs
             end
-    end.
-
-read_package_config(Path) ->
-    case file:read_file(Path) of
-        {ok, Content} -> parse_package_config_text_bang(Content);
-        {error, Reason} -> fail(["Could not read package config ", Path, ": ", io_lib:format("~p", [Reason])])
-    end.
-
-default_start_config() ->
-    ConnectScript = case os:type() of
-        {win32, _} -> <<"bin/connect.cmd">>;
-        _          -> <<"bin/connect">>
     end,
-    #{
-        working_dir => <<".">>,
-        command => [ConnectScript],
-        forward_env => default_forward_env()
-    }.
+    _ = run_or_fail(Tool, Args),
+    ok.
+
+connect_script_name(Target) ->
+    case binary:match(Target, <<"windows">>) of
+        {_, _} -> <<"bin/connect.cmd">>;
+        nomatch -> <<"bin/connect">>
+    end.
+
+%% Test-facing arity-8 form with positional arguments.
+partial_manifest(AppId, AppName, AppVersion, Target, HostSdkVersion, PlushieRustVersion, ProtocolVersion, RendererKind) ->
+    partial_manifest(#{
+        app_id => AppId,
+        app_name => AppName,
+        app_version => AppVersion,
+        target => Target,
+        host_sdk_version => HostSdkVersion,
+        plushie_rust_version => PlushieRustVersion,
+        protocol_version => ProtocolVersion,
+        renderer_kind => RendererKind,
+        start_command => connect_script_name(Target)
+    }).
+
+partial_manifest(Values) ->
+    to_bin([
+        "schema_version = 1\n",
+        "app_id = \"", toml_string_escape(maps:get(app_id, Values)), "\"\n",
+        app_name_manifest_line(maps:get(app_name, Values, error)),
+        "app_version = \"", toml_string_escape(maps:get(app_version, Values)), "\"\n",
+        "target = \"", toml_string_escape(maps:get(target, Values)), "\"\n",
+        "host_sdk = \"gleam\"\n",
+        "host_sdk_version = \"", toml_string_escape(maps:get(host_sdk_version, Values)), "\"\n",
+        "plushie_rust_version = \"", toml_string_escape(maps:get(plushie_rust_version, Values)), "\"\n",
+        "protocol_version = ", integer_to_binary(maps:get(protocol_version, Values)), "\n",
+        "\n[start]\n",
+        "command = [\"", toml_string_escape(maps:get(start_command, Values)), "\"]\n",
+        "\n[renderer]\n",
+        "path = \"bin/plushie-renderer\"\n",
+        "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n"
+    ]).
+
+app_name_manifest_line({ok, AppName}) ->
+    to_bin(["app_name = \"", toml_string_escape(AppName), "\"\n"]);
+app_name_manifest_line({error, _}) ->
+    <<>>;
+app_name_manifest_line(error) ->
+    <<>>.
 
 package_config_text() ->
-    Cfg = default_start_config(),
     to_bin([
         "# Plushie standalone package config.\n",
         "# Commit this file and edit it when the packaged app needs a\n",
@@ -171,14 +153,20 @@ package_config_text() ->
         "config_version = 1\n\n",
         "[start]\n",
         "# Relative to the extracted app package.\n",
-        "working_dir = \"", maps:get(working_dir, Cfg), "\"\n",
+        "working_dir = \".\"\n",
         "# Structured argv. The first item is the packaged host executable.\n",
         "# bin/connect is the POSIX entry point.\n",
         "# On windows-* targets the SDK automatically uses bin/connect.cmd.\n",
         "command = [\"bin/connect\"]\n",
         "# Environment variable names copied from the parent process.\n",
         "forward_env = [\n",
-        [[<<"  \"">>, toml_string_escape(Name), <<"\",\n">>] || Name <- maps:get(forward_env, Cfg)],
+        "  \"PATH\",\n",
+        "  \"HOME\",\n",
+        "  \"LANG\",\n",
+        "  \"LC_ALL\",\n",
+        "  \"XDG_RUNTIME_DIR\",\n",
+        "  \"WAYLAND_DISPLAY\",\n",
+        "  \"DISPLAY\",\n",
         "]\n\n",
         "# Optional platform metadata passed through to the launcher manifest.\n",
         "# Uncomment and fill in any fields you need.\n",
@@ -195,239 +183,39 @@ package_config_text() ->
         "# install_scope = \"perUser\"  # perUser or perMachine\n"
     ]).
 
-parse_package_config_text(Text) ->
+package_tools_check(Tool, Renderer, Launcher) ->
+    Missing = [Path || Path <- [Tool, Renderer, Launcher], not filelib:is_regular(Path)],
+    case Missing of
+        [] -> {ok, nil};
+        _ -> {error, Missing}
+    end.
+
+portable_tools_check(Tool, Launcher) ->
+    Missing = [Path || Path <- [Tool, Launcher], not filelib:is_regular(Path)],
+    case Missing of
+        [] -> {ok, nil};
+        _ -> {error, Missing}
+    end.
+
+package_target_supported(Target) ->
     try
-        Config = parse_package_config_text_bang(Text),
-        {ok, {
-            maps:get(working_dir, Config),
-            maps:get(command, Config),
-            maps:get(forward_env, Config),
-            maps:get(platform_config, Config)
-        }}
+        assert_package_target_supported(Target),
+        {ok, nil}
     catch
-        throw:{package_error, Message} ->
-            {error, to_bin(Message)}
+        throw:{package_error, Reason} -> {error, Reason}
     end.
 
-parse_package_config_text_bang(Text) ->
-    Content = to_bin(Text),
-    case re:run(Content, <<"(?m)^\\s*config_version\\s*=\\s*(\\d+)\\s*$">>, [{capture, [1], binary}]) of
-        {match, [<<"1">>]} -> ok;
-        {match, [Version]} -> fail(["Unsupported package config config_version ", Version]);
-        nomatch -> fail("Package config must include config_version = 1")
-    end,
-    Start = section(Content, <<"start">>),
-    PlatformConfig = parse_platform_config(Content),
-    Config = #{
-        working_dir => string_field(Start, <<"working_dir">>),
-        command => array_field(Start, <<"command">>),
-        forward_env => array_field(Start, <<"forward_env">>),
-        platform_config => PlatformConfig
-    },
-    validate_start_config(Config),
-    Config.
-
-parse_platform_config(Content) ->
-    PlatformSection = optional_section(Content, <<"platform">>),
-    MacosSection = optional_section(Content, <<"platform.macos">>),
-    WindowsSection = optional_section(Content, <<"platform.windows">>),
-    WindowsConfig = #{
-        install_scope => parse_install_scope(WindowsSection)
-    },
-    #{
-        publisher    => optional_string_field(PlatformSection, <<"publisher">>),
-        copyright    => optional_string_field(PlatformSection, <<"copyright">>),
-        category     => optional_string_field(PlatformSection, <<"category">>),
-        description  => optional_string_field(PlatformSection, <<"description">>),
-        bundle_id    => optional_string_field(PlatformSection, <<"bundle_id">>),
-        macos        => #{bundle_version => optional_string_field(MacosSection, <<"bundle_version">>)},
-        windows      => WindowsConfig
-    }.
-
-parse_install_scope(WindowsSection) ->
-    case optional_string_field(WindowsSection, <<"install_scope">>) of
-        error -> error;
-        {ok, <<"perUser">>} -> {ok, <<"perUser">>};
-        {ok, <<"perMachine">>} -> {ok, <<"perMachine">>};
-        {ok, Value} -> fail(["Package config platform.windows.install_scope must be \"perUser\" or \"perMachine\", got: ", Value])
-    end.
-
-section(Text, Name) ->
-    case optional_section(Text, Name) of
-        <<>> -> fail(["Package config must include [", Name, "]"]);
-        Body -> Body
-    end.
-
-optional_section(Text, Name) ->
-    Pattern = <<"(?ms)^\\s*\\[", Name/binary, "\\]\\s*$(.*?)(?=^\\s*\\[|\\z)">>,
-    case re:run(Text, Pattern, [{capture, [1], binary}]) of
-        {match, [Body]} -> Body;
-        nomatch -> <<>>
-    end.
-
-string_field(Section, Name) ->
-    Value = field_value(Section, Name),
-    case re:run(Value, <<"^\"((?:\\\\.|[^\"\\\\])*)\"$">>, [{capture, [1], binary}]) of
-        {match, [Raw]} -> unescape_toml_string(Raw);
-        nomatch -> fail(["Package config ", Name, " must be a TOML basic string"])
-    end.
-
-optional_string_field(Section, Name) ->
-    case optional_field_value(Section, Name) of
-        error -> error;
-        {ok, Value} ->
-            case re:run(Value, <<"^\"((?:\\\\.|[^\"\\\\])*)\"$">>, [{capture, [1], binary}]) of
-                {match, [Raw]} -> {ok, unescape_toml_string(Raw)};
-                nomatch -> fail(["Package config ", Name, " must be a TOML basic string"])
-            end
-    end.
-
-array_field(Section, Name) ->
-    Value = field_value(Section, Name),
-    case {binary:first(Value), binary:last(Value)} of
-        {$[, $]} ->
-            Matches = re:run(Value, <<"\"((?:\\\\.|[^\"\\\\])*)\"">>, [global, {capture, [1], binary}]),
-            validate_array_has_only_strings(Value, Name),
-            case Matches of
-                {match, Captures} -> [unescape_toml_string(Raw) || [Raw] <- Captures];
-                nomatch -> []
-            end;
-        _ ->
-            fail(["Package config ", Name, " must be an array of strings"])
-    end.
-
-validate_array_has_only_strings(Value, Name) ->
-    WithoutStrings = re:replace(Value, <<"\"(?:\\\\.|[^\"\\\\])*\"">>, <<>>, [global, {return, binary}]),
-    case re:run(WithoutStrings, <<"^[\\s,\\[\\]]*$">>) of
-        {match, _} -> ok;
-        nomatch -> fail(["Package config ", Name, " must be an array of strings"])
-    end.
-
-field_value(Section, Name) ->
-    Lines = [trim(Line) || Line <- binary:split(Section, <<"\n">>, [global])],
-    collect_field(Lines, <<Name/binary, " =">>).
-
-optional_field_value(Section, Name) ->
-    Lines = [trim(Line) || Line <- binary:split(Section, <<"\n">>, [global])],
-    collect_optional_field(Lines, <<Name/binary, " =">>).
-
-collect_optional_field([], _Prefix) ->
-    error;
-collect_optional_field([Line | Rest], Prefix) ->
-    case Line of
-        <<>> -> collect_optional_field(Rest, Prefix);
-        <<"#", _/binary>> -> collect_optional_field(Rest, Prefix);
-        _ ->
-            case binary:match(Line, Prefix) of
-                {0, Size} ->
-                    Value = trim(binary:part(Line, Size, byte_size(Line) - Size)),
-                    case Value of
-                        <<>> -> collect_optional_field(Rest, Prefix);
-                        _ -> {ok, Value}
-                    end;
-                _ ->
-                    collect_optional_field(Rest, Prefix)
-            end
-    end.
-
-collect_field([], Name) ->
-    fail(["Package config [start] must include ", Name]);
-collect_field([Line | Rest], Prefix) ->
-    case Line of
-        <<>> -> collect_field(Rest, Prefix);
-        <<"#", _/binary>> -> collect_field(Rest, Prefix);
-        _ ->
-            case binary:match(Line, Prefix) of
-                {0, Size} ->
-                    Value = trim(binary:part(Line, Size, byte_size(Line) - Size)),
-                    case Value of
-                        <<"[", _/binary>> ->
-                            case binary:match(Value, <<"]">>) of
-                                nomatch -> collect_array(Rest, [Value]);
-                                _ -> Value
-                            end;
-                        _ -> Value
-                    end;
-                _ ->
-                    collect_field(Rest, Prefix)
-            end
-    end.
-
-collect_array([], _Parts) ->
-    fail("Package config array is unterminated");
-collect_array([Line | Rest], Parts) ->
-    Trimmed = trim(strip_comment(Line)),
-    Next = Parts ++ [Trimmed],
-    case binary:match(Trimmed, <<"]">>) of
-        nomatch -> collect_array(Rest, Next);
-        _ -> to_bin(lists:join(<<"\n">>, Next))
-    end.
-
-strip_comment(Line) ->
-    strip_comment(Line, false, <<>>).
-
-strip_comment(<<>>, _InQuote, Acc) ->
-    Acc;
-strip_comment(<<"\\\"", Rest/binary>>, true, Acc) ->
-    strip_comment(Rest, true, <<Acc/binary, "\\\"">>);
-strip_comment(<<"\"", Rest/binary>>, InQuote, Acc) ->
-    strip_comment(Rest, not InQuote, <<Acc/binary, "\"">>);
-strip_comment(<<"#", _/binary>>, false, Acc) ->
-    Acc;
-strip_comment(<<Char/utf8, Rest/binary>>, InQuote, Acc) ->
-    strip_comment(Rest, InQuote, <<Acc/binary, Char/utf8>>).
-
-unescape_toml_string(Value) ->
-    unescape_toml_string(Value, []).
-
-unescape_toml_string(<<>>, Acc) ->
-    to_bin(lists:reverse(Acc));
-unescape_toml_string(<<"\\n", Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<"\n">> | Acc]);
-unescape_toml_string(<<"\\r", Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<"\r">> | Acc]);
-unescape_toml_string(<<"\\t", Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<"\t">> | Acc]);
-unescape_toml_string(<<"\\\"", Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<"\"">> | Acc]);
-unescape_toml_string(<<"\\\\", Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<"\\">> | Acc]);
-unescape_toml_string(<<Char/utf8, Rest/binary>>, Acc) ->
-    unescape_toml_string(Rest, [<<Char/utf8>> | Acc]).
-
-validate_start_config(Config) ->
-    validate_payload_path(<<"start.working_dir">>, maps:get(working_dir, Config)),
-    case maps:get(command, Config) of
-        [Program | Args] ->
-            validate_payload_path(<<"start.command[0]">>, Program),
-            case lists:any(fun(Arg) -> Arg =:= <<>> end, [Program | Args]) of
-                true -> fail("Package config start.command must contain a non-empty argv");
-                false -> ok
-            end;
-        _ ->
-            fail("Package config start.command must contain a non-empty argv")
-    end,
-    lists:foreach(fun validate_forward_env/1, maps:get(forward_env, Config)),
+assert_package_target_supported(_) ->
     ok.
 
-validate_payload_path(Name, Path) ->
-    Parts = filename:split(to_list(Path)),
-    case {Path, filename:pathtype(to_list(Path)), lists:member("..", Parts)} of
-        {<<>>, _, _} -> fail(["Package config ", Name, " must not be empty"]);
-        {_, absolute, _} -> fail(["Package config ", Name, " must be relative to the package"]);
-        {_, _, true} -> fail(["Package config ", Name, " must not contain parent traversal"]);
-        _ -> ok
-    end.
-
-validate_forward_env(Name) ->
-    case {trim(Name), binary:match(Name, <<",">>), binary:match(Name, <<"=">>), Name} of
-        {<<>>, _, _, _} -> fail("Package config start.forward_env contains invalid environment name");
-        {_, {_, _}, _, _} -> fail("Package config start.forward_env contains invalid environment name");
-        {_, _, {_, _}, _} -> fail("Package config start.forward_env contains invalid environment name");
-        {_, _, _, <<"PLUSHIE_BINARY_PATH">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
-        {_, _, _, <<"PLUSHIE_PACKAGE_DIR">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
-        {_, _, _, <<"PLUSHIE_PACKAGE_READY_FILE">>} -> fail("Package config start.forward_env must not include launcher-owned variables");
-        _ -> ok
+has_native_widgets() ->
+    case file:read_file("gleam.toml") of
+        {ok, Content} ->
+            case re:run(Content, <<"(?m)^native_widgets = \\[\\]">>) of
+                {match, _} -> false;
+                nomatch -> re:run(Content, <<"(?m)^native_widgets = \\[">>) =/= nomatch
+            end;
+        {error, _} -> false
     end.
 
 install_renderer(<<"custom">>, RendererPath) ->
@@ -455,16 +243,6 @@ assert_renderer_kind_matches_project(<<"stock">>) ->
     end;
 assert_renderer_kind_matches_project(_) ->
     ok.
-
-has_native_widgets() ->
-    case file:read_file("gleam.toml") of
-        {ok, Content} ->
-            case re:run(Content, <<"(?m)^native_widgets = \\[\\]">>) of
-                {match, _} -> false;
-                nomatch -> re:run(Content, <<"(?m)^native_widgets = \\[">>) =/= nomatch
-            end;
-        {error, _} -> false
-    end.
 
 resolve_stock_renderer() ->
     case optional_flag("--renderer-path") of
@@ -510,20 +288,6 @@ ensure_portable_tools_available() ->
         {ok, nil} -> ok;
         {error, Missing} ->
             fail(["Portable packaging requires the managed Plushie tool set. Missing: ", lists:join(", ", Missing), ". Run `gleam run -m plushie/download`."])
-    end.
-
-package_tools_check(Tool, Renderer, Launcher) ->
-    Missing = [Path || Path <- [Tool, Renderer, Launcher], not filelib:is_regular(Path)],
-    case Missing of
-        [] -> {ok, nil};
-        _ -> {error, Missing}
-    end.
-
-portable_tools_check(Tool, Launcher) ->
-    Missing = [Path || Path <- [Tool, Launcher], not filelib:is_regular(Path)],
-    case Missing of
-        [] -> {ok, nil};
-        _ -> {error, Missing}
     end.
 
 tool_name() ->
@@ -729,56 +493,6 @@ connect_script(_, ConnectModule) ->
         ])
     }.
 
-package_target_supported(Target) ->
-    try
-        assert_package_target_supported(Target),
-        {ok, nil}
-    catch
-        throw:{package_error, Reason} -> {error, Reason}
-    end.
-
-assert_package_target_supported(_) ->
-    ok.
-
-materialize_platform_icon(PayloadDir) ->
-    AssetsDir = filename:join(PayloadDir, "assets"),
-    case optional_flag("--icon") of
-        {ok, IconPath} ->
-            copy_app_icon(IconPath, AssetsDir);
-        error ->
-            write_default_icons(AssetsDir),
-            default_icon_path()
-    end.
-
-copy_app_icon(IconPath, AssetsDir) ->
-    case filelib:is_regular(IconPath) of
-        true -> ok;
-        false -> fail(["Icon path is not a regular file: ", IconPath])
-    end,
-    Name = filename:basename(IconPath),
-    validate_asset_file_name(Name),
-    ok = filelib:ensure_dir(filename:join([AssetsDir, "dummy"])),
-    Dest = filename:join(AssetsDir, Name),
-    copy_path(IconPath, Dest),
-    to_bin(filename:join("assets", Name)).
-
-write_default_icons(AssetsDir) ->
-    ok = filelib:ensure_dir(filename:join([AssetsDir, "dummy"])),
-    SourcePath = getenv("PLUSHIE_RUST_SOURCE_PATH"),
-    assert_source_path(SourcePath),
-    {Command, Args} = default_icons_command(SourcePath, AssetsDir),
-    io:format("Writing default app icons...~n", []),
-    _ = run_or_fail(Command, Args),
-    ok.
-
-assert_source_path({ok, SourcePath}) ->
-    case filelib:is_regular(filename:join(SourcePath, "Cargo.toml")) of
-        true -> ok;
-        false -> fail(["PLUSHIE_RUST_SOURCE_PATH does not look like a Rust workspace: ", SourcePath])
-    end;
-assert_source_path(error) ->
-    ok.
-
 default_icons_command({ok, SourcePath}, AssetsDir) ->
     {
         <<"cargo">>,
@@ -812,268 +526,89 @@ default_icons_command(error, AssetsDir) ->
 default_icon_path() ->
     <<"assets/default-app-icon-512.png">>.
 
-validate_asset_file_name(Name0) ->
-    Name = to_bin(Name0),
-    Invalid = Name =:= <<>>
-        orelse Name =:= <<".">>
-        orelse Name =:= <<"..">>
-        orelse contains(Name, <<"\"">>)
-        orelse contains(Name, <<"\\">>)
-        orelse contains(Name, <<"/">>),
-    case Invalid of
-        true -> fail(["Icon file name is not supported in package metadata: ", Name]);
-        false -> ok
+copy_executable(Src, Dest) ->
+    assert_executable(Src),
+    copy_path(Src, Dest),
+    make_executable(Dest).
+
+copy_dir_contents(Src, Dest) ->
+    case filelib:is_dir(Src) of
+        true -> ok;
+        false -> fail(["Missing directory: ", Src])
+    end,
+    ok = filelib:ensure_dir(filename:join(Dest, "dummy")),
+    run_or_fail("sh", ["-c", "cp -R " ++ shell_quote(filename:join(Src, ".")) ++ " " ++ shell_quote(Dest)]).
+
+copy_path(Src, Dest) ->
+    ok = filelib:ensure_dir(Dest),
+    run_or_fail("cp", ["-aL", Src, Dest]).
+
+reset_dir(Path) ->
+    _ = file:del_dir_r(Path),
+    ok = filelib:ensure_dir(filename:join(Path, "dummy")).
+
+make_executable(Path) ->
+    ok = file:change_mode(Path, 8#755).
+
+assert_executable(Path) ->
+    case is_executable(Path) of
+        true -> ok;
+        false -> fail(["Path is not executable: ", Path])
     end.
 
-contains(Value, Pattern) ->
-    binary:match(to_bin(Value), to_bin(Pattern)) =/= nomatch.
-
-archive_payload(PayloadDir, ArchivePath) ->
-    validate_payload_archive_inputs(PayloadDir),
-    ok = filelib:ensure_dir(ArchivePath),
-    Tar = archive_tar(),
-    case tar_supports_zstd(Tar) of
-        true ->
-            run_or_fail(Tar, ["-C", PayloadDir, "--sort=name", "--mtime=UTC 1970-01-01", "--owner=0", "--group=0", "--numeric-owner", "--zstd", "-cf", ArchivePath, "."]);
-        false ->
-            require_command("zstd"),
-            case os:type() of
-                {win32, _} ->
-                    fail("tar does not support --zstd and the fallback archive pipeline requires a Unix shell. Install GNU tar with --zstd support for Windows package assembly.");
-                _ ->
-                    ok
-            end,
-            Command = shell_quote(Tar) ++ " -C " ++ shell_quote(PayloadDir) ++ " --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - . | zstd -q -o " ++ shell_quote(ArchivePath),
-            run_or_fail("sh", ["-c", Command])
+is_executable(Path) ->
+    case file:read_file_info(Path) of
+        {ok, #file_info{mode = Mode, type = regular}} -> Mode band 8#111 =/= 0;
+        _ -> false
     end.
 
-validate_payload_archive_inputs(PayloadDir) ->
-    case walk_payload_dir(PayloadDir, PayloadDir) of
-        ok -> ok;
-        {error, Message} -> fail(Message)
+require_command(Name) ->
+    case find_executable(Name) of
+        {ok, _} -> ok;
+        error -> fail(["Missing required command: ", Name])
     end.
 
-walk_payload_dir(Root, Dir) ->
-    case file:list_dir(Dir) of
-        {error, Reason} ->
-            {error, ["Could not list directory: ", Dir, ": ", io_lib:format("~p", [Reason])]};
-        {ok, Names} ->
-            walk_payload_entries(Root, Dir, Names)
+find_executable(Name) ->
+    case os:find_executable(Name) of
+        false -> error;
+        Path -> {ok, Path}
     end.
 
-walk_payload_entries(_Root, _Dir, []) ->
-    ok;
-walk_payload_entries(Root, Dir, [Name | Rest]) ->
-    Path = filename:join(Dir, Name),
-    case file:read_link_info(Path) of
-        {ok, #file_info{type = symlink}} ->
-            {error, ["Payload contains unsupported symlink: ", relative_to(Root, Path)]};
-        {ok, #file_info{type = device}} ->
-            {error, ["Payload contains unsupported special file: ", relative_to(Root, Path)]};
-        {ok, #file_info{type = other}} ->
-            {error, ["Payload contains unsupported special file: ", relative_to(Root, Path)]};
-        {ok, #file_info{type = regular, links = Links}} when Links > 1 ->
-            {error, ["Payload contains hard-linked file: ", relative_to(Root, Path)]};
-        {ok, #file_info{type = regular}} ->
-            walk_payload_entries(Root, Dir, Rest);
-        {ok, #file_info{type = directory}} ->
-            case walk_payload_dir(Root, Path) of
-                ok -> walk_payload_entries(Root, Dir, Rest);
-                Error -> Error
-            end;
-        {error, Reason} ->
-            {error, ["Could not stat: ", Path, ": ", io_lib:format("~p", [Reason])]}
+run_or_fail(Command, Args) ->
+    case run_command(Command, Args, 1800000) of
+        {ok, Output} -> Output;
+        {error, Output} -> fail([Command, " failed:\n", Output])
     end.
 
-archive_tar() ->
-    case gnu_tar("tar") of
-        true ->
-            "tar";
-        false ->
-            case find_executable("gtar") of
-                {ok, Gtar} ->
-                    case gnu_tar(Gtar) of
-                        true -> Gtar;
-                        false -> fail("GNU tar or gtar is required for deterministic payload archives")
-                    end;
-                error ->
-                    fail("GNU tar or gtar is required for deterministic payload archives")
-            end
-    end.
-
-gnu_tar(Command) ->
-    case executable_command(Command) of
-        {ok, _} ->
-            case run_command(Command, ["--version"], 30000) of
-                {ok, Output} -> binary:match(Output, <<"GNU tar">>) =/= nomatch;
-                {error, _} -> false
-            end;
-        error ->
-            false
-    end.
-
-executable_command(Command) ->
+run_command(Command, Args, Timeout) ->
     CommandString = to_list(Command),
-    case filename:dirname(CommandString) of
-        "." -> find_executable(Command);
-        _ ->
-            case filelib:is_regular(CommandString) of
-                true -> {ok, Command};
-                false -> error
-            end
+    Exe = case filename:dirname(CommandString) of
+        "." ->
+            case os:find_executable(CommandString) of
+                false -> throw({package_error, ["Missing required command: ", CommandString]});
+                Found -> Found
+            end;
+        _ -> CommandString
+    end,
+    ArgStrings = [to_list(Arg) || Arg <- Args],
+    Port = erlang:open_port({spawn_executable, Exe}, [
+        {args, ArgStrings},
+        stream, binary, exit_status, use_stdio, stderr_to_stdout
+    ]),
+    collect_port_output(Port, <<>>, Timeout).
+
+collect_port_output(Port, Acc, Timeout) ->
+    receive
+        {Port, {data, Data}} ->
+            collect_port_output(Port, <<Acc/binary, Data/binary>>, Timeout);
+        {Port, {exit_status, 0}} ->
+            {ok, Acc};
+        {Port, {exit_status, _Status}} ->
+            {error, Acc}
+    after Timeout ->
+        erlang:port_close(Port),
+        {error, Acc}
     end.
-
-tar_supports_zstd(Tar) ->
-    case run_command(Tar, ["--help"], 30000) of
-        {ok, Output} -> binary:match(Output, <<"--zstd">>) =/= nomatch;
-        {error, _} -> false
-    end.
-
-render_manifest(Values) ->
-    StartConfig = maps:get(start_config, Values),
-    PlatformConfig = maps:get(platform_config, StartConfig, empty_platform_config()),
-    [
-        "schema_version = 1\n",
-        "app_id = \"", toml_string_escape(maps:get(app_id, Values)), "\"\n",
-        app_name_manifest_line(maps:get(app_name, Values, error)),
-        "app_version = \"", toml_string_escape(maps:get(app_version, Values)), "\"\n",
-        "target = \"", toml_string_escape(maps:get(target, Values)), "\"\n",
-        "host_sdk = \"gleam\"\n",
-        "host_sdk_version = \"", toml_string_escape(maps:get(host_sdk_version, Values)), "\"\n",
-        "plushie_rust_version = \"", toml_string_escape(maps:get(plushie_rust_version, Values)), "\"\n",
-        "protocol_version = ", integer_to_binary(maps:get(protocol_version, Values)), "\n",
-        "\n[start]\n",
-        "working_dir = \"", toml_string_escape(maps:get(working_dir, StartConfig)), "\"\n",
-        "command = ", toml_array(maps:get(command, StartConfig)), "\n",
-        "forward_env = ", toml_array(maps:get(forward_env, StartConfig)), "\n\n",
-        platform_manifest_section(maps:get(icon_path, Values), PlatformConfig),
-        "[renderer]\n",
-        "path = \"bin/plushie-renderer\"\n",
-        "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n\n",
-        "[payload]\n",
-        "archive = \"", toml_string_escape(maps:get(archive, Values)), "\"\n",
-        "hash = \"sha256:", maps:get(payload_hash, Values), "\"\n",
-        "size = ", integer_to_binary(maps:get(payload_size, Values)), "\n"
-    ].
-
-app_name_manifest_line({ok, AppName}) ->
-    to_bin(["app_name = \"", toml_string_escape(AppName), "\"\n"]);
-app_name_manifest_line({error, _}) ->
-    <<>>;
-app_name_manifest_line(error) ->
-    <<>>.
-
-empty_platform_config() ->
-    #{
-        publisher    => error,
-        copyright    => error,
-        category     => error,
-        description  => error,
-        bundle_id    => error,
-        macos        => #{bundle_version => error},
-        windows      => #{install_scope => error}
-    }.
-
-%% Test-facing 1-arg form: icon only, no platform config fields.
-platform_manifest_section(IconPath) ->
-    platform_manifest_section(IconPath, empty_platform_config()).
-
-%% Test-facing helper: parse config text and emit the platform section (no icon).
-platform_section_from_config_text(Text) ->
-    try
-        Config = parse_package_config_text_bang(to_bin(Text)),
-        PlatformConfig = maps:get(platform_config, Config),
-        {ok, platform_manifest_section(error, PlatformConfig)}
-    catch
-        throw:{package_error, Message} ->
-            {error, to_bin(Message)}
-    end.
-
-platform_manifest_section(IconPath, PlatformConfig) ->
-    MacosConfig = maps:get(macos, PlatformConfig, #{}),
-    WindowsConfig = maps:get(windows, PlatformConfig, #{}),
-    TopFields = [
-        optional_toml_string_field("icon", IconPath),
-        optional_toml_string_field("publisher", maps:get(publisher, PlatformConfig, error)),
-        optional_toml_string_field("copyright", maps:get(copyright, PlatformConfig, error)),
-        optional_toml_string_field("category", maps:get(category, PlatformConfig, error)),
-        optional_toml_string_field("description", maps:get(description, PlatformConfig, error)),
-        optional_toml_string_field("bundle_id", maps:get(bundle_id, PlatformConfig, error))
-    ],
-    MacosFields = [
-        optional_toml_string_field("bundle_version", maps:get(bundle_version, MacosConfig, error))
-    ],
-    WindowsFields = [
-        optional_toml_string_field("install_scope", maps:get(install_scope, WindowsConfig, error))
-    ],
-    HasTopFields = lists:any(fun(F) -> F =/= <<>> end, TopFields),
-    HasMacosFields = lists:any(fun(F) -> F =/= <<>> end, MacosFields),
-    HasWindowsFields = lists:any(fun(F) -> F =/= <<>> end, WindowsFields),
-    case {HasTopFields, HasMacosFields, HasWindowsFields} of
-        {false, false, false} ->
-            <<>>;
-        _ ->
-            PlatformHeader = case HasTopFields of
-                true -> to_bin(["[platform]\n", TopFields, "\n"]);
-                false -> <<>>
-            end,
-            MacosSection = case HasMacosFields of
-                true -> to_bin(["[platform.macos]\n", MacosFields, "\n"]);
-                false -> <<>>
-            end,
-            WindowsSection = case HasWindowsFields of
-                true -> to_bin(["[platform.windows]\n", WindowsFields, "\n"]);
-                false -> <<>>
-            end,
-            to_bin([PlatformHeader, MacosSection, WindowsSection])
-    end.
-
-optional_toml_string_field(_Key, error) ->
-    <<>>;
-optional_toml_string_field(_Key, {error, _}) ->
-    <<>>;
-optional_toml_string_field(Key, {ok, Value}) ->
-    to_bin([Key, " = \"", toml_string_escape(Value), "\"\n"]).
-
-manifest_escape_probe(Value) ->
-    to_bin(render_manifest(#{
-        app_id => Value,
-        app_name => error,
-        app_version => Value,
-        target => Value,
-        host_sdk_version => Value,
-        plushie_rust_version => Value,
-        protocol_version => 1,
-        start_config => #{
-            working_dir => ".",
-            command => ["bin/connect"],
-            forward_env => [],
-            platform_config => empty_platform_config()
-        },
-        icon_path => {ok, Value},
-        renderer_kind => Value,
-        archive => Value,
-        payload_hash => "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        payload_size => 1
-    })).
-
-default_forward_env() ->
-    [
-        <<"PATH">>,
-        <<"HOME">>,
-        <<"LANG">>,
-        <<"LC_ALL">>,
-        <<"XDG_RUNTIME_DIR">>,
-        <<"WAYLAND_DISPLAY">>,
-        <<"DISPLAY">>
-    ].
-
-toml_array(Values) ->
-    to_bin([
-        "[",
-        lists:join(<<", ">>, [[<<"\"">>, toml_string_escape(Value), <<"\"">>] || Value <- Values]),
-        "]"
-    ]).
 
 package_target() ->
     Os = case os:type() of
@@ -1150,99 +685,6 @@ root_string_file(File, Key) ->
         {error, _} -> error
     end.
 
-copy_executable(Src, Dest) ->
-    assert_executable(Src),
-    copy_path(Src, Dest),
-    make_executable(Dest).
-
-copy_dir_contents(Src, Dest) ->
-    case filelib:is_dir(Src) of
-        true -> ok;
-        false -> fail(["Missing directory: ", Src])
-    end,
-    ok = filelib:ensure_dir(filename:join(Dest, "dummy")),
-    run_or_fail("sh", ["-c", "cp -R " ++ shell_quote(filename:join(Src, ".")) ++ " " ++ shell_quote(Dest)]).
-
-copy_path(Src, Dest) ->
-    ok = filelib:ensure_dir(Dest),
-    run_or_fail("cp", ["-aL", Src, Dest]).
-
-reset_dir(Path) ->
-    _ = file:del_dir_r(Path),
-    ok = filelib:ensure_dir(filename:join(Path, "dummy")).
-
-sha256_file(Path) ->
-    {ok, Data} = file:read_file(Path),
-    Hex = [io_lib:format("~2.16.0b", [Byte]) || <<Byte>> <= crypto:hash(sha256, Data)],
-    to_bin(Hex).
-
-file_size(Path) ->
-    {ok, Info} = file:read_file_info(Path),
-    Info#file_info.size.
-
-make_executable(Path) ->
-    ok = file:change_mode(Path, 8#755).
-
-assert_executable(Path) ->
-    case is_executable(Path) of
-        true -> ok;
-        false -> fail(["Path is not executable: ", Path])
-    end.
-
-is_executable(Path) ->
-    case file:read_file_info(Path) of
-        {ok, #file_info{mode = Mode, type = regular}} -> Mode band 8#111 =/= 0;
-        _ -> false
-    end.
-
-require_command(Name) ->
-    case find_executable(Name) of
-        {ok, _} -> ok;
-        error -> fail(["Missing required command: ", Name])
-    end.
-
-find_executable(Name) ->
-    case os:find_executable(Name) of
-        false -> error;
-        Path -> {ok, Path}
-    end.
-
-run_or_fail(Command, Args) ->
-    case run_command(Command, Args, 1800000) of
-        {ok, Output} -> Output;
-        {error, Output} -> fail([Command, " failed:\n", Output])
-    end.
-
-run_command(Command, Args, Timeout) ->
-    CommandString = to_list(Command),
-    Exe = case filename:dirname(CommandString) of
-        "." ->
-            case os:find_executable(CommandString) of
-                false -> throw({package_error, ["Missing required command: ", CommandString]});
-                Found -> Found
-            end;
-        _ -> CommandString
-    end,
-    ArgStrings = [to_list(Arg) || Arg <- Args],
-    Port = erlang:open_port({spawn_executable, Exe}, [
-        {args, ArgStrings},
-        stream, binary, exit_status, use_stdio, stderr_to_stdout
-    ]),
-    collect_port_output(Port, <<>>, Timeout).
-
-collect_port_output(Port, Acc, Timeout) ->
-    receive
-        {Port, {data, Data}} ->
-            collect_port_output(Port, <<Acc/binary, Data/binary>>, Timeout);
-        {Port, {exit_status, 0}} ->
-            {ok, Acc};
-        {Port, {exit_status, _Status}} ->
-            {error, Acc}
-    after Timeout ->
-        erlang:port_close(Port),
-        {error, Acc}
-    end.
-
 required_flag(Name) ->
     case optional_flag(Name) of
         {ok, Value} -> Value;
@@ -1268,14 +710,6 @@ getenv(Name) ->
     case os:getenv(Name) of
         false -> error;
         Value -> {ok, to_bin(Value)}
-    end.
-
-relative_to(Root, Path) ->
-    RootBin = to_bin(filename:join(Root, "")),
-    PathBin = to_bin(Path),
-    case binary:match(PathBin, RootBin) of
-        {0, Size} -> binary:part(PathBin, Size, byte_size(PathBin) - Size);
-        _ -> PathBin
     end.
 
 shell_quote(Value) ->
