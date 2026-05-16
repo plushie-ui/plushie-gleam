@@ -12,7 +12,6 @@
 import examples/widgets/star_rating
 import examples/widgets/theme_toggle
 import gleam/dict.{type Dict}
-import gleam/dynamic.{type Dynamic}
 import gleam/float
 import gleam/int
 import gleam/list
@@ -34,6 +33,7 @@ import plushie/prop/padding
 import plushie/prop/theme
 import plushie/subscription
 import plushie/ui
+import plushie/widget
 import plushie/widget/column
 import plushie/widget/container
 import plushie/widget/row
@@ -189,17 +189,18 @@ fn update(model: Model, event: Event) {
       target: EventTarget(id: "stars", ..),
       data: data,
       ..,
-    )) -> {
-      let stars = coerce_int(data)
-      #(
-        Model(
-          ..model,
-          rating: stars,
-          errors: dict.delete(model.errors, "rating"),
-        ),
-        command.none(),
-      )
-    }
+    )) ->
+      case widget.decode_int(data) {
+        Ok(stars) -> #(
+          Model(
+            ..model,
+            rating: stars,
+            errors: dict.delete(model.errors, "rating"),
+          ),
+          command.none(),
+        )
+        Error(_) -> #(model, command.none())
+      }
 
     // ThemeToggle emits "toggle" with data = Bool.
     // Animation is managed internally by the widget.
@@ -208,10 +209,11 @@ fn update(model: Model, event: Event) {
       target: EventTarget(id: "theme-toggle", ..),
       data: data,
       ..,
-    )) -> {
-      let dark = coerce_bool(data)
-      #(Model(..model, dark_mode: dark), command.none())
-    }
+    )) ->
+      case widget.decode_bool(data) {
+        Ok(dark) -> #(Model(..model, dark_mode: dark), command.none())
+        Error(_) -> #(model, command.none())
+      }
 
     // Review form inputs: clear errors on change
     Widget(Input(target: EventTarget(id: "review-name", ..), value: v)) -> #(
@@ -561,18 +563,6 @@ fn hex(s: String) -> color.Color {
   let assert Ok(c) = color.from_hex(s)
   c
 }
-
-// -- Coercion helpers for Dynamic values from canvas_widget Emit --------------
-// These are safe because we control the Emit data types in our own
-// canvas_widget definitions and know the exact runtime type.
-
-@external(erlang, "plushie_ffi", "identity")
-@external(javascript, "../../plushie_platform_ffi.mjs", "identity")
-fn coerce_int(a: Dynamic) -> Int
-
-@external(erlang, "plushie_ffi", "identity")
-@external(javascript, "../../plushie_platform_ffi.mjs", "identity")
-fn coerce_bool(a: Dynamic) -> Bool
 
 // -- Entry point --------------------------------------------------------------
 

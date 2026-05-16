@@ -345,25 +345,48 @@ fn parse_star(local_id: String) -> Result(Int, Nil) {
 The parent app pattern-matches on `Widget(CustomWidget(...))`:
 
 ```gleam
-import gleam/dynamic/decode
 import plushie/event.{CustomWidget, EventTarget, Widget}
+import plushie/widget
 
 case ev {
-  Widget(CustomWidget(kind: "select", target: EventTarget(id: id, ..), data: d, ..)) -> {
-    case decode.run(d, decode.int) {
+  Widget(CustomWidget(kind: "select", target: EventTarget(id: id, ..), data: d, ..)) ->
+    case widget.decode_int(d) {
       Ok(n) -> #(Model(..model, rating: n), command.none())
       Error(_) -> #(model, command.none())
     }
-  }
   _ -> #(model, command.none())
 }
 ```
 
 `kind` names the event family. `target.id` identifies the widget
-instance. `data` is the `Dynamic` payload passed to `Emit`, which you
-decode with the standard `gleam/dynamic/decode` helpers. See the
-[Events reference](../reference/events.md) for the full `CustomWidget`
-pattern-matching cookbook.
+instance. `data` is the `Dynamic` payload passed to `Emit`. For
+single-value payloads use the matching helper:
+`widget.decode_string`, `widget.decode_float`, `widget.decode_int`,
+or `widget.decode_bool`. They each return
+`Result(value, List(decode.DecodeError))`.
+
+For structured payloads (records, custom shapes), decode with a
+`gleam/dynamic/decode.Decoder` of your own. The widget module
+should export its decoder alongside `def()` so consumers import
+one symbol:
+
+```gleam
+// In the widget module
+pub fn select_decoder() -> decode.Decoder(#(Int, Int)) {
+  use stars <- decode.field("stars", decode.int)
+  use max <- decode.field("max", decode.int)
+  decode.success(#(stars, max))
+}
+
+// In the consuming app
+case decode.run(data, star_rating.select_decoder()) {
+  Ok(#(stars, max)) -> ...
+  Error(_) -> model
+}
+```
+
+See the [Events reference](../reference/events.md) for the full
+`CustomWidget` pattern-matching cookbook.
 
 Custom event kinds accepted from the renderer must start with a
 lowercase ASCII letter and may contain lowercase ASCII letters,

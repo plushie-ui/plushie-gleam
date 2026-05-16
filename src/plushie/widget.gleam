@@ -47,6 +47,7 @@
 
 import gleam/dict.{type Dict}
 import gleam/dynamic.{type Dynamic}
+import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -182,6 +183,33 @@ pub fn emit_bool(kind: String, value: Bool) -> EventAction {
 /// Emit with no payload value. Convenience for `Emit(kind, dynamic.nil())`.
 pub fn emit_none(kind: String) -> EventAction {
   Emit(kind:, data: dynamic.nil())
+}
+
+// -- Receive-side decoders ---------------------------------------------------
+//
+// Mirrors of the `emit_*` helpers for apps consuming CustomWidget events.
+// Use these for single-value payloads. For structured payloads, pass any
+// `gleam/dynamic/decode.Decoder` to `decode.run(data, decoder)` directly
+// (or have the widget module export its own decoder alongside `def()`).
+
+/// Decode a string payload. Convenience for `decode.run(data, decode.string)`.
+pub fn decode_string(data: Dynamic) -> Result(String, List(decode.DecodeError)) {
+  decode.run(data, decode.string)
+}
+
+/// Decode a float payload. Convenience for `decode.run(data, decode.float)`.
+pub fn decode_float(data: Dynamic) -> Result(Float, List(decode.DecodeError)) {
+  decode.run(data, decode.float)
+}
+
+/// Decode an int payload. Convenience for `decode.run(data, decode.int)`.
+pub fn decode_int(data: Dynamic) -> Result(Int, List(decode.DecodeError)) {
+  decode.run(data, decode.int)
+}
+
+/// Decode a bool payload. Convenience for `decode.run(data, decode.bool)`.
+pub fn decode_bool(data: Dynamic) -> Result(Bool, List(decode.DecodeError)) {
+  decode.run(data, decode.bool)
 }
 
 // -- Placeholder node --------------------------------------------------------

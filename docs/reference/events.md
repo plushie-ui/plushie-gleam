@@ -474,19 +474,47 @@ case event {
 
 ### Match a custom widget event
 
+For single-value payloads (the common case), use the typed
+`widget.decode_*` helpers:
+
 ```gleam
-import gleam/dynamic/decode
+import plushie/widget
 
 case event {
-  Widget(CustomWidget(kind: "color_picker", value: v, ..)) -> {
-    case decode.run(v, decode.field("hue", "hue", decode.float)) {
-      Ok(hue) -> Model(..model, hue: hue)
+  Widget(CustomWidget(kind: "select", data: d, ..)) ->
+    case widget.decode_int(d) {
+      Ok(stars) -> Model(..model, rating: stars)
       Error(_) -> model
     }
-  }
   _ -> model
 }
 ```
+
+For structured payloads (multi-field records, custom shapes),
+decode with any `gleam/dynamic/decode.Decoder`:
+
+```gleam
+import gleam/dynamic/decode
+
+fn hsv_decoder() -> decode.Decoder(#(Float, Float, Float)) {
+  use h <- decode.field("hue", decode.float)
+  use s <- decode.field("saturation", decode.float)
+  use v <- decode.field("value", decode.float)
+  decode.success(#(h, s, v))
+}
+
+case event {
+  Widget(CustomWidget(kind: "change", data: d, ..)) ->
+    case decode.run(d, hsv_decoder()) {
+      Ok(#(h, s, v)) -> Model(..model, hue: h, saturation: s, value: v)
+      Error(_) -> model
+    }
+  _ -> model
+}
+```
+
+The widget module typically exports its decoder alongside `def()`
+so consumers can call `decode.run(data, widget_module.kind_decoder())`.
 
 ### Match an async result
 

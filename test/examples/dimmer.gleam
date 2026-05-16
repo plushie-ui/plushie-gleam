@@ -15,7 +15,6 @@
 //// `update` at all.
 
 import examples/widgets/dimmer
-import gleam/dynamic/decode
 import gleam/float
 import gleam/int
 @target(erlang)
@@ -29,6 +28,7 @@ import plushie/node.{type Node}
 import plushie/prop/length
 import plushie/prop/padding
 import plushie/ui
+import plushie/widget
 import plushie/widget/button
 import plushie/widget/column
 import plushie/widget/row
@@ -87,7 +87,7 @@ fn on_event(event: Event) -> Msg {
       data: data,
       ..,
     )) ->
-      case decode.run(data, decode.float) {
+      case widget.decode_float(data) {
         Ok(v) -> BrightnessChanged(v)
         Error(_) -> Ignore
       }

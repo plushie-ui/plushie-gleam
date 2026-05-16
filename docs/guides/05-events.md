@@ -378,13 +378,12 @@ pub type Msg {
 fn on_event(event: Event) -> Msg {
   case event {
     Widget(CustomWidget(kind: "change", target: EventTarget(id: "dimmer", ..), data: data, ..)) ->
-      case decode.run(data, decode.float) {
+      case widget.decode_float(data) {
         Ok(v) -> BrightnessChanged(v)
         Error(_) -> Ignore
       }
-    Widget(Click(target: EventTarget(id: "cut", ..))) -> CutPower
-    Widget(Click(target: EventTarget(id: "boost", ..))) -> Boost
-    _ -> Ignore
+    _ ->
+      event.click_route(event, [#("cut", CutPower), #("boost", Boost)], Ignore)
   }
 }
 

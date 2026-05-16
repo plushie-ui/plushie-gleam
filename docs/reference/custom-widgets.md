@@ -98,7 +98,11 @@ The widget handler returns one of four actions:
 Helpers on typed payloads: `widget.emit_string(kind, value)`,
 `widget.emit_float`, `widget.emit_int`, `widget.emit_bool`,
 `widget.emit_none(kind)`. Each wraps `Emit` with a correctly
-encoded `Dynamic`.
+encoded `Dynamic`. Mirror helpers on the receiving side decode the
+payload: `widget.decode_string(data)`, `widget.decode_float`,
+`widget.decode_int`, `widget.decode_bool`. They return
+`Result(value, List(decode.DecodeError))` for the same single-value
+cases. Use them for the common `emit_*`/`decode_*` pairing.
 
 ### Rendering a composite widget
 
@@ -147,21 +151,47 @@ lifecycle that keeps them in sync.
 When a widget emits via `Emit(kind, data)`, the runtime
 dispatches `Widget(CustomWidget(kind, target, value, data))` into
 the app's `update`. The kind string lets callers pattern-match
-per widget instance or per event family:
+per widget instance or per event family.
+
+**Single-value payloads** (the common case) use the typed decode
+helpers paired with the matching `emit_*`:
 
 ```gleam
-import gleam/dynamic/decode
+import plushie/widget
 
 case event {
-  Widget(CustomWidget(kind: "change", target: EventTarget(id: id, ..), data: d, ..)) -> {
-    case decode.run(d, decode.field("value", "value", decode.int)) {
+  Widget(CustomWidget(kind: "change", target: EventTarget(id: id, ..), data: d, ..)) ->
+    case widget.decode_int(d) {
       Ok(v) -> Model(..model, values: dict.insert(model.values, id, v))
       Error(_) -> model
     }
-  }
   _ -> model
 }
 ```
+
+**Structured payloads** (multi-field records, custom shapes) decode
+with any `gleam/dynamic/decode.Decoder`. A widget module that emits
+a structured payload should export its decoder alongside `def()` so
+consumers import one symbol:
+
+```gleam
+// In the widget module
+pub fn change_decoder() -> decode.Decoder(#(Float, Float, Float)) {
+  use h <- decode.field("hue", decode.float)
+  use s <- decode.field("saturation", decode.float)
+  use v <- decode.field("value", decode.float)
+  decode.success(#(h, s, v))
+}
+
+// In the consuming app
+case decode.run(data, my_widget.change_decoder()) {
+  Ok(#(h, s, v)) -> ...
+  Error(_) -> model
+}
+```
+
+Reach for the same manual `decode.run` pattern any time the payload
+type does not match one of the four `widget.decode_*` helpers.
 
 Custom event kinds accepted from the renderer must start with a
 lowercase ASCII letter and may contain lowercase ASCII letters,
