@@ -1,0 +1,5 @@
+[tools]
+erlang = "28.3"
+gleam = "1.15.0"
+rust = "1.92.0"
+just = "1.51.0"

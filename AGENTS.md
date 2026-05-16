@@ -183,7 +183,19 @@ pipeline; no distributed messaging; no auto application start.
 
 ## Before committing
 
-Run `./bin/preflight`. It mirrors CI: format check, compile, test, docs build.
+Run `just preflight`. It mirrors CI: format check, compile, test, docs build.
+
+`just preflight` fetches deps and runs `./bin/preflight`. The renderer
+source is controlled by `PLUSHIE_RUST_SOURCE_PATH`:
+
+- Unset (default): auto-detected from `../plushie-rust` if it exists;
+  otherwise the existing binary resolution chain is used unchanged.
+- Set to a path: plushie-renderer is rebuilt from that checkout via
+  `cargo build --release -p plushie-renderer` and `PLUSHIE_BINARY_PATH`
+  is exported so all subsequent steps use the fresh binary. Guarantees
+  tests run against current source rather than a stale artifact.
+- Set to `""`: suppresses auto-detection; uses the existing binary
+  resolution chain (env var, downloaded artifact, custom build, etc.).
 
 Gleam has no separate lint or type-check step; the compiler does
 both. If it compiles, the types are correct.
@@ -191,23 +203,6 @@ both. If it compiles, the types are correct.
 Preflight output must be clean. Any `[error]` or `[warning]` log
 lines in the test output are bugs. They indicate log output
 leaking from tests that should be capturing it. Fix the source
-
-### Renderer freshness during preflight
-
-Tests exercise the real renderer binary, so a stale binary hides
-real bugs and surfaces phantom ones. When `PLUSHIE_RUST_SOURCE_PATH`
-is set to a plushie-rust checkout, the first preflight step
-rebuilds `plushie-renderer` from source via
-`cargo build --release -p plushie-renderer` and exports
-`PLUSHIE_BINARY_PATH` so subsequent steps use the fresh binary.
-
-Without `PLUSHIE_RUST_SOURCE_PATH` the existing binary resolution
-(env var, downloaded artifact, custom build, sibling checkout) is
-used unchanged.
-
-```
-PLUSHIE_RUST_SOURCE_PATH=../plushie-rust ./bin/preflight
-```
 
 ## Commit hygiene
 
@@ -247,14 +242,17 @@ only appear as part of CLI flag names (e.g. `--watch`, `--release`).
 ## Quick reference
 
 ```
-./bin/preflight                         # run all CI checks locally
-gleam test                              # compile + run tests (default: real binary)
-gleam format                            # auto-format
-gleam format --check                    # check formatting (CI mode)
+just preflight                                           # run all CI checks locally
+PLUSHIE_RUST_SOURCE_PATH=../plushie-rust just preflight  # explicit renderer source (rebuilds from checkout)
+PLUSHIE_RUST_SOURCE_PATH="" just preflight               # force non-local (use downloaded binary)
+just test                               # compile + run tests (default: real binary)
+just fmt                                # auto-format
+just fmt-check                          # check formatting (CI mode)
+just docs                               # generate documentation
+just clean                              # remove gitignored build artifacts
 gleam build                             # compile (BEAM, default)
 gleam build --target=javascript         # compile (JS/WASM)
 gleam run -m <module>                   # run an app entry point
-gleam docs build                        # generate documentation
 gleam add <package>                     # add a dependency
 ```
 

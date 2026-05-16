@@ -3,7 +3,8 @@
 # Run all CI checks locally. Exits on first failure.
 #
 # Usage:
-#   ./bin/preflight
+#   just preflight     (handles deps, auto-detects renderer source)
+#   ./bin/preflight    (direct invocation; also auto-detects renderer source)
 #
 # What it runs:
 #   0. Renderer rebuild (only when PLUSHIE_RUST_SOURCE_PATH is set)
@@ -19,8 +20,8 @@
 #   real bugs and surfaces phantom ones. When PLUSHIE_RUST_SOURCE_PATH
 #   is set to a plushie-rust checkout, step 0 rebuilds plushie-renderer
 #   from source (release profile) and exports PLUSHIE_BINARY_PATH for
-#   the rest of the run. Without PLUSHIE_RUST_SOURCE_PATH the existing
-#   binary resolution is used unchanged.
+#   the rest of the run. When not set and ../plushie-rust exists, it
+#   is auto-detected. Set PLUSHIE_RUST_SOURCE_PATH="" to force non-local.
 #
 # Test timeout:
 #   PLUSHIE_TEST_TIMEOUT defaults to 2 (matching CI). Override to
@@ -29,6 +30,17 @@
 set -euo pipefail
 
 export PLUSHIE_TEST_TIMEOUT="${PLUSHIE_TEST_TIMEOUT:-2}"
+
+# Auto-detect plushie-rust source if not explicitly set.
+# Set PLUSHIE_RUST_SOURCE_PATH="" to force non-local (skip auto-detect).
+if [[ -z "${PLUSHIE_RUST_SOURCE_PATH+x}" ]]; then
+    _candidate="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/../plushie-rust"
+    if [[ -d "$_candidate" ]]; then
+        PLUSHIE_RUST_SOURCE_PATH="$(cd "$_candidate" && pwd)"
+        export PLUSHIE_RUST_SOURCE_PATH
+    fi
+    unset _candidate
+fi
 
 cyan='\033[0;36m'
 green='\033[0;32m'
