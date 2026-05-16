@@ -306,6 +306,24 @@ fn start_pooled(
     ])
   session_pool.send_async(pool, session_id, snapshot)
 
+  // Force a synchronous round-trip on the same session channel so the
+  // renderer thread has dequeued and applied the snapshot before this
+  // function returns. Without it, a fast test calling `canvas_press`
+  // immediately after `start` can race the snapshot: the interact is
+  // dequeued first, `resolve_widget_id` finds no tree, and the
+  // synthetic path silently emits `selector_not_found` instead of a
+  // pointer press. The find query itself fails harmlessly (the
+  // sentinel id never matches a real widget); the round-trip is the
+  // point.
+  let sync_query =
+    dict.from_list([
+      #("type", node.StringVal("query")),
+      #("target", node.StringVal("find")),
+      #("selector", node.DictVal(encode_selector("#__plushie_sync__"))),
+    ])
+  let _ =
+    session_pool.send_message(pool, session_id, sync_query, "query_response")
+
   sess
 }
 
