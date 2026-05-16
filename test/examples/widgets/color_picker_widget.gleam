@@ -500,6 +500,16 @@ fn hsv_data(state: PickerState) -> dynamic.Dynamic {
   ])
 }
 
+/// Decode the payload of a `change` event emitted by this widget.
+/// Returns `#(hue, saturation, value)`. Apps consuming the widget
+/// import this decoder rather than re-deriving its shape.
+pub fn change_decoder() -> dyn_decode.Decoder(#(Float, Float, Float)) {
+  use h <- dyn_decode.field("hue", dyn_decode.float)
+  use s <- dyn_decode.field("saturation", dyn_decode.float)
+  use v <- dyn_decode.field("value", dyn_decode.float)
+  dyn_decode.success(#(h, s, v))
+}
+
 // -- Color conversion ---------------------------------------------------------
 
 fn hsv_to_hex(h: Float, s: Float, v: Float) -> String {

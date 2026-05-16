@@ -73,7 +73,7 @@ fn update(model: Model, event: Event) {
       data: data,
       ..,
     )) ->
-      case decode.run(data, hsv_decoder()) {
+      case decode.run(data, color_picker_widget.change_decoder()) {
         Ok(#(hue, saturation, value)) -> #(
           Model(hue: hue, saturation: saturation, value: value),
           command.none(),
@@ -83,14 +83,6 @@ fn update(model: Model, event: Event) {
 
     _ -> #(model, command.none())
   }
-}
-
-@target(erlang)
-fn hsv_decoder() -> decode.Decoder(#(Float, Float, Float)) {
-  use h <- decode.field("hue", decode.float)
-  use s <- decode.field("saturation", decode.float)
-  use v <- decode.field("value", decode.float)
-  decode.success(#(h, s, v))
 }
 
 // -- Color conversion (for display only) --------------------------------------
