@@ -209,7 +209,7 @@ pub fn build(c: Canvas) -> Node {
     option.Some(layer_map) -> layers_to_children(layer_map)
     None ->
       case c.shapes {
-        option.Some(shape_list) -> shapes_to_children(shape_list)
+        option.Some(shape_list) -> shapes_to_children("default", shape_list)
         None -> []
       }
   }
@@ -227,7 +227,7 @@ fn layers_to_children(layer_map: Dict(String, List(PropValue))) -> List(Node) {
       id: name,
       kind: "__layer__",
       props: layer_props,
-      children: shapes_to_children(shapes),
+      children: shapes_to_children(name, shapes),
       meta: dict.new(),
     )
   })
@@ -236,8 +236,13 @@ fn layers_to_children(layer_map: Dict(String, List(PropValue))) -> List(Node) {
 /// Convert a flat list of shape PropValues (DictVal) to child Nodes.
 /// Each shape's "type" field becomes the node kind, and the remaining
 /// fields become the node's props.
-fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
+///
+/// `prefix` scopes auto-generated IDs to the containing layer name (or
+/// "default" for flat, layer-less shapes), preventing collisions when
+/// multiple layers each start their index counter at 0.
+fn shapes_to_children(prefix: String, shapes: List(PropValue)) -> List(Node) {
   list.index_map(shapes, fn(shape, idx) {
+    let auto_id = "auto:" <> prefix <> "/shape_" <> int.to_string(idx)
     case shape {
       DictVal(shape_props) -> {
         let kind = case dict.get(shape_props, "type") {
@@ -246,10 +251,10 @@ fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
         }
         let id = case dict.get(shape_props, "id") {
           Ok(node.StringVal(s)) -> s
-          _ -> "auto:shape_" <> int.to_string(idx)
+          _ -> auto_id
         }
         // Extract children before cleaning props
-        let children = shape_children(shape_props)
+        let children = shape_children(prefix, shape_props, idx)
         // Remove fields promoted to the Node structure
         let props =
           shape_props
@@ -260,7 +265,7 @@ fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
       }
       _ ->
         Node(
-          id: "auto:shape_" <> int.to_string(idx),
+          id: auto_id,
           kind: "unknown",
           props: dict.new(),
           children: [],
@@ -271,9 +276,15 @@ fn shapes_to_children(shapes: List(PropValue)) -> List(Node) {
 }
 
 /// Extract children from a group shape (recursive).
-fn shape_children(shape_props: Dict(String, PropValue)) -> List(Node) {
+/// The parent prefix and index are combined to scope child auto-ids.
+fn shape_children(
+  prefix: String,
+  shape_props: Dict(String, PropValue),
+  parent_idx: Int,
+) -> List(Node) {
   case dict.get(shape_props, "children") {
-    Ok(ListVal(kids)) -> shapes_to_children(kids)
+    Ok(ListVal(kids)) ->
+      shapes_to_children(prefix <> "/g" <> int.to_string(parent_idx), kids)
     _ -> []
   }
 }
