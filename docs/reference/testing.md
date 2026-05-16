@@ -138,6 +138,62 @@ and wait for the renderer's update response; on the session
 backend (JavaScript) they synthesize the corresponding `Event`
 and thread it through `update`.
 
+### Canvas press coordinates
+
+`canvas_press` and the touch equivalents take widget-local
+`(x, y)` coordinates and translate them through the wire to a
+`Widget(Press)` (or `Move`/`Release`) event that the widget's
+`handle_event` receives.
+
+Edge behaviour differs by backend:
+
+- **mock** (the default) uses a synthetic dispatch path. The
+  request is routed by selector, the renderer emits the
+  corresponding wire event for that widget without consulting
+  iced's hit-test, and the widget receives the press at the
+  coordinates you supplied. Edge coordinates (`y == 0`,
+  `y == height`) reach the widget the same as any other.
+- **headless** and **windowed** route through iced's real
+  `program::update()` pipeline, which uses half-open rectangles
+  for hit testing. A press at exactly the right or bottom edge
+  (`x == bounds.x + bounds.width` or
+  `y == bounds.y + bounds.height`) is filtered out and the
+  widget never sees it.
+
+The half-open rule is the standard 2D pixel convention - it
+prevents adjacent widgets from claiming the same boundary
+pixel - but it surprises authors writing edge-coordinate tests.
+Two practical patterns:
+
+1. **Inset coordinates by one pixel** when you want a backend-
+   portable test:
+
+   ```gleam
+   // Works on mock, headless, and windowed
+   let ctx = testing.canvas_press(ctx, "dimmer", 30.0, 1.0)
+   ```
+
+2. **Test exact-edge math through `def.handle_event` directly**
+   when the test is about the widget's coordinate logic rather
+   than its integration with the renderer:
+
+   ```gleam
+   let WidgetDef(init:, handle_event:, ..) = my_widget.def()
+   let event = synth_press_event_at(x: 30.0, y: 0.0)
+   let #(action, _state) = handle_event(event, init())
+   should.equal(action, Emit("change", dynamic.float(1.0)))
+   ```
+
+   This is a pure unit test of the widget's handler and never
+   touches the renderer, so it skips the half-open behaviour
+   along with everything else the renderer does. Pair it with at
+   least one integration test that goes through `canvas_press`
+   at an inset coordinate to prove the wire and dispatch paths
+   still work end-to-end.
+
+See the [Custom widgets reference](custom-widgets.md#hit-testing-on-canvas-widgets)
+for the widget-author side of this rule.
+
 ### Key names
 
 Key strings are forwarded to the renderer untouched. The renderer

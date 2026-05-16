@@ -208,33 +208,23 @@ Cross-link: see the [Events reference](events.md) for the full
 
 ### Hit testing on canvas widgets
 
-Canvas widgets use half-open rectangles for hit testing in the
-windowed and headless backends. A point at `(x, y)` is considered
-inside a widget's bounds when
-`bounds.x <= x < bounds.x + bounds.width` and the analogous
-condition on `y`. Presses on the right or bottom edge
-(coordinates equal to `bounds.x + bounds.width` or
-`bounds.y + bounds.height`) are not delivered. This is the
-standard 2D pixel convention to avoid double-counting at shared
-boundaries between adjacent widgets.
+Canvas widgets use half-open rectangles for hit testing: a point
+at `(x, y)` is considered inside a widget's bounds when
+`bounds.x <= x < bounds.x + bounds.width` and analogously for
+`y`. Presses on the right or bottom edge (coordinates exactly
+equal to `bounds.x + bounds.width` or `bounds.y + bounds.height`)
+are not delivered. This is the standard 2D pixel convention used
+to avoid double-counting at shared boundaries between adjacent
+widgets.
 
-Implications:
+What this means for widget authors: treat the bottom row and
+rightmost column of pixels as unreachable for input. If a control
+needs to be pressable at its extreme edge, oversize the bounds by
+one pixel on the high sides or absorb the edge with a transparent
+border.
 
-- Tests using `testing.canvas_press(ctx, id, x, y)` against the
-  exact edge coordinate will silently no-op. Use slightly inset
-  positions (`y = 1.0` or `y = height - 1.0`) when an edge press
-  matters; or test the exact-edge math directly through
-  `def.handle_event` instead.
-- Widget authors should treat the bottom row and rightmost column
-  of pixels as unreachable for input. If a control needs to be
-  pressable at its extreme edge, oversize the bounds by one pixel
-  on the high sides or absorb the edge with a transparent border.
-
-The mock backend bypasses iced's hit-test entirely for
-`canvas_press` (it uses a synthetic path keyed on selector), so
-edge coordinates do reach the widget there. The windowed and
-headless backends route through iced's `Rectangle::contains`,
-which is where the half-open behaviour lives.
+For how this interacts with `testing.canvas_press`, see the
+[Testing reference](testing.md).
 
 ### State discipline
 
