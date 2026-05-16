@@ -253,6 +253,26 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model, msg) {
         ])
       session_pool.send_async(pool_ref, session_id, snapshot)
 
+      // Force a synchronous round-trip on the same session channel so
+      // the renderer has applied the fresh snapshot before any
+      // subsequent interact arrives. Mirrors the guard in start_pooled;
+      // without it, a fast reset+canvas_press sequence can race the
+      // snapshot and the interact lands against the old (or empty)
+      // tree.
+      let sync_query =
+        dict.from_list([
+          #("type", node.StringVal("query")),
+          #("target", node.StringVal("find")),
+          #("selector", node.DictVal(encode_selector("#__plushie_sync__"))),
+        ])
+      let _ =
+        session_pool.send_message(
+          pool_ref,
+          session_id,
+          sync_query,
+          "query_response",
+        )
+
       new_sess
     },
     send_event: fn(sess, ev) {
