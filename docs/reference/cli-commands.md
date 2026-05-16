@@ -244,8 +244,8 @@ This module owns the Gleam-specific part of standalone packaging:
 - Copies the shipment into `dist/payload/`.
 - Bundles the active Erlang runtime by default.
 - Places the selected renderer in the payload.
-- Writes `bin/connect`, which starts the shipment and calls the
-  configured connect module.
+- Writes `bin/connect` (POSIX) or `bin/connect.cmd` (Windows), which
+  starts the shipment and calls the configured connect module.
 - Writes app icon assets under `dist/payload/assets/` and sets
   `[platform].icon` in `dist/plushie-package.toml`.
 - Archives the payload as `dist/payload.tar.zst`.
@@ -277,7 +277,7 @@ packaging.
 | `--renderer-kind stock|custom` | Renderer selection. Defaults to `stock` |
 | `--renderer-path PATH` | Use an existing renderer binary |
 | `--package-config PATH` | Path to `plushie-package.config.toml`. Defaults to `plushie-package.config.toml` if present |
-| `--write-package-config` | Write a default `plushie-package.config.toml` and exit |
+| `--write-package-config` | Write a default `plushie-package.config.toml` (always uses `bin/connect`; see Windows note below) and exit |
 | `--erlang-provider local|path|mise` | Runtime source. Defaults to `local`, or `path` when `--erlang-root` / `PLUSHIE_ERLANG_ROOT` is set |
 | `--erlang-root PATH` | Erlang runtime root for the `path` provider |
 | `--erlang-version VERSION` | Erlang version passed to `mise where erlang@VERSION` for the `mise` provider |
@@ -300,6 +300,18 @@ from that checkout with `cargo run --manifest-path
 $PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie --bin plushie
 --release -- default-icons ...`. With `--icon`, the provided file is
 copied into payload assets and referenced with a payload-relative path.
+
+### Windows targets
+
+On `windows-*` targets the SDK writes `bin/connect.cmd` instead of
+`bin/connect`, and sets `start.command = ["bin/connect.cmd"]` in the
+manifest automatically. The `.cmd` script resolves `erl.exe` from the
+bundled runtime at `runtime\erlang\bin\erl.exe`, falling back to
+`erl.exe` on `PATH`.
+
+The `--write-package-config` template always writes
+`command = ["bin/connect"]` with a comment explaining the convention.
+Edit the config file to override the entry point if needed.
 
 ### Erlang runtime
 

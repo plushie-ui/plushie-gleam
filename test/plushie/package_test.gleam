@@ -112,6 +112,19 @@ pub fn package_config_text_contains_real_start_values_test() {
   |> should.equal(True)
 }
 
+pub fn package_config_text_documents_windows_cmd_convention_test() {
+  let text = package_config_text()
+
+  text
+  |> string.contains("bin/connect is the POSIX entry point")
+  |> should.equal(True)
+  text
+  |> string.contains(
+    "windows-* targets the SDK automatically uses bin/connect.cmd",
+  )
+  |> should.equal(True)
+}
+
 pub fn package_config_parser_reads_start_settings_test() {
   let text =
     "config_version = 1\n\n[start]\nworking_dir = \"app\"\ncommand = [\"app/bin/connect\", \"--profile\", \"release\"]\nforward_env = [\n  \"PATH\",\n  \"HOME\",\n]\n"
@@ -148,12 +161,59 @@ pub fn portable_tools_check_does_not_require_stock_renderer_test() {
   |> should.equal(Error(["/tmp/plushie-missing-launcher"]))
 }
 
-pub fn package_target_rejects_windows_until_wrapper_exists_test() {
+pub fn package_target_accepts_windows_test() {
   package_target_supported("windows-x86_64")
-  |> should.be_error
+  |> should.equal(Ok(Nil))
 
   package_target_supported("linux-x86_64")
   |> should.equal(Ok(Nil))
+}
+
+pub fn connect_script_windows_uses_cmd_filename_test() {
+  let #(filename, _content) = connect_script("windows", "my_app@connect")
+
+  filename
+  |> should.equal("bin/connect.cmd")
+}
+
+pub fn connect_script_windows_invokes_erl_exe_test() {
+  let #(_filename, content) = connect_script("windows", "my_app@connect")
+
+  content
+  |> string.contains("erl.exe")
+  |> should.equal(True)
+  content
+  |> string.contains("my_app@connect:main().")
+  |> should.equal(True)
+  content
+  |> string.contains("runtime\\erlang\\bin\\erl.exe")
+  |> should.equal(True)
+}
+
+pub fn connect_script_windows_starts_with_echo_off_test() {
+  let #(_filename, content) = connect_script("windows", "my_app@connect")
+
+  content
+  |> string.starts_with("@echo off")
+  |> should.equal(True)
+}
+
+pub fn connect_script_posix_uses_plain_filename_test() {
+  let #(filename, _content) = connect_script("linux", "my_app@connect")
+
+  filename
+  |> should.equal("bin/connect")
+}
+
+pub fn connect_script_posix_invokes_erl_test() {
+  let #(_filename, content) = connect_script("linux", "my_app@connect")
+
+  content
+  |> string.contains("runtime/erlang/bin/erl")
+  |> should.equal(True)
+  content
+  |> string.contains("my_app@connect:main().")
+  |> should.equal(True)
 }
 
 pub fn portable_handoff_text_keeps_default_manual_step_test() {
@@ -293,3 +353,6 @@ fn portable_tools_check(
 
 @external(erlang, "plushie_package_ffi", "package_target_supported")
 fn package_target_supported(target: String) -> Result(Nil, List(String))
+
+@external(erlang, "plushie_package_ffi", "connect_script")
+fn connect_script(os: String, connect_module: String) -> #(String, String)

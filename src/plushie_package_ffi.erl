@@ -12,7 +12,8 @@
     parse_package_config_text/1,
     package_tools_check/3,
     portable_tools_check/2,
-    package_target_supported/1
+    package_target_supported/1,
+    connect_script/2
 ]).
 -export([portable_handoff_text/2]).
 -include_lib("kernel/include/file.hrl").
@@ -150,9 +151,13 @@ read_package_config(Path) ->
     end.
 
 default_start_config() ->
+    ConnectScript = case os:type() of
+        {win32, _} -> <<"bin/connect.cmd">>;
+        _          -> <<"bin/connect">>
+    end,
     #{
         working_dir => <<".">>,
-        command => [<<"bin/connect">>],
+        command => [ConnectScript],
         forward_env => default_forward_env()
     }.
 
@@ -167,7 +172,9 @@ package_config_text() ->
         "# Relative to the extracted app package.\n",
         "working_dir = \"", maps:get(working_dir, Cfg), "\"\n",
         "# Structured argv. The first item is the packaged host executable.\n",
-        "command = ", toml_array(maps:get(command, Cfg)), "\n",
+        "# bin/connect is the POSIX entry point.\n",
+        "# On windows-* targets the SDK automatically uses bin/connect.cmd.\n",
+        "command = [\"bin/connect\"]\n",
         "# Environment variable names copied from the parent process.\n",
         "forward_env = [\n",
         [[<<"  \"">>, toml_string_escape(Name), <<"\",\n">>] || Name <- maps:get(forward_env, Cfg)],
@@ -564,6 +571,12 @@ find_runtime_dir(Root, Pattern) ->
     end.
 
 write_connect_script(PayloadDir, ConnectModule) ->
+    case os:type() of
+        {win32, _} -> write_connect_script_windows(PayloadDir, ConnectModule);
+        _          -> write_connect_script_posix(PayloadDir, ConnectModule)
+    end.
+
+write_connect_script_posix(PayloadDir, ConnectModule) ->
     Path = filename:join([PayloadDir, "bin", "connect"]),
     Script = [
         "#!/bin/sh\n",
@@ -583,6 +596,58 @@ write_connect_script(PayloadDir, ConnectModule) ->
     ok = file:write_file(Path, iolist_to_binary(Script)),
     make_executable(Path).
 
+write_connect_script_windows(PayloadDir, ConnectModule) ->
+    Path = filename:join([PayloadDir, "bin", "connect.cmd"]),
+    Script = [
+        "@echo off\r\n",
+        "setlocal\r\n",
+        "set \"DIR=%~dp0..\"\r\n",
+        "if exist \"%DIR%\\runtime\\erlang\\bin\\erl.exe\" (\r\n",
+        "  set \"ERL=%DIR%\\runtime\\erlang\\bin\\erl.exe\"\r\n",
+        ") else (\r\n",
+        "  set \"ERL=erl.exe\"\r\n",
+        ")\r\n",
+        "\"%ERL%\" -pa \"%DIR%\\shipment\\*/ebin\" -eval \"", ConnectModule, ":main().\" -noinput -extra %*\r\n"
+    ],
+    ok = file:write_file(Path, iolist_to_binary(Script)).
+
+%% Returns {FileName, Content} for the connect wrapper given an OS type string
+%% and an Erlang module name. Used by tests to verify generated artifacts.
+connect_script(<<"windows">>, ConnectModule) ->
+    {
+        <<"bin/connect.cmd">>,
+        iolist_to_binary([
+            "@echo off\r\n",
+            "setlocal\r\n",
+            "set \"DIR=%~dp0..\"\r\n",
+            "if exist \"%DIR%\\runtime\\erlang\\bin\\erl.exe\" (\r\n",
+            "  set \"ERL=%DIR%\\runtime\\erlang\\bin\\erl.exe\"\r\n",
+            ") else (\r\n",
+            "  set \"ERL=erl.exe\"\r\n",
+            ")\r\n",
+            "\"%ERL%\" -pa \"%DIR%\\shipment\\*/ebin\" -eval \"", ConnectModule, ":main().\" -noinput -extra %*\r\n"
+        ])
+    };
+connect_script(_, ConnectModule) ->
+    {
+        <<"bin/connect">>,
+        iolist_to_binary([
+            "#!/bin/sh\n",
+            "set -eu\n",
+            "DIR=\"$(CDPATH= cd \"$(dirname \"$0\")/..\" && pwd)\"\n\n",
+            "if [ -x \"$DIR/runtime/erlang/bin/erl\" ]; then\n",
+            "  ERL=\"$DIR/runtime/erlang/bin/erl\"\n",
+            "  unset ERL_ROOTDIR\n",
+            "elif command -v erl >/dev/null 2>&1; then\n",
+            "  ERL=\"$(command -v erl)\"\n",
+            "else\n",
+            "  echo \"No Erlang runtime found. Expected $DIR/runtime/erlang/bin/erl or erl on PATH.\" >&2\n",
+            "  exit 127\n",
+            "fi\n\n",
+            "exec \"$ERL\" -pa \"$DIR\"/shipment/*/ebin -eval '", ConnectModule, ":main().' -noinput -extra \"$@\"\n"
+        ])
+    }.
+
 package_target_supported(Target) ->
     try
         assert_package_target_supported(Target),
@@ -591,14 +656,6 @@ package_target_supported(Target) ->
         throw:{package_error, Reason} -> {error, Reason}
     end.
 
-assert_package_target_supported(<<"windows-", _/binary>> = Target) ->
-    fail([
-        "Windows standalone packaging is not supported by the Gleam SDK yet. ",
-        "The current package flow writes a Unix bin/connect wrapper. ",
-        "Add a Windows-specific host command before producing ",
-        Target,
-        " packages."
-    ]);
 assert_package_target_supported(_) ->
     ok.
 
