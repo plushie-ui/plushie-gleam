@@ -80,7 +80,7 @@ package_payload(ProtocolVersion) ->
         plushie_rust_version => PlushieRustVersion,
         protocol_version => ProtocolVersion,
         renderer_kind => RendererKind,
-        icon_path => IconPath,
+        icon_path => {ok, IconPath},
         start_config => StartConfig,
         archive => ArchiveName,
         payload_hash => PayloadHash,
@@ -672,7 +672,7 @@ default_icons_command(error, AssetsDir) ->
     }.
 
 default_icon_path() ->
-    <<"assets/plushie-checkbox-512x512.png">>.
+    <<"assets/default-app-icon-512.png">>.
 
 validate_asset_file_name(Name0) ->
     Name = to_bin(Name0),
@@ -824,11 +824,13 @@ app_name_manifest_line({error, _}) ->
 app_name_manifest_line(error) ->
     <<>>.
 
-platform_manifest_section(IconPath) ->
+platform_manifest_section({ok, IconPath}) ->
     to_bin([
         "[platform]\n",
         "icon = \"", toml_string_escape(IconPath), "\"\n\n"
-    ]).
+    ]);
+platform_manifest_section({error, _}) ->
+    <<>>.
 
 manifest_escape_probe(Value) ->
     to_bin(render_manifest(#{
@@ -844,7 +846,7 @@ manifest_escape_probe(Value) ->
             command => ["bin/connect"],
             forward_env => []
         },
-        icon_path => Value,
+        icon_path => {ok, Value},
         renderer_kind => Value,
         archive => Value,
         payload_hash => "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

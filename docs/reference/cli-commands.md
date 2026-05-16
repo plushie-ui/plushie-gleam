@@ -294,7 +294,7 @@ the package command uses the same managed native-tool sync path as
 
 When `--icon` is omitted, the command invokes `bin/plushie
 default-icons --out <payload-assets-dir>` before the payload archive is
-created and uses `assets/plushie-checkbox-512x512.png` as the manifest
+created and uses `assets/default-app-icon-512.png` as the manifest
 icon path. With `PLUSHIE_RUST_SOURCE_PATH` set, it invokes the tool
 from that checkout with `cargo run --manifest-path
 $PLUSHIE_RUST_SOURCE_PATH/Cargo.toml -p cargo-plushie --bin plushie

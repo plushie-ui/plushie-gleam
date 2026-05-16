@@ -36,18 +36,23 @@ pub fn default_icons_command_uses_installed_tool_test() {
 
 pub fn default_icon_path_is_payload_relative_test() {
   default_icon_path()
-  |> should.equal("assets/plushie-checkbox-512x512.png")
+  |> should.equal("assets/default-app-icon-512.png")
 }
 
 pub fn platform_manifest_section_declares_icon_test() {
-  let section = platform_manifest_section(default_icon_path())
+  let section = platform_manifest_section(Ok(default_icon_path()))
 
   section
   |> string.contains("[platform]\n")
   |> should.equal(True)
   section
-  |> string.contains("icon = \"assets/plushie-checkbox-512x512.png\"")
+  |> string.contains("icon = \"assets/default-app-icon-512.png\"")
   |> should.equal(True)
+}
+
+pub fn platform_manifest_section_omitted_without_icon_test() {
+  platform_manifest_section(Error(Nil))
+  |> should.equal("")
 }
 
 pub fn manifest_string_fields_escape_toml_strings_test() {
@@ -247,7 +252,7 @@ fn default_icons_command(
 fn default_icon_path() -> String
 
 @external(erlang, "plushie_package_ffi", "platform_manifest_section")
-fn platform_manifest_section(icon_path: String) -> String
+fn platform_manifest_section(icon_path: Result(String, Nil)) -> String
 
 @external(erlang, "plushie_package_ffi", "manifest_escape_probe")
 fn manifest_escape_probe(value: String) -> String
