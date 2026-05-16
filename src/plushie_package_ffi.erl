@@ -47,7 +47,6 @@ package_payload(ProtocolVersion) ->
     ArchivePath = filename:join(DistDir, ArchiveName),
     RendererPath = filename:join([PayloadDir, "bin", "plushie-renderer"]),
     RendererKind = flag("--renderer-kind", "stock"),
-    RendererSource = flag("--renderer-source", default_renderer_source(RendererKind)),
     AppId = required_flag("--app-id"),
     AppName = optional_flag("--app-name"),
     AppVersion = flag("--app-version", root_string("version", "0.1.0")),
@@ -81,7 +80,6 @@ package_payload(ProtocolVersion) ->
         plushie_rust_version => PlushieRustVersion,
         protocol_version => ProtocolVersion,
         renderer_kind => RendererKind,
-        renderer_source => RendererSource,
         icon_path => IconPath,
         start_config => StartConfig,
         archive => ArchiveName,
@@ -827,8 +825,7 @@ render_manifest(Values) ->
         platform_manifest_section(maps:get(icon_path, Values)),
         "[renderer]\n",
         "path = \"bin/plushie-renderer\"\n",
-        "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n",
-        "source = \"", toml_string_escape(maps:get(renderer_source, Values)), "\"\n\n",
+        "kind = \"", toml_string_escape(maps:get(renderer_kind, Values)), "\"\n\n",
         "[payload]\n",
         "archive = \"", toml_string_escape(maps:get(archive, Values)), "\"\n",
         "hash = \"sha256:", maps:get(payload_hash, Values), "\"\n",
@@ -864,7 +861,6 @@ manifest_escape_probe(Value) ->
         },
         icon_path => Value,
         renderer_kind => Value,
-        renderer_source => Value,
         archive => Value,
         payload_hash => "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         payload_size => 1
@@ -962,14 +958,6 @@ root_string_file(File, Key) ->
             end;
         {error, _} -> error
     end.
-
-default_renderer_source(<<"custom">>) -> "local-build";
-default_renderer_source(<<"stock">>) ->
-    case getenv("PLUSHIE_RUST_SOURCE_PATH") of
-        {ok, _} -> "local-build";
-        error -> "local-resolve"
-    end;
-default_renderer_source(_) -> "local-resolve".
 
 copy_executable(Src, Dest) ->
     assert_executable(Src),
