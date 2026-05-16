@@ -204,12 +204,16 @@ pub fn build(c: Canvas) -> Node {
     |> build.put_optional_int("event_rate", c.event_rate)
     |> build.apply_default_a11y(c.a11y, "canvas", option.None)
 
-  // Promote shapes to tree children
+  // Promote shapes to tree children. The canvas's own id seeds the
+  // auto-id prefix so that two canvas widgets in the same tree with
+  // the same layer names (e.g. multiple `star_rating` instances each
+  // with a layer called "stars") produce disjoint auto-ids.
   let children = case c.layers {
-    option.Some(layer_map) -> layers_to_children(layer_map)
+    option.Some(layer_map) -> layers_to_children(c.id, layer_map)
     None ->
       case c.shapes {
-        option.Some(shape_list) -> shapes_to_children("default", shape_list)
+        option.Some(shape_list) ->
+          shapes_to_children(c.id <> "/default", shape_list)
         None -> []
       }
   }
@@ -218,7 +222,10 @@ pub fn build(c: Canvas) -> Node {
 }
 
 /// Convert named layers to __layer__ container children.
-fn layers_to_children(layer_map: Dict(String, List(PropValue))) -> List(Node) {
+fn layers_to_children(
+  canvas_id: String,
+  layer_map: Dict(String, List(PropValue)),
+) -> List(Node) {
   dict.to_list(layer_map)
   |> list.map(fn(pair) {
     let #(name, shapes) = pair
@@ -227,7 +234,7 @@ fn layers_to_children(layer_map: Dict(String, List(PropValue))) -> List(Node) {
       id: name,
       kind: "__layer__",
       props: layer_props,
-      children: shapes_to_children(name, shapes),
+      children: shapes_to_children(canvas_id <> "/" <> name, shapes),
       meta: dict.new(),
     )
   })
