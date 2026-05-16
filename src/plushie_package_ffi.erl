@@ -935,7 +935,11 @@ root_string_file(File, Key) ->
     end.
 
 default_renderer_source(<<"custom">>) -> "local-build";
-default_renderer_source(<<"stock">>) -> "local-resolve";
+default_renderer_source(<<"stock">>) ->
+    case getenv("PLUSHIE_RUST_SOURCE_PATH") of
+        {ok, _} -> "local-build";
+        error -> "local-resolve"
+    end;
 default_renderer_source(_) -> "local-resolve".
 
 copy_executable(Src, Dest) ->
