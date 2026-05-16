@@ -34,6 +34,8 @@ import gleam/string
 @target(erlang)
 import plushie/app.{type App}
 @target(erlang)
+import plushie/event
+@target(erlang)
 import plushie/node.{type Node, BoolVal, StringVal}
 @target(erlang)
 import plushie/protocol/decode as proto_decode
@@ -152,7 +154,7 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model, msg) {
         dict.from_list([#("combo", node.StringVal(key))]),
       )
     },
-    canvas_press: fn(sess, id, x, y) {
+    canvas_press: fn(sess, id, x, y, button) {
       do_interact(
         sess,
         pool,
@@ -161,7 +163,32 @@ pub fn backend(pool: PoolSubject) -> TestBackend(model, msg) {
         dict.from_list([
           #("x", node.FloatVal(x)),
           #("y", node.FloatVal(y)),
-          #("button", node.StringVal("left")),
+          #("button", node.StringVal(event.mouse_button_to_wire(button))),
+        ]),
+      )
+    },
+    canvas_release: fn(sess, id, x, y, button) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_release",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
+          #("button", node.StringVal(event.mouse_button_to_wire(button))),
+        ]),
+      )
+    },
+    canvas_move: fn(sess, id, x, y) {
+      do_interact(
+        sess,
+        pool,
+        "canvas_move",
+        Some("#" <> id),
+        dict.from_list([
+          #("x", node.FloatVal(x)),
+          #("y", node.FloatVal(y)),
         ]),
       )
     },

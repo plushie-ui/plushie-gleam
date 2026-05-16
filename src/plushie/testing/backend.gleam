@@ -20,7 +20,7 @@
 import gleam/option.{type Option}
 import gleam/string
 import plushie/app.{type App}
-import plushie/event.{type Event}
+import plushie/event.{type Event, type MouseButton}
 import plushie/node.{type Node}
 import plushie/testing/element.{type Element}
 import plushie/testing/session.{type TestSession}
@@ -125,7 +125,17 @@ pub type TestBackend(model, msg) {
     press_key: fn(TestSession(model, msg), String) -> TestSession(model, msg),
     release_key: fn(TestSession(model, msg), String) -> TestSession(model, msg),
     type_key: fn(TestSession(model, msg), String) -> TestSession(model, msg),
-    canvas_press: fn(TestSession(model, msg), String, Float, Float) ->
+    canvas_press: fn(TestSession(model, msg), String, Float, Float, MouseButton) ->
+      TestSession(model, msg),
+    canvas_release: fn(
+      TestSession(model, msg),
+      String,
+      Float,
+      Float,
+      MouseButton,
+    ) ->
+      TestSession(model, msg),
+    canvas_move: fn(TestSession(model, msg), String, Float, Float) ->
       TestSession(model, msg),
     paste: fn(TestSession(model, msg), String, String) ->
       TestSession(model, msg),

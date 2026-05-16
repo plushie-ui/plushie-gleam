@@ -659,6 +659,19 @@ pub type MouseButton {
   OtherButton(String)
 }
 
+/// Encode a `MouseButton` as the wire-protocol string the renderer
+/// expects. `OtherButton(s)` round-trips its inner string unchanged.
+pub fn mouse_button_to_wire(button: MouseButton) -> String {
+  case button {
+    LeftButton -> "left"
+    RightButton -> "right"
+    MiddleButton -> "middle"
+    BackButton -> "back"
+    ForwardButton -> "forward"
+    OtherButton(s) -> s
+  }
+}
+
 // -- Scroll types -------------------------------------------------------------
 
 /// Scroll measurement unit.

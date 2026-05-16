@@ -136,7 +136,7 @@ pub fn backend() -> TestBackend(model, msg) {
         )),
       )
     },
-    canvas_press: fn(sess, id, x, y) {
+    canvas_press: fn(sess, id, x, y, button) {
       let target = resolve_event_target(session.current_tree(sess), id)
       session.send_event(
         sess,
@@ -144,7 +144,39 @@ pub fn backend() -> TestBackend(model, msg) {
           target:,
           x:,
           y:,
-          button: event.LeftButton,
+          button:,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+        )),
+      )
+    },
+    canvas_release: fn(sess, id, x, y, button) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(
+        sess,
+        event.Widget(event.Release(
+          target:,
+          x:,
+          y:,
+          button:,
+          pointer: event.Mouse,
+          finger: option.None,
+          modifiers: event.modifiers_none(),
+          captured: False,
+          lost: False,
+        )),
+      )
+    },
+    canvas_move: fn(sess, id, x, y) {
+      let target = resolve_event_target(session.current_tree(sess), id)
+      session.send_event(
+        sess,
+        event.Widget(event.Move(
+          target:,
+          x:,
+          y:,
           pointer: event.Mouse,
           finger: option.None,
           modifiers: event.modifiers_none(),

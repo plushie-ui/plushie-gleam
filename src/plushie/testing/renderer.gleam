@@ -393,6 +393,7 @@ pub fn canvas_press(
   selector: String,
   x: Float,
   y: Float,
+  button: event.MouseButton,
 ) -> Nil {
   interact(
     subject,
@@ -401,7 +402,47 @@ pub fn canvas_press(
     dict.from_list([
       #("x", float_to_string(x)),
       #("y", float_to_string(y)),
-      #("button", "left"),
+      #("button", event.mouse_button_to_wire(button)),
+    ]),
+  )
+}
+
+@target(erlang)
+/// Release on a canvas widget at (x, y) coordinates.
+pub fn canvas_release(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+  button: event.MouseButton,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_release",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
+      #("button", event.mouse_button_to_wire(button)),
+    ]),
+  )
+}
+
+@target(erlang)
+/// Mouse movement on a canvas widget to (x, y) coordinates.
+pub fn canvas_move(
+  subject: Subject(RendererMessage),
+  selector: String,
+  x: Float,
+  y: Float,
+) -> Nil {
+  interact(
+    subject,
+    "canvas_move",
+    Some(selector),
+    dict.from_list([
+      #("x", float_to_string(x)),
+      #("y", float_to_string(y)),
     ]),
   )
 }

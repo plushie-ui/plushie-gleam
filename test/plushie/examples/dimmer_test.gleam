@@ -136,7 +136,13 @@ pub fn repeated_boost_clamps_at_one_test() {
 pub fn canvas_press_quarter_sets_three_quarter_brightness_test() {
   let ctx = testing.start(dimmer.app())
   let ctx =
-    testing.canvas_press(ctx, "dimmer", 30.0, dimmer_widget.height /. 4.0)
+    testing.canvas_press(
+      ctx,
+      "dimmer",
+      30.0,
+      dimmer_widget.height /. 4.0,
+      LeftButton,
+    )
   // y = height/4 -> value = 1 - 0.25 = 0.75.
   should.be_true(approx(read_brightness(ctx), 0.75))
   let assert option.Some(el) = testing.find(ctx, "readout")
@@ -152,6 +158,7 @@ pub fn canvas_press_three_quarter_sets_quarter_brightness_test() {
       "dimmer",
       30.0,
       3.0 *. dimmer_widget.height /. 4.0,
+      LeftButton,
     )
   // y = 3*height/4 -> value = 1 - 0.75 = 0.25.
   should.be_true(approx(read_brightness(ctx), 0.25))

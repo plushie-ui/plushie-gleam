@@ -32,7 +32,7 @@ import gleam/dict
 import gleam/list
 import gleam/option.{type Option}
 import plushie/app.{type App}
-import plushie/event.{type Event}
+import plushie/event.{type Event, type MouseButton}
 import plushie/node.{type Node, type PropValue}
 @target(erlang)
 import plushie/platform
@@ -169,13 +169,44 @@ pub fn type_key(
 }
 
 /// Simulate a mouse press on a canvas widget at (x, y) coordinates.
+///
+/// `button` selects which mouse button is pressed; use
+/// `event.LeftButton` for the typical left-click.
 pub fn canvas_press(
   ctx: TestContext(model, msg),
   id: String,
   x: Float,
   y: Float,
+  button: MouseButton,
 ) -> TestContext(model, msg) {
-  TestContext(..ctx, session: ctx.backend.canvas_press(ctx.session, id, x, y))
+  TestContext(
+    ..ctx,
+    session: ctx.backend.canvas_press(ctx.session, id, x, y, button),
+  )
+}
+
+/// Simulate a mouse release on a canvas widget at (x, y) coordinates.
+pub fn canvas_release(
+  ctx: TestContext(model, msg),
+  id: String,
+  x: Float,
+  y: Float,
+  button: MouseButton,
+) -> TestContext(model, msg) {
+  TestContext(
+    ..ctx,
+    session: ctx.backend.canvas_release(ctx.session, id, x, y, button),
+  )
+}
+
+/// Simulate mouse movement on a canvas widget to (x, y) coordinates.
+pub fn canvas_move(
+  ctx: TestContext(model, msg),
+  id: String,
+  x: Float,
+  y: Float,
+) -> TestContext(model, msg) {
+  TestContext(..ctx, session: ctx.backend.canvas_move(ctx.session, id, x, y))
 }
 
 /// Simulate pasting text into a widget by ID.

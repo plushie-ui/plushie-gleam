@@ -120,9 +120,19 @@ pub fn backend_with_opts(opts: HeadlessOpts) -> TestBackend(model, msg) {
       renderer.type_key(subj, key)
       sess
     },
-    canvas_press: fn(sess, id, x, y) {
+    canvas_press: fn(sess, id, x, y, button) {
       let subj = require_renderer()
-      renderer.canvas_press(subj, "#" <> id, x, y)
+      renderer.canvas_press(subj, "#" <> id, x, y, button)
+      sess
+    },
+    canvas_release: fn(sess, id, x, y, button) {
+      let subj = require_renderer()
+      renderer.canvas_release(subj, "#" <> id, x, y, button)
+      sess
+    },
+    canvas_move: fn(sess, id, x, y) {
+      let subj = require_renderer()
+      renderer.canvas_move(subj, "#" <> id, x, y)
       sess
     },
     paste: fn(sess, id, text) {
