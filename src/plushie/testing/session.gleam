@@ -36,7 +36,7 @@ pub fn start(app: App(model, msg)) -> TestSession(model, msg) {
   let init_fn = app.get_init(app)
   let #(model, commands) = init_fn(dynamic.nil())
   let model = process_commands(app, model, commands)
-  let tree = render(app, model)
+  let tree = render(app, model, widget.empty_registry())
   let registry = widget.derive_registry(tree)
   TestSession(app:, model:, tree:, registry:)
 }
@@ -59,7 +59,7 @@ pub fn send_event(
       let update_fn = app.get_update(session.app)
       let #(model, commands) = update_fn(session.model, msg)
       let model = process_commands(session.app, model, commands)
-      let tree = render(session.app, model)
+      let tree = render(session.app, model, new_registry)
       let registry = widget.derive_registry(tree)
       TestSession(..session, model:, tree:, registry:)
     }
@@ -67,7 +67,7 @@ pub fn send_event(
 }
 
 fn rerender(session: TestSession(model, msg)) -> TestSession(model, msg) {
-  let tree = render(session.app, session.model)
+  let tree = render(session.app, session.model, session.registry)
   let registry = widget.derive_registry(tree)
   TestSession(..session, tree:, registry:)
 }
@@ -89,19 +89,20 @@ pub fn get_app(session: TestSession(model, msg)) -> App(model, msg) {
 
 // -- Internal -----------------------------------------------------------------
 
-// Widget placeholders are re-initialized from `empty_registry()` on
-// every render, so per-widget state across cycles is recovered from
-// the tree's meta payload via `derive_registry` (in `send_event`)
-// rather than threaded through here. Sessions running entirely in
-// the pure JS path therefore see widgets reset on every render; the
-// BEAM pool backend persists state through `derive_registry` between
-// events the same way the production runtime does.
-fn render(app: App(model, msg), model: model) -> Node {
+// Pass the caller's current widget registry into normalize_view so
+// custom widget state survives across renders. Mirrors what
+// runtime.gleam does with state.cw_registry. Passing
+// `empty_registry()` here (as we did before) caused every render to
+// reinitialize widget state from defaults, losing whatever
+// handle_event had just produced.
+fn render(
+  app: App(model, msg),
+  model: model,
+  registry: widget.Registry,
+) -> Node {
   let view_fn = app.get_view(app)
   let raw = tree.view_list_to_tree(view_fn(model))
-  case
-    tree.normalize_view(raw, widget.empty_registry(), tree.empty_memo_cache())
-  {
+  case tree.normalize_view(raw, registry, tree.empty_memo_cache()) {
     Ok(result) -> result.tree
     Error(message) -> panic as message
   }
