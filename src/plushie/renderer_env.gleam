@@ -43,6 +43,13 @@ pub fn default_opts() -> EnvOpts {
 }
 
 /// Exact variable names to forward. Canonical list shared across SDKs.
+///
+/// PLUSHIE_NO_CATCH_UNWIND is the only PLUSHIE_* name the renderer subprocess
+/// reads in spawn mode. All other PLUSHIE_* names are host-side configuration,
+/// launcher-set values, or secrets that must not leak across the process
+/// boundary (e.g. PLUSHIE_TOKEN, PLUSHIE_SOCKET, PLUSHIE_BINARY_PATH,
+/// PLUSHIE_RUST_SOURCE_PATH). This list is closed; do not add a prefix entry
+/// for PLUSHIE_ or any other broad family.
 const allowed_exact = [
   "DISPLAY", "WAYLAND_DISPLAY", "WAYLAND_SOCKET", "WINIT_UNIX_BACKEND",
   "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_DATA_HOME", "PATH", "LD_LIBRARY_PATH",

@@ -29,10 +29,26 @@ pub fn rejects_secrets_and_unrelated_vars_test() {
   should.equal(renderer_env.is_allowed("DATABASE_URL"), False)
   should.equal(renderer_env.is_allowed("SSH_AUTH_SOCK"), False)
   should.equal(renderer_env.is_allowed("SECRET_KEY_BASE"), False)
-  should.equal(renderer_env.is_allowed("PLUSHIE_TOKEN"), False)
-  should.equal(renderer_env.is_allowed("PLUSHIE_API_KEY"), False)
-  should.equal(renderer_env.is_allowed("PLUSHIE_DEBUG_FOO"), False)
   // Dropped-from-old-broader-list entries: these are no longer allowed.
   should.equal(renderer_env.is_allowed("DRI_PRIME"), False)
   should.equal(renderer_env.is_allowed("SHELL"), False)
+}
+
+// Regression: only PLUSHIE_NO_CATCH_UNWIND is forwarded to the renderer
+// subprocess. All other PLUSHIE_* names are host-side, launcher-set, or
+// secrets that must not cross the process boundary.
+pub fn plushie_allowlist_is_closed_test() {
+  should.equal(renderer_env.is_allowed("PLUSHIE_NO_CATCH_UNWIND"), True)
+  should.equal(renderer_env.is_allowed("PLUSHIE_TOKEN"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_SOCKET"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_TRANSPORT"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_FORMAT"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_RUST_SOURCE_PATH"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_BINARY_PATH"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_PACKAGE_DIR"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_PACKAGE_READY_FILE"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_RELEASE_BASE_URL"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_CACHE_DIR"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_API_KEY"), False)
+  should.equal(renderer_env.is_allowed("PLUSHIE_DEBUG_FOO"), False)
 }
