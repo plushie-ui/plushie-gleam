@@ -79,12 +79,11 @@ pub type WidgetDef(state, props) {
     /// Optional cache key derivation for view memoization.
     ///
     /// When `Some(f)`, `f(props, state)` produces a cheap comparison key.
-    /// If the key matches the previous render cycle, the normalizer can
-    /// skip calling `view` and reuse the cached subtree.
-    ///
-    /// The normalizer does not use this field yet. Declaring it now
-    /// lets widget authors opt in; the optimization will land in a
-    /// future release.
+    /// If the key matches the previous render cycle, the normalizer
+    /// skips calling `view` and reuses the cached subtree along with
+    /// its registry entry. Cross-cycle equality is by `==` on the
+    /// returned `Dynamic`; cheap structural representations
+    /// (tuples of primitives, small records) work best.
     cache_key: Option(fn(props, state) -> Dynamic),
   )
 }
@@ -338,6 +337,42 @@ pub fn make_entry(
 /// Check if a node is a widget placeholder (has widget metadata).
 pub fn is_placeholder(node: Node) -> Bool {
   dict.has_key(node.meta, widget_meta_key)
+}
+
+/// Compute a placeholder's cache_key dep value, if the widget's
+/// `WidgetDef` defines one. Uses the existing registry entry's state
+/// when present; falls back to a fresh `init()` state for first-time
+/// widgets. Returns `None` when the node is not a placeholder, the
+/// widget did not opt in to memoisation, or the cache_key call
+/// raised.
+pub fn placeholder_cache_key(
+  node: Node,
+  window_id: String,
+  scoped_id: String,
+  registry: Registry,
+) -> Option(Dynamic) {
+  case dict.get(node.meta, widget_meta_key) {
+    Ok(meta_prop) -> {
+      let wm: WidgetMeta = from_dynamic_prop(meta_prop)
+      let typed_def: WidgetDef(a, b) = from_dynamic_prop(wm.def)
+      case typed_def.cache_key {
+        Some(f) -> {
+          let typed_props: b = from_dynamic_prop(wm.props)
+          let key = widget_key(window_id, scoped_id)
+          let typed_state: a = case dict.get(registry, key) {
+            Ok(existing) -> coerce_from_dynamic(existing.state)
+            Error(_) -> typed_def.init()
+          }
+          case platform.try_call(fn() { f(typed_props, typed_state) }) {
+            Ok(dep) -> Some(dep)
+            Error(_) -> None
+          }
+        }
+        None -> None
+      }
+    }
+    Error(_) -> None
+  }
 }
 
 /// Render a widget placeholder using the registry.

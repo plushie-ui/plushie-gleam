@@ -285,64 +285,55 @@ fn normalize_ctx(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) {
       // attached to the final node's meta for registry derivation.
       case widget.is_placeholder(node) {
         True -> {
-          case
-            widget.render_placeholder(
+          // Opt-in widget view cache: when the WidgetDef declares
+          // `cache_key`, reuse the previously rendered subtree if the
+          // dependency value is unchanged.
+          let cache_key =
+            widget.placeholder_cache_key(
               node,
               ctx.window_id,
               scoped_id,
-              node.id,
               ctx.registry,
             )
-          {
-            Some(#(rendered_node, entry)) -> {
-              // Accumulate the widget registry entry
-              let widget_reg_key = widget.widget_key(ctx.window_id, scoped_id)
-              let ctx =
-                NormalizeCtx(
-                  ..ctx,
-                  accumulated_registry: dict.insert(
-                    ctx.accumulated_registry,
-                    widget_reg_key,
-                    entry,
-                  ),
-                )
-
-              // The rendered node already has the scoped_id set and metadata
-              // attached. Normalize its children at the same scope position
-              // and resolve a11y references in its props.
-              let child_scope = case rendered_node.kind {
-                "window" -> scoped_id <> "#"
-                _ ->
-                  case string.starts_with(rendered_node.id, "auto:") {
-                    True -> ctx.scope
-                    False -> scoped_id
-                  }
+          case cache_key {
+            Some(dep) ->
+              case dict.get(ctx.prev_cache, scoped_id) {
+                Ok(MemoCacheEntry(
+                  dep: prev_dep,
+                  node: cached_node,
+                  registry: cached_registry,
+                  windows: cached_windows,
+                ))
+                  if prev_dep == dep
+                -> {
+                  let new_cache =
+                    dict.insert(
+                      ctx.new_cache,
+                      scoped_id,
+                      MemoCacheEntry(
+                        dep:,
+                        node: cached_node,
+                        registry: cached_registry,
+                        windows: cached_windows,
+                      ),
+                    )
+                  let accumulated_registry =
+                    dict.merge(ctx.accumulated_registry, cached_registry)
+                  let accumulated_windows =
+                    set.union(ctx.accumulated_windows, cached_windows)
+                  #(
+                    cached_node,
+                    NormalizeCtx(
+                      ..ctx,
+                      new_cache:,
+                      accumulated_registry:,
+                      accumulated_windows:,
+                    ),
+                  )
+                }
+                _ -> normalize_placeholder(node, scoped_id, ctx, Some(dep))
               }
-              // Forward standard widget props (a11y, event_rate) from the
-              // placeholder to the rendered output so widget authors don't
-              // need to handle them manually.
-              let props =
-                widget.merge_standard_props(rendered_node.props, node.props)
-              let props = resolve_a11y_refs(props, ctx.scope)
-              let child_ctx =
-                NormalizeCtx(..ctx, scope: child_scope, depth: ctx.depth + 1)
-              let #(children, child_ctx) =
-                normalize_children(rendered_node.children, child_ctx)
-              check_duplicate_sibling_ids(children)
-              #(
-                Node(..rendered_node, props:, children:),
-                NormalizeCtx(
-                  ..ctx,
-                  new_cache: child_ctx.new_cache,
-                  accumulated_registry: child_ctx.accumulated_registry,
-                  accumulated_windows: child_ctx.accumulated_windows,
-                ),
-              )
-            }
-            _ -> {
-              // Fallback: normalize as a regular node
-              normalize_regular(node, scoped_id, ctx)
-            }
+            None -> normalize_placeholder(node, scoped_id, ctx, None)
           }
         }
         False -> normalize_regular(node, scoped_id, ctx)
@@ -515,6 +506,105 @@ fn normalize_memo_fresh(node: Node, ctx: NormalizeCtx) -> #(Node, NormalizeCtx) 
       ),
       ctx,
     )
+  }
+}
+
+/// Render a widget placeholder and normalize its children. When
+/// `cache_key` is `Some(dep)`, the rendered subtree's registry/windows
+/// deltas are captured and stored in `new_cache` keyed by the
+/// placeholder's scoped ID, so the next render with the same dep
+/// hash can short-circuit via the cache-hit path above.
+fn normalize_placeholder(
+  node: Node,
+  scoped_id: String,
+  ctx: NormalizeCtx,
+  cache_key: Option(Dynamic),
+) -> #(Node, NormalizeCtx) {
+  case
+    widget.render_placeholder(
+      node,
+      ctx.window_id,
+      scoped_id,
+      node.id,
+      ctx.registry,
+    )
+  {
+    Some(#(rendered_node, entry)) -> {
+      // Snapshot accumulators before this subtree so we can capture
+      // the delta for the view cache.
+      let pre_registry = ctx.accumulated_registry
+      let pre_windows = ctx.accumulated_windows
+
+      // Accumulate the widget registry entry
+      let widget_reg_key = widget.widget_key(ctx.window_id, scoped_id)
+      let ctx =
+        NormalizeCtx(
+          ..ctx,
+          accumulated_registry: dict.insert(
+            ctx.accumulated_registry,
+            widget_reg_key,
+            entry,
+          ),
+        )
+
+      // The rendered node already has the scoped_id set and metadata
+      // attached. Normalize its children at the same scope position
+      // and resolve a11y references in its props.
+      let child_scope = case rendered_node.kind {
+        "window" -> scoped_id <> "#"
+        _ ->
+          case string.starts_with(rendered_node.id, "auto:") {
+            True -> ctx.scope
+            False -> scoped_id
+          }
+      }
+      // Forward standard widget props (a11y, event_rate) from the
+      // placeholder to the rendered output so widget authors don't
+      // need to handle them manually.
+      let props = widget.merge_standard_props(rendered_node.props, node.props)
+      let props = resolve_a11y_refs(props, ctx.scope)
+      let child_ctx =
+        NormalizeCtx(..ctx, scope: child_scope, depth: ctx.depth + 1)
+      let #(children, child_ctx) =
+        normalize_children(rendered_node.children, child_ctx)
+      check_duplicate_sibling_ids(children)
+      let final_node = Node(..rendered_node, props:, children:)
+
+      // Capture deltas and write to cache if the widget opted in.
+      let new_cache = case cache_key {
+        Some(dep) -> {
+          let registry_delta =
+            dict.drop(child_ctx.accumulated_registry, dict.keys(pre_registry))
+          let windows_delta =
+            set.difference(child_ctx.accumulated_windows, pre_windows)
+          dict.insert(
+            child_ctx.new_cache,
+            scoped_id,
+            MemoCacheEntry(
+              dep:,
+              node: final_node,
+              registry: registry_delta,
+              windows: windows_delta,
+            ),
+          )
+        }
+        None -> child_ctx.new_cache
+      }
+
+      #(
+        final_node,
+        NormalizeCtx(
+          ..ctx,
+          new_cache:,
+          accumulated_registry: child_ctx.accumulated_registry,
+          accumulated_windows: child_ctx.accumulated_windows,
+        ),
+      )
+    }
+    _ -> {
+      // Fallback: normalize as a regular node
+      normalize_regular(node, scoped_id, ctx)
+    }
   }
 }
 
