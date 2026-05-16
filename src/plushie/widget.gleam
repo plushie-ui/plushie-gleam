@@ -465,8 +465,9 @@ fn build_handler_chain(
   scope: List(String),
   event_id: String,
 ) -> List(String) {
+  let path = strip_window(scope, window_id)
   let chain =
-    scope_to_widget_ids(scope)
+    scope_to_widget_ids(window_id, path)
     |> list.map(fn(id) { widget_key(window_id, id) })
     |> list.filter(fn(id) { dict.has_key(registry, id) })
 
@@ -475,7 +476,8 @@ fn build_handler_chain(
       // No parent widgets in scope. Check if the event's
       // target itself is a widget. Reconstruct the full
       // scoped ID: scope (reversed to forward order) + event id.
-      let target_id = widget_key(window_id, scope_to_id(scope, event_id))
+      let target_id =
+        widget_key(window_id, scope_to_id(window_id, path, event_id))
       case dict.has_key(registry, target_id) {
         True -> [target_id]
         False -> []
@@ -485,30 +487,52 @@ fn build_handler_chain(
   }
 }
 
-/// Reconstruct a full scoped ID from a reversed scope list and a
-/// local ID. The scope is reversed (innermost first) as stored in
-/// events; this function reverses it to forward order before joining.
-///
-/// scope_to_id(["form"], "submit") => "form/submit"
-/// scope_to_id([], "picker") => "picker"
-/// scope_to_id(["inner", "outer"], "btn") => "outer/inner/btn"
-fn scope_to_id(scope: List(String), id: String) -> String {
-  case scope {
-    [] -> id
-    _ -> string.join(list.reverse(scope), "/") <> "/" <> id
+/// Drop the trailing window_id from a reversed scope list if present.
+/// `make_target` appends window_id to scope; this undoes that so the
+/// remaining elements are purely the within-window path.
+fn strip_window(scope: List(String), window_id: String) -> List(String) {
+  case window_id, list.reverse(scope) {
+    "", _ -> scope
+    _, [last, ..rest] if last == window_id -> list.reverse(rest)
+    _, _ -> scope
   }
 }
 
-/// Convert a reversed scope list to forward-order scoped IDs,
-/// from innermost to outermost.
+/// Reconstruct the canonical scoped ID for an event target, matching
+/// the form produced by tree normalization: `window#path/path/id` for
+/// windowed apps, `path/path/id` otherwise. The scope is innermost-
+/// first (window-stripped) as produced by `strip_window`.
 ///
-/// scope = ["child", "parent"] produces ["parent/child", "parent"]
-fn scope_to_widget_ids(scope: List(String)) -> List(String) {
-  let forward = list.reverse(scope)
-  build_scope_ids(forward, [], [])
+/// scope_to_id("", ["form"], "submit") => "form/submit"
+/// scope_to_id("", [], "picker") => "picker"
+/// scope_to_id("main", [], "dimmer") => "main#dimmer"
+/// scope_to_id("main", ["content"], "dimmer") => "main#content/dimmer"
+fn scope_to_id(window_id: String, path: List(String), id: String) -> String {
+  let body = case path {
+    [] -> id
+    _ -> string.join(list.reverse(path), "/") <> "/" <> id
+  }
+  case window_id {
+    "" -> body
+    _ -> window_id <> "#" <> body
+  }
+}
+
+/// Convert a within-window path (innermost first) to a list of
+/// progressively shorter scoped IDs, from innermost to outermost.
+/// Each ID is in the canonical form returned by tree normalization.
+///
+/// scope_to_widget_ids("main", ["child", "parent"])
+///   => ["main#parent/child", "main#parent"]
+/// scope_to_widget_ids("", ["child", "parent"])
+///   => ["parent/child", "parent"]
+fn scope_to_widget_ids(window_id: String, path: List(String)) -> List(String) {
+  let forward = list.reverse(path)
+  build_scope_ids(window_id, forward, [], [])
 }
 
 fn build_scope_ids(
+  window_id: String,
   parts: List(String),
   prefix: List(String),
   acc: List(String),
@@ -519,8 +543,12 @@ fn build_scope_ids(
     [] -> acc
     [part, ..rest] -> {
       let new_prefix = list.append(prefix, [part])
-      let scoped_id = string.join(new_prefix, "/")
-      build_scope_ids(rest, new_prefix, [scoped_id, ..acc])
+      let body = string.join(new_prefix, "/")
+      let scoped_id = case window_id {
+        "" -> body
+        _ -> window_id <> "#" <> body
+      }
+      build_scope_ids(window_id, rest, new_prefix, [scoped_id, ..acc])
     }
   }
 }
@@ -710,55 +738,57 @@ pub fn handle_widget_timer(
 ///
 /// For widget events with scope: the innermost scope element is the
 /// widget's local ID; remaining elements are the parent scope.
-/// For non-widget events (timers): split the registered widget_id
-/// on "/" to derive id/scope.
+/// Resolve the (window_id, id, scope) identity that an emitted
+/// CustomWidget event should carry, given the inbound event and the
+/// registered widget that produced the Emit.
+///
+/// The intercepting widget is the source of truth: its registered
+/// key identifies the widget unambiguously, even when the inbound
+/// event originated at an interactive shape inside the widget (whose
+/// scope begins with the widget id) or at the widget's own canvas
+/// (whose target id IS the widget). For non-widget events such as
+/// timers, the inbound target may be absent entirely.
 fn resolve_emit_identity(
-  ev: Event,
+  _ev: Event,
   widget_id: String,
 ) -> #(String, String, List(String)) {
-  let target = extract_target(ev)
-  let window_id = case target {
-    Some(t) -> t.window_id
-    None -> ""
-  }
-  let scope = case target {
-    Some(t) -> t.scope
-    None -> []
-  }
-  case scope {
-    [canvas_id, ..parent_scope] -> #(window_id, canvas_id, parent_scope)
-    [] -> {
-      let id = case target {
-        Some(t) -> t.id
-        None -> ""
-      }
-      case id {
-        "" -> {
-          let #(widget_window_id, local_id, widget_scope) =
-            split_widget_key(widget_id)
-          #(widget_window_id, local_id, widget_scope)
-        }
-        _ -> #(window_id, id, [])
-      }
-    }
-  }
+  split_widget_key(widget_id)
 }
 
 fn split_widget_key(widget_key: String) -> #(String, String, List(String)) {
   case string.split(widget_key, key_sep) {
     [window_id, scoped_id] -> {
-      let #(local, scope) = split_scoped_widget_id(scoped_id)
+      let #(local, inner_scope) = split_scoped_widget_id(scoped_id)
+      // Append the window to scope to match the convention used by
+      // `event.make_target` (innermost-first, window last).
+      let scope = case window_id {
+        "" -> inner_scope
+        _ -> list.append(inner_scope, [window_id])
+      }
       #(window_id, local, scope)
     }
     _ -> #("", widget_key, [])
   }
 }
 
-fn split_scoped_widget_id(widget_id: String) -> #(String, List(String)) {
-  let parts = string.split(widget_id, "/")
+/// Split a canonical scoped ID into (local_id, inner_scope) where
+/// inner_scope is innermost-first and does NOT include the window.
+///
+/// "main#content/dimmer" -> #("dimmer", ["content"])
+/// "main#dimmer"          -> #("dimmer", [])
+/// "form/submit"          -> #("submit", ["form"])
+/// "dimmer"               -> #("dimmer", [])
+fn split_scoped_widget_id(scoped_id: String) -> #(String, List(String)) {
+  // Strip the window prefix if present. The window is the segment
+  // before the `#`; the rest is the within-window path.
+  let path = case string.split_once(scoped_id, "#") {
+    Ok(#(_window, rest)) -> rest
+    Error(_) -> scoped_id
+  }
+  let parts = string.split(path, "/")
   case list.reverse(parts) {
     [local, ..parent_parts] -> #(local, parent_parts)
-    _ -> #(widget_id, [])
+    _ -> #(scoped_id, [])
   }
 }
 
