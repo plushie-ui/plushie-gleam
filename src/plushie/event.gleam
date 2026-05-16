@@ -22,6 +22,7 @@
 import gleam/dynamic.{type Dynamic}
 import gleam/list
 import gleam/option.{type Option}
+import gleam/result
 import gleam/string
 import plushie/renderer_exit.{type RendererExit}
 
@@ -570,6 +571,34 @@ pub fn split_scoped_id(wire_id: String) -> #(String, List(String), String) {
       }
   }
   #(local, scope, window)
+}
+
+/// Route a Click event to a msg by matching the clicked widget's local id.
+///
+/// Scans `routes` in order and returns the first msg whose id matches
+/// `target.id`. Returns `default` when no id matches or when the event is
+/// not a `Widget(Click(...))`.
+///
+/// ```gleam
+/// fn on_event(e: Event) -> Msg {
+///   event.click_route(e, [
+///     #("cut", CutPower),
+///     #("boost", Boost),
+///   ], default: Ignore)
+/// }
+/// ```
+pub fn click_route(
+  event: Event,
+  routes: List(#(String, msg)),
+  default default: msg,
+) -> msg {
+  case event {
+    Widget(Click(target: EventTarget(id: clicked_id, ..))) ->
+      list.find(routes, fn(r) { r.0 == clicked_id })
+      |> result.map(fn(r) { r.1 })
+      |> result.unwrap(default)
+    _ -> default
+  }
 }
 
 /// Build an EventTarget from a wire-format scoped ID and explicit window ID.

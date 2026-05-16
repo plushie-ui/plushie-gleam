@@ -6,6 +6,12 @@ import plushie/event.{
   Widget, Window, WindowEvent,
 }
 
+type Msg {
+  DidCut
+  DidBoost
+  Ignored
+}
+
 pub fn widget_click_test() {
   let evt =
     Widget(
@@ -152,4 +158,43 @@ pub fn protocol_version_mismatch_is_a_typed_error_event_test() {
     }
     _ -> should.fail()
   }
+}
+
+fn make_click(id: String) -> Event {
+  Widget(
+    Click(target: EventTarget(window_id: "main", id: id, scope: [], full: id)),
+  )
+}
+
+pub fn click_route_matches_id_test() {
+  let routes = [#("cut", DidCut), #("boost", DidBoost)]
+  should.equal(
+    event.click_route(make_click("cut"), routes, default: Ignored),
+    DidCut,
+  )
+  should.equal(
+    event.click_route(make_click("boost"), routes, default: Ignored),
+    DidBoost,
+  )
+}
+
+pub fn click_route_returns_default_when_id_unmatched_test() {
+  let routes = [#("cut", DidCut), #("boost", DidBoost)]
+  should.equal(
+    event.click_route(make_click("unknown"), routes, default: Ignored),
+    Ignored,
+  )
+}
+
+pub fn click_route_returns_default_for_non_click_event_test() {
+  let routes = [#("cut", DidCut)]
+  let non_click = Timer(TimerEvent(tag: "tick", timestamp: 0))
+  should.equal(event.click_route(non_click, routes, default: Ignored), Ignored)
+}
+
+pub fn click_route_returns_default_for_empty_routes_test() {
+  should.equal(
+    event.click_route(make_click("cut"), [], default: Ignored),
+    Ignored,
+  )
 }
