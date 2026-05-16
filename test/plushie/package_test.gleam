@@ -67,7 +67,7 @@ pub fn package_config_text_contains_real_start_values_test() {
   |> string.contains("working_dir = \".\"")
   |> should.equal(True)
   text
-  |> string.contains("command = [\"bin/connect\"]")
+  |> string.contains("command = [\"bin/start_host\"]")
   |> should.equal(True)
   text
   |> string.contains("\"WAYLAND_DISPLAY\"")
@@ -78,11 +78,11 @@ pub fn package_config_text_documents_windows_cmd_convention_test() {
   let text = package_config_text()
 
   text
-  |> string.contains("bin/connect is the POSIX entry point")
+  |> string.contains("bin/start_host is the POSIX entry point")
   |> should.equal(True)
   text
   |> string.contains(
-    "windows-* targets the SDK automatically uses bin/connect.cmd",
+    "windows-* targets the SDK automatically uses bin/start_host.cmd",
   )
   |> should.equal(True)
 }
@@ -161,15 +161,15 @@ pub fn package_target_accepts_windows_test() {
   |> should.equal(Ok(Nil))
 }
 
-pub fn connect_script_windows_uses_cmd_filename_test() {
-  let #(filename, _content) = connect_script("windows", "my_app@connect")
+pub fn start_host_script_windows_uses_cmd_filename_test() {
+  let #(filename, _content) = start_host_script("windows", "my_app@connect")
 
   filename
-  |> should.equal("bin/connect.cmd")
+  |> should.equal("bin/start_host.cmd")
 }
 
-pub fn connect_script_windows_invokes_erl_exe_test() {
-  let #(_filename, content) = connect_script("windows", "my_app@connect")
+pub fn start_host_script_windows_invokes_erl_exe_test() {
+  let #(_filename, content) = start_host_script("windows", "my_app@connect")
 
   content
   |> string.contains("erl.exe")
@@ -182,23 +182,23 @@ pub fn connect_script_windows_invokes_erl_exe_test() {
   |> should.equal(True)
 }
 
-pub fn connect_script_windows_starts_with_echo_off_test() {
-  let #(_filename, content) = connect_script("windows", "my_app@connect")
+pub fn start_host_script_windows_starts_with_echo_off_test() {
+  let #(_filename, content) = start_host_script("windows", "my_app@connect")
 
   content
   |> string.starts_with("@echo off")
   |> should.equal(True)
 }
 
-pub fn connect_script_posix_uses_plain_filename_test() {
-  let #(filename, _content) = connect_script("linux", "my_app@connect")
+pub fn start_host_script_posix_uses_plain_filename_test() {
+  let #(filename, _content) = start_host_script("linux", "my_app@connect")
 
   filename
-  |> should.equal("bin/connect")
+  |> should.equal("bin/start_host")
 }
 
-pub fn connect_script_posix_invokes_erl_test() {
-  let #(_filename, content) = connect_script("linux", "my_app@connect")
+pub fn start_host_script_posix_invokes_erl_test() {
+  let #(_filename, content) = start_host_script("linux", "my_app@connect")
 
   content
   |> string.contains("runtime/erlang/bin/erl")
@@ -256,7 +256,7 @@ pub fn partial_manifest_contains_required_fields_test() {
   |> should.equal(True)
 }
 
-pub fn partial_manifest_posix_uses_connect_command_test() {
+pub fn partial_manifest_posix_uses_start_host_command_test() {
   let text =
     partial_manifest(
       "dev.example.app",
@@ -270,7 +270,7 @@ pub fn partial_manifest_posix_uses_connect_command_test() {
     )
 
   text
-  |> string.contains("command = [\"bin/connect\"]")
+  |> string.contains("command = [\"bin/start_host\"]")
   |> should.equal(True)
 }
 
@@ -288,7 +288,7 @@ pub fn partial_manifest_windows_uses_cmd_command_test() {
     )
 
   text
-  |> string.contains("command = [\"bin/connect.cmd\"]")
+  |> string.contains("command = [\"bin/start_host.cmd\"]")
   |> should.equal(True)
 }
 
@@ -395,8 +395,8 @@ fn portable_tools_check(
 @external(erlang, "plushie_package_ffi", "package_target_supported")
 fn package_target_supported(target: String) -> Result(Nil, List(String))
 
-@external(erlang, "plushie_package_ffi", "connect_script")
-fn connect_script(os: String, connect_module: String) -> #(String, String)
+@external(erlang, "plushie_package_ffi", "start_host_script")
+fn start_host_script(os: String, connect_module: String) -> #(String, String)
 
 @external(erlang, "plushie_package_ffi", "partial_manifest")
 fn partial_manifest(

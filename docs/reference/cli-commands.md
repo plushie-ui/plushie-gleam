@@ -241,7 +241,7 @@ This module owns the Gleam-specific part of standalone packaging:
 - Runs `gleam export erlang-shipment` and copies it to `dist/payload/`.
 - Bundles the active Erlang runtime by default.
 - Places the selected renderer at `dist/payload/bin/plushie-renderer`.
-- Writes `bin/connect` (POSIX) or `bin/connect.cmd` (Windows), which
+- Writes `bin/start_host` (POSIX) or `bin/start_host.cmd` (Windows), which
   starts the shipment and calls the configured connect module.
 - Writes a partial `dist/plushie-package.toml` (schema_version, app
   identity, target, host SDK info, start command, renderer section).
@@ -286,14 +286,14 @@ exists in the project root, it is forwarded automatically.
 
 ### Windows targets
 
-On `windows-*` targets the SDK writes `bin/connect.cmd` instead of
-`bin/connect`, and sets `start.command = ["bin/connect.cmd"]` in the
+On `windows-*` targets the SDK writes `bin/start_host.cmd` instead of
+`bin/start_host`, and sets `start.command = ["bin/start_host.cmd"]` in the
 partial manifest automatically. The `.cmd` script resolves `erl.exe`
 from the bundled runtime at `runtime\erlang\bin\erl.exe`, falling back
 to `erl.exe` on `PATH`.
 
 The `--write-package-config` template always writes
-`command = ["bin/connect"]` with a comment explaining the convention.
+`command = ["bin/start_host"]` with a comment explaining the convention.
 
 ### Erlang runtime
 

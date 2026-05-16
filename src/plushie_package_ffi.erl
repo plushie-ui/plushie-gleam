@@ -8,7 +8,7 @@
     package_tools_check/3,
     portable_tools_check/2,
     package_target_supported/1,
-    connect_script/2,
+    start_host_script/2,
     partial_manifest/8
 ]).
 -include_lib("kernel/include/file.hrl").
@@ -60,9 +60,9 @@ package_payload(ProtocolVersion) ->
     install_renderer(RendererKind, RendererPath),
     build_shipment(PayloadDir),
     maybe_copy_erlang_runtime(PayloadDir),
-    write_connect_script(PayloadDir, ConnectModule),
+    write_start_host_script(PayloadDir, ConnectModule),
 
-    StartCommand = connect_script_name(Target),
+    StartCommand = start_host_script_name(Target),
     Manifest = partial_manifest(#{
         app_id => AppId,
         app_name => AppName,
@@ -101,10 +101,10 @@ assemble_package(ManifestPath, PayloadDir, PackageConfigArg) ->
     _ = run_or_fail(Tool, Args),
     ok.
 
-connect_script_name(Target) ->
+start_host_script_name(Target) ->
     case binary:match(Target, <<"windows">>) of
-        {_, _} -> <<"bin/connect.cmd">>;
-        nomatch -> <<"bin/connect">>
+        {_, _} -> <<"bin/start_host.cmd">>;
+        nomatch -> <<"bin/start_host">>
     end.
 
 %% Test-facing arity-8 form with positional arguments.
@@ -118,7 +118,7 @@ partial_manifest(AppId, AppName, AppVersion, Target, HostSdkVersion, PlushieRust
         plushie_rust_version => PlushieRustVersion,
         protocol_version => ProtocolVersion,
         renderer_kind => RendererKind,
-        start_command => connect_script_name(Target)
+        start_command => start_host_script_name(Target)
     }).
 
 partial_manifest(Values) ->
@@ -156,9 +156,9 @@ package_config_text() ->
         "# Relative to the extracted app package.\n",
         "working_dir = \".\"\n",
         "# Structured argv. The first item is the packaged host executable.\n",
-        "# bin/connect is the POSIX entry point.\n",
-        "# On windows-* targets the SDK automatically uses bin/connect.cmd.\n",
-        "command = [\"bin/connect\"]\n",
+        "# bin/start_host is the POSIX entry point.\n",
+        "# On windows-* targets the SDK automatically uses bin/start_host.cmd.\n",
+        "command = [\"bin/start_host\"]\n",
         "# Environment variable names copied from the parent process.\n",
         "forward_env = [\n",
         "  \"PATH\",\n",
@@ -422,14 +422,14 @@ find_runtime_dir(Root, Pattern) ->
         Dirs -> lists:last(lists:sort(Dirs))
     end.
 
-write_connect_script(PayloadDir, ConnectModule) ->
+write_start_host_script(PayloadDir, ConnectModule) ->
     case os:type() of
-        {win32, _} -> write_connect_script_windows(PayloadDir, ConnectModule);
-        _          -> write_connect_script_posix(PayloadDir, ConnectModule)
+        {win32, _} -> write_start_host_script_windows(PayloadDir, ConnectModule);
+        _          -> write_start_host_script_posix(PayloadDir, ConnectModule)
     end.
 
-write_connect_script_posix(PayloadDir, ConnectModule) ->
-    Path = filename:join([PayloadDir, "bin", "connect"]),
+write_start_host_script_posix(PayloadDir, ConnectModule) ->
+    Path = filename:join([PayloadDir, "bin", "start_host"]),
     Script = [
         "#!/bin/sh\n",
         "set -eu\n",
@@ -448,8 +448,8 @@ write_connect_script_posix(PayloadDir, ConnectModule) ->
     ok = file:write_file(Path, iolist_to_binary(Script)),
     make_executable(Path).
 
-write_connect_script_windows(PayloadDir, ConnectModule) ->
-    Path = filename:join([PayloadDir, "bin", "connect.cmd"]),
+write_start_host_script_windows(PayloadDir, ConnectModule) ->
+    Path = filename:join([PayloadDir, "bin", "start_host.cmd"]),
     Script = [
         "@echo off\r\n",
         "setlocal\r\n",
@@ -463,11 +463,11 @@ write_connect_script_windows(PayloadDir, ConnectModule) ->
     ],
     ok = file:write_file(Path, iolist_to_binary(Script)).
 
-%% Returns {FileName, Content} for the connect wrapper given an OS type string
+%% Returns {FileName, Content} for the start_host wrapper given an OS type string
 %% and an Erlang module name. Used by tests to verify generated artifacts.
-connect_script(<<"windows">>, ConnectModule) ->
+start_host_script(<<"windows">>, ConnectModule) ->
     {
-        <<"bin/connect.cmd">>,
+        <<"bin/start_host.cmd">>,
         iolist_to_binary([
             "@echo off\r\n",
             "setlocal\r\n",
@@ -480,9 +480,9 @@ connect_script(<<"windows">>, ConnectModule) ->
             "\"%ERL%\" -pa \"%DIR%\\shipment\\*/ebin\" -eval \"", ConnectModule, ":main().\" -noinput -extra %*\r\n"
         ])
     };
-connect_script(_, ConnectModule) ->
+start_host_script(_, ConnectModule) ->
     {
-        <<"bin/connect">>,
+        <<"bin/start_host">>,
         iolist_to_binary([
             "#!/bin/sh\n",
             "set -eu\n",
