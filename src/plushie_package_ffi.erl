@@ -37,7 +37,6 @@ do_package(ProtocolVersion) ->
             ok = file:write_file(Path, package_config_text()),
             io:format("Wrote ~s~n", [Path]);
         false ->
-            _ = archive_tar(),
             package_payload(ProtocolVersion)
     end.
 
