@@ -22,6 +22,7 @@ pages = [
   { title = "Shared State", path = "shared-state.html", source = "./docs/guides/16-shared-state.md" },
   { title = "App Lifecycle", path = "app-lifecycle.html", source = "./docs/reference/app-lifecycle.md" },
   { title = "Configuration", path = "configuration.html", source = "./docs/reference/configuration.md" },
+  { title = "Packaging and Distribution", path = "packaging-and-distribution.html", source = "./docs/reference/packaging-and-distribution.md" },
   { title = "Wire Protocol", path = "wire-protocol.html", source = "./docs/reference/wire-protocol.md" },
 ]
 

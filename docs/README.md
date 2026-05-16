@@ -65,6 +65,10 @@ Lookup material organized by topic. Each page is self-contained.
 - [Events](reference/events.md) - every `Event` variant with
   fields, the `WidgetEvent` taxonomy, modifier semantics, a
   pattern-matching cookbook, and the event pipeline
+- [Packaging and Distribution](reference/packaging-and-distribution.md) -
+  `plushie/package`, payload layout, Erlang runtime bundling,
+  managed tool set, package config, portable and bundle
+  artifacts, signing, CI workflow
 - [Scoped IDs](reference/scoped-ids.md) - ID scoping rules,
   scope matching, command paths
 - [Subscriptions](reference/subscriptions.md) - timers,
