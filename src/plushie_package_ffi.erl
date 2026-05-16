@@ -402,15 +402,8 @@ resolve_stock_renderer() ->
 resolve_stock_renderer_without_env() ->
     ShipmentRenderer = filename:join(["build", "erlang-shipment", "plushie-renderer"]),
     case is_executable(ShipmentRenderer) of
-        true ->
-            ShipmentRenderer;
-        false ->
-            case getenv("PLUSHIE_RUST_SOURCE_PATH") of
-                {ok, _SourcePath} ->
-                    sync_stock_renderer();
-                error ->
-                    sync_stock_renderer()
-            end
+        true -> ShipmentRenderer;
+        false -> sync_stock_renderer()
     end.
 
 sync_stock_renderer() ->
